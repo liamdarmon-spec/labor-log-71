@@ -178,6 +178,7 @@ export const BulkEntryTab = () => {
       ...prev,
       [workerId]: {
         ...prev[workerId],
+        isFullDay: false, // Disable full day when adding multiple projects
         jobEntries: [
           ...prev[workerId].jobEntries,
           {
