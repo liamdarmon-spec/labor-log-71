@@ -420,7 +420,7 @@ const ViewLogs = () => {
                 </TabsTrigger>
               </TabsList>
               <TabsContent value="bulk" className="mt-6">
-                <BulkEntryTab />
+                <BulkEntryTab onSuccess={() => setIsAddEntryDialogOpen(false)} />
               </TabsContent>
               <TabsContent value="single" className="mt-6">
                 <SingleEntryTab />

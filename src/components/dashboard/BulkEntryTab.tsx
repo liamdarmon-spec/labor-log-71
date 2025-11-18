@@ -66,7 +66,7 @@ interface BulkEntry {
   notes: string;
 }
 
-export const BulkEntryTab = () => {
+export const BulkEntryTab = ({ onSuccess }: { onSuccess?: () => void }) => {
   const navigate = useNavigate();
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [workers, setWorkers] = useState<Worker[]>([]);
@@ -373,8 +373,13 @@ export const BulkEntryTab = () => {
         description: `Logged ${validEntries.length} time entries for ${date}`,
       });
 
-      // Navigate to view logs page
-      navigate('/view-logs');
+      // Call onSuccess callback if provided (for dialog close)
+      if (onSuccess) {
+        onSuccess();
+      } else {
+        // Navigate to view logs page only if not in a dialog
+        navigate('/view-logs');
+      }
 
       // Reset entries
       const resetEntries: Record<string, BulkEntry> = {};
