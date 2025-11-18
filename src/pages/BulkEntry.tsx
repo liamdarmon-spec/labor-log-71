@@ -23,10 +23,17 @@ interface Project {
   id: string;
   project_name: string;
   client_name: string;
+  company_id: string | null;
+}
+
+interface Company {
+  id: string;
+  name: string;
 }
 
 interface BulkEntry {
   worker_id: string;
+  company_id: string;
   project_id: string;
   hours_worked: string;
   notes: string;
@@ -36,6 +43,7 @@ const BulkEntry = () => {
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [companies, setCompanies] = useState<Company[]>([]);
   const [entries, setEntries] = useState<Record<string, BulkEntry>>({});
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
@@ -43,6 +51,7 @@ const BulkEntry = () => {
   useEffect(() => {
     fetchWorkers();
     fetchProjects();
+    fetchCompanies();
   }, []);
 
   const fetchWorkers = async () => {
@@ -65,6 +74,7 @@ const BulkEntry = () => {
       data?.forEach(worker => {
         initialEntries[worker.id] = {
           worker_id: worker.id,
+          company_id: '',
           project_id: '',
           hours_worked: '',
           notes: '',
@@ -77,7 +87,7 @@ const BulkEntry = () => {
   const fetchProjects = async () => {
     const { data, error } = await supabase
       .from('projects')
-      .select('id, project_name, client_name')
+      .select('id, project_name, client_name, company_id')
       .eq('status', 'Active')
       .order('project_name');
 
@@ -92,14 +102,45 @@ const BulkEntry = () => {
     }
   };
 
+  const fetchCompanies = async () => {
+    const { data, error } = await supabase
+      .from('companies')
+      .select('id, name')
+      .order('name');
+
+    if (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to load companies',
+        variant: 'destructive',
+      });
+    } else {
+      setCompanies(data || []);
+    }
+  };
+
+  const getFilteredProjects = (companyId: string) => {
+    if (!companyId) return [];
+    return projects.filter(p => p.company_id === companyId);
+  };
+
   const updateEntry = (workerId: string, field: keyof BulkEntry, value: string) => {
-    setEntries(prev => ({
-      ...prev,
-      [workerId]: {
-        ...prev[workerId],
-        [field]: value,
-      },
-    }));
+    setEntries(prev => {
+      const updated = {
+        ...prev,
+        [workerId]: {
+          ...prev[workerId],
+          [field]: value,
+        },
+      };
+      
+      // If changing company, reset project selection
+      if (field === 'company_id') {
+        updated[workerId].project_id = '';
+      }
+      
+      return updated;
+    });
   };
 
   const handleSubmit = async () => {
@@ -142,6 +183,7 @@ const BulkEntry = () => {
       workers.forEach(worker => {
         resetEntries[worker.id] = {
           worker_id: worker.id,
+          company_id: '',
           project_id: '',
           hours_worked: '',
           notes: '',
@@ -225,6 +267,7 @@ const BulkEntry = () => {
                     <TableHead className="font-semibold w-[200px]">Worker</TableHead>
                     <TableHead className="font-semibold w-[120px]">Trade</TableHead>
                     <TableHead className="font-semibold w-[100px]">Rate/hr</TableHead>
+                    <TableHead className="font-semibold w-[180px]">Company</TableHead>
                     <TableHead className="font-semibold w-[250px]">Project</TableHead>
                     <TableHead className="font-semibold w-[120px]">Hours</TableHead>
                     <TableHead className="font-semibold w-[100px]">Cost</TableHead>
@@ -255,14 +298,32 @@ const BulkEntry = () => {
                         </TableCell>
                         <TableCell>
                           <Select
-                            value={entry?.project_id || ''}
-                            onValueChange={(value) => updateEntry(worker.id, 'project_id', value)}
+                            value={entry?.company_id || ''}
+                            onValueChange={(value) => updateEntry(worker.id, 'company_id', value)}
                           >
                             <SelectTrigger className="h-9">
-                              <SelectValue placeholder="Select project" />
+                              <SelectValue placeholder="Select company" />
                             </SelectTrigger>
                             <SelectContent className="bg-popover z-50">
-                              {projects.map((project) => (
+                              {companies.map((company) => (
+                                <SelectItem key={company.id} value={company.id}>
+                                  {company.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                        <TableCell>
+                          <Select
+                            value={entry?.project_id || ''}
+                            onValueChange={(value) => updateEntry(worker.id, 'project_id', value)}
+                            disabled={!entry?.company_id}
+                          >
+                            <SelectTrigger className="h-9">
+                              <SelectValue placeholder={entry?.company_id ? "Select project" : "Select company first"} />
+                            </SelectTrigger>
+                            <SelectContent className="bg-popover z-50">
+                              {getFilteredProjects(entry?.company_id || '').map((project) => (
                                 <SelectItem key={project.id} value={project.id}>
                                   {project.project_name}
                                 </SelectItem>
