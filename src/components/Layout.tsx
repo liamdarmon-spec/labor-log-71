@@ -35,28 +35,24 @@ export const Layout = ({ children }: LayoutProps) => {
               <BarChart3 className="w-4 h-4" />
               <span className="hidden sm:inline">Dashboard</span>
             </Button>
-            {isAdmin && (
-              <>
-                <Button
-                  variant={location.pathname === '/backend' ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => navigate('/backend')}
-                  className="gap-2"
-                >
-                  <Database className="w-4 h-4" />
-                  <span className="hidden sm:inline">Backend</span>
-                </Button>
-                <Button
-                  variant={location.pathname === '/admin' ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => navigate('/admin')}
-                  className="gap-2"
-                >
-                  <Settings className="w-4 h-4" />
-                  <span className="hidden sm:inline">Admin</span>
-                </Button>
-              </>
-            )}
+            <Button
+              variant={location.pathname === '/backend' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => navigate('/backend')}
+              className="gap-2"
+            >
+              <Database className="w-4 h-4" />
+              <span className="hidden sm:inline">Backend</span>
+            </Button>
+            <Button
+              variant={location.pathname === '/admin' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => navigate('/admin')}
+              className="gap-2"
+            >
+              <Settings className="w-4 h-4" />
+              <span className="hidden sm:inline">Admin</span>
+            </Button>
             <Button
               variant="ghost"
               size="sm"
