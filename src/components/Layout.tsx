@@ -53,17 +53,15 @@ export const Layout = ({ children }: LayoutProps) => {
               <Eye className="w-4 h-4" />
               <span className="hidden sm:inline">View Logs</span>
             </Button>
-            {isAdmin && (
-              <Button
-                variant={location.pathname === '/admin' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => navigate('/admin')}
-                className="gap-2"
-              >
-                <Settings className="w-4 h-4" />
-                <span className="hidden sm:inline">Admin</span>
-              </Button>
-            )}
+            <Button
+              variant={location.pathname === '/admin' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => navigate('/admin')}
+              className="gap-2"
+            >
+              <Settings className="w-4 h-4" />
+              <span className="hidden sm:inline">Admin</span>
+            </Button>
             <Button
               variant="ghost"
               size="sm"
