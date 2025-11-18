@@ -41,6 +41,7 @@ export type Database = {
           id: string
           notes: string | null
           project_id: string
+          trade_id: string | null
           worker_id: string
         }
         Insert: {
@@ -51,6 +52,7 @@ export type Database = {
           id?: string
           notes?: string | null
           project_id: string
+          trade_id?: string | null
           worker_id: string
         }
         Update: {
@@ -61,6 +63,7 @@ export type Database = {
           id?: string
           notes?: string | null
           project_id?: string
+          trade_id?: string | null
           worker_id?: string
         }
         Relationships: [
@@ -69,6 +72,13 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "daily_logs_trade_id_fkey"
+            columns: ["trade_id"]
+            isOneToOne: false
+            referencedRelation: "trades"
             referencedColumns: ["id"]
           },
           {

@@ -41,21 +41,28 @@ interface Company {
   name: string;
 }
 
+interface Trade {
+  id: string;
+  name: string;
+}
+
 interface JobEntry {
   id: string;
   company_id: string;
   project_id: string;
   hours_worked: string;
+  trade_id: string;
 }
 
 const DailyLog = () => {
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
+  const [trades, setTrades] = useState<Trade[]>([]);
   const [loading, setLoading] = useState(false);
   const [isFullDay, setIsFullDay] = useState(true);
   const [jobEntries, setJobEntries] = useState<JobEntry[]>([
-    { id: '1', company_id: '', project_id: '', hours_worked: '' }
+    { id: '1', company_id: '', project_id: '', hours_worked: '', trade_id: '' }
   ]);
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -68,6 +75,7 @@ const DailyLog = () => {
     fetchWorkers();
     fetchProjects();
     fetchCompanies();
+    fetchTrades();
   }, []);
 
   const fetchWorkers = async () => {
@@ -123,13 +131,30 @@ const DailyLog = () => {
     }
   };
 
+  const fetchTrades = async () => {
+    const { data, error } = await supabase
+      .from('trades')
+      .select('id, name')
+      .order('name');
+
+    if (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to load trades',
+        variant: 'destructive',
+      });
+    } else {
+      setTrades(data || []);
+    }
+  };
+
   const getFilteredProjects = (companyId: string) => {
     if (!companyId) return [];
     return projects.filter(p => p.company_id === companyId);
   };
 
   const addJobEntry = () => {
-    setJobEntries([...jobEntries, { id: Date.now().toString(), company_id: '', project_id: '', hours_worked: '' }]);
+    setJobEntries([...jobEntries, { id: Date.now().toString(), company_id: '', project_id: '', hours_worked: '', trade_id: '' }]);
   };
 
   const removeJobEntry = (id: string) => {
@@ -138,7 +163,7 @@ const DailyLog = () => {
     }
   };
 
-  const updateJobEntry = (id: string, field: 'company_id' | 'project_id' | 'hours_worked', value: string) => {
+  const updateJobEntry = (id: string, field: 'company_id' | 'project_id' | 'hours_worked' | 'trade_id', value: string) => {
     setJobEntries(jobEntries.map(entry => {
       if (entry.id === id) {
         // If changing company, reset project selection
@@ -218,7 +243,7 @@ const DailyLog = () => {
         worker_id: '',
         notes: '',
       });
-      setJobEntries([{ id: '1', company_id: '', project_id: '', hours_worked: '' }]);
+      setJobEntries([{ id: '1', company_id: '', project_id: '', hours_worked: '', trade_id: '' }]);
       setIsFullDay(true);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -307,7 +332,7 @@ const DailyLog = () => {
                   onCheckedChange={(checked) => {
                     setIsFullDay(checked);
                     if (checked) {
-                      setJobEntries([{ id: '1', company_id: '', project_id: '', hours_worked: '' }]);
+                      setJobEntries([{ id: '1', company_id: '', project_id: '', hours_worked: '', trade_id: '' }]);
                     }
                   }}
                   disabled={loading}
@@ -332,6 +357,28 @@ const DailyLog = () => {
                         {companies.map((company) => (
                           <SelectItem key={company.id} value={company.id}>
                             {company.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="trade" className="text-sm font-medium">
+                      Trade
+                    </Label>
+                    <Select
+                      value={jobEntries[0].trade_id}
+                      onValueChange={(value) => updateJobEntry('1', 'trade_id', value)}
+                      disabled={loading}
+                    >
+                      <SelectTrigger className="h-11">
+                        <SelectValue placeholder="Select trade" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-popover z-50">
+                        {trades.map((trade) => (
+                          <SelectItem key={trade.id} value={trade.id}>
+                            {trade.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -401,6 +448,26 @@ const DailyLog = () => {
                         </div>
 
                         <div className="space-y-2">
+                          <Label className="text-xs text-muted-foreground">Trade</Label>
+                          <Select
+                            value={entry.trade_id}
+                            onValueChange={(value) => updateJobEntry(entry.id, 'trade_id', value)}
+                            disabled={loading}
+                          >
+                            <SelectTrigger className="h-10">
+                              <SelectValue placeholder="Select trade" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-popover z-50">
+                              {trades.map((trade) => (
+                                <SelectItem key={trade.id} value={trade.id}>
+                                  {trade.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="space-y-2">
                           <Label className="text-xs text-muted-foreground">Project</Label>
                           <Select
                             value={entry.project_id}
@@ -419,7 +486,7 @@ const DailyLog = () => {
                             </SelectContent>
                           </Select>
                         </div>
-                        
+
                         <div className="space-y-2">
                           <Label className="text-xs text-muted-foreground">Hours</Label>
                           <Input
