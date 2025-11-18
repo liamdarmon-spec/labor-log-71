@@ -24,6 +24,7 @@ interface Worker {
   name: string;
   trades: { name: string } | null;
   hourly_rate: number;
+  trade_id: string | null;
 }
 
 interface Project {
@@ -38,11 +39,17 @@ interface Company {
   name: string;
 }
 
+interface Trade {
+  id: string;
+  name: string;
+}
+
 interface JobEntry {
   id: string;
   company_id: string;
   project_id: string;
   hours_worked: string;
+  trade_id: string;
 }
 
 interface BulkEntry {
@@ -57,6 +64,7 @@ export const BulkEntryTab = () => {
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
+  const [trades, setTrades] = useState<Trade[]>([]);
   const [entries, setEntries] = useState<Record<string, BulkEntry>>({});
   const [editingWorker, setEditingWorker] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -66,12 +74,13 @@ export const BulkEntryTab = () => {
     fetchWorkers();
     fetchProjects();
     fetchCompanies();
+    fetchTrades();
   }, []);
 
   const fetchWorkers = async () => {
     const { data, error } = await supabase
       .from('workers')
-      .select('id, name, trades(name), hourly_rate')
+      .select('id, name, trades(name), hourly_rate, trade_id')
       .eq('active', true)
       .order('name');
 
@@ -88,7 +97,7 @@ export const BulkEntryTab = () => {
         initialEntries[worker.id] = {
           worker_id: worker.id,
           isFullDay: true,
-          jobEntries: [{ id: '1', company_id: '', project_id: '', hours_worked: '' }],
+          jobEntries: [{ id: '1', company_id: '', project_id: '', hours_worked: '', trade_id: worker.trade_id || '' }],
           notes: '',
         };
       });
@@ -110,6 +119,23 @@ export const BulkEntryTab = () => {
       });
     } else {
       setCompanies(data || []);
+    }
+  };
+
+  const fetchTrades = async () => {
+    const { data, error } = await supabase
+      .from('trades')
+      .select('id, name')
+      .order('name');
+
+    if (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to load trades',
+        variant: 'destructive',
+      });
+    } else {
+      setTrades(data || []);
     }
   };
 
@@ -147,6 +173,7 @@ export const BulkEntryTab = () => {
   };
 
   const addJobEntry = (workerId: string) => {
+    const worker = workers.find(w => w.id === workerId);
     setEntries(prev => ({
       ...prev,
       [workerId]: {
@@ -158,6 +185,7 @@ export const BulkEntryTab = () => {
             company_id: '',
             project_id: '',
             hours_worked: '',
+            trade_id: worker?.trade_id || '',
           }
         ]
       }
@@ -235,6 +263,7 @@ export const BulkEntryTab = () => {
               worker_id: entry.worker_id,
               project_id: job.project_id,
               hours_worked: hours,
+              trade_id: job.trade_id || null,
               notes: entry.notes || null,
             });
           } catch (error) {
@@ -280,7 +309,7 @@ export const BulkEntryTab = () => {
         resetEntries[worker.id] = {
           worker_id: worker.id,
           isFullDay: true,
-          jobEntries: [{ id: '1', company_id: '', project_id: '', hours_worked: '' }],
+          jobEntries: [{ id: '1', company_id: '', project_id: '', hours_worked: '', trade_id: worker.trade_id || '' }],
           notes: '',
         };
       });
@@ -364,7 +393,7 @@ export const BulkEntryTab = () => {
                   const entry = entries[worker.id] || { 
                     worker_id: worker.id, 
                     isFullDay: true,
-                    jobEntries: [{ id: '1', company_id: '', project_id: '', hours_worked: '' }],
+                    jobEntries: [{ id: '1', company_id: '', project_id: '', hours_worked: '', trade_id: worker.trade_id || '' }],
                     notes: '' 
                   };
                   const totalHours = getTotalHoursForWorker(worker.id);
@@ -456,7 +485,7 @@ export const BulkEntryTab = () => {
                       )}
                     </div>
                     
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label>Company</Label>
                         <Select
@@ -496,6 +525,25 @@ export const BulkEntryTab = () => {
                         </Select>
                       </div>
 
+                      <div className="space-y-2">
+                        <Label>Trade</Label>
+                        <Select
+                          value={job.trade_id}
+                          onValueChange={(value) => updateJobEntry(editingWorker, job.id, 'trade_id', value)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select trade" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {trades.map((trade) => (
+                              <SelectItem key={trade.id} value={trade.id}>
+                                {trade.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
                       {!entries[editingWorker].isFullDay && (
                         <div className="space-y-2">
                           <Label>Hours</Label>
@@ -515,14 +563,22 @@ export const BulkEntryTab = () => {
                 );
               })}
 
-              <Button
-                variant="outline"
-                onClick={() => addJobEntry(editingWorker)}
-                className="w-full"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Add Another Project
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => addJobEntry(editingWorker)}
+                  className="flex-1"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Another Project
+                </Button>
+                <Button
+                  onClick={() => setEditingWorker(null)}
+                  className="flex-1"
+                >
+                  Done
+                </Button>
+              </div>
             </div>
           )}
         </DialogContent>
