@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Calendar, Save, UserCheck, Plus, Trash2 } from 'lucide-react';
+import { Calendar, Save, UserCheck, Plus, Trash2, Edit } from 'lucide-react';
 import { z } from 'zod';
 
 const jobEntrySchema = z.object({
@@ -205,31 +205,67 @@ export const BulkEntryTab = () => {
   };
 
   const handleSubmit = async () => {
-    const validEntries = Object.values(entries).filter(
-      entry => entry.hours_worked && parseFloat(entry.hours_worked) > 0 && entry.project_id
-    );
-
-    if (validEntries.length === 0) {
-      toast({
-        title: 'No Entries',
-        description: 'Please add hours for at least one worker',
-        variant: 'destructive',
-      });
-      return;
-    }
-
     setLoading(true);
-
     try {
-      const logsToInsert = validEntries.map(entry => ({
-        date,
-        worker_id: entry.worker_id,
-        project_id: entry.project_id,
-        hours_worked: parseFloat(entry.hours_worked),
-        notes: entry.notes || null,
-      }));
+      const validEntries: any[] = [];
+      const errors: string[] = [];
 
-      const { error } = await supabase.from('daily_logs').insert(logsToInsert);
+      Object.values(entries).forEach((entry) => {
+        const worker = workers.find(w => w.id === entry.worker_id);
+        if (!worker) return;
+
+        const totalHours = getTotalHoursForWorker(entry.worker_id);
+        if (totalHours === 0) return;
+
+        // Validate job entries
+        entry.jobEntries.forEach((job, index) => {
+          if (!job.project_id || (!entry.isFullDay && !job.hours_worked)) return;
+
+          try {
+            const hours = entry.isFullDay ? 8 : parseFloat(job.hours_worked);
+            
+            jobEntrySchema.parse({
+              company_id: job.company_id,
+              project_id: job.project_id,
+              hours_worked: hours,
+            });
+
+            validEntries.push({
+              date,
+              worker_id: entry.worker_id,
+              project_id: job.project_id,
+              hours_worked: hours,
+              notes: entry.notes || null,
+            });
+          } catch (error) {
+            if (error instanceof z.ZodError) {
+              errors.push(`${worker.name} - Entry ${index + 1}: ${error.errors[0].message}`);
+            }
+          }
+        });
+      });
+
+      if (errors.length > 0) {
+        toast({
+          title: 'Validation Errors',
+          description: errors.join(', '),
+          variant: 'destructive',
+        });
+        setLoading(false);
+        return;
+      }
+
+      if (validEntries.length === 0) {
+        toast({
+          title: 'No entries to save',
+          description: 'Please add at least one entry with hours',
+          variant: 'destructive',
+        });
+        setLoading(false);
+        return;
+      }
+
+      const { error } = await supabase.from('daily_logs').insert(validEntries);
 
       if (error) throw error;
 
@@ -243,9 +279,8 @@ export const BulkEntryTab = () => {
       workers.forEach(worker => {
         resetEntries[worker.id] = {
           worker_id: worker.id,
-          company_id: '',
-          project_id: '',
-          hours_worked: '',
+          isFullDay: true,
+          jobEntries: [{ id: '1', company_id: '', project_id: '', hours_worked: '' }],
           notes: '',
         };
       });
@@ -315,21 +350,25 @@ export const BulkEntryTab = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[200px]">Worker</TableHead>
-                  <TableHead className="w-[150px]">Trade</TableHead>
-                  <TableHead className="w-[200px]">Company</TableHead>
-                  <TableHead className="w-[250px]">Project</TableHead>
+                  <TableHead className="w-[180px]">Worker</TableHead>
+                  <TableHead className="w-[120px]">Trade</TableHead>
+                  <TableHead className="w-[120px]">Full Day</TableHead>
                   <TableHead className="w-[120px]">Hours</TableHead>
                   <TableHead className="w-[120px]">Cost</TableHead>
-                  <TableHead>Notes</TableHead>
+                  <TableHead className="w-[200px]">Notes</TableHead>
+                  <TableHead className="w-[120px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {workers.map((worker) => {
-                  const entry = entries[worker.id] || { worker_id: worker.id, company_id: '', project_id: '', hours_worked: '', notes: '' };
-                  const hours = parseFloat(entry.hours_worked) || 0;
-                  const cost = hours * worker.hourly_rate;
-                  const filteredProjects = getFilteredProjects(entry.company_id);
+                  const entry = entries[worker.id] || { 
+                    worker_id: worker.id, 
+                    isFullDay: true,
+                    jobEntries: [{ id: '1', company_id: '', project_id: '', hours_worked: '' }],
+                    notes: '' 
+                  };
+                  const totalHours = getTotalHoursForWorker(worker.id);
+                  const cost = totalHours * worker.hourly_rate;
 
                   return (
                     <TableRow key={worker.id}>
@@ -338,9 +377,91 @@ export const BulkEntryTab = () => {
                         {worker.trades?.name || 'N/A'}
                       </TableCell>
                       <TableCell>
+                        <Switch
+                          checked={entry.isFullDay}
+                          onCheckedChange={(checked) => updateEntry(worker.id, 'isFullDay', checked)}
+                        />
+                      </TableCell>
+                      <TableCell className="font-medium">
+                        {totalHours.toFixed(1)}
+                      </TableCell>
+                      <TableCell className="font-medium">
+                        {totalHours > 0 ? `$${cost.toFixed(2)}` : '-'}
+                      </TableCell>
+                      <TableCell>
+                        <Textarea
+                          placeholder="Notes..."
+                          value={entry.notes}
+                          onChange={(e) => updateEntry(worker.id, 'notes', e.target.value)}
+                          className="min-h-[60px]"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setEditingWorker(worker.id)}
+                        >
+                          <Edit className="w-4 h-4 mr-2" />
+                          {entry.jobEntries.length > 0 && entry.jobEntries[0].project_id
+                            ? `${entry.jobEntries.length} Project${entry.jobEntries.length > 1 ? 's' : ''}`
+                            : 'Add Projects'}
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+
+          <div className="flex justify-between items-center pt-4">
+            <div className="text-sm text-muted-foreground">
+              <span className="font-semibold">Workers with Hours:</span> {workersWithHours} | 
+              <span className="font-semibold ml-2">Total Hours:</span> {totalHours.toFixed(2)} | 
+              <span className="font-semibold ml-2">Total Cost:</span> ${totalCost.toFixed(2)}
+            </div>
+            <Button onClick={handleSubmit} disabled={loading} className="gap-2">
+              <Save className="w-4 h-4" />
+              Save All Entries
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Project Entry Dialog */}
+      <Dialog open={!!editingWorker} onOpenChange={(open) => !open && setEditingWorker(null)}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              Add Projects for {workers.find(w => w.id === editingWorker)?.name}
+            </DialogTitle>
+          </DialogHeader>
+          {editingWorker && entries[editingWorker] && (
+            <div className="space-y-4">
+              {entries[editingWorker].jobEntries.map((job, index) => {
+                const filteredProjects = getFilteredProjects(job.company_id);
+                return (
+                  <div key={job.id} className="border rounded-lg p-4 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-semibold">Project Entry {index + 1}</h4>
+                      {entries[editingWorker].jobEntries.length > 1 && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeJobEntry(editingWorker, job.id)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
+                    
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <Label>Company</Label>
                         <Select
-                          value={entry.company_id}
-                          onValueChange={(value) => updateEntry(worker.id, 'company_id', value)}
+                          value={job.company_id}
+                          onValueChange={(value) => updateJobEntry(editingWorker, job.id, 'company_id', value)}
                         >
                           <SelectTrigger>
                             <SelectValue placeholder="Select company" />
@@ -353,15 +474,17 @@ export const BulkEntryTab = () => {
                             ))}
                           </SelectContent>
                         </Select>
-                      </TableCell>
-                      <TableCell>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Project</Label>
                         <Select
-                          value={entry.project_id}
-                          onValueChange={(value) => updateEntry(worker.id, 'project_id', value)}
-                          disabled={!entry.company_id}
+                          value={job.project_id}
+                          onValueChange={(value) => updateJobEntry(editingWorker, job.id, 'project_id', value)}
+                          disabled={!job.company_id}
                         >
                           <SelectTrigger>
-                            <SelectValue placeholder={entry.company_id ? "Select project" : "Select company first"} />
+                            <SelectValue placeholder={job.company_id ? "Select project" : "Select company first"} />
                           </SelectTrigger>
                           <SelectContent>
                             {filteredProjects.map((project) => (
@@ -371,58 +494,39 @@ export const BulkEntryTab = () => {
                             ))}
                           </SelectContent>
                         </Select>
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          type="number"
-                          step="0.5"
-                          min="0"
-                          max="24"
-                          placeholder="0.0"
-                          value={entry.hours_worked}
-                          onChange={(e) => updateEntry(worker.id, 'hours_worked', e.target.value)}
-                        />
-                      </TableCell>
-                      <TableCell className="font-medium">
-                        {hours > 0 ? `$${cost.toFixed(2)}` : '-'}
-                      </TableCell>
-                      <TableCell>
-                        <Textarea
-                          placeholder="Notes..."
-                          value={entry.notes}
-                          onChange={(e) => updateEntry(worker.id, 'notes', e.target.value)}
-                          className="min-h-[60px]"
-                        />
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
+                      </div>
 
-          <div className="flex items-center justify-between pt-4 border-t">
-            <div className="flex gap-6 text-sm">
-              <div>
-                <span className="text-muted-foreground">Workers with Hours: </span>
-                <span className="font-semibold">{workersWithHours}</span>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Total Hours: </span>
-                <span className="font-semibold">{totalHours.toFixed(2)}</span>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Total Cost: </span>
-                <span className="font-semibold text-primary">${totalCost.toFixed(2)}</span>
-              </div>
+                      {!entries[editingWorker].isFullDay && (
+                        <div className="space-y-2">
+                          <Label>Hours</Label>
+                          <Input
+                            type="number"
+                            step="0.5"
+                            min="0"
+                            max="24"
+                            placeholder="0.0"
+                            value={job.hours_worked}
+                            onChange={(e) => updateJobEntry(editingWorker, job.id, 'hours_worked', e.target.value)}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+
+              <Button
+                variant="outline"
+                onClick={() => addJobEntry(editingWorker)}
+                className="w-full"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Add Another Project
+              </Button>
             </div>
-            <Button onClick={handleSubmit} disabled={loading} size="lg">
-              <Save className="w-4 h-4 mr-2" />
-              {loading ? 'Saving...' : 'Save All Entries'}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
