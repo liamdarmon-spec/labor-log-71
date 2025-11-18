@@ -10,7 +10,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Search, Filter, Calendar, Download, Edit2, X } from 'lucide-react';
+import { Search, Filter, Calendar, Download, Edit2, X, Plus } from 'lucide-react';
+import { SingleEntryTab } from '@/components/dashboard/SingleEntryTab';
 
 interface LogEntry {
   id: string;
@@ -49,6 +50,7 @@ const ViewLogs = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [trades, setTrades] = useState<Trade[]>([]);
   const [editingLog, setEditingLog] = useState<LogEntry | null>(null);
+  const [isAddEntryDialogOpen, setIsAddEntryDialogOpen] = useState(false);
   const [editForm, setEditForm] = useState({
     date: '',
     worker_id: '',
@@ -358,13 +360,30 @@ const ViewLogs = () => {
                 </Select>
               </div>
             </div>
-            <div className="mt-4 flex justify-end">
+            <div className="mt-4 flex justify-between items-center">
+              <Button 
+                onClick={() => setIsAddEntryDialogOpen(true)}
+                className="gap-2"
+              >
+                <Plus className="w-4 h-4" />
+                Add Entry
+              </Button>
               <Button variant="outline" onClick={clearFilters}>
                 Clear Filters
               </Button>
             </div>
           </CardContent>
         </Card>
+
+        {/* Add Entry Dialog */}
+        <Dialog open={isAddEntryDialogOpen} onOpenChange={setIsAddEntryDialogOpen}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Add Time Entry</DialogTitle>
+            </DialogHeader>
+            <SingleEntryTab />
+          </DialogContent>
+        </Dialog>
 
         <Card className="shadow-medium">
           <CardHeader className="border-b border-border">
