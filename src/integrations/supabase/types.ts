@@ -14,6 +14,24 @@ export type Database = {
   }
   public: {
     Tables: {
+      companies: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
       daily_logs: {
         Row: {
           created_at: string | null
@@ -66,6 +84,7 @@ export type Database = {
         Row: {
           address: string | null
           client_name: string
+          company_id: string | null
           created_at: string | null
           id: string
           project_manager: string | null
@@ -76,6 +95,7 @@ export type Database = {
         Insert: {
           address?: string | null
           client_name: string
+          company_id?: string | null
           created_at?: string | null
           id?: string
           project_manager?: string | null
@@ -86,6 +106,7 @@ export type Database = {
         Update: {
           address?: string | null
           client_name?: string
+          company_id?: string | null
           created_at?: string | null
           id?: string
           project_manager?: string | null
@@ -93,7 +114,15 @@ export type Database = {
           status?: string
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "projects_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       trades: {
         Row: {

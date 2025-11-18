@@ -33,10 +33,17 @@ interface Project {
   id: string;
   project_name: string;
   client_name: string;
+  company_id: string | null;
+}
+
+interface Company {
+  id: string;
+  name: string;
 }
 
 interface JobEntry {
   id: string;
+  company_id: string;
   project_id: string;
   hours_worked: string;
 }
@@ -44,10 +51,11 @@ interface JobEntry {
 const DailyLog = () => {
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(false);
   const [isFullDay, setIsFullDay] = useState(true);
   const [jobEntries, setJobEntries] = useState<JobEntry[]>([
-    { id: '1', project_id: '', hours_worked: '' }
+    { id: '1', company_id: '', project_id: '', hours_worked: '' }
   ]);
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -59,6 +67,7 @@ const DailyLog = () => {
   useEffect(() => {
     fetchWorkers();
     fetchProjects();
+    fetchCompanies();
   }, []);
 
   const fetchWorkers = async () => {
@@ -82,7 +91,7 @@ const DailyLog = () => {
   const fetchProjects = async () => {
     const { data, error } = await supabase
       .from('projects')
-      .select('id, project_name, client_name')
+      .select('id, project_name, client_name, company_id')
       .eq('status', 'Active')
       .order('project_name');
 
@@ -97,8 +106,30 @@ const DailyLog = () => {
     }
   };
 
+  const fetchCompanies = async () => {
+    const { data, error } = await supabase
+      .from('companies')
+      .select('id, name')
+      .order('name');
+
+    if (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to load companies',
+        variant: 'destructive',
+      });
+    } else {
+      setCompanies(data || []);
+    }
+  };
+
+  const getFilteredProjects = (companyId: string) => {
+    if (!companyId) return [];
+    return projects.filter(p => p.company_id === companyId);
+  };
+
   const addJobEntry = () => {
-    setJobEntries([...jobEntries, { id: Date.now().toString(), project_id: '', hours_worked: '' }]);
+    setJobEntries([...jobEntries, { id: Date.now().toString(), company_id: '', project_id: '', hours_worked: '' }]);
   };
 
   const removeJobEntry = (id: string) => {
@@ -107,10 +138,17 @@ const DailyLog = () => {
     }
   };
 
-  const updateJobEntry = (id: string, field: 'project_id' | 'hours_worked', value: string) => {
-    setJobEntries(jobEntries.map(entry => 
-      entry.id === id ? { ...entry, [field]: value } : entry
-    ));
+  const updateJobEntry = (id: string, field: 'company_id' | 'project_id' | 'hours_worked', value: string) => {
+    setJobEntries(jobEntries.map(entry => {
+      if (entry.id === id) {
+        // If changing company, reset project selection
+        if (field === 'company_id') {
+          return { ...entry, company_id: value, project_id: '' };
+        }
+        return { ...entry, [field]: value };
+      }
+      return entry;
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -121,6 +159,9 @@ const DailyLog = () => {
 
       // Validate job entries
       if (isFullDay) {
+        if (!jobEntries[0].company_id) {
+          throw new Error('Please select a company');
+        }
         if (!jobEntries[0].project_id) {
           throw new Error('Please select a project');
         }
@@ -177,7 +218,7 @@ const DailyLog = () => {
         worker_id: '',
         notes: '',
       });
-      setJobEntries([{ id: '1', project_id: '', hours_worked: '' }]);
+      setJobEntries([{ id: '1', company_id: '', project_id: '', hours_worked: '' }]);
       setIsFullDay(true);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -266,7 +307,7 @@ const DailyLog = () => {
                   onCheckedChange={(checked) => {
                     setIsFullDay(checked);
                     if (checked) {
-                      setJobEntries([{ id: '1', project_id: '', hours_worked: '' }]);
+                      setJobEntries([{ id: '1', company_id: '', project_id: '', hours_worked: '' }]);
                     }
                   }}
                   disabled={loading}
@@ -274,27 +315,51 @@ const DailyLog = () => {
               </div>
 
               {isFullDay ? (
-                <div className="space-y-2">
-                  <Label htmlFor="project" className="text-sm font-medium">
-                    Project
-                  </Label>
-                  <Select
-                    value={jobEntries[0].project_id}
-                    onValueChange={(value) => updateJobEntry('1', 'project_id', value)}
-                    disabled={loading}
-                  >
-                    <SelectTrigger className="h-11">
-                      <SelectValue placeholder="Select project" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-popover z-50">
-                      {projects.map((project) => (
-                        <SelectItem key={project.id} value={project.id}>
-                          {project.project_name} - {project.client_name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="company" className="text-sm font-medium">
+                      Company
+                    </Label>
+                    <Select
+                      value={jobEntries[0].company_id}
+                      onValueChange={(value) => updateJobEntry('1', 'company_id', value)}
+                      disabled={loading}
+                    >
+                      <SelectTrigger className="h-11">
+                        <SelectValue placeholder="Select company" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-popover z-50">
+                        {companies.map((company) => (
+                          <SelectItem key={company.id} value={company.id}>
+                            {company.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="project" className="text-sm font-medium">
+                      Project
+                    </Label>
+                    <Select
+                      value={jobEntries[0].project_id}
+                      onValueChange={(value) => updateJobEntry('1', 'project_id', value)}
+                      disabled={loading || !jobEntries[0].company_id}
+                    >
+                      <SelectTrigger className="h-11">
+                        <SelectValue placeholder={jobEntries[0].company_id ? "Select project" : "Select company first"} />
+                      </SelectTrigger>
+                      <SelectContent className="bg-popover z-50">
+                        {getFilteredProjects(jobEntries[0].company_id).map((project) => (
+                          <SelectItem key={project.id} value={project.id}>
+                            {project.project_name} - {project.client_name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </>
               ) : (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
@@ -316,17 +381,37 @@ const DailyLog = () => {
                     <div key={entry.id} className="flex gap-2 items-start p-4 bg-muted/20 rounded-lg border border-border">
                       <div className="flex-1 space-y-3">
                         <div className="space-y-2">
+                          <Label className="text-xs text-muted-foreground">Company</Label>
+                          <Select
+                            value={entry.company_id}
+                            onValueChange={(value) => updateJobEntry(entry.id, 'company_id', value)}
+                            disabled={loading}
+                          >
+                            <SelectTrigger className="h-10">
+                              <SelectValue placeholder="Select company" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-popover z-50">
+                              {companies.map((company) => (
+                                <SelectItem key={company.id} value={company.id}>
+                                  {company.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="space-y-2">
                           <Label className="text-xs text-muted-foreground">Project</Label>
                           <Select
                             value={entry.project_id}
                             onValueChange={(value) => updateJobEntry(entry.id, 'project_id', value)}
-                            disabled={loading}
+                            disabled={loading || !entry.company_id}
                           >
                             <SelectTrigger className="h-10">
-                              <SelectValue placeholder="Select project" />
+                              <SelectValue placeholder={entry.company_id ? "Select project" : "Select company first"} />
                             </SelectTrigger>
                             <SelectContent className="bg-popover z-50">
-                              {projects.map((project) => (
+                              {getFilteredProjects(entry.company_id).map((project) => (
                                 <SelectItem key={project.id} value={project.id}>
                                   {project.project_name} - {project.client_name}
                                 </SelectItem>
