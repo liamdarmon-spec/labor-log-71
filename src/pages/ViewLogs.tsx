@@ -7,11 +7,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Search, Filter, Calendar, Download, Edit2, X, Plus } from 'lucide-react';
+import { Search, Filter, Calendar, Download, Edit2, X, Plus, FileText, Files } from 'lucide-react';
 import { SingleEntryTab } from '@/components/dashboard/SingleEntryTab';
+import { BulkEntryTab } from '@/components/dashboard/BulkEntryTab';
 
 interface LogEntry {
   id: string;
@@ -381,7 +383,24 @@ const ViewLogs = () => {
             <DialogHeader>
               <DialogTitle>Add Time Entry</DialogTitle>
             </DialogHeader>
-            <SingleEntryTab />
+            <Tabs defaultValue="single" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="single" className="gap-2">
+                  <FileText className="w-4 h-4" />
+                  Single Entry
+                </TabsTrigger>
+                <TabsTrigger value="bulk" className="gap-2">
+                  <Files className="w-4 h-4" />
+                  Bulk Entry
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent value="single" className="mt-6">
+                <SingleEntryTab />
+              </TabsContent>
+              <TabsContent value="bulk" className="mt-6">
+                <BulkEntryTab />
+              </TabsContent>
+            </Tabs>
           </DialogContent>
         </Dialog>
 
