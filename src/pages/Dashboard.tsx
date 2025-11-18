@@ -2,8 +2,7 @@ import { Layout } from '@/components/Layout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AnalyticsTab } from '@/components/dashboard/AnalyticsTab';
 import { ReportsTab } from '@/components/dashboard/ReportsTab';
-import { ViewLogsTab } from '@/components/dashboard/ViewLogsTab';
-import { BarChart3, FileText, Eye } from 'lucide-react';
+import { BarChart3, FileText } from 'lucide-react';
 
 const Dashboard = () => {
   return (
@@ -12,12 +11,12 @@ const Dashboard = () => {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold">Dashboard</h1>
-            <p className="text-muted-foreground">Analytics, reports, and logs</p>
+            <p className="text-muted-foreground">Analytics and reports</p>
           </div>
         </div>
 
         <Tabs defaultValue="analytics" className="w-full">
-          <TabsList className="grid w-full max-w-2xl grid-cols-3">
+          <TabsList className="grid w-full max-w-xl grid-cols-2">
             <TabsTrigger value="analytics" className="gap-2">
               <BarChart3 className="w-4 h-4" />
               Analytics
@@ -25,10 +24,6 @@ const Dashboard = () => {
             <TabsTrigger value="reports" className="gap-2">
               <FileText className="w-4 h-4" />
               Reports
-            </TabsTrigger>
-            <TabsTrigger value="logs" className="gap-2">
-              <Eye className="w-4 h-4" />
-              View Logs
             </TabsTrigger>
           </TabsList>
 
@@ -38,10 +33,6 @@ const Dashboard = () => {
 
           <TabsContent value="reports">
             <ReportsTab />
-          </TabsContent>
-
-          <TabsContent value="logs">
-            <ViewLogsTab />
           </TabsContent>
         </Tabs>
       </div>
