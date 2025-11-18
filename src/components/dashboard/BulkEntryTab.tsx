@@ -546,13 +546,66 @@ export const BulkEntryTab = () => {
             </Table>
           </div>
 
-          <div className="flex justify-between items-center pt-4">
-            <div className="text-sm text-muted-foreground">
-              <span className="font-semibold">Workers with Hours:</span> {workersWithHours} | 
-              <span className="font-semibold ml-2">Total Hours:</span> {totalHours.toFixed(2)} | 
-              <span className="font-semibold ml-2">Total Cost:</span> ${totalCost.toFixed(2)}
-            </div>
-            <Button onClick={handleSubmit} disabled={loading} className="gap-2">
+          {/* Submission Summary Panel */}
+          {workersWithHours > 0 && (
+            <Card className="bg-muted/50 border-primary/20">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <CheckCircle2 className="w-5 h-5 text-primary" />
+                  Submission Summary
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="grid grid-cols-3 gap-4 text-sm">
+                  <div>
+                    <p className="text-muted-foreground">Workers</p>
+                    <p className="text-2xl font-bold text-foreground">{workersWithHours}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Total Hours</p>
+                    <p className="text-2xl font-bold text-foreground">{totalHours.toFixed(2)}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Total Cost</p>
+                    <p className="text-2xl font-bold text-primary">${totalCost.toFixed(2)}</p>
+                  </div>
+                </div>
+                
+                <div className="border-t pt-3">
+                  <p className="text-sm font-medium mb-2">Projects Breakdown:</p>
+                  <div className="space-y-1 max-h-32 overflow-y-auto">
+                    {activeWorkers
+                      .filter(worker => {
+                        const entry = entries[worker.id];
+                        return entry?.jobEntries.some(j => j.project_id);
+                      })
+                      .map(worker => {
+                        const entry = entries[worker.id];
+                        const workerProjects = entry?.jobEntries.filter(j => j.project_id) || [];
+                        return (
+                          <div key={worker.id} className="text-sm flex items-start gap-2">
+                            <span className="font-medium text-foreground min-w-[120px]">{worker.name}:</span>
+                            <div className="flex flex-wrap gap-1">
+                              {workerProjects.map((job, idx) => {
+                                const project = projects.find(p => p.id === job.project_id);
+                                return project ? (
+                                  <Badge key={idx} variant="outline" className="text-xs">
+                                    {project.project_name}
+                                  </Badge>
+                                ) : null;
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          <div className="flex justify-end items-center pt-4">
+            <Button onClick={handleSubmit} disabled={loading || workersWithHours === 0} className="gap-2">
               <Save className="w-4 h-4" />
               Save All Entries
             </Button>
