@@ -383,22 +383,22 @@ const ViewLogs = () => {
             <DialogHeader>
               <DialogTitle>Add Time Entry</DialogTitle>
             </DialogHeader>
-            <Tabs defaultValue="single" className="w-full">
+            <Tabs defaultValue="bulk" className="w-full">
               <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="single" className="gap-2">
-                  <FileText className="w-4 h-4" />
-                  Single Entry
-                </TabsTrigger>
                 <TabsTrigger value="bulk" className="gap-2">
                   <Files className="w-4 h-4" />
                   Bulk Entry
                 </TabsTrigger>
+                <TabsTrigger value="single" className="gap-2">
+                  <FileText className="w-4 h-4" />
+                  Single Entry
+                </TabsTrigger>
               </TabsList>
-              <TabsContent value="single" className="mt-6">
-                <SingleEntryTab />
-              </TabsContent>
               <TabsContent value="bulk" className="mt-6">
                 <BulkEntryTab />
+              </TabsContent>
+              <TabsContent value="single" className="mt-6">
+                <SingleEntryTab />
               </TabsContent>
             </Tabs>
           </DialogContent>
