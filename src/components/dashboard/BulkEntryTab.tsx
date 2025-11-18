@@ -410,7 +410,11 @@ export const BulkEntryTab = () => {
   }, 0);
 
   const workersWithHours = activeWorkers.filter(worker => {
-    return getTotalHoursForWorker(worker.id) > 0;
+    const entry = entries[worker.id];
+    if (!entry) return false;
+    const totalHours = getTotalHoursForWorker(worker.id);
+    const hasProjects = entry.jobEntries.some(j => j.project_id);
+    return totalHours > 0 && hasProjects;
   }).length;
 
   return (
