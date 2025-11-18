@@ -6,7 +6,8 @@ import { ProjectsTab } from '@/components/admin/ProjectsTab';
 import { TradesTab } from '@/components/admin/TradesTab';
 import { LogsTab } from '@/components/admin/LogsTab';
 import { ReportsTab } from '@/components/admin/ReportsTab';
-import { Users, Briefcase, Wrench, FileText, BarChart3 } from 'lucide-react';
+import { UsersTab } from '@/components/admin/UsersTab';
+import { Users, Briefcase, Wrench, FileText, BarChart3, UserCog } from 'lucide-react';
 
 const Admin = () => {
   const [activeTab, setActiveTab] = useState('workers');
@@ -22,7 +23,11 @@ const Admin = () => {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid h-auto">
+          <TabsList className="grid w-full grid-cols-6 lg:w-auto lg:inline-grid h-auto">
+            <TabsTrigger value="users" className="gap-2 py-3">
+              <UserCog className="w-4 h-4" />
+              <span className="hidden sm:inline">Users</span>
+            </TabsTrigger>
             <TabsTrigger value="workers" className="gap-2 py-3">
               <Users className="w-4 h-4" />
               <span className="hidden sm:inline">Workers</span>
@@ -44,6 +49,10 @@ const Admin = () => {
               <span className="hidden sm:inline">Reports</span>
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="users" className="mt-6">
+            <UsersTab />
+          </TabsContent>
 
           <TabsContent value="workers" className="mt-6">
             <WorkersTab />

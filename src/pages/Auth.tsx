@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -49,24 +50,60 @@ const Auth = () => {
     setLoading(true);
 
     try {
-      const { error } = isLogin
-        ? await signIn(email, password)
-        : await signUp(email, password);
-
-      if (error) {
-        toast({
-          title: 'Error',
-          description: error.message,
-          variant: 'destructive',
-        });
+      if (isLogin) {
+        const { error } = await signIn(email, password);
+        if (error) {
+          toast({
+            title: 'Error',
+            description: error.message,
+            variant: 'destructive',
+          });
+        } else {
+          toast({
+            title: 'Welcome back!',
+            description: 'Successfully logged in',
+          });
+          navigate('/');
+        }
       } else {
-        toast({
-          title: isLogin ? 'Welcome back!' : 'Account created!',
-          description: isLogin
-            ? 'Successfully logged in'
-            : 'You can now log your hours',
-        });
-        navigate('/');
+        // Check if email is invited
+        const { data: invitation, error: inviteError } = await supabase
+          .from('invitations')
+          .select('*')
+          .eq('email', email)
+          .eq('used', false)
+          .maybeSingle();
+
+        if (inviteError || !invitation) {
+          toast({
+            title: 'Not Invited',
+            description: 'You must be invited to sign up. Please contact an administrator.',
+            variant: 'destructive',
+          });
+          setLoading(false);
+          return;
+        }
+
+        const { error } = await signUp(email, password);
+        if (error) {
+          toast({
+            title: 'Error',
+            description: error.message,
+            variant: 'destructive',
+          });
+        } else {
+          // Mark invitation as used
+          await supabase
+            .from('invitations')
+            .update({ used: true, used_at: new Date().toISOString() })
+            .eq('id', invitation.id);
+
+          toast({
+            title: 'Account created!',
+            description: 'You can now log in',
+          });
+          setIsLogin(true);
+        }
       }
     } catch (error) {
       toast({
