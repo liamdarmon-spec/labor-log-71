@@ -373,8 +373,8 @@ export const BulkEntryTab = () => {
         description: `Logged ${validEntries.length} time entries for ${date}`,
       });
 
-      // Navigate back to dashboard
-      navigate('/dashboard');
+      // Navigate to view logs page
+      navigate('/view-logs');
 
       // Reset entries
       const resetEntries: Record<string, BulkEntry> = {};
