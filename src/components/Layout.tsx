@@ -1,6 +1,6 @@
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
-import { HardHat, LogOut, Settings, Eye, PlusCircle } from 'lucide-react';
+import { HardHat, LogOut, Settings, Eye, PlusCircle, ListChecks, BarChart3 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 
 interface LayoutProps {
@@ -27,13 +27,31 @@ export const Layout = ({ children }: LayoutProps) => {
           </div>
           <div className="flex items-center gap-2">
             <Button
+              variant={location.pathname === '/dashboard' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => navigate('/dashboard')}
+              className="gap-2"
+            >
+              <BarChart3 className="w-4 h-4" />
+              <span className="hidden sm:inline">Dashboard</span>
+            </Button>
+            <Button
+              variant={location.pathname === '/bulk' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => navigate('/bulk')}
+              className="gap-2"
+            >
+              <ListChecks className="w-4 h-4" />
+              <span className="hidden sm:inline">Bulk Entry</span>
+            </Button>
+            <Button
               variant={location.pathname === '/' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => navigate('/')}
               className="gap-2"
             >
               <PlusCircle className="w-4 h-4" />
-              <span className="hidden sm:inline">New Entry</span>
+              <span className="hidden sm:inline">Single Entry</span>
             </Button>
             <Button
               variant={location.pathname === '/view' ? 'default' : 'ghost'}
