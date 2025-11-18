@@ -14,7 +14,6 @@ import { Calendar, Save, UserCheck, Plus, Trash2, Edit } from 'lucide-react';
 import { z } from 'zod';
 
 const jobEntrySchema = z.object({
-  company_id: z.string().trim().nonempty({ message: 'Please select a company' }),
   project_id: z.string().trim().nonempty({ message: 'Please select a project' }),
   hours_worked: z.number().positive({ message: 'Hours must be greater than 0' }).max(24, { message: 'Hours cannot exceed 24' }),
 });
@@ -46,7 +45,6 @@ interface Trade {
 
 interface JobEntry {
   id: string;
-  company_id: string;
   project_id: string;
   hours_worked: string;
   trade_id: string;
@@ -97,7 +95,7 @@ export const BulkEntryTab = () => {
         initialEntries[worker.id] = {
           worker_id: worker.id,
           isFullDay: true,
-          jobEntries: [{ id: '1', company_id: '', project_id: '', hours_worked: '', trade_id: worker.trade_id || '' }],
+          jobEntries: [{ id: '1', project_id: '', hours_worked: '', trade_id: worker.trade_id || '' }],
           notes: '',
         };
       });
@@ -167,10 +165,6 @@ export const BulkEntryTab = () => {
     }));
   };
 
-  const getFilteredProjects = (companyId: string) => {
-    if (!companyId) return [];
-    return projects.filter(p => p.company_id === companyId);
-  };
 
   const addJobEntry = (workerId: string) => {
     const worker = workers.find(w => w.id === workerId);
@@ -183,7 +177,6 @@ export const BulkEntryTab = () => {
           ...prev[workerId].jobEntries,
           {
             id: Date.now().toString(),
-            company_id: '',
             project_id: '',
             hours_worked: '',
             trade_id: worker?.trade_id || '',
@@ -213,8 +206,6 @@ export const BulkEntryTab = () => {
             ? {
                 ...e,
                 [field]: value,
-                // Clear project when company changes
-                ...(field === 'company_id' ? { project_id: '' } : {})
               }
             : e
         )
@@ -254,7 +245,6 @@ export const BulkEntryTab = () => {
             const hours = entry.isFullDay ? 8 : parseFloat(job.hours_worked);
             
             jobEntrySchema.parse({
-              company_id: job.company_id,
               project_id: job.project_id,
               hours_worked: hours,
             });
@@ -310,7 +300,7 @@ export const BulkEntryTab = () => {
         resetEntries[worker.id] = {
           worker_id: worker.id,
           isFullDay: true,
-          jobEntries: [{ id: '1', company_id: '', project_id: '', hours_worked: '', trade_id: worker.trade_id || '' }],
+          jobEntries: [{ id: '1', project_id: '', hours_worked: '', trade_id: worker.trade_id || '' }],
           notes: '',
         };
       });
@@ -470,7 +460,6 @@ export const BulkEntryTab = () => {
           {editingWorker && entries[editingWorker] && (
             <div className="space-y-4">
               {entries[editingWorker].jobEntries.map((job, index) => {
-                const filteredProjects = getFilteredProjects(job.company_id);
                 return (
                   <div key={job.id} className="border rounded-lg p-4 space-y-4">
                     <div className="flex items-center justify-between">
@@ -488,36 +477,16 @@ export const BulkEntryTab = () => {
                     
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label>Company</Label>
-                        <Select
-                          value={job.company_id}
-                          onValueChange={(value) => updateJobEntry(editingWorker, job.id, 'company_id', value)}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select company" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {companies.map((company) => (
-                              <SelectItem key={company.id} value={company.id}>
-                                {company.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="space-y-2">
                         <Label>Project</Label>
                         <Select
                           value={job.project_id}
                           onValueChange={(value) => updateJobEntry(editingWorker, job.id, 'project_id', value)}
-                          disabled={!job.company_id}
                         >
                           <SelectTrigger>
-                            <SelectValue placeholder={job.company_id ? "Select project" : "Select company first"} />
+                            <SelectValue placeholder="Select project" />
                           </SelectTrigger>
                           <SelectContent>
-                            {filteredProjects.map((project) => (
+                            {projects.map((project) => (
                               <SelectItem key={project.id} value={project.id}>
                                 {project.project_name} - {project.client_name}
                               </SelectItem>

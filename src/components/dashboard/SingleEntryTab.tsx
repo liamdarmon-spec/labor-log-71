@@ -47,7 +47,6 @@ interface Trade {
 
 interface JobEntry {
   id: string;
-  company_id: string;
   project_id: string;
   hours_worked: string;
   trade_id: string;
@@ -61,7 +60,7 @@ export const SingleEntryTab = () => {
   const [loading, setLoading] = useState(false);
   const [isFullDay, setIsFullDay] = useState(true);
   const [jobEntries, setJobEntries] = useState<JobEntry[]>([
-    { id: '1', company_id: '', project_id: '', hours_worked: '', trade_id: '' }
+    { id: '1', project_id: '', hours_worked: '', trade_id: '' }
   ]);
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -147,13 +146,9 @@ export const SingleEntryTab = () => {
     }
   };
 
-  const getFilteredProjects = (companyId: string) => {
-    if (!companyId) return [];
-    return projects.filter(p => p.company_id === companyId);
-  };
 
   const addJobEntry = () => {
-    setJobEntries([...jobEntries, { id: Date.now().toString(), company_id: '', project_id: '', hours_worked: '', trade_id: '' }]);
+    setJobEntries([...jobEntries, { id: Date.now().toString(), project_id: '', hours_worked: '', trade_id: '' }]);
     setIsFullDay(false);
   };
 
@@ -163,12 +158,9 @@ export const SingleEntryTab = () => {
     }
   };
 
-  const updateJobEntry = (id: string, field: 'company_id' | 'project_id' | 'hours_worked' | 'trade_id', value: string) => {
+  const updateJobEntry = (id: string, field: 'project_id' | 'hours_worked' | 'trade_id', value: string) => {
     setJobEntries(jobEntries.map(entry => {
       if (entry.id === id) {
-        if (field === 'company_id') {
-          return { ...entry, [field]: value, project_id: '' };
-        }
         return { ...entry, [field]: value };
       }
       return entry;
@@ -249,7 +241,7 @@ export const SingleEntryTab = () => {
         worker_id: '',
         notes: '',
       });
-      setJobEntries([{ id: '1', company_id: '', project_id: '', hours_worked: '', trade_id: '' }]);
+      setJobEntries([{ id: '1', project_id: '', hours_worked: '', trade_id: '' }]);
       setIsFullDay(true);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -337,7 +329,7 @@ export const SingleEntryTab = () => {
               onCheckedChange={(checked) => {
                 setIsFullDay(checked);
                 if (checked) {
-                  setJobEntries([{ id: '1', company_id: '', project_id: '', hours_worked: '', trade_id: '' }]);
+                  setJobEntries([{ id: '1', project_id: '', hours_worked: '', trade_id: '' }]);
                 }
               }}
               disabled={loading}
@@ -366,26 +358,6 @@ export const SingleEntryTab = () => {
               <div key={entry.id} className="flex gap-2 items-start p-4 bg-muted/20 rounded-lg border border-border">
                 <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div className="space-y-2">
-                    <Label className="text-xs text-muted-foreground">Company</Label>
-                    <Select
-                      value={entry.company_id}
-                      onValueChange={(value) => updateJobEntry(entry.id, 'company_id', value)}
-                      disabled={loading}
-                    >
-                      <SelectTrigger className="h-10">
-                        <SelectValue placeholder="Select company" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-popover z-50">
-                        {companies.map((company) => (
-                          <SelectItem key={company.id} value={company.id}>
-                            {company.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
                     <Label className="text-xs text-muted-foreground">Trade</Label>
                     <Select
                       value={entry.trade_id}
@@ -410,13 +382,13 @@ export const SingleEntryTab = () => {
                     <Select
                       value={entry.project_id}
                       onValueChange={(value) => updateJobEntry(entry.id, 'project_id', value)}
-                      disabled={loading || !entry.company_id}
+                      disabled={loading}
                     >
                       <SelectTrigger className="h-10">
-                        <SelectValue placeholder={entry.company_id ? "Select project" : "Select company first"} />
+                        <SelectValue placeholder="Select project" />
                       </SelectTrigger>
                       <SelectContent className="bg-popover z-50">
-                        {getFilteredProjects(entry.company_id).map((project) => (
+                        {projects.map((project) => (
                           <SelectItem key={project.id} value={project.id}>
                             {project.project_name} - {project.client_name}
                           </SelectItem>
