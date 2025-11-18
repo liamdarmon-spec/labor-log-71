@@ -36,22 +36,13 @@ export const Layout = ({ children }: LayoutProps) => {
               <span className="hidden sm:inline">Entry</span>
             </Button>
             <Button
-              variant={location.pathname === '/dashboard' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => navigate('/dashboard')}
-              className="gap-2"
-            >
-              <BarChart3 className="w-4 h-4" />
-              <span className="hidden sm:inline">Dashboard</span>
-            </Button>
-            <Button
               variant={location.pathname === '/view-logs' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => navigate('/view-logs')}
               className="gap-2"
             >
               <Eye className="w-4 h-4" />
-              <span className="hidden sm:inline">View Logs</span>
+              <span className="hidden sm:inline">Time Log</span>
             </Button>
             <Button
               variant={location.pathname === '/payments' ? 'default' : 'ghost'}
@@ -60,7 +51,16 @@ export const Layout = ({ children }: LayoutProps) => {
               className="gap-2"
             >
               <DollarSign className="w-4 h-4" />
-              <span className="hidden sm:inline">Payments</span>
+              <span className="hidden sm:inline">Payment</span>
+            </Button>
+            <Button
+              variant={location.pathname === '/dashboard' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => navigate('/dashboard')}
+              className="gap-2"
+            >
+              <BarChart3 className="w-4 h-4" />
+              <span className="hidden sm:inline">Dashboard</span>
             </Button>
             <Button
               variant={location.pathname === '/admin' ? 'default' : 'ghost'}
