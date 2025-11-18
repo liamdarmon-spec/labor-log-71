@@ -47,9 +47,9 @@ const ViewLogs = () => {
   const [filters, setFilters] = useState({
     startDate: '',
     endDate: '',
-    workerId: '',
-    projectId: '',
-    tradeId: '',
+    workerId: 'all',
+    projectId: 'all',
+    tradeId: 'all',
     sortBy: 'date-desc',
   });
   
@@ -123,7 +123,7 @@ const ViewLogs = () => {
     }
 
     // Worker filter
-    if (filters.workerId) {
+    if (filters.workerId && filters.workerId !== 'all') {
       const { data: workerLogs } = await supabase
         .from('daily_logs')
         .select('id')
@@ -133,7 +133,7 @@ const ViewLogs = () => {
     }
 
     // Project filter
-    if (filters.projectId) {
+    if (filters.projectId && filters.projectId !== 'all') {
       const { data: projectLogs } = await supabase
         .from('daily_logs')
         .select('id')
@@ -143,7 +143,7 @@ const ViewLogs = () => {
     }
 
     // Trade filter
-    if (filters.tradeId) {
+    if (filters.tradeId && filters.tradeId !== 'all') {
       const { data: workerIds } = await supabase
         .from('workers')
         .select('id')
@@ -183,9 +183,9 @@ const ViewLogs = () => {
     setFilters({
       startDate: '',
       endDate: '',
-      workerId: '',
-      projectId: '',
-      tradeId: '',
+      workerId: 'all',
+      projectId: 'all',
+      tradeId: 'all',
       sortBy: 'date-desc',
     });
   };
@@ -244,7 +244,7 @@ const ViewLogs = () => {
                     <SelectValue placeholder="All workers" />
                   </SelectTrigger>
                   <SelectContent className="bg-popover z-50">
-                    <SelectItem value="">All workers</SelectItem>
+                    <SelectItem value="all">All workers</SelectItem>
                     {workers.map((worker) => (
                       <SelectItem key={worker.id} value={worker.id}>
                         {worker.name}
@@ -260,7 +260,7 @@ const ViewLogs = () => {
                     <SelectValue placeholder="All trades" />
                   </SelectTrigger>
                   <SelectContent className="bg-popover z-50">
-                    <SelectItem value="">All trades</SelectItem>
+                    <SelectItem value="all">All trades</SelectItem>
                     {trades.map((trade) => (
                       <SelectItem key={trade.id} value={trade.id}>
                         {trade.name}
@@ -276,7 +276,7 @@ const ViewLogs = () => {
                     <SelectValue placeholder="All projects" />
                   </SelectTrigger>
                   <SelectContent className="bg-popover z-50">
-                    <SelectItem value="">All projects</SelectItem>
+                    <SelectItem value="all">All projects</SelectItem>
                     {projects.map((project) => (
                       <SelectItem key={project.id} value={project.id}>
                         {project.project_name}
