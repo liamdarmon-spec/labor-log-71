@@ -95,6 +95,27 @@ export type Database = {
         }
         Relationships: []
       }
+      trades: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string | null
@@ -125,6 +146,7 @@ export type Database = {
           name: string
           phone: string | null
           trade: string
+          trade_id: string | null
           updated_at: string | null
         }
         Insert: {
@@ -135,6 +157,7 @@ export type Database = {
           name: string
           phone?: string | null
           trade: string
+          trade_id?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -145,9 +168,18 @@ export type Database = {
           name?: string
           phone?: string | null
           trade?: string
+          trade_id?: string | null
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "workers_trade_id_fkey"
+            columns: ["trade_id"]
+            isOneToOne: false
+            referencedRelation: "trades"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

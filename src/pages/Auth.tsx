@@ -87,9 +87,9 @@ const Auth = () => {
             <HardHat className="w-10 h-10 text-primary-foreground" />
           </div>
           <div>
-            <CardTitle className="text-3xl font-bold">ConstructTrack</CardTitle>
+            <CardTitle className="text-3xl font-bold">Forma Tracking</CardTitle>
             <CardDescription className="text-base mt-2">
-              {isLogin ? 'Log in to track your hours' : 'Create your account'}
+              {isLogin ? 'Log in to track labor hours' : 'Create your account'}
             </CardDescription>
           </div>
         </CardHeader>
