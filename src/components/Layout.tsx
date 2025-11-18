@@ -1,6 +1,6 @@
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
-import { HardHat, LogOut, Settings, Eye, PlusCircle, ListChecks, BarChart3 } from 'lucide-react';
+import { HardHat, LogOut, Settings, Eye, PlusCircle, ListChecks, BarChart3, Database } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 
 interface LayoutProps {
@@ -61,6 +61,15 @@ export const Layout = ({ children }: LayoutProps) => {
             >
               <Eye className="w-4 h-4" />
               <span className="hidden sm:inline">View Logs</span>
+            </Button>
+            <Button
+              variant={location.pathname === '/backend' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => navigate('/backend')}
+              className="gap-2"
+            >
+              <Database className="w-4 h-4" />
+              <span className="hidden sm:inline">Backend</span>
             </Button>
             {isAdmin && (
               <Button
