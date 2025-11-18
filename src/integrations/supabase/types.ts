@@ -88,6 +88,13 @@ export type Database = {
             referencedRelation: "workers"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "daily_logs_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "workers_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       payments: {
@@ -272,7 +279,50 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      workers_public: {
+        Row: {
+          active: boolean | null
+          created_at: string | null
+          hourly_rate: number | null
+          id: string | null
+          name: string | null
+          phone: string | null
+          trade: string | null
+          trade_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          active?: boolean | null
+          created_at?: string | null
+          hourly_rate?: number | null
+          id?: string | null
+          name?: string | null
+          phone?: never
+          trade?: string | null
+          trade_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          active?: boolean | null
+          created_at?: string | null
+          hourly_rate?: number | null
+          id?: string | null
+          name?: string | null
+          phone?: never
+          trade?: string | null
+          trade_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workers_trade_id_fkey"
+            columns: ["trade_id"]
+            isOneToOne: false
+            referencedRelation: "trades"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       has_role: {
