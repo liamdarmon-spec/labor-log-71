@@ -8,9 +8,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Calendar, Save, UserCheck, Plus, Trash2, Edit, UserPlus, X } from 'lucide-react';
+import { Calendar, Save, UserCheck, Plus, Trash2, Edit, UserPlus, X, CheckCircle2 } from 'lucide-react';
 import { z } from 'zod';
 
 const jobEntrySchema = z.object({
@@ -504,14 +505,28 @@ export const BulkEntryTab = () => {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
+                          {entry.jobEntries.length > 0 && entry.jobEntries[0].project_id ? (
+                            <div className="flex flex-col gap-1 flex-1">
+                              {entry.jobEntries.map((job, idx) => {
+                                const project = projects.find(p => p.id === job.project_id);
+                                return project ? (
+                                  <Badge key={idx} variant="secondary" className="text-xs gap-1">
+                                    <CheckCircle2 className="w-3 h-3 text-green-600" />
+                                    {project.project_name}
+                                  </Badge>
+                                ) : null;
+                              })}
+                            </div>
+                          ) : null}
                           <Button
-                            variant="outline"
+                            variant={entry.jobEntries.length > 0 && entry.jobEntries[0].project_id ? "outline" : "default"}
                             size="sm"
                             onClick={() => setEditingWorker(worker.id)}
+                            className="whitespace-nowrap"
                           >
                             <Edit className="w-4 h-4 mr-2" />
                             {entry.jobEntries.length > 0 && entry.jobEntries[0].project_id
-                              ? `${entry.jobEntries.length} Project${entry.jobEntries.length > 1 ? 's' : ''}`
+                              ? 'Edit'
                               : 'Add Projects'}
                           </Button>
                           <Button
@@ -639,9 +654,16 @@ export const BulkEntryTab = () => {
                   Add Another Project
                 </Button>
                 <Button
-                  onClick={() => setEditingWorker(null)}
-                  className="flex-1"
+                  onClick={() => {
+                    setEditingWorker(null);
+                    toast({
+                      title: 'Projects saved',
+                      description: `${entries[editingWorker]?.jobEntries.filter(j => j.project_id).length || 0} project(s) added successfully`,
+                    });
+                  }}
+                  className="flex-1 gap-2"
                 >
+                  <CheckCircle2 className="w-4 h-4" />
                   Done
                 </Button>
               </div>
