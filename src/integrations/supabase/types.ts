@@ -14,6 +14,51 @@ export type Database = {
   }
   public: {
     Tables: {
+      archived_daily_logs: {
+        Row: {
+          archived_at: string
+          archived_by: string | null
+          created_at: string | null
+          created_by: string | null
+          date: string
+          hours_worked: number
+          id: string
+          notes: string | null
+          original_id: string
+          project_id: string
+          trade_id: string | null
+          worker_id: string
+        }
+        Insert: {
+          archived_at?: string
+          archived_by?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          date: string
+          hours_worked: number
+          id?: string
+          notes?: string | null
+          original_id: string
+          project_id: string
+          trade_id?: string | null
+          worker_id: string
+        }
+        Update: {
+          archived_at?: string
+          archived_by?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          date?: string
+          hours_worked?: number
+          id?: string
+          notes?: string | null
+          original_id?: string
+          project_id?: string
+          trade_id?: string | null
+          worker_id?: string
+        }
+        Relationships: []
+      }
       companies: {
         Row: {
           created_at: string | null
@@ -355,6 +400,7 @@ export type Database = {
       }
     }
     Functions: {
+      delete_old_archived_logs: { Args: never; Returns: undefined }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
