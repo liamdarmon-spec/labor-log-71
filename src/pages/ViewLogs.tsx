@@ -75,6 +75,31 @@ const ViewLogs = () => {
 
   useEffect(() => {
     fetchData();
+
+    // Set up realtime subscription for new entries
+    const channel = supabase
+      .channel('daily-logs-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'daily_logs'
+        },
+        (payload) => {
+          console.log('New entry detected:', payload);
+          toast({
+            title: 'New Entry Added',
+            description: 'Time entries refreshed automatically',
+          });
+          fetchData(); // Refresh the data
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   useEffect(() => {
