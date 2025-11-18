@@ -8,6 +8,7 @@ import DailyLog from "./pages/DailyLog";
 import BulkEntry from "./pages/BulkEntry";
 import Dashboard from "./pages/Dashboard";
 import ViewLogs from "./pages/ViewLogs";
+import Backend from "./pages/Backend";
 import Admin from "./pages/Admin";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
@@ -51,6 +52,14 @@ const App = () => (
             element={
               <ProtectedRoute>
                 <ViewLogs />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/backend"
+            element={
+              <ProtectedRoute>
+                <Backend />
               </ProtectedRoute>
             }
           />

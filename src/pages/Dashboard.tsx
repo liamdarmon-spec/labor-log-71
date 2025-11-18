@@ -9,7 +9,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { BulkEntryTab } from '@/components/dashboard/BulkEntryTab';
-import { BackendTab } from '@/components/dashboard/BackendTab';
 import { 
   BarChart3, 
   DollarSign, 
@@ -18,8 +17,7 @@ import {
   Calendar,
   Users,
   Briefcase,
-  CalendarPlus,
-  Settings
+  CalendarPlus
 } from 'lucide-react';
 
 interface DashboardData {
@@ -224,7 +222,7 @@ const Dashboard = () => {
         </div>
 
         <Tabs defaultValue="analytics" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-grid">
+          <TabsList className="grid w-full grid-cols-2 lg:w-auto lg:inline-grid">
             <TabsTrigger value="analytics" className="gap-2">
               <BarChart3 className="w-4 h-4" />
               <span>Analytics</span>
@@ -232,10 +230,6 @@ const Dashboard = () => {
             <TabsTrigger value="entry" className="gap-2">
               <CalendarPlus className="w-4 h-4" />
               <span>Daily Entry</span>
-            </TabsTrigger>
-            <TabsTrigger value="backend" className="gap-2">
-              <Settings className="w-4 h-4" />
-              <span>Backend</span>
             </TabsTrigger>
           </TabsList>
 
@@ -384,10 +378,6 @@ const Dashboard = () => {
 
           <TabsContent value="entry" className="mt-6">
             <BulkEntryTab />
-          </TabsContent>
-
-          <TabsContent value="backend" className="mt-6">
-            <BackendTab />
           </TabsContent>
         </Tabs>
       </div>
