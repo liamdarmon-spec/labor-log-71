@@ -9,6 +9,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { BulkEntryTab } from '@/components/dashboard/BulkEntryTab';
+import { SingleEntryTab } from '@/components/dashboard/SingleEntryTab';
+import { ViewLogsTab } from '@/components/dashboard/ViewLogsTab';
 import { 
   BarChart3, 
   DollarSign, 
@@ -17,7 +19,9 @@ import {
   Calendar,
   Users,
   Briefcase,
-  CalendarPlus
+  CalendarPlus,
+  Plus,
+  Eye
 } from 'lucide-react';
 
 interface DashboardData {
@@ -222,14 +226,22 @@ const Dashboard = () => {
         </div>
 
         <Tabs defaultValue="analytics" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 lg:w-auto lg:inline-grid">
+          <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
             <TabsTrigger value="analytics" className="gap-2">
               <BarChart3 className="w-4 h-4" />
               <span>Analytics</span>
             </TabsTrigger>
-            <TabsTrigger value="entry" className="gap-2">
+            <TabsTrigger value="bulk" className="gap-2">
               <CalendarPlus className="w-4 h-4" />
-              <span>Daily Entry</span>
+              <span>Bulk Entry</span>
+            </TabsTrigger>
+            <TabsTrigger value="single" className="gap-2">
+              <Plus className="w-4 h-4" />
+              <span>Single Entry</span>
+            </TabsTrigger>
+            <TabsTrigger value="logs" className="gap-2">
+              <Eye className="w-4 h-4" />
+              <span>View Logs</span>
             </TabsTrigger>
           </TabsList>
 
@@ -376,8 +388,16 @@ const Dashboard = () => {
         </Card>
           </TabsContent>
 
-          <TabsContent value="entry" className="mt-6">
+          <TabsContent value="bulk" className="mt-6">
             <BulkEntryTab />
+          </TabsContent>
+
+          <TabsContent value="single" className="mt-6">
+            <SingleEntryTab />
+          </TabsContent>
+
+          <TabsContent value="logs" className="mt-6">
+            <ViewLogsTab />
           </TabsContent>
         </Tabs>
       </div>
