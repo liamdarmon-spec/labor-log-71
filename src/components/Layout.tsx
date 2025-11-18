@@ -27,6 +27,15 @@ export const Layout = ({ children }: LayoutProps) => {
           </div>
           <div className="flex items-center gap-2">
             <Button
+              variant={location.pathname === '/' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => navigate('/')}
+              className="gap-2"
+            >
+              <PlusCircle className="w-4 h-4" />
+              <span className="hidden sm:inline">Entry</span>
+            </Button>
+            <Button
               variant={location.pathname === '/dashboard' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => navigate('/dashboard')}
@@ -34,15 +43,6 @@ export const Layout = ({ children }: LayoutProps) => {
             >
               <BarChart3 className="w-4 h-4" />
               <span className="hidden sm:inline">Dashboard</span>
-            </Button>
-            <Button
-              variant={location.pathname === '/backend' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => navigate('/backend')}
-              className="gap-2"
-            >
-              <Database className="w-4 h-4" />
-              <span className="hidden sm:inline">Backend</span>
             </Button>
             <Button
               variant={location.pathname === '/admin' ? 'default' : 'ghost'}
