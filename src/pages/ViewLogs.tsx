@@ -6,15 +6,20 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Search, Filter, Calendar, Download } from 'lucide-react';
+import { Search, Filter, Calendar, Download, Edit2, X } from 'lucide-react';
 
 interface LogEntry {
   id: string;
   date: string;
   hours_worked: number;
   notes: string | null;
+  worker_id: string;
+  project_id: string;
+  trade_id: string | null;
   workers: { 
     name: string; 
     trades: { name: string } | null;
@@ -43,6 +48,15 @@ const ViewLogs = () => {
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [trades, setTrades] = useState<Trade[]>([]);
+  const [editingLog, setEditingLog] = useState<LogEntry | null>(null);
+  const [editForm, setEditForm] = useState({
+    date: '',
+    worker_id: '',
+    project_id: '',
+    trade_id: '',
+    hours_worked: '',
+    notes: ''
+  });
   
   const [filters, setFilters] = useState({
     startDate: '',
@@ -190,6 +204,49 @@ const ViewLogs = () => {
     });
   };
 
+  const handleEditLog = (log: LogEntry) => {
+    setEditingLog(log);
+    setEditForm({
+      date: log.date,
+      worker_id: log.worker_id,
+      project_id: log.project_id,
+      trade_id: log.trade_id || '',
+      hours_worked: log.hours_worked.toString(),
+      notes: log.notes || ''
+    });
+  };
+
+  const handleUpdateLog = async () => {
+    if (!editingLog) return;
+
+    const { error } = await supabase
+      .from('daily_logs')
+      .update({
+        date: editForm.date,
+        worker_id: editForm.worker_id,
+        project_id: editForm.project_id,
+        trade_id: editForm.trade_id || null,
+        hours_worked: parseFloat(editForm.hours_worked),
+        notes: editForm.notes || null
+      })
+      .eq('id', editingLog.id);
+
+    if (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to update log entry',
+        variant: 'destructive',
+      });
+    } else {
+      toast({
+        title: 'Success',
+        description: 'Log entry updated successfully',
+      });
+      setEditingLog(null);
+      fetchData();
+    }
+  };
+
   const totalHours = filteredLogs.reduce((sum, log) => sum + parseFloat(log.hours_worked.toString()), 0);
 
   return (
@@ -327,6 +384,7 @@ const ViewLogs = () => {
                     <TableHead className="font-semibold">Client</TableHead>
                     <TableHead className="font-semibold text-right">Hours</TableHead>
                     <TableHead className="font-semibold">Notes</TableHead>
+                    <TableHead className="font-semibold text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -351,6 +409,15 @@ const ViewLogs = () => {
                       <TableCell className="max-w-xs truncate text-muted-foreground">
                         {log.notes || '-'}
                       </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleEditLog(log)}
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -358,6 +425,99 @@ const ViewLogs = () => {
             </div>
           </CardContent>
         </Card>
+
+        <Dialog open={!!editingLog} onOpenChange={() => setEditingLog(null)}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>Edit Time Entry</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-date">Date</Label>
+                <Input
+                  id="edit-date"
+                  type="date"
+                  value={editForm.date}
+                  onChange={(e) => setEditForm({ ...editForm, date: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-worker">Worker</Label>
+                <Select value={editForm.worker_id} onValueChange={(value) => setEditForm({ ...editForm, worker_id: value })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover z-50">
+                    {workers.map((worker) => (
+                      <SelectItem key={worker.id} value={worker.id}>
+                        {worker.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-project">Project</Label>
+                <Select value={editForm.project_id} onValueChange={(value) => setEditForm({ ...editForm, project_id: value })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover z-50">
+                    {projects.map((project) => (
+                      <SelectItem key={project.id} value={project.id}>
+                        {project.project_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-trade">Trade</Label>
+                <Select value={editForm.trade_id} onValueChange={(value) => setEditForm({ ...editForm, trade_id: value })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select trade" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover z-50">
+                    {trades.map((trade) => (
+                      <SelectItem key={trade.id} value={trade.id}>
+                        {trade.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-hours">Hours Worked</Label>
+                <Input
+                  id="edit-hours"
+                  type="number"
+                  step="0.5"
+                  min="0"
+                  value={editForm.hours_worked}
+                  onChange={(e) => setEditForm({ ...editForm, hours_worked: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-notes">Notes</Label>
+                <Textarea
+                  id="edit-notes"
+                  value={editForm.notes}
+                  onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
+                  placeholder="Additional notes..."
+                  rows={3}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditingLog(null)}>
+                Cancel
+              </Button>
+              <Button onClick={handleUpdateLog}>
+                Save Changes
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </Layout>
   );
