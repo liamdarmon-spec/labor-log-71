@@ -11,7 +11,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Search, Filter, Calendar, Download, Edit2, X, Plus, FileText, Files } from 'lucide-react';
+import { Search, Filter, Calendar, Download, Edit2, X, Plus, FileText, Files, Trash2 } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 import { SingleEntryTab } from '@/components/dashboard/SingleEntryTab';
 import { BulkEntryTab } from '@/components/dashboard/BulkEntryTab';
 
@@ -53,6 +54,7 @@ const ViewLogs = () => {
   const [trades, setTrades] = useState<Trade[]>([]);
   const [editingLog, setEditingLog] = useState<LogEntry | null>(null);
   const [isAddEntryDialogOpen, setIsAddEntryDialogOpen] = useState(false);
+  const [selectedLogs, setSelectedLogs] = useState<Set<string>>(new Set());
   const [editForm, setEditForm] = useState({
     date: '',
     worker_id: '',
@@ -231,6 +233,54 @@ const ViewLogs = () => {
       tradeId: 'all',
       sortBy: 'date-desc',
     });
+  };
+
+  const toggleSelectLog = (logId: string) => {
+    const newSelected = new Set(selectedLogs);
+    if (newSelected.has(logId)) {
+      newSelected.delete(logId);
+    } else {
+      newSelected.add(logId);
+    }
+    setSelectedLogs(newSelected);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedLogs.size === filteredLogs.length) {
+      setSelectedLogs(new Set());
+    } else {
+      setSelectedLogs(new Set(filteredLogs.map(log => log.id)));
+    }
+  };
+
+  const handleMassDelete = async () => {
+    if (selectedLogs.size === 0) return;
+
+    const confirmed = window.confirm(
+      `Are you sure you want to delete ${selectedLogs.size} time ${selectedLogs.size === 1 ? 'entry' : 'entries'}?`
+    );
+
+    if (!confirmed) return;
+
+    const { error } = await supabase
+      .from('daily_logs')
+      .delete()
+      .in('id', Array.from(selectedLogs));
+
+    if (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to delete entries',
+        variant: 'destructive',
+      });
+    } else {
+      toast({
+        title: 'Success',
+        description: `Successfully deleted ${selectedLogs.size} ${selectedLogs.size === 1 ? 'entry' : 'entries'}`,
+      });
+      setSelectedLogs(new Set());
+      fetchData();
+    }
   };
 
   const handleEditLog = (log: LogEntry) => {
@@ -433,6 +483,17 @@ const ViewLogs = () => {
           <CardHeader className="border-b border-border">
             <div className="flex items-center justify-between">
               <CardTitle>Time Entries ({filteredLogs.length})</CardTitle>
+              {selectedLogs.size > 0 && (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={handleMassDelete}
+                  className="gap-2"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Delete Selected ({selectedLogs.size})
+                </Button>
+              )}
             </div>
           </CardHeader>
           <CardContent className="p-0">
@@ -440,6 +501,12 @@ const ViewLogs = () => {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/50">
+                    <TableHead className="w-12">
+                      <Checkbox
+                        checked={selectedLogs.size === filteredLogs.length && filteredLogs.length > 0}
+                        onCheckedChange={toggleSelectAll}
+                      />
+                    </TableHead>
                     <TableHead className="font-semibold">Date</TableHead>
                     <TableHead className="font-semibold">Worker</TableHead>
                     <TableHead className="font-semibold">Trade</TableHead>
@@ -453,6 +520,12 @@ const ViewLogs = () => {
                 <TableBody>
                   {filteredLogs.map((log) => (
                     <TableRow key={log.id} className="hover:bg-muted/30 transition-colors">
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedLogs.has(log.id)}
+                          onCheckedChange={() => toggleSelectLog(log.id)}
+                        />
+                      </TableCell>
                       <TableCell className="font-medium">
                         {new Date(log.date).toLocaleDateString('en-US', { 
                           month: 'short', 
