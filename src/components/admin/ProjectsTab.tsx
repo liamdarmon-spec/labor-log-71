@@ -26,10 +26,17 @@ interface Project {
   address: string | null;
   status: string;
   project_manager: string | null;
+  company_id: string | null;
+}
+
+interface Company {
+  id: string;
+  name: string;
 }
 
 export const ProjectsTab = () => {
   const [projects, setProjects] = useState<Project[]>([]);
+  const [companies, setCompanies] = useState<Company[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [formData, setFormData] = useState({
@@ -38,12 +45,31 @@ export const ProjectsTab = () => {
     address: '',
     status: 'Active',
     project_manager: '',
+    company_id: '',
   });
   const { toast } = useToast();
 
   useEffect(() => {
     fetchProjects();
+    fetchCompanies();
   }, []);
+
+  const fetchCompanies = async () => {
+    const { data, error } = await supabase
+      .from('companies')
+      .select('*')
+      .order('name');
+
+    if (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to load companies',
+        variant: 'destructive',
+      });
+    } else {
+      setCompanies(data || []);
+    }
+  };
 
   const fetchProjects = async () => {
     const { data, error } = await supabase
@@ -81,6 +107,7 @@ export const ProjectsTab = () => {
             address: validatedData.address || null,
             status: validatedData.status,
             project_manager: validatedData.project_manager || null,
+            company_id: formData.company_id || null,
           })
           .eq('id', editingProject.id);
 
@@ -98,6 +125,7 @@ export const ProjectsTab = () => {
             address: validatedData.address || null,
             status: validatedData.status,
             project_manager: validatedData.project_manager || null,
+            company_id: formData.company_id || null,
           },
         ]);
 
@@ -157,6 +185,7 @@ export const ProjectsTab = () => {
       address: project.address || '',
       status: project.status,
       project_manager: project.project_manager || '',
+      company_id: project.company_id || '',
     });
     setIsDialogOpen(true);
   };
@@ -169,6 +198,7 @@ export const ProjectsTab = () => {
       address: '',
       status: 'Active',
       project_manager: '',
+      company_id: '',
     });
   };
 
@@ -227,6 +257,28 @@ export const ProjectsTab = () => {
                   onChange={(e) => setFormData({ ...formData, project_manager: e.target.value })}
                 />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="company">Company</Label>
+                <Select
+                  value={formData.company_id}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, company_id: value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select company (optional)" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover z-50">
+                    <SelectItem value="">None</SelectItem>
+                    {companies.map((company) => (
+                      <SelectItem key={company.id} value={company.id}>
+                        {company.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
               <div className="space-y-2">
                 <Label htmlFor="status">Status</Label>
                 <Select
