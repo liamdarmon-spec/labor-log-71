@@ -130,7 +130,12 @@ const Payments = () => {
 
   useEffect(() => {
     if (formData.start_date && formData.end_date) {
-      calculateAmountForDateRange(formData.start_date, formData.end_date);
+      const timeoutId = setTimeout(() => {
+        calculateAmountForDateRange(formData.start_date, formData.end_date);
+      }, 300);
+      return () => clearTimeout(timeoutId);
+    } else {
+      setCalculatedAmount(null);
     }
   }, [formData.start_date, formData.end_date]);
 
