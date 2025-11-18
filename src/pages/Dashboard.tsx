@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -352,37 +352,60 @@ const Dashboard = () => {
           </Card>
         </div>
 
-        {/* Main Chart/Table */}
+        {/* Cost by Project Table */}
         <Card className="shadow-medium">
           <CardHeader className="border-b border-border">
             <CardTitle className="flex items-center gap-2">
               <BarChart3 className="w-5 h-5 text-primary" />
-              {viewType === 'project' && 'Labor Cost by Project'}
-              {viewType === 'week' && 'Labor Cost by Week'}
-              {viewType === 'trade' && 'Labor Cost by Trade'}
+              Labor Cost by Project
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-6">
-            <div className="space-y-4">
-              {renderViewData().map((item, idx) => (
-                <div key={idx} className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="font-medium">{item.project}</span>
-                    <div className="flex items-center gap-4">
-                      <span className="text-muted-foreground">{item.hours.toFixed(1)}h</span>
-                      <span className="font-bold text-primary">${item.cost.toFixed(2)}</span>
-                    </div>
-                  </div>
-                  <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
-                    <div
-                      className="bg-primary h-full rounded-full transition-all"
-                      style={{
-                        width: `${(item.cost / data.totalCost) * 100}%`,
-                      }}
-                    />
-                  </div>
-                </div>
-              ))}
+            <div className="border rounded-lg overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Project</TableHead>
+                    <TableHead className="text-right">Hours Worked</TableHead>
+                    <TableHead className="text-right">Total Cost</TableHead>
+                    <TableHead className="text-right">% of Total</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {data.costByProject.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
+                        No project data available for the selected filters
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    data.costByProject.map((item, idx) => (
+                      <TableRow key={idx}>
+                        <TableCell className="font-medium">{item.project}</TableCell>
+                        <TableCell className="text-right">{item.hours.toFixed(1)}h</TableCell>
+                        <TableCell className="text-right font-semibold text-primary">
+                          ${item.cost.toFixed(2)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <span className="text-sm text-muted-foreground">
+                              {((item.cost / data.totalCost) * 100).toFixed(1)}%
+                            </span>
+                            <div className="w-16 bg-muted rounded-full h-2 overflow-hidden">
+                              <div
+                                className="bg-primary h-full rounded-full transition-all"
+                                style={{
+                                  width: `${(item.cost / data.totalCost) * 100}%`,
+                                }}
+                              />
+                            </div>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
             </div>
           </CardContent>
         </Card>
