@@ -1,0 +1,398 @@
+import { useState, useEffect } from 'react';
+import { Layout } from '@/components/Layout';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { DollarSign, Plus, Edit2, Trash2, Calendar } from 'lucide-react';
+
+interface Payment {
+  id: string;
+  start_date: string;
+  end_date: string;
+  company_id: string | null;
+  paid_by: string;
+  amount: number;
+  payment_date: string;
+  notes: string | null;
+}
+
+interface Company {
+  id: string;
+  name: string;
+}
+
+const Payments = () => {
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
+  const [formData, setFormData] = useState({
+    start_date: '',
+    end_date: '',
+    paid_by: '',
+    company_id: '',
+    amount: '',
+    payment_date: new Date().toISOString().split('T')[0],
+    notes: '',
+  });
+  const { toast } = useToast();
+
+  useEffect(() => {
+    fetchPayments();
+    fetchCompanies();
+  }, []);
+
+  const fetchPayments = async () => {
+    const { data, error } = await supabase
+      .from('payments')
+      .select('*')
+      .order('payment_date', { ascending: false });
+
+    if (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to load payments',
+        variant: 'destructive',
+      });
+    } else {
+      setPayments(data || []);
+    }
+  };
+
+  const fetchCompanies = async () => {
+    const { data } = await supabase
+      .from('companies')
+      .select('id, name')
+      .order('name');
+    setCompanies(data || []);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!formData.start_date || !formData.end_date || !formData.paid_by || !formData.amount) {
+      toast({
+        title: 'Validation Error',
+        description: 'Please fill in all required fields',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const paymentData = {
+      start_date: formData.start_date,
+      end_date: formData.end_date,
+      paid_by: formData.paid_by,
+      company_id: formData.company_id || null,
+      amount: parseFloat(formData.amount),
+      payment_date: formData.payment_date,
+      notes: formData.notes || null,
+    };
+
+    if (editingPayment) {
+      const { error } = await supabase
+        .from('payments')
+        .update(paymentData)
+        .eq('id', editingPayment.id);
+
+      if (error) {
+        toast({
+          title: 'Error',
+          description: 'Failed to update payment',
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: 'Success',
+          description: 'Payment updated successfully',
+        });
+        fetchPayments();
+        handleCloseDialog();
+      }
+    } else {
+      const { error } = await supabase
+        .from('payments')
+        .insert([paymentData]);
+
+      if (error) {
+        toast({
+          title: 'Error',
+          description: 'Failed to add payment',
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: 'Success',
+          description: 'Payment added successfully',
+        });
+        fetchPayments();
+        handleCloseDialog();
+      }
+    }
+  };
+
+  const handleEdit = (payment: Payment) => {
+    setEditingPayment(payment);
+    setFormData({
+      start_date: payment.start_date,
+      end_date: payment.end_date,
+      paid_by: payment.paid_by,
+      company_id: payment.company_id || '',
+      amount: payment.amount.toString(),
+      payment_date: payment.payment_date,
+      notes: payment.notes || '',
+    });
+    setIsDialogOpen(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this payment?')) return;
+
+    const { error } = await supabase
+      .from('payments')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to delete payment',
+        variant: 'destructive',
+      });
+    } else {
+      toast({
+        title: 'Success',
+        description: 'Payment deleted successfully',
+      });
+      fetchPayments();
+    }
+  };
+
+  const handleCloseDialog = () => {
+    setIsDialogOpen(false);
+    setEditingPayment(null);
+    setFormData({
+      start_date: '',
+      end_date: '',
+      paid_by: '',
+      company_id: '',
+      amount: '',
+      payment_date: new Date().toISOString().split('T')[0],
+      notes: '',
+    });
+  };
+
+  const totalPayments = payments.reduce((sum, p) => sum + parseFloat(p.amount.toString()), 0);
+
+  return (
+    <Layout>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">Payments</h1>
+            <p className="text-muted-foreground mt-2">Track and manage payment records</p>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="text-right">
+              <p className="text-sm text-muted-foreground">Total Payments</p>
+              <p className="text-2xl font-bold text-primary">${totalPayments.toFixed(2)}</p>
+            </div>
+            <Button onClick={() => setIsDialogOpen(true)} className="gap-2">
+              <Plus className="w-4 h-4" />
+              Add Payment
+            </Button>
+          </div>
+        </div>
+
+        <Card className="shadow-medium">
+          <CardHeader className="border-b border-border">
+            <CardTitle className="flex items-center gap-2">
+              <DollarSign className="w-5 h-5 text-primary" />
+              Payment Records
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-6">
+            <div className="border rounded-lg overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/50">
+                    <TableHead className="font-semibold">Date Range</TableHead>
+                    <TableHead className="font-semibold">Paid By</TableHead>
+                    <TableHead className="font-semibold">Payment Date</TableHead>
+                    <TableHead className="font-semibold text-right">Amount</TableHead>
+                    <TableHead className="font-semibold">Notes</TableHead>
+                    <TableHead className="font-semibold text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {payments.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                        No payments recorded yet
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    payments.map((payment) => (
+                      <TableRow key={payment.id} className="hover:bg-muted/30">
+                        <TableCell className="font-medium">
+                          <div className="flex items-center gap-2">
+                            <Calendar className="w-4 h-4 text-muted-foreground" />
+                            {new Date(payment.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {new Date(payment.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </div>
+                        </TableCell>
+                        <TableCell>{payment.paid_by}</TableCell>
+                        <TableCell>
+                          {new Date(payment.payment_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        </TableCell>
+                        <TableCell className="text-right font-semibold text-primary">
+                          ${parseFloat(payment.amount.toString()).toFixed(2)}
+                        </TableCell>
+                        <TableCell className="max-w-xs truncate text-muted-foreground">
+                          {payment.notes || '-'}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEdit(payment)}
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDelete(payment.id)}
+                            >
+                              <Trash2 className="w-4 h-4 text-destructive" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>{editingPayment ? 'Edit Payment' : 'Add Payment'}</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleSubmit} className="space-y-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="start-date">Start Date *</Label>
+                  <Input
+                    id="start-date"
+                    type="date"
+                    value={formData.start_date}
+                    onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="end-date">End Date *</Label>
+                  <Input
+                    id="end-date"
+                    type="date"
+                    value={formData.end_date}
+                    onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="paid-by">Paid By *</Label>
+                <Input
+                  id="paid-by"
+                  type="text"
+                  placeholder="e.g., GA Painting, Forma Homes"
+                  value={formData.paid_by}
+                  onChange={(e) => setFormData({ ...formData, paid_by: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="company">Company (Optional)</Label>
+                <Select value={formData.company_id} onValueChange={(value) => setFormData({ ...formData, company_id: value })}>
+                  <SelectTrigger id="company">
+                    <SelectValue placeholder="Select company" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover z-50">
+                    <SelectItem value="">None</SelectItem>
+                    {companies.map((company) => (
+                      <SelectItem key={company.id} value={company.id}>
+                        {company.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="amount">Amount *</Label>
+                  <Input
+                    id="amount"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="0.00"
+                    value={formData.amount}
+                    onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="payment-date">Payment Date *</Label>
+                  <Input
+                    id="payment-date"
+                    type="date"
+                    value={formData.payment_date}
+                    onChange={(e) => setFormData({ ...formData, payment_date: e.target.value })}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="notes">Notes</Label>
+                <Textarea
+                  id="notes"
+                  placeholder="Additional notes..."
+                  value={formData.notes}
+                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                  rows={3}
+                />
+              </div>
+
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={handleCloseDialog}>
+                  Cancel
+                </Button>
+                <Button type="submit">
+                  {editingPayment ? 'Update' : 'Add'} Payment
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </div>
+    </Layout>
+  );
+};
+
+export default Payments;

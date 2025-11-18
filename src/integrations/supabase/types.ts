@@ -90,6 +90,56 @@ export type Database = {
           },
         ]
       }
+      payments: {
+        Row: {
+          amount: number
+          company_id: string | null
+          created_at: string
+          created_by: string | null
+          end_date: string
+          id: string
+          notes: string | null
+          paid_by: string
+          payment_date: string
+          start_date: string
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          company_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          end_date: string
+          id?: string
+          notes?: string | null
+          paid_by: string
+          payment_date?: string
+          start_date: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          company_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          end_date?: string
+          id?: string
+          notes?: string | null
+          paid_by?: string
+          payment_date?: string
+          start_date?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       projects: {
         Row: {
           address: string | null
