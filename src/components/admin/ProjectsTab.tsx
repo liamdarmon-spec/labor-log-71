@@ -27,6 +27,7 @@ interface Project {
   status: string;
   project_manager: string | null;
   company_id: string | null;
+  companies: { name: string } | null;
 }
 
 interface Company {
@@ -74,7 +75,7 @@ export const ProjectsTab = () => {
   const fetchProjects = async () => {
     const { data, error } = await supabase
       .from('projects')
-      .select('*')
+      .select('*, companies(name)')
       .order('project_name');
 
     if (error) {
@@ -307,6 +308,7 @@ export const ProjectsTab = () => {
               <TableRow>
                 <TableHead>Project Name</TableHead>
                 <TableHead>Client</TableHead>
+                <TableHead>Company</TableHead>
                 <TableHead>Address</TableHead>
                 <TableHead>Manager</TableHead>
                 <TableHead>Status</TableHead>
@@ -318,6 +320,7 @@ export const ProjectsTab = () => {
                 <TableRow key={project.id}>
                   <TableCell className="font-medium">{project.project_name}</TableCell>
                   <TableCell>{project.client_name}</TableCell>
+                  <TableCell>{project.companies?.name || '-'}</TableCell>
                   <TableCell>{project.address || '-'}</TableCell>
                   <TableCell>{project.project_manager || '-'}</TableCell>
                   <TableCell>
