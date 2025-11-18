@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -66,6 +67,7 @@ interface BulkEntry {
 }
 
 export const BulkEntryTab = () => {
+  const navigate = useNavigate();
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -370,6 +372,9 @@ export const BulkEntryTab = () => {
         title: 'Success',
         description: `Logged ${validEntries.length} time entries for ${date}`,
       });
+
+      // Navigate back to dashboard
+      navigate('/dashboard');
 
       // Reset entries
       const resetEntries: Record<string, BulkEntry> = {};
