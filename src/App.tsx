@@ -4,11 +4,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import DailyLog from "./pages/DailyLog";
-import BulkEntry from "./pages/BulkEntry";
+import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
-import ViewLogs from "./pages/ViewLogs";
-import Backend from "./pages/Backend";
 import Admin from "./pages/Admin";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
@@ -27,15 +24,7 @@ const App = () => (
             path="/"
             element={
               <ProtectedRoute>
-                <DailyLog />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/bulk"
-            element={
-              <ProtectedRoute>
-                <BulkEntry />
+                <Index />
               </ProtectedRoute>
             }
           />
@@ -44,22 +33,6 @@ const App = () => (
             element={
               <ProtectedRoute>
                 <Dashboard />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/view"
-            element={
-              <ProtectedRoute>
-                <ViewLogs />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/backend"
-            element={
-              <ProtectedRoute>
-                <Backend />
               </ProtectedRoute>
             }
           />
