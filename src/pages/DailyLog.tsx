@@ -22,7 +22,7 @@ const logSchema = z.object({
 interface Worker {
   id: string;
   name: string;
-  trade: string;
+  trades: { name: string } | null;
 }
 
 interface Project {
@@ -52,7 +52,7 @@ const DailyLog = () => {
   const fetchWorkers = async () => {
     const { data, error } = await supabase
       .from('workers')
-      .select('id, name, trade')
+      .select('id, name, trades(name)')
       .eq('active', true)
       .order('name');
 
@@ -145,7 +145,7 @@ const DailyLog = () => {
     <Layout>
       <div className="max-w-2xl mx-auto">
         <Card className="border-border shadow-lg">
-          <CardHeader className="space-y-2">
+          <CardHeader className="space-y-2 border-b border-border bg-gradient-to-br from-card to-muted/30">
             <CardTitle className="text-2xl font-bold flex items-center gap-2">
               <Clock className="w-6 h-6 text-primary" />
               Daily Time Entry
@@ -187,7 +187,7 @@ const DailyLog = () => {
                   <SelectContent className="bg-popover z-50">
                     {workers.map((worker) => (
                       <SelectItem key={worker.id} value={worker.id}>
-                        {worker.name} - {worker.trade}
+                        {worker.name} {worker.trades?.name && `- ${worker.trades.name}`}
                       </SelectItem>
                     ))}
                   </SelectContent>

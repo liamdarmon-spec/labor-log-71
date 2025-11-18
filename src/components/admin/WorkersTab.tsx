@@ -4,16 +4,17 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, Users as UsersIcon } from 'lucide-react';
 import { z } from 'zod';
 
 const workerSchema = z.object({
   name: z.string().trim().nonempty({ message: 'Name is required' }).max(100),
-  trade: z.string().trim().nonempty({ message: 'Trade is required' }).max(100),
+  trade_id: z.string().trim().nonempty({ message: 'Trade is required' }),
   hourly_rate: z.number().positive({ message: 'Hourly rate must be positive' }),
   phone: z.string().max(20).optional(),
 });
@@ -21,19 +22,26 @@ const workerSchema = z.object({
 interface Worker {
   id: string;
   name: string;
-  trade: string;
+  trade_id: string | null;
+  trades: { name: string } | null;
   hourly_rate: number;
   phone: string | null;
   active: boolean;
 }
 
+interface Trade {
+  id: string;
+  name: string;
+}
+
 export const WorkersTab = () => {
   const [workers, setWorkers] = useState<Worker[]>([]);
+  const [trades, setTrades] = useState<Trade[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingWorker, setEditingWorker] = useState<Worker | null>(null);
   const [formData, setFormData] = useState({
     name: '',
-    trade: '',
+    trade_id: '',
     hourly_rate: '',
     phone: '',
     active: true,
@@ -42,12 +50,13 @@ export const WorkersTab = () => {
 
   useEffect(() => {
     fetchWorkers();
+    fetchTrades();
   }, []);
 
   const fetchWorkers = async () => {
     const { data, error } = await supabase
       .from('workers')
-      .select('*')
+      .select('*, trades(name)')
       .order('name');
 
     if (error) {
@@ -58,6 +67,23 @@ export const WorkersTab = () => {
       });
     } else {
       setWorkers(data || []);
+    }
+  };
+
+  const fetchTrades = async () => {
+    const { data, error } = await supabase
+      .from('trades')
+      .select('id, name')
+      .order('name');
+
+    if (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to load trades',
+        variant: 'destructive',
+      });
+    } else {
+      setTrades(data || []);
     }
   };
 
@@ -76,7 +102,8 @@ export const WorkersTab = () => {
           .from('workers')
           .update({
             name: validatedData.name,
-            trade: validatedData.trade,
+            trade: '', // Keep legacy field for compatibility
+            trade_id: validatedData.trade_id,
             hourly_rate: validatedData.hourly_rate,
             phone: validatedData.phone || null,
             active: formData.active,
@@ -93,7 +120,8 @@ export const WorkersTab = () => {
         const { error } = await supabase.from('workers').insert([
           {
             name: validatedData.name,
-            trade: validatedData.trade,
+            trade: '', // Keep legacy field for compatibility
+            trade_id: validatedData.trade_id,
             hourly_rate: validatedData.hourly_rate,
             phone: validatedData.phone || null,
             active: formData.active,
@@ -152,7 +180,7 @@ export const WorkersTab = () => {
     setEditingWorker(worker);
     setFormData({
       name: worker.name,
-      trade: worker.trade,
+      trade_id: worker.trade_id || '',
       hourly_rate: worker.hourly_rate.toString(),
       phone: worker.phone || '',
       active: worker.active,
@@ -164,7 +192,7 @@ export const WorkersTab = () => {
     setEditingWorker(null);
     setFormData({
       name: '',
-      trade: '',
+      trade_id: '',
       hourly_rate: '',
       phone: '',
       active: true,
@@ -220,12 +248,21 @@ export const WorkersTab = () => {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="trade">Trade</Label>
-                <Input
-                  id="trade"
-                  value={formData.trade}
-                  onChange={(e) => setFormData({ ...formData, trade: e.target.value })}
-                  required
-                />
+                <Select
+                  value={formData.trade_id}
+                  onValueChange={(value) => setFormData({ ...formData, trade_id: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a trade" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover z-50">
+                    {trades.map((trade) => (
+                      <SelectItem key={trade.id} value={trade.id}>
+                        {trade.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="hourly_rate">Hourly Rate ($)</Label>
@@ -279,7 +316,11 @@ export const WorkersTab = () => {
               {workers.map((worker) => (
                 <TableRow key={worker.id}>
                   <TableCell className="font-medium">{worker.name}</TableCell>
-                  <TableCell>{worker.trade}</TableCell>
+                  <TableCell>
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
+                      {worker.trades?.name || 'No Trade'}
+                    </span>
+                  </TableCell>
                   <TableCell>${worker.hourly_rate.toFixed(2)}</TableCell>
                   <TableCell>{worker.phone || '-'}</TableCell>
                   <TableCell>
