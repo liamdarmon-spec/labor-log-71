@@ -22,12 +22,14 @@ interface DashboardData {
   topWorker: { name: string; hours: number } | null;
   topProject: { name: string; cost: number } | null;
   costByProject: Array<{ project: string; cost: number; hours: number }>;
+  costByDay: Array<{ day: string; cost: number; hours: number }>;
   costByWeek: Array<{ week: string; cost: number; hours: number }>;
+  costByMonth: Array<{ month: string; cost: number; hours: number }>;
   costByTrade: Array<{ trade: string; cost: number; hours: number }>;
 }
 
 export const AnalyticsTab = () => {
-  const [viewType, setViewType] = useState<'project' | 'week' | 'month' | 'trade'>('project');
+  const [viewType, setViewType] = useState<'project' | 'day' | 'week' | 'month' | 'trade'>('project');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [projectFilter, setProjectFilter] = useState('all');
@@ -38,7 +40,9 @@ export const AnalyticsTab = () => {
     topWorker: null,
     topProject: null,
     costByProject: [],
+    costByDay: [],
     costByWeek: [],
+    costByMonth: [],
     costByTrade: [],
   });
   const [projects, setProjects] = useState<Array<{ id: string; project_name: string }>>([]);
@@ -86,7 +90,9 @@ export const AnalyticsTab = () => {
           topWorker: null,
           topProject: null,
           costByProject: [],
+          costByDay: [],
           costByWeek: [],
+          costByMonth: [],
           costByTrade: [],
         });
         return;
@@ -136,6 +142,20 @@ export const AnalyticsTab = () => {
       ).map(([project, data]: any) => ({ project, ...data }))
         .sort((a, b) => b.cost - a.cost);
 
+      // Cost by day
+      const costByDay = Object.entries(
+        logs.reduce((acc: any, log) => {
+          const day = log.date;
+          const hours = parseFloat(log.hours_worked.toString());
+          const cost = hours * (log.workers as any).hourly_rate;
+          if (!acc[day]) acc[day] = { hours: 0, cost: 0 };
+          acc[day].hours += hours;
+          acc[day].cost += cost;
+          return acc;
+        }, {})
+      ).map(([day, data]: any) => ({ day, ...data }))
+        .sort((a, b) => b.day.localeCompare(a.day));
+
       // Cost by week
       const costByWeek = Object.entries(
         logs.reduce((acc: any, log) => {
@@ -150,7 +170,22 @@ export const AnalyticsTab = () => {
           return acc;
         }, {})
       ).map(([week, data]: any) => ({ week, ...data }))
-        .sort((a, b) => a.week.localeCompare(b.week));
+        .sort((a, b) => b.week.localeCompare(a.week));
+
+      // Cost by month
+      const costByMonth = Object.entries(
+        logs.reduce((acc: any, log) => {
+          const date = new Date(log.date);
+          const month = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+          const hours = parseFloat(log.hours_worked.toString());
+          const cost = hours * (log.workers as any).hourly_rate;
+          if (!acc[month]) acc[month] = { hours: 0, cost: 0 };
+          acc[month].hours += hours;
+          acc[month].cost += cost;
+          return acc;
+        }, {})
+      ).map(([month, data]: any) => ({ month, ...data }))
+        .sort((a, b) => b.month.localeCompare(a.month));
 
       // Cost by trade
       const costByTrade = Object.entries(
@@ -173,7 +208,9 @@ export const AnalyticsTab = () => {
         topWorker,
         topProject,
         costByProject,
+        costByDay,
         costByWeek,
+        costByMonth,
         costByTrade,
       });
     } catch (error: any) {
@@ -199,10 +236,12 @@ export const AnalyticsTab = () => {
               <SelectTrigger id="view-type">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="project">Project</SelectItem>
-                <SelectItem value="week">Week</SelectItem>
-                <SelectItem value="trade">Trade</SelectItem>
+              <SelectContent className="bg-popover z-50">
+                <SelectItem value="project">By Project</SelectItem>
+                <SelectItem value="day">By Day</SelectItem>
+                <SelectItem value="week">By Week</SelectItem>
+                <SelectItem value="month">By Month</SelectItem>
+                <SelectItem value="trade">By Trade</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -328,21 +367,31 @@ export const AnalyticsTab = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {(viewType === 'project' ? data.costByProject : 
-                  viewType === 'week' ? data.costByWeek : 
-                  data.costByTrade).length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
-                      No data available for the selected filters
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  (viewType === 'project' ? data.costByProject : 
-                   viewType === 'week' ? data.costByWeek : 
-                   data.costByTrade).map((item: any, idx) => (
+                {(() => {
+                  let currentData;
+                  switch(viewType) {
+                    case 'project': currentData = data.costByProject; break;
+                    case 'day': currentData = data.costByDay; break;
+                    case 'week': currentData = data.costByWeek; break;
+                    case 'month': currentData = data.costByMonth; break;
+                    case 'trade': currentData = data.costByTrade; break;
+                    default: currentData = data.costByProject;
+                  }
+                  
+                  if (currentData.length === 0) {
+                    return (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
+                          No data available for the selected filters
+                        </TableCell>
+                      </TableRow>
+                    );
+                  }
+                  
+                  return currentData.map((item: any, idx) => (
                     <TableRow key={idx}>
                       <TableCell className="font-medium">
-                        {item.project || item.week || item.trade}
+                        {item.project || item.day || item.week || item.month || item.trade}
                       </TableCell>
                       <TableCell className="text-right">{item.hours.toFixed(1)}h</TableCell>
                       <TableCell className="text-right font-semibold text-primary">
@@ -352,8 +401,8 @@ export const AnalyticsTab = () => {
                         {data.totalCost > 0 ? ((item.cost / data.totalCost) * 100).toFixed(1) : 0}%
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
+                  ));
+                })()}
               </TableBody>
             </Table>
           </div>
