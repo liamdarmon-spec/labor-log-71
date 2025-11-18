@@ -7,15 +7,22 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Calendar, Save, UserCheck, Plus, Trash2, Edit } from 'lucide-react';
+import { Calendar, Save, UserCheck, Plus, Trash2, Edit, UserPlus, X } from 'lucide-react';
 import { z } from 'zod';
 
 const jobEntrySchema = z.object({
   project_id: z.string().trim().nonempty({ message: 'Please select a project' }),
   hours_worked: z.number().positive({ message: 'Hours must be greater than 0' }).max(24, { message: 'Hours cannot exceed 24' }),
+});
+
+const workerSchema = z.object({
+  name: z.string().trim().nonempty({ message: 'Name is required' }).max(100),
+  trade_id: z.string().trim().nonempty({ message: 'Please select a trade' }),
+  hourly_rate: z.number().positive({ message: 'Rate must be greater than 0' }).max(1000),
+  phone: z.string().max(20).optional(),
 });
 
 interface Worker {
@@ -64,8 +71,16 @@ export const BulkEntryTab = () => {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [trades, setTrades] = useState<Trade[]>([]);
   const [entries, setEntries] = useState<Record<string, BulkEntry>>({});
+  const [excludedWorkers, setExcludedWorkers] = useState<Set<string>>(new Set());
   const [editingWorker, setEditingWorker] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [isAddWorkerDialogOpen, setIsAddWorkerDialogOpen] = useState(false);
+  const [newWorkerForm, setNewWorkerForm] = useState({
+    name: '',
+    trade_id: '',
+    hourly_rate: '',
+    phone: '',
+  });
   const { toast } = useToast();
 
   useEffect(() => {
@@ -134,6 +149,67 @@ export const BulkEntryTab = () => {
       });
     } else {
       setTrades(data || []);
+    }
+  };
+
+  const toggleWorkerExclusion = (workerId: string) => {
+    setExcludedWorkers(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(workerId)) {
+        newSet.delete(workerId);
+      } else {
+        newSet.add(workerId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleAddWorker = async () => {
+    try {
+      const validatedData = workerSchema.parse({
+        name: newWorkerForm.name,
+        trade_id: newWorkerForm.trade_id,
+        hourly_rate: parseFloat(newWorkerForm.hourly_rate),
+        phone: newWorkerForm.phone || undefined,
+      });
+
+      const { data, error } = await supabase
+        .from('workers')
+        .insert({
+          name: validatedData.name,
+          trade_id: validatedData.trade_id,
+          hourly_rate: validatedData.hourly_rate,
+          phone: validatedData.phone || null,
+          trade: trades.find(t => t.id === validatedData.trade_id)?.name || '',
+          active: true,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      toast({
+        title: 'Success',
+        description: `Worker ${validatedData.name} added successfully`,
+      });
+
+      setIsAddWorkerDialogOpen(false);
+      setNewWorkerForm({ name: '', trade_id: '', hourly_rate: '', phone: '' });
+      fetchWorkers();
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        toast({
+          title: 'Validation Error',
+          description: error.errors[0].message,
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: 'Error',
+          description: error.message,
+          variant: 'destructive',
+        });
+      }
     }
   };
 
@@ -316,16 +392,18 @@ export const BulkEntryTab = () => {
     }
   };
 
-  const totalHours = workers.reduce((sum, worker) => {
+  const activeWorkers = workers.filter(w => !excludedWorkers.has(w.id));
+
+  const totalHours = activeWorkers.reduce((sum, worker) => {
     return sum + getTotalHoursForWorker(worker.id);
   }, 0);
 
-  const totalCost = workers.reduce((sum, worker) => {
+  const totalCost = activeWorkers.reduce((sum, worker) => {
     const hours = getTotalHoursForWorker(worker.id);
     return sum + (hours * worker.hourly_rate);
   }, 0);
 
-  const workersWithHours = workers.filter(worker => {
+  const workersWithHours = activeWorkers.filter(worker => {
     return getTotalHoursForWorker(worker.id) > 0;
   }).length;
 
@@ -353,7 +431,7 @@ export const BulkEntryTab = () => {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center justify-between gap-4">
             <div className="flex-1">
               <Label htmlFor="date">Date</Label>
               <Input
@@ -364,6 +442,14 @@ export const BulkEntryTab = () => {
                 className="max-w-xs"
               />
             </div>
+            <Button
+              variant="outline"
+              onClick={() => setIsAddWorkerDialogOpen(true)}
+              className="gap-2"
+            >
+              <UserPlus className="w-4 h-4" />
+              Add Worker
+            </Button>
           </div>
 
           <div className="border rounded-lg overflow-hidden">
@@ -380,7 +466,7 @@ export const BulkEntryTab = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {workers.map((worker) => {
+                {activeWorkers.map((worker) => {
                   const entry = entries[worker.id] || { 
                     worker_id: worker.id, 
                     isFullDay: true,
@@ -417,16 +503,26 @@ export const BulkEntryTab = () => {
                         />
                       </TableCell>
                       <TableCell>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setEditingWorker(worker.id)}
-                        >
-                          <Edit className="w-4 h-4 mr-2" />
-                          {entry.jobEntries.length > 0 && entry.jobEntries[0].project_id
-                            ? `${entry.jobEntries.length} Project${entry.jobEntries.length > 1 ? 's' : ''}`
-                            : 'Add Projects'}
-                        </Button>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setEditingWorker(worker.id)}
+                          >
+                            <Edit className="w-4 h-4 mr-2" />
+                            {entry.jobEntries.length > 0 && entry.jobEntries[0].project_id
+                              ? `${entry.jobEntries.length} Project${entry.jobEntries.length > 1 ? 's' : ''}`
+                              : 'Add Projects'}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => toggleWorkerExclusion(worker.id)}
+                            title="Remove worker from this entry"
+                          >
+                            <X className="w-4 h-4 text-destructive" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   );
@@ -551,6 +647,73 @@ export const BulkEntryTab = () => {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Worker Dialog */}
+      <Dialog open={isAddWorkerDialogOpen} onOpenChange={setIsAddWorkerDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add New Worker</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-4">
+            <div className="space-y-2">
+              <Label htmlFor="worker-name">Name</Label>
+              <Input
+                id="worker-name"
+                value={newWorkerForm.name}
+                onChange={(e) => setNewWorkerForm({ ...newWorkerForm, name: e.target.value })}
+                placeholder="Worker name"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="worker-trade">Trade</Label>
+              <Select
+                value={newWorkerForm.trade_id}
+                onValueChange={(value) => setNewWorkerForm({ ...newWorkerForm, trade_id: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select trade" />
+                </SelectTrigger>
+                <SelectContent>
+                  {trades.map((trade) => (
+                    <SelectItem key={trade.id} value={trade.id}>
+                      {trade.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="worker-rate">Hourly Rate</Label>
+              <Input
+                id="worker-rate"
+                type="number"
+                step="0.01"
+                value={newWorkerForm.hourly_rate}
+                onChange={(e) => setNewWorkerForm({ ...newWorkerForm, hourly_rate: e.target.value })}
+                placeholder="0.00"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="worker-phone">Phone (Optional)</Label>
+              <Input
+                id="worker-phone"
+                value={newWorkerForm.phone}
+                onChange={(e) => setNewWorkerForm({ ...newWorkerForm, phone: e.target.value })}
+                placeholder="Phone number"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAddWorkerDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleAddWorker}>
+              <UserPlus className="w-4 h-4 mr-2" />
+              Add Worker
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
