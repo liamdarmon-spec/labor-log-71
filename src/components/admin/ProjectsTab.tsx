@@ -258,18 +258,17 @@ export const ProjectsTab = () => {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="company">Company</Label>
+                <Label htmlFor="company">Company (Optional)</Label>
                 <Select
-                  value={formData.company_id}
+                  value={formData.company_id || undefined}
                   onValueChange={(value) =>
                     setFormData({ ...formData, company_id: value })
                   }
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select company (optional)" />
+                    <SelectValue placeholder="Select company" />
                   </SelectTrigger>
                   <SelectContent className="bg-popover z-50">
-                    <SelectItem value="">None</SelectItem>
                     {companies.map((company) => (
                       <SelectItem key={company.id} value={company.id}>
                         {company.name}
