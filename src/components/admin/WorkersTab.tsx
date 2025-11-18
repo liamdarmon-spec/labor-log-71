@@ -97,12 +97,16 @@ export const WorkersTab = () => {
         phone: formData.phone || undefined,
       });
 
+      // Find the selected trade name
+      const selectedTrade = trades.find(t => t.id === validatedData.trade_id);
+      const tradeName = selectedTrade?.name || '';
+
       if (editingWorker) {
         const { error } = await supabase
           .from('workers')
           .update({
             name: validatedData.name,
-            trade: '', // Keep legacy field for compatibility
+            trade: tradeName,
             trade_id: validatedData.trade_id,
             hourly_rate: validatedData.hourly_rate,
             phone: validatedData.phone || null,
@@ -120,7 +124,7 @@ export const WorkersTab = () => {
         const { error } = await supabase.from('workers').insert([
           {
             name: validatedData.name,
-            trade: '', // Keep legacy field for compatibility
+            trade: tradeName,
             trade_id: validatedData.trade_id,
             hourly_rate: validatedData.hourly_rate,
             phone: validatedData.phone || null,
@@ -147,9 +151,10 @@ export const WorkersTab = () => {
           variant: 'destructive',
         });
       } else {
+        console.error('Worker save error:', error);
         toast({
           title: 'Error',
-          description: 'Failed to save worker',
+          description: error instanceof Error ? error.message : 'Failed to save worker',
           variant: 'destructive',
         });
       }
