@@ -33,6 +33,8 @@ const Payments = () => {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
+  const [calculatedAmount, setCalculatedAmount] = useState<number | null>(null);
+  const [isCalculating, setIsCalculating] = useState(false);
   const [formData, setFormData] = useState({
     start_date: '',
     end_date: '',
@@ -73,6 +75,64 @@ const Payments = () => {
       .order('name');
     setCompanies(data || []);
   };
+
+  const calculateAmountForDateRange = async (startDate: string, endDate: string) => {
+    if (!startDate || !endDate) {
+      setCalculatedAmount(null);
+      return;
+    }
+
+    setIsCalculating(true);
+    try {
+      const { data: logs, error } = await supabase
+        .from('daily_logs')
+        .select(`
+          hours_worked,
+          workers (hourly_rate)
+        `)
+        .gte('date', startDate)
+        .lte('date', endDate);
+
+      if (error) throw error;
+
+      if (!logs || logs.length === 0) {
+        setCalculatedAmount(0);
+        toast({
+          title: 'No logs found',
+          description: `No time entries found between ${new Date(startDate).toLocaleDateString()} and ${new Date(endDate).toLocaleDateString()}`,
+          variant: 'destructive',
+        });
+      } else {
+        const total = logs.reduce((sum, log) => {
+          const hours = parseFloat(log.hours_worked.toString());
+          const rate = (log.workers as any).hourly_rate;
+          return sum + (hours * rate);
+        }, 0);
+
+        setCalculatedAmount(total);
+        setFormData(prev => ({ ...prev, amount: total.toFixed(2) }));
+        
+        toast({
+          title: 'Amount calculated',
+          description: `Found ${logs.length} time entries totaling $${total.toFixed(2)}`,
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: 'Failed to calculate amount',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsCalculating(false);
+    }
+  };
+
+  useEffect(() => {
+    if (formData.start_date && formData.end_date) {
+      calculateAmountForDateRange(formData.start_date, formData.end_date);
+    }
+  }, [formData.start_date, formData.end_date]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -178,6 +238,7 @@ const Payments = () => {
   const handleCloseDialog = () => {
     setIsDialogOpen(false);
     setEditingPayment(null);
+    setCalculatedAmount(null);
     setFormData({
       start_date: '',
       end_date: '',
@@ -345,16 +406,35 @@ const Payments = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="amount">Amount *</Label>
-                  <Input
-                    id="amount"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    placeholder="0.00"
-                    value={formData.amount}
-                    onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                    required
-                  />
+                  <div className="relative">
+                    <Input
+                      id="amount"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="0.00"
+                      value={formData.amount}
+                      onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                      required
+                      disabled={isCalculating}
+                      className={calculatedAmount !== null ? 'pr-16' : ''}
+                    />
+                    {isCalculating && (
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                        Calculating...
+                      </div>
+                    )}
+                    {calculatedAmount !== null && !isCalculating && (
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-primary font-medium">
+                        Auto-filled
+                      </div>
+                    )}
+                  </div>
+                  {calculatedAmount !== null && !isCalculating && (
+                    <p className="text-xs text-muted-foreground">
+                      Calculated from time logs in date range
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="payment-date">Payment Date *</Label>
