@@ -5,6 +5,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import DailyLog from "./pages/DailyLog";
+import BulkEntry from "./pages/BulkEntry";
+import Dashboard from "./pages/Dashboard";
 import ViewLogs from "./pages/ViewLogs";
 import Admin from "./pages/Admin";
 import Auth from "./pages/Auth";
@@ -25,6 +27,22 @@ const App = () => (
             element={
               <ProtectedRoute>
                 <DailyLog />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/bulk"
+            element={
+              <ProtectedRoute>
+                <BulkEntry />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <Dashboard />
               </ProtectedRoute>
             }
           />
