@@ -37,7 +37,7 @@ const Payments = () => {
     start_date: '',
     end_date: '',
     paid_by: '',
-    company_id: '',
+    company_id: 'none',
     amount: '',
     payment_date: new Date().toISOString().split('T')[0],
     notes: '',
@@ -144,7 +144,7 @@ const Payments = () => {
       start_date: payment.start_date,
       end_date: payment.end_date,
       paid_by: payment.paid_by,
-      company_id: payment.company_id || '',
+      company_id: payment.company_id || 'none',
       amount: payment.amount.toString(),
       payment_date: payment.payment_date,
       notes: payment.notes || '',
@@ -182,7 +182,7 @@ const Payments = () => {
       start_date: '',
       end_date: '',
       paid_by: '',
-      company_id: '',
+      company_id: 'none',
       amount: '',
       payment_date: new Date().toISOString().split('T')[0],
       notes: '',
@@ -327,12 +327,12 @@ const Payments = () => {
 
               <div className="space-y-2">
                 <Label htmlFor="company">Company (Optional)</Label>
-                <Select value={formData.company_id} onValueChange={(value) => setFormData({ ...formData, company_id: value })}>
+                <Select value={formData.company_id} onValueChange={(value) => setFormData({ ...formData, company_id: value === 'none' ? '' : value })}>
                   <SelectTrigger id="company">
                     <SelectValue placeholder="Select company" />
                   </SelectTrigger>
                   <SelectContent className="bg-popover z-50">
-                    <SelectItem value="">None</SelectItem>
+                    <SelectItem value="none">None</SelectItem>
                     {companies.map((company) => (
                       <SelectItem key={company.id} value={company.id}>
                         {company.name}
