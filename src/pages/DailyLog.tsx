@@ -6,16 +6,20 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Calendar, Clock, FileText } from 'lucide-react';
+import { Calendar, Clock, FileText, Plus, Trash2 } from 'lucide-react';
 import { z } from 'zod';
+
+const jobEntrySchema = z.object({
+  project_id: z.string().trim().nonempty({ message: 'Please select a project' }),
+  hours_worked: z.number().positive({ message: 'Hours must be greater than 0' }).max(24, { message: 'Hours cannot exceed 24' }),
+});
 
 const logSchema = z.object({
   date: z.string().trim().nonempty({ message: 'Date is required' }),
   worker_id: z.string().trim().nonempty({ message: 'Please select a worker' }),
-  project_id: z.string().trim().nonempty({ message: 'Please select a project' }),
-  hours_worked: z.number().positive({ message: 'Hours must be greater than 0' }).max(24, { message: 'Hours cannot exceed 24' }),
   notes: z.string().max(1000, { message: 'Notes must be less than 1000 characters' }).optional(),
 });
 
@@ -31,15 +35,23 @@ interface Project {
   client_name: string;
 }
 
+interface JobEntry {
+  id: string;
+  project_id: string;
+  hours_worked: string;
+}
+
 const DailyLog = () => {
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(false);
+  const [isFullDay, setIsFullDay] = useState(true);
+  const [jobEntries, setJobEntries] = useState<JobEntry[]>([
+    { id: '1', project_id: '', hours_worked: '' }
+  ]);
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
     worker_id: '',
-    project_id: '',
-    hours_worked: '',
     notes: '',
   });
   const { toast } = useToast();
@@ -85,27 +97,72 @@ const DailyLog = () => {
     }
   };
 
+  const addJobEntry = () => {
+    setJobEntries([...jobEntries, { id: Date.now().toString(), project_id: '', hours_worked: '' }]);
+  };
+
+  const removeJobEntry = (id: string) => {
+    if (jobEntries.length > 1) {
+      setJobEntries(jobEntries.filter(entry => entry.id !== id));
+    }
+  };
+
+  const updateJobEntry = (id: string, field: 'project_id' | 'hours_worked', value: string) => {
+    setJobEntries(jobEntries.map(entry => 
+      entry.id === id ? { ...entry, [field]: value } : entry
+    ));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validate input
     try {
-      const validatedData = logSchema.parse({
-        ...formData,
-        hours_worked: parseFloat(formData.hours_worked),
-      });
+      const validatedData = logSchema.parse(formData);
+
+      // Validate job entries
+      if (isFullDay) {
+        if (!jobEntries[0].project_id) {
+          throw new Error('Please select a project');
+        }
+      } else {
+        // Validate all job entries
+        const totalHours = jobEntries.reduce((sum, entry) => {
+          const hours = parseFloat(entry.hours_worked) || 0;
+          return sum + hours;
+        }, 0);
+
+        if (totalHours > 24) {
+          throw new Error('Total hours cannot exceed 24');
+        }
+
+        for (const entry of jobEntries) {
+          jobEntrySchema.parse({
+            project_id: entry.project_id,
+            hours_worked: parseFloat(entry.hours_worked),
+          });
+        }
+      }
 
       setLoading(true);
 
-      const { error } = await supabase.from('daily_logs').insert([
-        {
-          date: validatedData.date,
-          worker_id: validatedData.worker_id,
-          project_id: validatedData.project_id,
-          hours_worked: validatedData.hours_worked,
-          notes: validatedData.notes || null,
-        },
-      ]);
+      // Create log entries for each job
+      const logsToInsert = isFullDay 
+        ? [{
+            date: validatedData.date,
+            worker_id: validatedData.worker_id,
+            project_id: jobEntries[0].project_id,
+            hours_worked: 8,
+            notes: validatedData.notes || null,
+          }]
+        : jobEntries.map(entry => ({
+            date: validatedData.date,
+            worker_id: validatedData.worker_id,
+            project_id: entry.project_id,
+            hours_worked: parseFloat(entry.hours_worked),
+            notes: validatedData.notes || null,
+          }));
+
+      const { error } = await supabase.from('daily_logs').insert(logsToInsert);
 
       if (error) throw error;
 
@@ -118,10 +175,10 @@ const DailyLog = () => {
       setFormData({
         date: new Date().toISOString().split('T')[0],
         worker_id: '',
-        project_id: '',
-        hours_worked: '',
         notes: '',
       });
+      setJobEntries([{ id: '1', project_id: '', hours_worked: '' }]);
+      setIsFullDay(true);
     } catch (error) {
       if (error instanceof z.ZodError) {
         toast({
@@ -194,46 +251,122 @@ const DailyLog = () => {
                 </Select>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="project" className="text-sm font-medium">
-                  Project
-                </Label>
-                <Select
-                  value={formData.project_id}
-                  onValueChange={(value) => setFormData({ ...formData, project_id: value })}
+              <div className="flex items-center justify-between space-x-2 p-4 bg-muted/30 rounded-lg">
+                <div className="space-y-0.5">
+                  <Label htmlFor="full-day" className="text-sm font-medium">
+                    Full Day (8 hours)
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Toggle off to split hours across multiple jobs
+                  </p>
+                </div>
+                <Switch
+                  id="full-day"
+                  checked={isFullDay}
+                  onCheckedChange={(checked) => {
+                    setIsFullDay(checked);
+                    if (checked) {
+                      setJobEntries([{ id: '1', project_id: '', hours_worked: '' }]);
+                    }
+                  }}
                   disabled={loading}
-                >
-                  <SelectTrigger className="h-11">
-                    <SelectValue placeholder="Select project" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-popover z-50">
-                    {projects.map((project) => (
-                      <SelectItem key={project.id} value={project.id}>
-                        {project.project_name} - {project.client_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="hours" className="text-sm font-medium">
-                  Hours Worked
-                </Label>
-                <Input
-                  id="hours"
-                  type="number"
-                  step="0.5"
-                  min="0.5"
-                  max="24"
-                  placeholder="8.0"
-                  value={formData.hours_worked}
-                  onChange={(e) => setFormData({ ...formData, hours_worked: e.target.value })}
-                  required
-                  disabled={loading}
-                  className="h-11"
                 />
               </div>
+
+              {isFullDay ? (
+                <div className="space-y-2">
+                  <Label htmlFor="project" className="text-sm font-medium">
+                    Project
+                  </Label>
+                  <Select
+                    value={jobEntries[0].project_id}
+                    onValueChange={(value) => updateJobEntry('1', 'project_id', value)}
+                    disabled={loading}
+                  >
+                    <SelectTrigger className="h-11">
+                      <SelectValue placeholder="Select project" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-popover z-50">
+                      {projects.map((project) => (
+                        <SelectItem key={project.id} value={project.id}>
+                          {project.project_name} - {project.client_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-medium">Jobs for the Day</Label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={addJobEntry}
+                      disabled={loading}
+                      className="gap-2"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Add Job
+                    </Button>
+                  </div>
+                  
+                  {jobEntries.map((entry, index) => (
+                    <div key={entry.id} className="flex gap-2 items-start p-4 bg-muted/20 rounded-lg border border-border">
+                      <div className="flex-1 space-y-3">
+                        <div className="space-y-2">
+                          <Label className="text-xs text-muted-foreground">Project</Label>
+                          <Select
+                            value={entry.project_id}
+                            onValueChange={(value) => updateJobEntry(entry.id, 'project_id', value)}
+                            disabled={loading}
+                          >
+                            <SelectTrigger className="h-10">
+                              <SelectValue placeholder="Select project" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-popover z-50">
+                              {projects.map((project) => (
+                                <SelectItem key={project.id} value={project.id}>
+                                  {project.project_name} - {project.client_name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label className="text-xs text-muted-foreground">Hours</Label>
+                          <Input
+                            type="number"
+                            step="0.5"
+                            min="0"
+                            max="24"
+                            placeholder="Hours"
+                            value={entry.hours_worked}
+                            onChange={(e) => updateJobEntry(entry.id, 'hours_worked', e.target.value)}
+                            disabled={loading}
+                            className="h-10"
+                          />
+                        </div>
+                      </div>
+                      
+                      {jobEntries.length > 1 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeJobEntry(entry.id)}
+                          disabled={loading}
+                          className="mt-6 text-destructive hover:text-destructive hover:bg-destructive/10"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label htmlFor="notes" className="flex items-center gap-2 text-sm font-medium">
