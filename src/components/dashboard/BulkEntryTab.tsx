@@ -5,10 +5,19 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Calendar, Save, UserCheck } from 'lucide-react';
+import { Calendar, Save, UserCheck, Plus, Trash2 } from 'lucide-react';
+import { z } from 'zod';
+
+const jobEntrySchema = z.object({
+  company_id: z.string().trim().nonempty({ message: 'Please select a company' }),
+  project_id: z.string().trim().nonempty({ message: 'Please select a project' }),
+  hours_worked: z.number().positive({ message: 'Hours must be greater than 0' }).max(24, { message: 'Hours cannot exceed 24' }),
+});
 
 interface Worker {
   id: string;
@@ -29,11 +38,17 @@ interface Company {
   name: string;
 }
 
-interface BulkEntry {
-  worker_id: string;
+interface JobEntry {
+  id: string;
   company_id: string;
   project_id: string;
   hours_worked: string;
+}
+
+interface BulkEntry {
+  worker_id: string;
+  isFullDay: boolean;
+  jobEntries: JobEntry[];
   notes: string;
 }
 
@@ -43,6 +58,7 @@ export const BulkEntryTab = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [entries, setEntries] = useState<Record<string, BulkEntry>>({});
+  const [editingWorker, setEditingWorker] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
@@ -71,9 +87,8 @@ export const BulkEntryTab = () => {
       data?.forEach(worker => {
         initialEntries[worker.id] = {
           worker_id: worker.id,
-          company_id: '',
-          project_id: '',
-          hours_worked: '',
+          isFullDay: true,
+          jobEntries: [{ id: '1', company_id: '', project_id: '', hours_worked: '' }],
           notes: '',
         };
       });
@@ -116,14 +131,12 @@ export const BulkEntryTab = () => {
     }
   };
 
-  const updateEntry = (workerId: string, field: keyof BulkEntry, value: string) => {
+  const updateEntry = (workerId: string, field: 'isFullDay' | 'notes', value: boolean | string) => {
     setEntries(prev => ({
       ...prev,
       [workerId]: {
         ...prev[workerId],
         [field]: value,
-        // Clear project when company changes
-        ...(field === 'company_id' ? { project_id: '' } : {})
       },
     }));
   };
@@ -131,6 +144,64 @@ export const BulkEntryTab = () => {
   const getFilteredProjects = (companyId: string) => {
     if (!companyId) return [];
     return projects.filter(p => p.company_id === companyId);
+  };
+
+  const addJobEntry = (workerId: string) => {
+    setEntries(prev => ({
+      ...prev,
+      [workerId]: {
+        ...prev[workerId],
+        jobEntries: [
+          ...prev[workerId].jobEntries,
+          {
+            id: Date.now().toString(),
+            company_id: '',
+            project_id: '',
+            hours_worked: '',
+          }
+        ]
+      }
+    }));
+  };
+
+  const removeJobEntry = (workerId: string, entryId: string) => {
+    setEntries(prev => ({
+      ...prev,
+      [workerId]: {
+        ...prev[workerId],
+        jobEntries: prev[workerId].jobEntries.filter(e => e.id !== entryId)
+      }
+    }));
+  };
+
+  const updateJobEntry = (workerId: string, entryId: string, field: keyof JobEntry, value: string) => {
+    setEntries(prev => ({
+      ...prev,
+      [workerId]: {
+        ...prev[workerId],
+        jobEntries: prev[workerId].jobEntries.map(e =>
+          e.id === entryId
+            ? {
+                ...e,
+                [field]: value,
+                // Clear project when company changes
+                ...(field === 'company_id' ? { project_id: '' } : {})
+              }
+            : e
+        )
+      }
+    }));
+  };
+
+  const getTotalHoursForWorker = (workerId: string) => {
+    const entry = entries[workerId];
+    if (!entry) return 0;
+    
+    if (entry.isFullDay) return 8;
+    
+    return entry.jobEntries.reduce((sum, job) => {
+      return sum + (parseFloat(job.hours_worked) || 0);
+    }, 0);
   };
 
   const handleSubmit = async () => {
@@ -190,20 +261,18 @@ export const BulkEntryTab = () => {
     }
   };
 
-  const totalHours = Object.values(entries).reduce((sum, entry) => {
-    const hours = parseFloat(entry.hours_worked) || 0;
-    return sum + hours;
+  const totalHours = workers.reduce((sum, worker) => {
+    return sum + getTotalHoursForWorker(worker.id);
   }, 0);
 
-  const totalCost = Object.values(entries).reduce((sum, entry) => {
-    const hours = parseFloat(entry.hours_worked) || 0;
-    const worker = workers.find(w => w.id === entry.worker_id);
-    return sum + (hours * (worker?.hourly_rate || 0));
+  const totalCost = workers.reduce((sum, worker) => {
+    const hours = getTotalHoursForWorker(worker.id);
+    return sum + (hours * worker.hourly_rate);
   }, 0);
 
-  const workersWithHours = Object.values(entries).filter(
-    entry => entry.hours_worked && parseFloat(entry.hours_worked) > 0
-  ).length;
+  const workersWithHours = workers.filter(worker => {
+    return getTotalHoursForWorker(worker.id) > 0;
+  }).length;
 
   return (
     <div className="space-y-6">
