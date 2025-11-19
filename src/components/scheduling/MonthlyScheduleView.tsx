@@ -7,6 +7,7 @@ import { startOfMonth, endOfMonth, eachDayOfInterval, format, isSameMonth, isSam
 
 interface ScheduledShift {
   id: string;
+  worker_id: string;
   scheduled_date: string;
   scheduled_hours: number;
   worker: { name: string } | null;
@@ -114,45 +115,57 @@ export function MonthlyScheduleView({ onDayClick, refreshTrigger }: MonthlySched
             const isToday = isSameDay(day, new Date());
             const isCurrentMonth = isSameMonth(day, currentMonth);
 
+            // Group schedules by worker
+            const workerGroups = daySchedules.reduce((acc, schedule) => {
+              const workerId = schedule.worker_id;
+              if (!acc[workerId]) {
+                acc[workerId] = {
+                  worker: schedule.worker,
+                  shifts: []
+                };
+              }
+              acc[workerId].shifts.push(schedule);
+              return acc;
+            }, {} as Record<string, { worker: ScheduledShift['worker'], shifts: ScheduledShift[] }>);
+
             return (
               <Card
                 key={day.toISOString()}
-                className={`min-h-[100px] p-2 cursor-pointer hover:shadow-md transition-all ${
-                  isToday ? "border-primary ring-2 ring-primary/20" : ""
-                } ${!isCurrentMonth ? "opacity-40" : ""}`}
+                className={`p-2 min-h-[100px] cursor-pointer hover:bg-muted/50 transition-colors ${
+                  !isCurrentMonth ? "opacity-40" : ""
+                } ${isToday ? "ring-2 ring-primary" : ""}`}
                 onClick={() => onDayClick(day)}
               >
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className={`text-sm font-semibold ${isToday ? "text-primary" : ""}`}>
-                      {format(day, "d")}
-                    </span>
-                    {totalHours > 0 && (
-                      <span className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded">
-                        {totalHours}h
-                      </span>
-                    )}
+                <div className="flex items-center justify-between mb-1">
+                  <span className={`text-sm font-medium ${isToday ? "text-primary" : ""}`}>
+                    {format(day, "d")}
+                  </span>
+                </div>
+
+                {totalHours > 0 && (
+                  <div className="text-xs text-muted-foreground mb-2">
+                    {totalHours}h scheduled
                   </div>
+                )}
 
-                  {daySchedules.length > 0 && (
-                    <div className="space-y-0.5">
-                      {(() => {
-                        const workerProjects = daySchedules.reduce((acc, schedule) => {
-                          const workerName = schedule.worker?.name || 'Unknown';
-                          acc[workerName] = (acc[workerName] || 0) + 1;
-                          return acc;
-                        }, {} as Record<string, number>);
-
-                        return Object.entries(workerProjects).map(([workerName, projectCount]) => (
-                          <div
-                            key={workerName}
-                            className="text-xs bg-muted p-1 rounded truncate"
-                            title={`${workerName} - ${projectCount} project${projectCount > 1 ? 's' : ''}`}
-                          >
-                            {workerName} + {projectCount}
-                          </div>
-                        ));
-                      })()}
+                <div className="space-y-1">
+                  {Object.values(workerGroups).slice(0, 3).map((group) => {
+                    const totalWorkerHours = group.shifts.reduce((sum, s) => sum + Number(s.scheduled_hours), 0);
+                    
+                    return (
+                      <div key={group.shifts[0].id} className="bg-muted/50 p-1 rounded text-xs">
+                        <div className="font-medium truncate">
+                          {group.worker?.name || "Unknown"}
+                        </div>
+                        <div className="text-muted-foreground">
+                          {totalWorkerHours}h
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {Object.values(workerGroups).length > 3 && (
+                    <div className="text-xs text-muted-foreground">
+                      +{Object.values(workerGroups).length - 3} more
                     </div>
                   )}
                 </div>

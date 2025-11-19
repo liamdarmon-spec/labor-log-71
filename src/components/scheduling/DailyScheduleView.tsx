@@ -80,15 +80,18 @@ export function DailyScheduleView({ onScheduleClick, refreshTrigger }: DailySche
 
   const totalHours = schedules.reduce((sum, s) => sum + Number(s.scheduled_hours), 0);
 
-  // Group schedules by project
-  const schedulesByProject = schedules.reduce((acc, schedule) => {
-    const projectName = schedule.project?.project_name || "Unknown";
-    if (!acc[projectName]) {
-      acc[projectName] = [];
+  // Group schedules by worker
+  const schedulesByWorker = schedules.reduce((acc, schedule) => {
+    const workerId = schedule.worker_id;
+    if (!acc[workerId]) {
+      acc[workerId] = {
+        worker: schedule.worker,
+        shifts: []
+      };
     }
-    acc[projectName].push(schedule);
+    acc[workerId].shifts.push(schedule);
     return acc;
-  }, {} as Record<string, ScheduledShift[]>);
+  }, {} as Record<string, { worker: ScheduledShift['worker'], shifts: ScheduledShift[] }>);
 
   return (
     <div className="space-y-4">
@@ -134,15 +137,15 @@ export function DailyScheduleView({ onScheduleClick, refreshTrigger }: DailySche
         <div className="flex items-center justify-between mb-6 pb-4 border-b">
           <div>
             <p className="text-sm text-muted-foreground">Total Workers</p>
-            <p className="text-2xl font-bold">{schedules.length}</p>
+            <p className="text-2xl font-bold">{Object.keys(schedulesByWorker).length}</p>
           </div>
           <div>
             <p className="text-sm text-muted-foreground">Total Hours</p>
             <p className="text-2xl font-bold">{totalHours}h</p>
           </div>
           <div>
-            <p className="text-sm text-muted-foreground">Projects</p>
-            <p className="text-2xl font-bold">{Object.keys(schedulesByProject).length}</p>
+            <p className="text-sm text-muted-foreground">Total Shifts</p>
+            <p className="text-2xl font-bold">{schedules.length}</p>
           </div>
         </div>
 
@@ -158,49 +161,53 @@ export function DailyScheduleView({ onScheduleClick, refreshTrigger }: DailySche
           </div>
         ) : (
           <div className="space-y-4">
-            {Object.entries(schedulesByProject).map(([projectName, projectSchedules]) => (
-              <div key={projectName} className="border rounded-lg p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <div>
-                    <h3 className="font-semibold">{projectName}</h3>
-                    <p className="text-sm text-muted-foreground">
-                      {projectSchedules[0]?.project?.client_name}
-                    </p>
-                  </div>
-                  <Badge variant="secondary">
-                    {projectSchedules.reduce((sum, s) => sum + Number(s.scheduled_hours), 0)}h
-                  </Badge>
-                </div>
-                <div className="space-y-2">
-                  {projectSchedules.map((schedule) => (
-                    <div
-                      key={schedule.id}
-                      className="flex items-center justify-between p-3 bg-muted/50 rounded-md group hover:bg-muted transition-colors"
-                    >
-                      <div className="flex-1">
-                        <p className="font-medium">{schedule.worker?.name}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {schedule.worker?.trade} • {schedule.scheduled_hours}h
-                        </p>
-                        {schedule.notes && (
-                          <p className="text-sm text-muted-foreground mt-1">
-                            Note: {schedule.notes}
-                          </p>
-                        )}
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={() => handleDeleteSchedule(schedule.id)}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
+            {Object.values(schedulesByWorker).map((group) => {
+              const totalWorkerHours = group.shifts.reduce((sum, s) => sum + Number(s.scheduled_hours), 0);
+              
+              return (
+                <div key={group.shifts[0].id} className="border rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <h3 className="font-semibold">{group.worker?.name || "Unknown"}</h3>
+                      <p className="text-sm text-muted-foreground">
+                        {group.worker?.trade}
+                      </p>
                     </div>
-                  ))}
+                    <Badge variant="secondary">
+                      {totalWorkerHours}h
+                    </Badge>
+                  </div>
+                  <div className="space-y-2">
+                    {group.shifts.map((schedule) => (
+                      <div
+                        key={schedule.id}
+                        className="flex items-center justify-between p-3 bg-muted/50 rounded-md group hover:bg-muted transition-colors"
+                      >
+                        <div className="flex-1">
+                          <p className="font-medium">{schedule.project?.project_name || "Unknown"}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {schedule.project?.client_name} • {schedule.scheduled_hours}h
+                          </p>
+                          {schedule.notes && (
+                            <p className="text-sm text-muted-foreground mt-1">
+                              Note: {schedule.notes}
+                            </p>
+                          )}
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => handleDeleteSchedule(schedule.id)}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </Card>
