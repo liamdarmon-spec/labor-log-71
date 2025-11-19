@@ -59,26 +59,26 @@ const Schedule = () => {
           </TabsList>
         </Tabs>
 
-        {viewMode === "daily" && (
+        <div className={viewMode === "daily" ? "block" : "hidden"}>
           <DailyScheduleView
             onScheduleClick={handleScheduleClick}
             refreshTrigger={scheduleRefresh}
           />
-        )}
+        </div>
 
-        {viewMode === "weekly" && (
+        <div className={viewMode === "weekly" ? "block" : "hidden"}>
           <WeeklyScheduleView 
             onScheduleClick={handleScheduleClick}
             refreshTrigger={scheduleRefresh}
           />
-        )}
+        </div>
 
-        {viewMode === "monthly" && (
+        <div className={viewMode === "monthly" ? "block" : "hidden"}>
           <MonthlyScheduleView
             onDayClick={handleDayClick}
             refreshTrigger={scheduleRefresh}
           />
-        )}
+        </div>
 
         <AddToScheduleDialog
           open={isScheduleDialogOpen}
