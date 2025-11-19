@@ -277,6 +277,7 @@ export type Database = {
       }
       scheduled_shifts: {
         Row: {
+          converted_to_timelog: boolean | null
           created_at: string
           created_by: string | null
           id: string
@@ -289,6 +290,7 @@ export type Database = {
           worker_id: string
         }
         Insert: {
+          converted_to_timelog?: boolean | null
           created_at?: string
           created_by?: string | null
           id?: string
@@ -301,6 +303,7 @@ export type Database = {
           worker_id: string
         }
         Update: {
+          converted_to_timelog?: boolean | null
           created_at?: string
           created_by?: string | null
           id?: string
