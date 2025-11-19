@@ -31,6 +31,16 @@ interface LogEntry {
   projects: { project_name: string; client_name: string };
 }
 
+interface GroupedLogEntry {
+  date: string;
+  worker_id: string;
+  worker_name: string;
+  trade_name: string;
+  total_hours: number;
+  entries: LogEntry[];
+  log_ids: string[];
+}
+
 interface Worker {
   id: string;
   name: string;
@@ -49,12 +59,14 @@ interface Trade {
 const ViewLogs = () => {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [filteredLogs, setFilteredLogs] = useState<LogEntry[]>([]);
+  const [groupedLogs, setGroupedLogs] = useState<GroupedLogEntry[]>([]);
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [trades, setTrades] = useState<Trade[]>([]);
   const [editingLog, setEditingLog] = useState<LogEntry | null>(null);
   const [isAddEntryDialogOpen, setIsAddEntryDialogOpen] = useState(false);
   const [selectedLogs, setSelectedLogs] = useState<Set<string>>(new Set());
+  const [selectedGroup, setSelectedGroup] = useState<GroupedLogEntry | null>(null);
   const [editForm, setEditForm] = useState({
     date: '',
     worker_id: '',
@@ -107,6 +119,37 @@ const ViewLogs = () => {
   useEffect(() => {
     applyFilters();
   }, [logs, filters]);
+
+  useEffect(() => {
+    groupLogsByDateAndWorker();
+  }, [filteredLogs]);
+
+  const groupLogsByDateAndWorker = () => {
+    const grouped = new Map<string, GroupedLogEntry>();
+
+    filteredLogs.forEach((log) => {
+      const key = `${log.date}_${log.worker_id}`;
+      
+      if (!grouped.has(key)) {
+        grouped.set(key, {
+          date: log.date,
+          worker_id: log.worker_id,
+          worker_name: log.workers.name,
+          trade_name: log.workers.trades?.name || 'N/A',
+          total_hours: 0,
+          entries: [],
+          log_ids: [],
+        });
+      }
+
+      const group = grouped.get(key)!;
+      group.entries.push(log);
+      group.log_ids.push(log.id);
+      group.total_hours += parseFloat(log.hours_worked.toString());
+    });
+
+    setGroupedLogs(Array.from(grouped.values()));
+  };
 
   const fetchData = async () => {
     // Fetch logs with relationships
@@ -253,6 +296,28 @@ const ViewLogs = () => {
     }
   };
 
+  const toggleSelectGroup = (group: GroupedLogEntry) => {
+    const newSelected = new Set(selectedLogs);
+    const allSelected = group.log_ids.every(id => newSelected.has(id));
+
+    if (allSelected) {
+      group.log_ids.forEach(id => newSelected.delete(id));
+    } else {
+      group.log_ids.forEach(id => newSelected.add(id));
+    }
+    
+    setSelectedLogs(newSelected);
+  };
+
+  const isGroupSelected = (group: GroupedLogEntry) => {
+    return group.log_ids.every(id => selectedLogs.has(id));
+  };
+
+  const isGroupPartiallySelected = (group: GroupedLogEntry) => {
+    const selectedCount = group.log_ids.filter(id => selectedLogs.has(id)).length;
+    return selectedCount > 0 && selectedCount < group.log_ids.length;
+  };
+
   const handleMassDelete = async () => {
     if (selectedLogs.size === 0) return;
 
@@ -327,6 +392,10 @@ const ViewLogs = () => {
   };
 
   const totalHours = filteredLogs.reduce((sum, log) => sum + parseFloat(log.hours_worked.toString()), 0);
+
+  const handleEditGroup = (group: GroupedLogEntry) => {
+    setSelectedGroup(group);
+  };
 
   return (
     <Layout>
@@ -482,7 +551,7 @@ const ViewLogs = () => {
         <Card className="shadow-medium">
           <CardHeader className="border-b border-border">
             <div className="flex items-center justify-between">
-              <CardTitle>Time Entries ({filteredLogs.length})</CardTitle>
+              <CardTitle>Time Entries ({groupedLogs.length} entries, {filteredLogs.length} total logs)</CardTitle>
               {selectedLogs.size > 0 && (
                 <Button
                   variant="destructive"
@@ -510,46 +579,67 @@ const ViewLogs = () => {
                     <TableHead className="font-semibold">Date</TableHead>
                     <TableHead className="font-semibold">Worker</TableHead>
                     <TableHead className="font-semibold">Trade</TableHead>
-                    <TableHead className="font-semibold">Project</TableHead>
-                    <TableHead className="font-semibold">Client</TableHead>
-                    <TableHead className="font-semibold text-right">Hours</TableHead>
+                    <TableHead className="font-semibold">Projects & Hours</TableHead>
+                    <TableHead className="font-semibold text-right">Total Hours</TableHead>
                     <TableHead className="font-semibold">Notes</TableHead>
                     <TableHead className="font-semibold text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredLogs.map((log) => (
-                    <TableRow key={log.id} className="hover:bg-muted/30 transition-colors">
+                  {groupedLogs.map((group, idx) => (
+                    <TableRow key={`${group.date}_${group.worker_id}_${idx}`} className="hover:bg-muted/30 transition-colors">
                       <TableCell>
                         <Checkbox
-                          checked={selectedLogs.has(log.id)}
-                          onCheckedChange={() => toggleSelectLog(log.id)}
+                          checked={isGroupSelected(group)}
+                          onCheckedChange={() => toggleSelectGroup(group)}
                         />
                       </TableCell>
                       <TableCell className="font-medium">
-                        {new Date(log.date).toLocaleDateString('en-US', { 
+                        {new Date(group.date).toLocaleDateString('en-US', { 
                           month: 'short', 
                           day: 'numeric', 
                           year: 'numeric' 
                         })}
                       </TableCell>
-                      <TableCell>{log.workers.name}</TableCell>
+                      <TableCell>{group.worker_name}</TableCell>
                       <TableCell>
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
-                          {log.workers.trades?.name || 'N/A'}
+                          {group.trade_name}
                         </span>
                       </TableCell>
-                      <TableCell>{log.projects.project_name}</TableCell>
-                      <TableCell className="text-muted-foreground">{log.projects.client_name}</TableCell>
-                      <TableCell className="text-right font-semibold">{log.hours_worked}h</TableCell>
-                      <TableCell className="max-w-xs truncate text-muted-foreground">
-                        {log.notes || '-'}
+                      <TableCell>
+                        <div className="flex flex-wrap gap-2">
+                          {group.entries.map((entry, entryIdx) => (
+                            <div 
+                              key={entry.id}
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs bg-accent/50 border border-border"
+                            >
+                              <span className="font-medium">{entry.projects.project_name}</span>
+                              <span className="text-muted-foreground">·</span>
+                              <span className="font-semibold text-primary">{entry.hours_worked}h</span>
+                            </div>
+                          ))}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right font-bold text-lg text-primary">
+                        {group.total_hours.toFixed(1)}h
+                      </TableCell>
+                      <TableCell className="max-w-xs">
+                        {group.entries.length === 1 && group.entries[0].notes ? (
+                          <span className="text-muted-foreground text-sm truncate block">
+                            {group.entries[0].notes}
+                          </span>
+                        ) : group.entries.some(e => e.notes) ? (
+                          <span className="text-muted-foreground text-sm italic">Multiple notes</span>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
                       </TableCell>
                       <TableCell className="text-right">
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleEditLog(log)}
+                          onClick={() => handleEditGroup(group)}
                         >
                           <Edit2 className="w-4 h-4" />
                         </Button>
@@ -561,6 +651,57 @@ const ViewLogs = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Edit Group Dialog - Select which entry to edit */}
+        <Dialog open={!!selectedGroup} onOpenChange={() => setSelectedGroup(null)}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Edit Time Entry</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <p className="text-sm text-muted-foreground">
+                Select which entry you want to edit for <strong>{selectedGroup?.worker_name}</strong> on{' '}
+                <strong>
+                  {selectedGroup && new Date(selectedGroup.date).toLocaleDateString('en-US', { 
+                    month: 'long', 
+                    day: 'numeric', 
+                    year: 'numeric' 
+                  })}
+                </strong>:
+              </p>
+              <div className="space-y-2">
+                {selectedGroup?.entries.map((entry) => (
+                  <Button
+                    key={entry.id}
+                    variant="outline"
+                    className="w-full justify-between h-auto py-4"
+                    onClick={() => {
+                      handleEditLog(entry);
+                      setSelectedGroup(null);
+                    }}
+                  >
+                    <div className="flex flex-col items-start gap-1">
+                      <span className="font-semibold">{entry.projects.project_name}</span>
+                      <span className="text-xs text-muted-foreground">{entry.projects.client_name}</span>
+                      {entry.notes && (
+                        <span className="text-xs text-muted-foreground italic">Note: {entry.notes}</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-primary">{entry.hours_worked}h</span>
+                      <Edit2 className="w-4 h-4" />
+                    </div>
+                  </Button>
+                ))}
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setSelectedGroup(null)}>
+                Cancel
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         <Dialog open={!!editingLog} onOpenChange={() => setEditingLog(null)}>
           <DialogContent className="sm:max-w-[500px]">
