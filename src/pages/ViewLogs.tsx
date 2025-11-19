@@ -608,17 +608,27 @@ const ViewLogs = () => {
                         </span>
                       </TableCell>
                       <TableCell>
-                        <div className="flex flex-wrap gap-2">
-                          {group.entries.map((entry, entryIdx) => (
-                            <div 
-                              key={entry.id}
-                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs bg-accent/50 border border-border"
-                            >
-                              <span className="font-medium">{entry.projects.project_name}</span>
-                              <span className="text-muted-foreground">·</span>
-                              <span className="font-semibold text-primary">{entry.hours_worked}h</span>
-                            </div>
-                          ))}
+                        <div className="flex flex-col gap-2">
+                          {(() => {
+                            const pairs = [];
+                            for (let i = 0; i < group.entries.length; i += 2) {
+                              pairs.push(group.entries.slice(i, i + 2));
+                            }
+                            return pairs.map((pair, pairIdx) => (
+                              <div key={pairIdx} className="flex gap-2">
+                                {pair.map((entry) => (
+                                  <div 
+                                    key={entry.id}
+                                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs bg-accent/50 border border-border whitespace-nowrap"
+                                  >
+                                    <span className="font-medium">{entry.projects.project_name}</span>
+                                    <span className="text-muted-foreground">·</span>
+                                    <span className="font-semibold text-primary">{entry.hours_worked}h</span>
+                                  </div>
+                                ))}
+                              </div>
+                            ));
+                          })()}
                         </div>
                       </TableCell>
                       <TableCell className="text-right font-bold text-lg text-primary">
