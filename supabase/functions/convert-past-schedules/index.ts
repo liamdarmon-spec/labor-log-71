@@ -54,17 +54,24 @@ Deno.serve(async (req) => {
       schedule_id: schedule.id
     }));
 
-    // Insert time logs (will skip if already exists due to unique constraint or conflicts)
-    const { error: insertError } = await supabase
+    // Insert time logs - filter out any that already have a schedule_id link
+    const { data: existingLogs } = await supabase
       .from('daily_logs')
-      .upsert(timeLogEntries, {
-        onConflict: 'worker_id,project_id,date',
-        ignoreDuplicates: true
-      });
+      .select('schedule_id')
+      .in('schedule_id', pastSchedules.map(s => s.id));
 
-    if (insertError) {
-      console.error('Error inserting time logs:', insertError);
-      throw insertError;
+    const existingScheduleIds = new Set(existingLogs?.map(log => log.schedule_id).filter(Boolean) || []);
+    const newTimeLogEntries = timeLogEntries.filter(entry => !existingScheduleIds.has(entry.schedule_id));
+
+    if (newTimeLogEntries.length > 0) {
+      const { error: insertError } = await supabase
+        .from('daily_logs')
+        .insert(newTimeLogEntries);
+
+      if (insertError) {
+        console.error('Error inserting time logs:', insertError);
+        throw insertError;
+      }
     }
 
     // Mark schedules as converted
