@@ -184,6 +184,8 @@ export type Database = {
           paid_by: string
           paid_via: string | null
           payment_date: string
+          reimbursement_date: string | null
+          reimbursement_status: string | null
           start_date: string
           updated_at: string
         }
@@ -198,6 +200,8 @@ export type Database = {
           paid_by: string
           paid_via?: string | null
           payment_date?: string
+          reimbursement_date?: string | null
+          reimbursement_status?: string | null
           start_date: string
           updated_at?: string
         }
@@ -212,6 +216,8 @@ export type Database = {
           paid_by?: string
           paid_via?: string | null
           payment_date?: string
+          reimbursement_date?: string | null
+          reimbursement_status?: string | null
           start_date?: string
           updated_at?: string
         }
