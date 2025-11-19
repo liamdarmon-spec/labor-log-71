@@ -59,7 +59,8 @@ export function MonthlyScheduleView({ onDayClick, refreshTrigger }: MonthlySched
   const calendarDays = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
 
   const getSchedulesForDay = (day: Date) => {
-    return schedules.filter(s => isSameDay(new Date(s.scheduled_date), day));
+    const dayStr = format(day, "yyyy-MM-dd");
+    return schedules.filter(s => s.scheduled_date === dayStr);
   };
 
   const getTotalHoursForDay = (day: Date) => {
