@@ -1,10 +1,9 @@
 import { useState } from "react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
-import { Plus, Users } from "lucide-react";
+import { Plus } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ScheduleDialog } from "@/components/scheduling/ScheduleDialog";
-import { BulkScheduleDialog } from "@/components/scheduling/BulkScheduleDialog";
+import { AddToScheduleDialog } from "@/components/scheduling/AddToScheduleDialog";
 import { DayDetailDialog } from "@/components/scheduling/DayDetailDialog";
 import { WeeklyScheduleView } from "@/components/scheduling/WeeklyScheduleView";
 import { DailyScheduleView } from "@/components/scheduling/DailyScheduleView";
@@ -14,7 +13,6 @@ type ViewMode = "daily" | "weekly" | "monthly";
 
 const Schedule = () => {
   const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false);
-  const [isBulkScheduleDialogOpen, setIsBulkScheduleDialogOpen] = useState(false);
   const [isDayDetailDialogOpen, setIsDayDetailDialogOpen] = useState(false);
   const [scheduleDefaultDate, setScheduleDefaultDate] = useState<Date>();
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
@@ -46,16 +44,9 @@ const Schedule = () => {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setIsBulkScheduleDialogOpen(true)}
-            >
-              <Users className="h-4 w-4 mr-2" />
-              Bulk Schedule
-            </Button>
             <Button onClick={() => setIsScheduleDialogOpen(true)}>
               <Plus className="h-4 w-4 mr-2" />
-              Schedule Worker
+              Add to Schedule
             </Button>
           </div>
         </div>
@@ -89,16 +80,9 @@ const Schedule = () => {
           />
         )}
 
-        <ScheduleDialog
+        <AddToScheduleDialog
           open={isScheduleDialogOpen}
           onOpenChange={setIsScheduleDialogOpen}
-          onScheduleCreated={handleScheduleCreated}
-          defaultDate={scheduleDefaultDate}
-        />
-
-        <BulkScheduleDialog
-          open={isBulkScheduleDialogOpen}
-          onOpenChange={setIsBulkScheduleDialogOpen}
           onScheduleCreated={handleScheduleCreated}
           defaultDate={scheduleDefaultDate}
         />

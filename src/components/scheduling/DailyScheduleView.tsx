@@ -125,7 +125,7 @@ export function DailyScheduleView({ onScheduleClick, refreshTrigger }: DailySche
             onClick={() => onScheduleClick(currentDate)}
           >
             <Plus className="h-4 w-4 mr-2" />
-            Add Schedule
+            Add to Schedule
           </Button>
         </div>
       </div>
@@ -153,7 +153,7 @@ export function DailyScheduleView({ onScheduleClick, refreshTrigger }: DailySche
             <p className="text-muted-foreground mb-4">No schedules for this day</p>
             <Button onClick={() => onScheduleClick(currentDate)}>
               <Plus className="h-4 w-4 mr-2" />
-              Add Schedule
+              Add to Schedule
             </Button>
           </div>
         ) : (
