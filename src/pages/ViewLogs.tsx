@@ -799,27 +799,60 @@ const ViewLogs = () => {
               </p>
               <div className="space-y-2">
                 {selectedGroup?.entries.map((entry) => (
-                  <Button
+                  <div
                     key={entry.id}
-                    variant="outline"
-                    className="w-full justify-between h-auto py-4"
-                    onClick={() => {
-                      handleEditLog(entry);
-                      setSelectedGroup(null);
-                    }}
+                    className="flex items-center gap-2"
                   >
-                    <div className="flex flex-col items-start gap-1">
-                      <span className="font-semibold">{entry.projects.project_name}</span>
-                      <span className="text-xs text-muted-foreground">{entry.projects.client_name}</span>
-                      {entry.notes && (
-                        <span className="text-xs text-muted-foreground italic">Note: {entry.notes}</span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-primary">{entry.hours_worked}h</span>
-                      <Edit2 className="w-4 h-4" />
-                    </div>
-                  </Button>
+                    <Button
+                      variant="outline"
+                      className="flex-1 justify-between h-auto py-4"
+                      onClick={() => {
+                        handleEditLog(entry);
+                        setSelectedGroup(null);
+                      }}
+                    >
+                      <div className="flex flex-col items-start gap-1">
+                        <span className="font-semibold">{entry.projects.project_name}</span>
+                        <span className="text-xs text-muted-foreground">{entry.projects.client_name}</span>
+                        {entry.notes && (
+                          <span className="text-xs text-muted-foreground italic">Note: {entry.notes}</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-primary">{entry.hours_worked}h</span>
+                        <Edit2 className="w-4 h-4" />
+                      </div>
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="icon"
+                      onClick={async () => {
+                        if (!confirm('Are you sure you want to delete this entry?')) return;
+                        
+                        const { error } = await supabase
+                          .from('daily_logs')
+                          .delete()
+                          .eq('id', entry.id);
+
+                        if (error) {
+                          toast({
+                            title: 'Error',
+                            description: 'Failed to delete entry',
+                            variant: 'destructive',
+                          });
+                        } else {
+                          toast({
+                            title: 'Success',
+                            description: 'Entry deleted successfully',
+                          });
+                          setSelectedGroup(null);
+                          fetchData();
+                        }
+                      }}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
                 ))}
               </div>
             </div>
