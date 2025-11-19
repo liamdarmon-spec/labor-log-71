@@ -151,10 +151,9 @@ export function WeeklyScheduleView({ onScheduleClick, refreshTrigger }: WeeklySc
           return (
             <Card
               key={day.toISOString()}
-              className={`p-3 min-h-[200px] cursor-pointer hover:shadow-md transition-shadow ${
+              className={`p-3 min-h-[200px] ${
                 isToday ? "border-primary" : ""
               }`}
-              onClick={() => onScheduleClick(day)}
             >
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
@@ -168,10 +167,7 @@ export function WeeklyScheduleView({ onScheduleClick, refreshTrigger }: WeeklySc
                     variant="ghost"
                     size="icon"
                     className="h-8 w-8"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onScheduleClick(day);
-                    }}
+                    onClick={() => onScheduleClick(day)}
                   >
                     <Plus className="h-4 w-4" />
                   </Button>
@@ -190,46 +186,46 @@ export function WeeklyScheduleView({ onScheduleClick, refreshTrigger }: WeeklySc
                     return (
                       <div
                         key={group.shifts[0].id}
-                        className="bg-primary/10 p-2 rounded text-xs group relative"
+                        className="bg-primary/10 p-2 rounded text-xs group relative hover:bg-primary/20 transition-colors"
                       >
-                        <div className="flex items-start justify-between gap-1">
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium truncate">
-                              {group.worker?.name || "Unknown"}
-                            </p>
-                            <div className="space-y-0.5 mt-1">
-                              {group.shifts.map((shift) => (
-                                <p key={shift.id} className="text-muted-foreground truncate">
+                        <div className="space-y-2">
+                          <div className="flex items-start justify-between gap-1">
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium truncate">
+                                {group.worker?.name || "Unknown"}
+                              </p>
+                              <p className="font-semibold mt-1">Total: {totalWorkerHours}h</p>
+                            </div>
+                          </div>
+                          <div className="space-y-1">
+                            {group.shifts.map((shift) => (
+                              <div key={shift.id} className="flex items-center justify-between gap-2 p-1.5 bg-background/50 rounded">
+                                <p className="text-muted-foreground truncate flex-1">
                                   {shift.project?.project_name || "Unknown"} • {shift.scheduled_hours}h
                                 </p>
-                              ))}
-                            </div>
-                            <p className="font-semibold mt-1">Total: {totalWorkerHours}h</p>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            {group.shifts.length === 1 && (
-                              <>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setEditingSchedule(group.shifts[0]);
-                                  }}
-                                >
-                                  <Edit2 className="h-3 w-3" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                                  onClick={(e) => handleDeleteSchedule(group.shifts[0].id, e)}
-                                >
-                                  <Trash2 className="h-3 w-3" />
-                                </Button>
-                              </>
-                            )}
+                                <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-5 w-5"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setEditingSchedule(shift);
+                                    }}
+                                  >
+                                    <Edit2 className="h-3 w-3" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-5 w-5"
+                                    onClick={(e) => handleDeleteSchedule(shift.id, e)}
+                                  >
+                                    <Trash2 className="h-3 w-3 text-destructive" />
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
                           </div>
                         </div>
                       </div>
