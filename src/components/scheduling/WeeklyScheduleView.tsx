@@ -1,15 +1,17 @@
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Plus, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Trash2, Edit2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { startOfWeek, endOfWeek, addWeeks, format, addDays, isSameDay } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
+import { EditScheduleDialog } from "./EditScheduleDialog";
 
 interface ScheduledShift {
   id: string;
   worker_id: string;
   project_id: string;
+  trade_id: string | null;
   scheduled_date: string;
   scheduled_hours: number;
   notes: string | null;
@@ -27,6 +29,7 @@ export function WeeklyScheduleView({ onScheduleClick, refreshTrigger }: WeeklySc
   const [currentWeekStart, setCurrentWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 0 }));
   const [schedules, setSchedules] = useState<ScheduledShift[]>([]);
   const [loading, setLoading] = useState(false);
+  const [editingSchedule, setEditingSchedule] = useState<ScheduledShift | null>(null);
 
   useEffect(() => {
     fetchSchedules();
@@ -203,16 +206,31 @@ export function WeeklyScheduleView({ onScheduleClick, refreshTrigger }: WeeklySc
                             </div>
                             <p className="font-semibold mt-1">Total: {totalWorkerHours}h</p>
                           </div>
-                          {group.shifts.length === 1 && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                              onClick={(e) => handleDeleteSchedule(group.shifts[0].id, e)}
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          )}
+                          <div className="flex items-center gap-1">
+                            {group.shifts.length === 1 && (
+                              <>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setEditingSchedule(group.shifts[0]);
+                                  }}
+                                >
+                                  <Edit2 className="h-3 w-3" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                                  onClick={(e) => handleDeleteSchedule(group.shifts[0].id, e)}
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </>
+                            )}
+                          </div>
                         </div>
                       </div>
                     );
@@ -225,6 +243,13 @@ export function WeeklyScheduleView({ onScheduleClick, refreshTrigger }: WeeklySc
       </div>
 
       {loading && <p className="text-center text-muted-foreground">Loading schedules...</p>}
+
+      <EditScheduleDialog
+        open={!!editingSchedule}
+        onOpenChange={(open) => !open && setEditingSchedule(null)}
+        schedule={editingSchedule}
+        onSuccess={fetchSchedules}
+      />
     </div>
   );
 }

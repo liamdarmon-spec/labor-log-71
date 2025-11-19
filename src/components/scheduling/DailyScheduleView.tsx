@@ -1,16 +1,19 @@
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Plus, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Trash2, Edit2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { format, addDays } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
+import { EditScheduleDialog } from "./EditScheduleDialog";
 
 interface ScheduledShift {
   id: string;
   worker_id: string;
   project_id: string;
+  trade_id: string | null;
+  scheduled_date: string;
   scheduled_hours: number;
   notes: string | null;
   worker: { name: string; trade: string } | null;
@@ -27,6 +30,7 @@ export function DailyScheduleView({ onScheduleClick, refreshTrigger }: DailySche
   const [currentDate, setCurrentDate] = useState(new Date());
   const [schedules, setSchedules] = useState<ScheduledShift[]>([]);
   const [loading, setLoading] = useState(false);
+  const [editingSchedule, setEditingSchedule] = useState<ScheduledShift | null>(null);
 
   useEffect(() => {
     fetchSchedules();
@@ -194,14 +198,24 @@ export function DailyScheduleView({ onScheduleClick, refreshTrigger }: DailySche
                             </p>
                           )}
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="opacity-0 group-hover:opacity-100 transition-opacity"
-                          onClick={() => handleDeleteSchedule(schedule.id)}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={() => setEditingSchedule(schedule)}
+                          >
+                            <Edit2 className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={() => handleDeleteSchedule(schedule.id)}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -211,6 +225,13 @@ export function DailyScheduleView({ onScheduleClick, refreshTrigger }: DailySche
           </div>
         )}
       </Card>
+
+      <EditScheduleDialog
+        open={!!editingSchedule}
+        onOpenChange={(open) => !open && setEditingSchedule(null)}
+        schedule={editingSchedule}
+        onSuccess={fetchSchedules}
+      />
     </div>
   );
 }
