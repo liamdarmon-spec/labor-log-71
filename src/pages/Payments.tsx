@@ -8,9 +8,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { DollarSign, Plus, Edit2, Trash2, Calendar } from 'lucide-react';
+import { format } from 'date-fns';
 
 interface Payment {
   id: string;
@@ -22,6 +24,8 @@ interface Payment {
   payment_date: string;
   notes: string | null;
   paid_via: string | null;
+  reimbursement_status: 'pending' | 'reimbursed' | null;
+  reimbursement_date: string | null;
 }
 
 interface Company {
@@ -36,6 +40,7 @@ const Payments = () => {
   const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
   const [calculatedAmount, setCalculatedAmount] = useState<number | null>(null);
   const [isCalculating, setIsCalculating] = useState(false);
+  const [reimbursementFilter, setReimbursementFilter] = useState<'all' | 'pending' | 'reimbursed'>('all');
   const [formData, setFormData] = useState({
     start_date: '',
     end_date: '',
@@ -66,7 +71,7 @@ const Payments = () => {
         variant: 'destructive',
       });
     } else {
-      setPayments(data || []);
+      setPayments((data as Payment[]) || []);
     }
   };
 
@@ -188,6 +193,8 @@ const Payments = () => {
       payment_date: formData.payment_date,
       notes: formData.notes || null,
       paid_via: formData.paid_via || null,
+      reimbursement_status: formData.paid_via === 'Reimbursement Needed' ? 'pending' as const : null,
+      reimbursement_date: null,
     };
 
     if (editingPayment) {
@@ -270,6 +277,32 @@ const Payments = () => {
     }
   };
 
+  const handleMarkAsReimbursed = async (paymentId: string) => {
+    try {
+      const { error } = await supabase
+        .from('payments')
+        .update({
+          reimbursement_status: 'reimbursed',
+          reimbursement_date: new Date().toISOString().split("T")[0],
+        })
+        .eq('id', paymentId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Payment marked as reimbursed",
+      });
+      fetchPayments();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleCloseDialog = () => {
     setIsDialogOpen(false);
     setEditingPayment(null);
@@ -286,7 +319,16 @@ const Payments = () => {
     });
   };
 
-  const totalPayments = payments.reduce((sum, p) => sum + parseFloat(p.amount.toString()), 0);
+  const filteredPayments = payments.filter((payment) => {
+    if (reimbursementFilter === 'all') return true;
+    if (reimbursementFilter === 'pending') return payment.reimbursement_status === 'pending';
+    if (reimbursementFilter === 'reimbursed') return payment.reimbursement_status === 'reimbursed';
+    return true;
+  });
+
+  const totalPayments = filteredPayments.reduce((sum, p) => sum + parseFloat(p.amount.toString()), 0);
+  const pendingReimbursements = payments.filter(p => p.reimbursement_status === 'pending');
+  const totalPendingAmount = pendingReimbursements.reduce((sum, p) => sum + p.amount, 0);
 
   return (
     <Layout>
@@ -308,6 +350,42 @@ const Payments = () => {
           </div>
         </div>
 
+        {pendingReimbursements.length > 0 && (
+          <Card className="bg-amber-50 dark:bg-amber-950 border-amber-200 dark:border-amber-800">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-semibold text-amber-900 dark:text-amber-100">
+                    Pending Reimbursements
+                  </h3>
+                  <p className="text-sm text-amber-700 dark:text-amber-300">
+                    {pendingReimbursements.length} payment{pendingReimbursements.length !== 1 ? 's' : ''} awaiting DHY reimbursement
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-2xl font-bold text-amber-900 dark:text-amber-100">
+                    ${totalPendingAmount.toFixed(2)}
+                  </p>
+                  <p className="text-xs text-amber-700 dark:text-amber-300">Total pending</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        <div className="flex gap-4 mb-4">
+          <Select value={reimbursementFilter} onValueChange={(value: any) => setReimbursementFilter(value)}>
+            <SelectTrigger className="w-[220px]">
+              <SelectValue placeholder="Filter by status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Payments</SelectItem>
+              <SelectItem value="pending">Pending Reimbursement</SelectItem>
+              <SelectItem value="reimbursed">Reimbursed</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
         <Card className="shadow-medium">
           <CardHeader className="border-b border-border">
             <CardTitle className="flex items-center gap-2">
@@ -323,6 +401,9 @@ const Payments = () => {
                     <TableHead className="font-semibold">Date Range</TableHead>
                     <TableHead className="font-semibold">Paid By</TableHead>
                     <TableHead className="font-semibold">Payment Date</TableHead>
+                    <TableHead className="font-semibold">Company</TableHead>
+                    <TableHead className="font-semibold">Paid Via</TableHead>
+                    <TableHead className="font-semibold">Status</TableHead>
                     <TableHead className="font-semibold text-right">Amount</TableHead>
                     <TableHead className="font-semibold">Notes</TableHead>
                     <TableHead className="font-semibold text-right">Actions</TableHead>
@@ -331,8 +412,8 @@ const Payments = () => {
                 <TableBody>
                   {payments.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
-                        No payments recorded yet
+                      <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
+                        No payments found
                       </TableCell>
                     </TableRow>
                   ) : (
