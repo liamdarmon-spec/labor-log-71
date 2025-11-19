@@ -16,6 +16,7 @@ import { Calendar, Save, UserCheck, Plus, Trash2, Edit, UserPlus, X, CheckCircle
 import { z } from 'zod';
 import { AddProjectDialog } from './AddProjectDialog';
 import { WorkerEntryCard } from './WorkerEntryCard';
+import { DatePickerWithPresets } from '@/components/ui/date-picker-with-presets';
 
 const jobEntrySchema = z.object({
   project_id: z.string().trim().nonempty({ message: 'Please select a project' }),
@@ -450,14 +451,11 @@ export const BulkEntryTab = ({ onSuccess }: { onSuccess?: () => void }) => {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
-            <div className="flex-1">
+            <div className="flex-1 sm:max-w-xs">
               <Label htmlFor="date">Date</Label>
-              <Input
-                id="date"
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="w-full sm:max-w-xs"
+              <DatePickerWithPresets
+                date={new Date(date)}
+                onDateChange={(selectedDate) => setDate(selectedDate.toISOString().split('T')[0])}
               />
             </div>
             <Button
