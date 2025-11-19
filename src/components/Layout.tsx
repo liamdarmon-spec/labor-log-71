@@ -29,15 +29,6 @@ export const Layout = ({ children }: LayoutProps) => {
           </div>
           <nav className="hidden lg:flex items-center gap-2">
             <Button
-              variant={location.pathname === '/' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => navigate('/')}
-              className="gap-2 h-9"
-            >
-              <PlusCircle className="w-4 h-4" />
-              <span>Entry</span>
-            </Button>
-            <Button
               variant={location.pathname === '/schedule' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => navigate('/schedule')}
