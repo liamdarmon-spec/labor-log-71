@@ -136,12 +136,23 @@ export function MonthlyScheduleView({ onDayClick, refreshTrigger }: MonthlySched
 
                   {daySchedules.length > 0 && (
                     <div className="space-y-0.5">
-                      <div
-                        className="text-xs bg-muted p-1 rounded truncate"
-                        title={daySchedules.map(s => `${s.worker?.name} - ${s.scheduled_hours}h`).join(', ')}
-                      >
-                        {daySchedules[0]?.worker?.name} + {daySchedules.length}
-                      </div>
+                      {(() => {
+                        const workerProjects = daySchedules.reduce((acc, schedule) => {
+                          const workerName = schedule.worker?.name || 'Unknown';
+                          acc[workerName] = (acc[workerName] || 0) + 1;
+                          return acc;
+                        }, {} as Record<string, number>);
+
+                        return Object.entries(workerProjects).map(([workerName, projectCount]) => (
+                          <div
+                            key={workerName}
+                            className="text-xs bg-muted p-1 rounded truncate"
+                            title={`${workerName} - ${projectCount} project${projectCount > 1 ? 's' : ''}`}
+                          >
+                            {workerName} + {projectCount}
+                          </div>
+                        ));
+                      })()}
                     </div>
                   )}
                 </div>
