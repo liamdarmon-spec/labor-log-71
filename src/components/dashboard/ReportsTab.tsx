@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Download, FileText } from 'lucide-react';
+import { WeeklyCompanyReport } from './WeeklyCompanyReport';
 
 interface ReportData {
   project: string;
@@ -116,6 +117,8 @@ export const ReportsTab = () => {
 
   return (
     <div className="space-y-6">
+      <WeeklyCompanyReport />
+      
       <Card>
         <CardHeader>
           <CardTitle>Generate Report</CardTitle>
