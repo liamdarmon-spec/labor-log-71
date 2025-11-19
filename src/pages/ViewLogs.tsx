@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Layout } from '@/components/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -244,16 +244,32 @@ const ViewLogs = () => {
     setPayments(paymentsData || []);
   };
 
-  const isLogPaid = (log: LogEntry): boolean => {
-    if (!log.projects.company_id) return false;
+  // Memoize payment status to avoid recalculating on every render
+  const paymentStatusMap = useMemo(() => {
+    const statusMap = new Map<string, boolean>();
     
-    return payments.some(payment => {
-      if (payment.company_id !== log.projects.company_id) return false;
-      const logDate = new Date(log.date);
-      const startDate = new Date(payment.start_date);
-      const endDate = new Date(payment.end_date);
-      return logDate >= startDate && logDate <= endDate;
+    logs.forEach(log => {
+      if (!log.projects.company_id) {
+        statusMap.set(log.id, false);
+        return;
+      }
+      
+      const isPaid = payments.some(payment => {
+        if (payment.company_id !== log.projects.company_id) return false;
+        const logDate = new Date(log.date);
+        const startDate = new Date(payment.start_date);
+        const endDate = new Date(payment.end_date);
+        return logDate >= startDate && logDate <= endDate;
+      });
+      
+      statusMap.set(log.id, isPaid);
     });
+    
+    return statusMap;
+  }, [logs, payments]);
+
+  const isLogPaid = (log: LogEntry): boolean => {
+    return paymentStatusMap.get(log.id) || false;
   };
 
   const applyFilters = async () => {
