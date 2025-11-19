@@ -129,6 +129,20 @@ export function WeeklyScheduleView({ onScheduleClick, refreshTrigger }: WeeklySc
         {weekDays.map((day) => {
           const daySchedules = getSchedulesForDay(day);
           const totalHours = getTotalHoursForDay(day);
+          
+          // Group schedules by worker
+          const workerGroups = daySchedules.reduce((acc, schedule) => {
+            const workerId = schedule.worker_id;
+            if (!acc[workerId]) {
+              acc[workerId] = {
+                worker: schedule.worker,
+                shifts: []
+              };
+            }
+            acc[workerId].shifts.push(schedule);
+            return acc;
+          }, {} as Record<string, { worker: ScheduledShift['worker'], shifts: ScheduledShift[] }>);
+
           const isToday = isSameDay(day, new Date());
 
           return (
@@ -167,32 +181,42 @@ export function WeeklyScheduleView({ onScheduleClick, refreshTrigger }: WeeklySc
                 )}
 
                 <div className="space-y-1">
-                  {daySchedules.map((schedule) => (
-                    <div
-                      key={schedule.id}
-                      className="bg-primary/10 p-2 rounded text-xs group relative"
-                    >
-                      <div className="flex items-start justify-between gap-1">
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium truncate">
-                            {schedule.worker?.name || "Unknown"}
-                          </p>
-                          <p className="text-muted-foreground truncate">
-                            {schedule.project?.project_name || "Unknown"}
-                          </p>
-                          <p className="font-semibold">{schedule.scheduled_hours}h</p>
+                  {Object.values(workerGroups).map((group) => {
+                    const totalWorkerHours = group.shifts.reduce((sum, s) => sum + Number(s.scheduled_hours), 0);
+                    
+                    return (
+                      <div
+                        key={group.shifts[0].id}
+                        className="bg-primary/10 p-2 rounded text-xs group relative"
+                      >
+                        <div className="flex items-start justify-between gap-1">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium truncate">
+                              {group.worker?.name || "Unknown"}
+                            </p>
+                            <div className="space-y-0.5 mt-1">
+                              {group.shifts.map((shift) => (
+                                <p key={shift.id} className="text-muted-foreground truncate">
+                                  {shift.project?.project_name || "Unknown"} • {shift.scheduled_hours}h
+                                </p>
+                              ))}
+                            </div>
+                            <p className="font-semibold mt-1">Total: {totalWorkerHours}h</p>
+                          </div>
+                          {group.shifts.length === 1 && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                              onClick={(e) => handleDeleteSchedule(group.shifts[0].id, e)}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          )}
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                          onClick={(e) => handleDeleteSchedule(schedule.id, e)}
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             </Card>
