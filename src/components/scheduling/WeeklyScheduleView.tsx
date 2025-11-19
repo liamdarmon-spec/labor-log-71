@@ -24,7 +24,7 @@ interface WeeklyScheduleViewProps {
 
 export function WeeklyScheduleView({ onScheduleClick, refreshTrigger }: WeeklyScheduleViewProps) {
   const { toast } = useToast();
-  const [currentWeekStart, setCurrentWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }));
+  const [currentWeekStart, setCurrentWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 0 }));
   const [schedules, setSchedules] = useState<ScheduledShift[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -34,7 +34,7 @@ export function WeeklyScheduleView({ onScheduleClick, refreshTrigger }: WeeklySc
 
   const fetchSchedules = async () => {
     setLoading(true);
-    const weekEnd = endOfWeek(currentWeekStart, { weekStartsOn: 1 });
+    const weekEnd = endOfWeek(currentWeekStart, { weekStartsOn: 0 });
 
     const { data, error } = await supabase
       .from("scheduled_shifts")
@@ -118,7 +118,7 @@ export function WeeklyScheduleView({ onScheduleClick, refreshTrigger }: WeeklySc
         <Button
           variant="outline"
           size="sm"
-          onClick={() => setCurrentWeekStart(startOfWeek(new Date(), { weekStartsOn: 1 }))}
+          onClick={() => setCurrentWeekStart(startOfWeek(new Date(), { weekStartsOn: 0 }))}
         >
           This Week
         </Button>
