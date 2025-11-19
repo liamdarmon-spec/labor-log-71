@@ -8,7 +8,8 @@ import { LogsTab } from '@/components/admin/LogsTab';
 import { ReportsTab } from '@/components/admin/ReportsTab';
 import { UsersTab } from '@/components/admin/UsersTab';
 import { ArchivedLogsTab } from '@/components/admin/ArchivedLogsTab';
-import { Users, Briefcase, Wrench, FileText, BarChart3, UserCog, Archive } from 'lucide-react';
+import { SettingsTab } from '@/components/admin/SettingsTab';
+import { Users, Briefcase, Wrench, FileText, BarChart3, UserCog, Archive, Settings } from 'lucide-react';
 
 const Admin = () => {
   const [activeTab, setActiveTab] = useState('workers');
@@ -24,7 +25,7 @@ const Admin = () => {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-7 h-auto gap-1 p-1 bg-muted/50">
+          <TabsList className="grid w-full grid-cols-8 h-auto gap-1 p-1 bg-muted/50">
             <TabsTrigger value="users" className="gap-1 sm:gap-2 py-2 sm:py-3 text-xs sm:text-sm flex-col sm:flex-row">
               <UserCog className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               <span className="text-[10px] sm:text-sm">Users</span>
@@ -52,6 +53,10 @@ const Admin = () => {
             <TabsTrigger value="reports" className="gap-1 sm:gap-2 py-2 sm:py-3 text-xs sm:text-sm flex-col sm:flex-row">
               <BarChart3 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               <span className="text-[10px] sm:text-sm">Reports</span>
+            </TabsTrigger>
+            <TabsTrigger value="settings" className="gap-1 sm:gap-2 py-2 sm:py-3 text-xs sm:text-sm flex-col sm:flex-row">
+              <Settings className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span className="text-[10px] sm:text-sm">Settings</span>
             </TabsTrigger>
           </TabsList>
 
@@ -81,6 +86,10 @@ const Admin = () => {
 
           <TabsContent value="reports" className="mt-4 sm:mt-6">
             <ReportsTab />
+          </TabsContent>
+
+          <TabsContent value="settings" className="mt-4 sm:mt-6">
+            <SettingsTab />
           </TabsContent>
         </Tabs>
       </div>
