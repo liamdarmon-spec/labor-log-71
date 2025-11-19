@@ -136,20 +136,12 @@ export function MonthlyScheduleView({ onDayClick, refreshTrigger }: MonthlySched
 
                   {daySchedules.length > 0 && (
                     <div className="space-y-0.5">
-                      {daySchedules.slice(0, 2).map((schedule) => (
-                        <div
-                          key={schedule.id}
-                          className="text-xs bg-muted p-1 rounded truncate"
-                          title={`${schedule.worker?.name} - ${schedule.scheduled_hours}h`}
-                        >
-                          {schedule.worker?.name}
-                        </div>
-                      ))}
-                      {daySchedules.length > 2 && (
-                        <div className="text-xs text-muted-foreground">
-                          +{daySchedules.length - 2} more
-                        </div>
-                      )}
+                      <div
+                        className="text-xs bg-muted p-1 rounded truncate"
+                        title={daySchedules.map(s => `${s.worker?.name} - ${s.scheduled_hours}h`).join(', ')}
+                      >
+                        {daySchedules[0]?.worker?.name} + {daySchedules.length}
+                      </div>
                     </div>
                   )}
                 </div>
