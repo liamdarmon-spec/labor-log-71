@@ -327,13 +327,19 @@ const Payments = () => {
 
   const filteredPayments = payments.filter((payment) => {
     if (reimbursementFilter === 'all') return true;
-    if (reimbursementFilter === 'pending') return payment.reimbursement_status === 'pending';
-    if (reimbursementFilter === 'reimbursed') return payment.reimbursement_status === 'reimbursed';
+    if (reimbursementFilter === 'pending') {
+      return payment.paid_via === 'Reimbursement Needed' && payment.reimbursement_status !== 'reimbursed';
+    }
+    if (reimbursementFilter === 'reimbursed') {
+      return payment.paid_via !== 'Reimbursement Needed' || payment.reimbursement_status === 'reimbursed';
+    }
     return true;
   });
 
   const totalPayments = filteredPayments.reduce((sum, p) => sum + parseFloat(p.amount.toString()), 0);
-  const pendingReimbursements = payments.filter(p => p.reimbursement_status === 'pending');
+  const pendingReimbursements = payments.filter(p => 
+    p.paid_via === 'Reimbursement Needed' && p.reimbursement_status !== 'reimbursed'
+  );
   const totalPendingAmount = pendingReimbursements.reduce((sum, p) => sum + p.amount, 0);
 
   return (
@@ -438,7 +444,7 @@ const Payments = () => {
                         <TableCell>{companies.find(c => c.id === payment.company_id)?.name || '-'}</TableCell>
                         <TableCell>{payment.paid_via || '-'}</TableCell>
                         <TableCell>
-                          {payment.reimbursement_status === 'pending' ? (
+                          {(payment.paid_via === 'Reimbursement Needed' && payment.reimbursement_status !== 'reimbursed') ? (
                             <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-700">
                               Pending
                             </Badge>
@@ -456,7 +462,7 @@ const Payments = () => {
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-2 justify-end">
-                            {payment.reimbursement_status === 'pending' && (
+                            {(payment.paid_via === 'Reimbursement Needed' && payment.reimbursement_status !== 'reimbursed') && (
                               <Button
                                 variant="default"
                                 size="sm"
