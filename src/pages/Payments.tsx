@@ -184,6 +184,11 @@ const Payments = () => {
       return;
     }
 
+    // Auto-determine reimbursement status based on company and payment method
+    const gaCompany = companies.find(c => c.name === 'GA Painting');
+    const isGAPayment = formData.company_id === gaCompany?.id;
+    const isDHYPayment = formData.paid_via === 'DHY';
+    
     const paymentData = {
       start_date: formData.start_date,
       end_date: formData.end_date,
@@ -193,8 +198,9 @@ const Payments = () => {
       payment_date: formData.payment_date,
       notes: formData.notes || null,
       paid_via: formData.paid_via || null,
-      reimbursement_status: formData.paid_via === 'Reimbursement Needed' ? 'pending' as const : null,
-      reimbursement_date: null,
+      reimbursement_status: (isGAPayment || isDHYPayment) ? 'reimbursed' as const : 
+                           formData.paid_via === 'Reimbursement Needed' ? 'pending' as const : null,
+      reimbursement_date: (isGAPayment || isDHYPayment) ? new Date().toISOString().split("T")[0] : null,
     };
 
     if (editingPayment) {
@@ -291,7 +297,7 @@ const Payments = () => {
 
       toast({
         title: "Success",
-        description: "Payment marked as reimbursed",
+        description: "Payment marked as complete",
       });
       fetchPayments();
     } catch (error: any) {
@@ -380,8 +386,8 @@ const Payments = () => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Payments</SelectItem>
-              <SelectItem value="pending">Pending Reimbursement</SelectItem>
-              <SelectItem value="reimbursed">Reimbursed</SelectItem>
+              <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="reimbursed">Complete</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -417,8 +423,8 @@ const Payments = () => {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    payments.map((payment) => (
-                      <TableRow key={payment.id} className="hover:bg-muted/30">
+                    filteredPayments.map((payment) => (
+                      <TableRow key={payment.id} className="hover:bg-muted/30 transition-colors">
                         <TableCell className="font-medium">
                           <div className="flex items-center gap-2">
                             <Calendar className="w-4 h-4 text-muted-foreground" />
@@ -429,14 +435,37 @@ const Payments = () => {
                         <TableCell>
                           {new Date(payment.payment_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                         </TableCell>
+                        <TableCell>{companies.find(c => c.id === payment.company_id)?.name || '-'}</TableCell>
+                        <TableCell>{payment.paid_via || '-'}</TableCell>
+                        <TableCell>
+                          {payment.reimbursement_status === 'pending' ? (
+                            <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-700">
+                              Pending
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300 dark:bg-green-950 dark:text-green-300 dark:border-green-700">
+                              Complete
+                            </Badge>
+                          )}
+                        </TableCell>
                         <TableCell className="text-right font-semibold text-primary">
                           ${parseFloat(payment.amount.toString()).toFixed(2)}
                         </TableCell>
                         <TableCell className="max-w-xs truncate text-muted-foreground">
                           {payment.notes || '-'}
                         </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-2">
+                        <TableCell>
+                          <div className="flex gap-2 justify-end">
+                            {payment.reimbursement_status === 'pending' && (
+                              <Button
+                                variant="default"
+                                size="sm"
+                                onClick={() => handleMarkAsReimbursed(payment.id)}
+                                className="bg-green-600 hover:bg-green-700 text-white"
+                              >
+                                Mark Complete
+                              </Button>
+                            )}
                             <Button
                               variant="ghost"
                               size="sm"
@@ -448,8 +477,9 @@ const Payments = () => {
                               variant="ghost"
                               size="sm"
                               onClick={() => handleDelete(payment.id)}
+                              className="text-destructive hover:text-destructive"
                             >
-                              <Trash2 className="w-4 h-4 text-destructive" />
+                              <Trash2 className="w-4 h-4" />
                             </Button>
                           </div>
                         </TableCell>
