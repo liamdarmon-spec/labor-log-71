@@ -11,10 +11,12 @@ interface ScheduledShift {
   id: string;
   worker_id: string;
   project_id: string;
+  trade_id: string | null;
   scheduled_hours: number;
   notes: string | null;
   worker: { name: string; trade: string } | null;
   project: { project_name: string; client_name: string } | null;
+  trade: { name: string } | null;
 }
 
 interface DayDetailDialogProps {
@@ -45,7 +47,8 @@ export function DayDetailDialog({ open, onOpenChange, date, onRefresh, onAddSche
       .select(`
         *,
         worker:workers(name, trade),
-        project:projects(project_name, client_name)
+        project:projects(project_name, client_name),
+        trade:trades(name)
       `)
       .eq("scheduled_date", format(date, "yyyy-MM-dd"))
       .order("worker_id");
@@ -158,10 +161,7 @@ export function DayDetailDialog({ open, onOpenChange, date, onRefresh, onAddSche
                 return (
                   <div key={workerName} className="border rounded-lg p-4">
                     <div className="flex items-start justify-between mb-3">
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-lg">{workerName}</h3>
-                        <p className="text-sm text-muted-foreground">{worker?.trade}</p>
-                      </div>
+                      <h3 className="font-semibold text-lg">{workerName}</h3>
                       <Badge variant="secondary" className="text-sm">
                         {totalWorkerHours}h
                       </Badge>
@@ -176,6 +176,15 @@ export function DayDetailDialog({ open, onOpenChange, date, onRefresh, onAddSche
                             <span className="text-sm font-medium">
                               {schedule.project?.project_name}
                             </span>
+                            {schedule.trade && (
+                              <>
+                                <span className="text-xs text-muted-foreground">•</span>
+                                <span className="text-xs text-muted-foreground">
+                                  {schedule.trade.name}
+                                </span>
+                              </>
+                            )}
+                            <span className="text-xs text-muted-foreground">•</span>
                             <span className="text-xs text-muted-foreground">
                               {schedule.scheduled_hours}h
                             </span>
