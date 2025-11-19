@@ -41,8 +41,8 @@ const Payments = () => {
   const [calculatedAmount, setCalculatedAmount] = useState<number | null>(null);
   const [isCalculating, setIsCalculating] = useState(false);
   const [reimbursementFilter, setReimbursementFilter] = useState<'all' | 'pending' | 'reimbursed'>('all');
-  const [selectedMonth, setSelectedMonth] = useState<string>('');
-  const [selectedCompany, setSelectedCompany] = useState<string>('');
+  const [selectedMonth, setSelectedMonth] = useState<string>('all');
+  const [selectedCompany, setSelectedCompany] = useState<string>('all');
   const [formData, setFormData] = useState({
     start_date: '',
     end_date: '',
@@ -338,14 +338,14 @@ const Payments = () => {
 
     // Month filter
     let matchesMonth = true;
-    if (selectedMonth) {
+    if (selectedMonth && selectedMonth !== 'all') {
       const paymentMonth = format(new Date(payment.payment_date), 'yyyy-MM');
       matchesMonth = paymentMonth === selectedMonth;
     }
 
     // Company filter
     let matchesCompany = true;
-    if (selectedCompany) {
+    if (selectedCompany && selectedCompany !== 'all') {
       matchesCompany = payment.company_id === selectedCompany;
     }
 
@@ -473,7 +473,7 @@ const Payments = () => {
                     <SelectValue placeholder="All months" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All months</SelectItem>
+                    <SelectItem value="all">All months</SelectItem>
                     {monthOptions.map((month) => (
                       <SelectItem key={month.value} value={month.value}>
                         {month.label}
@@ -490,7 +490,7 @@ const Payments = () => {
                     <SelectValue placeholder="All companies" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All companies</SelectItem>
+                    <SelectItem value="all">All companies</SelectItem>
                     {companies.map((company) => (
                       <SelectItem key={company.id} value={company.id}>
                         {company.name}
@@ -506,8 +506,8 @@ const Payments = () => {
                   className="w-full"
                   onClick={() => {
                     setReimbursementFilter('all');
-                    setSelectedMonth('');
-                    setSelectedCompany('');
+                    setSelectedMonth('all');
+                    setSelectedCompany('all');
                   }}
                 >
                   Clear Filters
