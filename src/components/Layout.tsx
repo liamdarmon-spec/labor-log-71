@@ -1,8 +1,15 @@
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
-import { HardHat, LogOut, Settings, Eye, PlusCircle, BarChart3, DollarSign, CalendarClock } from 'lucide-react';
+import { HardHat, LogOut, Settings, Eye, PlusCircle, BarChart3, DollarSign, CalendarClock, Languages } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { MobileNav } from '@/components/MobileNav';
+import { useTranslation } from 'react-i18next';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -12,6 +19,12 @@ export const Layout = ({ children }: LayoutProps) => {
   const { signOut, user, isAdmin } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const { t, i18n } = useTranslation();
+
+  const changeLanguage = (lng: string) => {
+    i18n.changeLanguage(lng);
+    localStorage.setItem('language', lng);
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/30 to-background">
@@ -23,8 +36,8 @@ export const Layout = ({ children }: LayoutProps) => {
               <HardHat className="w-4 h-4 sm:w-6 sm:h-6 text-primary-foreground" />
             </div>
             <div className="min-w-0">
-              <h1 className="text-sm sm:text-xl font-bold text-foreground truncate">Forma Tracking</h1>
-              <p className="text-[10px] sm:text-xs text-muted-foreground hidden xs:block">Labor Management</p>
+              <h1 className="text-sm sm:text-xl font-bold text-foreground truncate">{t('app.name')}</h1>
+              <p className="text-[10px] sm:text-xs text-muted-foreground hidden xs:block">{t('app.subtitle')}</p>
             </div>
           </div>
           <nav className="hidden lg:flex items-center gap-2">
@@ -35,7 +48,7 @@ export const Layout = ({ children }: LayoutProps) => {
               className="gap-2 h-9"
             >
               <CalendarClock className="w-4 h-4" />
-              <span>Schedule</span>
+              <span>{t('nav.schedule')}</span>
             </Button>
             <Button
               variant={location.pathname === '/view-logs' ? 'default' : 'ghost'}
@@ -44,7 +57,7 @@ export const Layout = ({ children }: LayoutProps) => {
               className="gap-2 h-9"
             >
               <Eye className="w-4 h-4" />
-              <span>Time Logs</span>
+              <span>{t('nav.timeLogs')}</span>
             </Button>
             <Button
               variant={location.pathname === '/payments' ? 'default' : 'ghost'}
@@ -53,7 +66,7 @@ export const Layout = ({ children }: LayoutProps) => {
               className="gap-2 h-9"
             >
               <DollarSign className="w-4 h-4" />
-              <span>Payments</span>
+              <span>{t('nav.payments')}</span>
             </Button>
             <Button
               variant={location.pathname === '/dashboard' ? 'default' : 'ghost'}
@@ -62,7 +75,7 @@ export const Layout = ({ children }: LayoutProps) => {
               className="gap-2 h-9"
             >
               <BarChart3 className="w-4 h-4" />
-              <span>Dashboard</span>
+              <span>{t('nav.dashboard')}</span>
             </Button>
             <Button
               variant={location.pathname === '/admin' ? 'default' : 'ghost'}
@@ -71,8 +84,26 @@ export const Layout = ({ children }: LayoutProps) => {
               className="gap-2 h-9"
             >
               <Settings className="w-4 h-4" />
-              <span>Admin</span>
+              <span>{t('nav.admin')}</span>
             </Button>
+            
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="gap-2 h-9">
+                  <Languages className="w-4 h-4" />
+                  <span className="uppercase">{i18n.language}</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => changeLanguage('en')}>
+                  English
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => changeLanguage('es')}>
+                  Español
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
             <Button
               variant="ghost"
               size="sm"
@@ -80,7 +111,7 @@ export const Layout = ({ children }: LayoutProps) => {
               className="gap-2 h-9"
             >
               <LogOut className="w-4 h-4" />
-              <span>Logout</span>
+              <span>{t('nav.logout')}</span>
             </Button>
           </nav>
         </div>
