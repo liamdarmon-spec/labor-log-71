@@ -1,6 +1,6 @@
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
-import { HardHat, LogOut, Settings, Eye, PlusCircle, BarChart3, DollarSign } from 'lucide-react';
+import { HardHat, LogOut, Settings, Eye, PlusCircle, BarChart3, DollarSign, CalendarClock } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { MobileNav } from '@/components/MobileNav';
 
@@ -36,6 +36,15 @@ export const Layout = ({ children }: LayoutProps) => {
             >
               <PlusCircle className="w-4 h-4" />
               <span>Entry</span>
+            </Button>
+            <Button
+              variant={location.pathname === '/schedule' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => navigate('/schedule')}
+              className="gap-2 h-9"
+            >
+              <CalendarClock className="w-4 h-4" />
+              <span>Schedule</span>
             </Button>
             <Button
               variant={location.pathname === '/view-logs' ? 'default' : 'ghost'}

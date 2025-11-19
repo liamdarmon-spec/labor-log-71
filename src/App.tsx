@@ -9,6 +9,7 @@ import Dashboard from "./pages/Dashboard";
 import Admin from "./pages/Admin";
 import Auth from "./pages/Auth";
 import ViewLogs from "./pages/ViewLogs";
+import Schedule from "./pages/Schedule";
 import Payments from "./pages/Payments";
 import NotFound from "./pages/NotFound";
 
@@ -43,6 +44,14 @@ const App = () => (
             element={
               <ProtectedRoute>
                 <ViewLogs />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/schedule"
+            element={
+              <ProtectedRoute>
+                <Schedule />
               </ProtectedRoute>
             }
           />
