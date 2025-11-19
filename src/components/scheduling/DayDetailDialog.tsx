@@ -4,8 +4,18 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
-import { Trash2, Plus } from "lucide-react";
+import { Trash2, Plus, ClipboardCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface ScheduledShift {
   id: string;
@@ -31,6 +41,8 @@ export function DayDetailDialog({ open, onOpenChange, date, onRefresh, onAddSche
   const { toast } = useToast();
   const [schedules, setSchedules] = useState<ScheduledShift[]>([]);
   const [loading, setLoading] = useState(false);
+  const [convertDialogOpen, setConvertDialogOpen] = useState(false);
+  const [selectedSchedules, setSelectedSchedules] = useState<ScheduledShift[]>([]);
 
   useEffect(() => {
     if (open && date) {
@@ -83,6 +95,57 @@ export function DayDetailDialog({ open, onOpenChange, date, onRefresh, onAddSche
       description: "Schedule deleted"
     });
 
+    fetchDaySchedules();
+    onRefresh();
+  };
+
+  const handleConvertToTimeLogs = async () => {
+    if (!date) return;
+
+    const { data: userData } = await supabase.auth.getUser();
+    
+    // Create time log entries from schedules
+    const timeLogEntries = selectedSchedules.map(schedule => ({
+      worker_id: schedule.worker_id,
+      project_id: schedule.project_id,
+      trade_id: schedule.trade_id,
+      date: format(date, "yyyy-MM-dd"),
+      hours_worked: schedule.scheduled_hours,
+      notes: schedule.notes,
+      created_by: userData.user?.id
+    }));
+
+    const { error: insertError } = await supabase
+      .from("daily_logs")
+      .insert(timeLogEntries);
+
+    if (insertError) {
+      toast({
+        title: "Error",
+        description: "Failed to create time logs",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Delete the converted schedules
+    const scheduleIds = selectedSchedules.map(s => s.id);
+    const { error: deleteError } = await supabase
+      .from("scheduled_shifts")
+      .delete()
+      .in("id", scheduleIds);
+
+    if (deleteError) {
+      console.error("Error deleting schedules:", deleteError);
+    }
+
+    toast({
+      title: "Success",
+      description: `Converted ${selectedSchedules.length} schedule(s) to time logs`
+    });
+
+    setConvertDialogOpen(false);
+    setSelectedSchedules([]);
     fetchDaySchedules();
     onRefresh();
   };
@@ -154,7 +217,24 @@ export function DayDetailDialog({ open, onOpenChange, date, onRefresh, onAddSche
               </Button>
             </div>
           ) : (
-            <div className="space-y-3">
+            <>
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-sm text-muted-foreground">
+                  {schedules.length} schedule{schedules.length !== 1 ? 's' : ''}
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setSelectedSchedules(schedules);
+                    setConvertDialogOpen(true);
+                  }}
+                >
+                  <ClipboardCheck className="h-4 w-4 mr-2" />
+                  Convert to Time Logs
+                </Button>
+              </div>
+              <div className="space-y-3">
               {Object.entries(schedulesByWorker).map(([workerName, { worker, schedules: workerSchedules }]) => {
                 const totalWorkerHours = workerSchedules.reduce((sum, s) => sum + Number(s.scheduled_hours), 0);
                 
@@ -204,8 +284,27 @@ export function DayDetailDialog({ open, onOpenChange, date, onRefresh, onAddSche
                 );
               })}
             </div>
+            </>
           )}
         </div>
+
+        <AlertDialog open={convertDialogOpen} onOpenChange={setConvertDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Convert to Time Logs</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will create time log entries for {selectedSchedules.length} scheduled shift(s) and remove them from the schedule. 
+                The work will be marked as completed for {date ? format(date, "MMMM d, yyyy") : ""}.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleConvertToTimeLogs}>
+                Convert to Time Logs
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </DialogContent>
     </Dialog>
   );
