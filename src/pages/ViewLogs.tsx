@@ -11,10 +11,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Search, Filter, Calendar, Download, Edit2, X, Plus, FileText, Files, Trash2, CheckCircle2, Circle } from 'lucide-react';
+import { Search, Filter, Calendar, Download, Edit2, X, Plus, FileText, Files, Trash2, CheckCircle2, Circle, Split } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { SingleEntryTab } from '@/components/dashboard/SingleEntryTab';
 import { BulkEntryTab } from '@/components/dashboard/BulkEntryTab';
+import { SplitScheduleDialog } from '@/components/dashboard/SplitScheduleDialog';
 
 interface LogEntry {
   id: string;
@@ -86,6 +87,13 @@ const ViewLogs = () => {
   const [activeTab, setActiveTab] = useState("logs");
   const [selectedLogs, setSelectedLogs] = useState<Set<string>>(new Set());
   const [selectedGroup, setSelectedGroup] = useState<GroupedLogEntry | null>(null);
+  const [splitScheduleData, setSplitScheduleData] = useState<{
+    scheduleId: string;
+    workerName: string;
+    date: string;
+    hours: number;
+    projectId: string;
+  } | null>(null);
   const [editForm, setEditForm] = useState({
     date: '',
     worker_id: '',
@@ -796,13 +804,35 @@ const ViewLogs = () => {
                         )}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleEditGroup(group)}
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </Button>
+                        <div className="flex gap-1 justify-end">
+                          {/* Show split button if there's a linked schedule and single project */}
+                          {group.entries.length === 1 && group.entries[0].schedule_id && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                const entry = group.entries[0];
+                                setSplitScheduleData({
+                                  scheduleId: entry.schedule_id!,
+                                  workerName: group.worker_name,
+                                  date: group.date,
+                                  hours: entry.hours_worked,
+                                  projectId: entry.project_id
+                                });
+                              }}
+                              title="Split into multiple projects"
+                            >
+                              <Split className="w-4 h-4" />
+                            </Button>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEditGroup(group)}
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -1013,6 +1043,23 @@ const ViewLogs = () => {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Split Schedule Dialog */}
+        {splitScheduleData && (
+          <SplitScheduleDialog
+            isOpen={!!splitScheduleData}
+            onClose={() => setSplitScheduleData(null)}
+            scheduleId={splitScheduleData.scheduleId}
+            workerName={splitScheduleData.workerName}
+            originalDate={splitScheduleData.date}
+            originalHours={splitScheduleData.hours}
+            originalProjectId={splitScheduleData.projectId}
+            onSuccess={() => {
+              fetchData();
+              setSplitScheduleData(null);
+            }}
+          />
+        )}
       </div>
     </Layout>
   );
