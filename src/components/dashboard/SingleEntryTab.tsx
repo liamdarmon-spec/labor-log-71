@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Calendar, Clock, FileText, Plus, Trash2 } from 'lucide-react';
 import { z } from 'zod';
+import { AddProjectDialog } from './AddProjectDialog';
 
 const jobEntrySchema = z.object({
   project_id: z.string().trim().nonempty({ message: 'Please select a project' }),
@@ -59,6 +60,7 @@ export const SingleEntryTab = () => {
   const [trades, setTrades] = useState<Trade[]>([]);
   const [loading, setLoading] = useState(false);
   const [isFullDay, setIsFullDay] = useState(true);
+  const [isAddProjectDialogOpen, setIsAddProjectDialogOpen] = useState(false);
   const [jobEntries, setJobEntries] = useState<JobEntry[]>([
     { id: '1', project_id: '', hours_worked: '', trade_id: '' }
   ]);
@@ -381,13 +383,25 @@ export const SingleEntryTab = () => {
                     <Label className="text-xs text-muted-foreground">Project</Label>
                     <Select
                       value={entry.project_id}
-                      onValueChange={(value) => updateJobEntry(entry.id, 'project_id', value)}
+                      onValueChange={(value) => {
+                        if (value === 'add-new') {
+                          setIsAddProjectDialogOpen(true);
+                        } else {
+                          updateJobEntry(entry.id, 'project_id', value);
+                        }
+                      }}
                       disabled={loading}
                     >
                       <SelectTrigger className="h-10">
                         <SelectValue placeholder="Select project" />
                       </SelectTrigger>
                       <SelectContent className="bg-popover z-50">
+                        <SelectItem value="add-new" className="text-primary font-medium">
+                          <div className="flex items-center gap-2">
+                            <Plus className="w-4 h-4" />
+                            Add New Project
+                          </div>
+                        </SelectItem>
                         {projects.map((project) => (
                           <SelectItem key={project.id} value={project.id}>
                             {project.project_name} - {project.client_name}
@@ -452,6 +466,12 @@ export const SingleEntryTab = () => {
           </Button>
         </form>
       </CardContent>
+      
+      <AddProjectDialog 
+        open={isAddProjectDialogOpen} 
+        onOpenChange={setIsAddProjectDialogOpen}
+        onProjectAdded={fetchProjects}
+      />
     </Card>
   );
 };
