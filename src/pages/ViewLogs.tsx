@@ -864,10 +864,27 @@ const ViewLogs = () => {
                         let confirmMessage = 'Are you sure you want to delete this entry?';
                         
                         if (logWithSchedule?.schedule_id) {
-                          confirmMessage = 'This time log is linked to a schedule. Deleting it will keep the schedule but remove the link. Continue?';
+                          confirmMessage += '\n\nThis entry is linked to a schedule. The linked schedule will also be deleted.';
                         }
                         
                         if (!confirm(confirmMessage)) return;
+
+                        // Delete linked schedule first if it exists
+                        if (logWithSchedule?.schedule_id) {
+                          const { error: scheduleError } = await supabase
+                            .from('scheduled_shifts')
+                            .delete()
+                            .eq('id', logWithSchedule.schedule_id);
+
+                          if (scheduleError) {
+                            toast({
+                              title: 'Error',
+                              description: 'Failed to delete linked schedule',
+                              variant: 'destructive',
+                            });
+                            return;
+                          }
+                        }
                         
                         const { error } = await supabase
                           .from('daily_logs')
@@ -883,7 +900,7 @@ const ViewLogs = () => {
                         } else {
                           toast({
                             title: 'Success',
-                            description: 'Entry deleted successfully',
+                            description: `Entry deleted successfully${logWithSchedule?.schedule_id ? ' and linked schedule removed' : ''}`,
                           });
                           setSelectedGroup(null);
                           fetchData();
