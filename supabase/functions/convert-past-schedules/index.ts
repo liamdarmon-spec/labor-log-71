@@ -42,7 +42,7 @@ Deno.serve(async (req) => {
 
     console.log(`Found ${pastSchedules.length} schedules to convert`);
 
-    // Create time log entries from past schedules
+    // Create time log entries from past schedules with schedule_id link
     const timeLogEntries = pastSchedules.map(schedule => ({
       worker_id: schedule.worker_id,
       project_id: schedule.project_id,
@@ -50,7 +50,8 @@ Deno.serve(async (req) => {
       date: schedule.scheduled_date,
       hours_worked: schedule.scheduled_hours,
       notes: schedule.notes,
-      created_by: schedule.created_by
+      created_by: schedule.created_by,
+      schedule_id: schedule.id
     }));
 
     // Insert time logs (will skip if already exists due to unique constraint or conflicts)
