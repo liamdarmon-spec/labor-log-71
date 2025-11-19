@@ -15,6 +15,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Calendar, Save, UserCheck, Plus, Trash2, Edit, UserPlus, X, CheckCircle2 } from 'lucide-react';
 import { z } from 'zod';
 import { AddProjectDialog } from './AddProjectDialog';
+import { WorkerEntryCard } from './WorkerEntryCard';
 
 const jobEntrySchema = z.object({
   project_id: z.string().trim().nonempty({ message: 'Please select a project' }),
@@ -236,12 +237,12 @@ export const BulkEntryTab = ({ onSuccess }: { onSuccess?: () => void }) => {
     }
   };
 
-  const updateEntry = (workerId: string, field: 'isFullDay' | 'notes', value: boolean | string) => {
+  const updateEntry = (workerId: string, updates: Partial<BulkEntry>) => {
     setEntries(prev => ({
       ...prev,
       [workerId]: {
         ...prev[workerId],
-        [field]: value,
+        ...updates,
       },
     }));
   };
@@ -425,15 +426,15 @@ export const BulkEntryTab = ({ onSuccess }: { onSuccess?: () => void }) => {
   }).length;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-20 md:pb-0">
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center justify-between">
+          <CardTitle className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <Calendar className="w-5 h-5" />
               <span>Daily Time Entry</span>
             </div>
-            <div className="flex items-center gap-4 text-sm font-normal">
+            <div className="flex items-center gap-3 sm:gap-4 text-sm font-normal flex-wrap">
               <div className="flex items-center gap-2">
                 <UserCheck className="w-4 h-4" />
                 <span className="text-muted-foreground">{workersWithHours} workers</span>
@@ -448,7 +449,7 @@ export const BulkEntryTab = ({ onSuccess }: { onSuccess?: () => void }) => {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
             <div className="flex-1">
               <Label htmlFor="date">Date</Label>
               <Input
@@ -456,20 +457,21 @@ export const BulkEntryTab = ({ onSuccess }: { onSuccess?: () => void }) => {
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="max-w-xs"
+                className="w-full sm:max-w-xs"
               />
             </div>
             <Button
               variant="outline"
               onClick={() => setIsAddWorkerDialogOpen(true)}
-              className="gap-2"
+              className="gap-2 w-full sm:w-auto min-h-[44px]"
             >
               <UserPlus className="w-4 h-4" />
               Add Worker
             </Button>
           </div>
 
-          <div className="border rounded-lg overflow-hidden">
+          {/* Desktop Table View */}
+          <div className="hidden md:block border rounded-lg overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -502,56 +504,49 @@ export const BulkEntryTab = ({ onSuccess }: { onSuccess?: () => void }) => {
                       <TableCell>
                         <Switch
                           checked={entry.isFullDay}
-                          onCheckedChange={(checked) => updateEntry(worker.id, 'isFullDay', checked)}
-                        />
-                      </TableCell>
-                      <TableCell className="font-medium">
-                        {totalHours.toFixed(1)}
-                      </TableCell>
-                      <TableCell className="font-medium">
-                        {totalHours > 0 ? `$${cost.toFixed(2)}` : '-'}
-                      </TableCell>
-                      <TableCell>
-                        <Textarea
-                          placeholder="Notes..."
-                          value={entry.notes}
-                          onChange={(e) => updateEntry(worker.id, 'notes', e.target.value)}
-                          className="min-h-[60px]"
+                          onCheckedChange={() => updateEntry(worker.id, { isFullDay: !entry.isFullDay })}
                         />
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          {entry.jobEntries.length > 0 && entry.jobEntries[0].project_id ? (
-                            <div className="flex flex-col gap-1 flex-1">
-                              {entry.jobEntries.map((job, idx) => {
-                                const project = projects.find(p => p.id === job.project_id);
-                                return project ? (
-                                  <Badge key={idx} variant="secondary" className="text-xs gap-1">
-                                    <CheckCircle2 className="w-3 h-3 text-green-600" />
-                                    {project.project_name}
-                                  </Badge>
-                                ) : null;
-                              })}
-                            </div>
-                          ) : null}
+                          <Input
+                            type="number"
+                            value={totalHours.toFixed(2)}
+                            readOnly
+                            className="w-20"
+                          />
+                        </div>
+                      </TableCell>
+                      <TableCell className="font-semibold text-primary">
+                        ${cost.toFixed(2)}
+                      </TableCell>
+                      <TableCell>
+                        <Textarea
+                          placeholder="Add notes..."
+                          value={entry.notes}
+                          onChange={(e) => updateEntry(worker.id, { notes: e.target.value })}
+                          className="min-h-[60px] resize-none"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-2">
                           <Button
-                            variant={entry.jobEntries.length > 0 && entry.jobEntries[0].project_id ? "outline" : "default"}
+                            variant="outline"
                             size="sm"
                             onClick={() => setEditingWorker(worker.id)}
-                            className="whitespace-nowrap"
+                            className="gap-2"
                           >
-                            <Edit className="w-4 h-4 mr-2" />
-                            {entry.jobEntries.length > 0 && entry.jobEntries[0].project_id
-                              ? 'Edit'
-                              : 'Add Projects'}
+                            <Edit className="w-4 h-4" />
+                            Projects
                           </Button>
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => toggleWorkerExclusion(worker.id)}
-                            title="Remove worker from this entry"
+                            onClick={() => {
+                              setExcludedWorkers(prev => new Set([...prev, worker.id]));
+                            }}
                           >
-                            <X className="w-4 h-4 text-destructive" />
+                            <X className="w-4 h-4" />
                           </Button>
                         </div>
                       </TableCell>
@@ -560,6 +555,52 @@ export const BulkEntryTab = ({ onSuccess }: { onSuccess?: () => void }) => {
                 })}
               </TableBody>
             </Table>
+          </div>
+
+          {/* Mobile Card View */}
+          <div className="md:hidden space-y-3">
+            {activeWorkers.map((worker) => {
+              const entry = entries[worker.id] || { 
+                worker_id: worker.id, 
+                isFullDay: true,
+                jobEntries: [{ id: '1', company_id: '', project_id: '', hours_worked: '', trade_id: worker.trade_id || '' }],
+                notes: '' 
+              };
+              const totalHours = getTotalHoursForWorker(worker.id);
+              const cost = totalHours * worker.hourly_rate;
+
+              return (
+                <WorkerEntryCard
+                  key={worker.id}
+                  workerName={worker.name}
+                  tradeName={worker.trades?.name || 'N/A'}
+                  isFullDay={entry.isFullDay}
+                  totalHours={totalHours}
+                  cost={cost}
+                  notes={entry.notes}
+                  jobEntries={entry.jobEntries}
+                  projects={projects}
+                  onToggleFullDay={() => updateEntry(worker.id, { isFullDay: !entry.isFullDay })}
+                  onEditProjects={() => setEditingWorker(worker.id)}
+                  onAddNote={() => setEditingWorker(worker.id)}
+                  onRemove={() => {
+                    setExcludedWorkers(prev => new Set([...prev, worker.id]));
+                  }}
+                  onHoursChange={(delta) => {
+                    const currentHours = totalHours;
+                    const newHours = Math.max(0, Math.min(24, currentHours + delta));
+                    if (entry.jobEntries.length > 0 && entry.jobEntries[0]) {
+                      const updatedJobEntries = [...entry.jobEntries];
+                      updatedJobEntries[0] = {
+                        ...updatedJobEntries[0],
+                        hours_worked: newHours.toFixed(1)
+                      };
+                      updateEntry(worker.id, { jobEntries: updatedJobEntries });
+                    }
+                  }}
+                />
+              );
+            })}
           </div>
 
           {/* Submission Summary Panel */}
