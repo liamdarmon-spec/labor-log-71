@@ -626,6 +626,24 @@ const Payments = () => {
                 />
               </div>
 
+              {editingPayment && editingPayment.reimbursement_status === 'reimbursed' && editingPayment.reimbursement_date && (
+                <div className="pt-4 border-t border-border">
+                  <div className="flex items-center gap-2 text-sm">
+                    <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                    <span className="text-muted-foreground">
+                      Reimbursed on{' '}
+                      <span className="font-semibold text-foreground">
+                        {new Date(editingPayment.reimbursement_date).toLocaleDateString('en-US', { 
+                          month: 'long', 
+                          day: 'numeric', 
+                          year: 'numeric' 
+                        })}
+                      </span>
+                    </span>
+                  </div>
+                </div>
+              )}
+
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={handleCloseDialog}>
                   Cancel
