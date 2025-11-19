@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Plus, UserCog } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, UserCog, Split } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { format, addDays } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
@@ -10,6 +10,7 @@ import { EditScheduleDialog } from "./EditScheduleDialog";
 import { WorkerScheduleDialog } from "./WorkerScheduleDialog";
 import { ScheduleEditButton } from "./ScheduleEditButton";
 import { ScheduleDeleteButton } from "./ScheduleDeleteButton";
+import { SplitScheduleDialog } from "@/components/dashboard/SplitScheduleDialog";
 
 interface ScheduledShift {
   id: string;
@@ -37,6 +38,13 @@ export function DailyScheduleView({ onScheduleClick, refreshTrigger }: DailySche
   const [editingSchedule, setEditingSchedule] = useState<ScheduledShift | null>(null);
   const [workerDialogOpen, setWorkerDialogOpen] = useState(false);
   const [selectedWorker, setSelectedWorker] = useState<{ id: string; name: string } | null>(null);
+  const [splitScheduleData, setSplitScheduleData] = useState<{
+    scheduleId: string;
+    workerName: string;
+    date: string;
+    hours: number;
+    projectId: string;
+  } | null>(null);
 
   useEffect(() => {
     fetchSchedules();
@@ -237,6 +245,23 @@ export function DailyScheduleView({ onScheduleClick, refreshTrigger }: DailySche
                         )}
                       </div>
                       <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setSplitScheduleData({
+                              scheduleId: schedule.id,
+                              workerName: worker?.name || "Unknown",
+                              date: schedule.scheduled_date,
+                              hours: schedule.scheduled_hours,
+                              projectId: schedule.project_id
+                            });
+                          }}
+                          className="h-8 px-2"
+                          title="Split into multiple projects"
+                        >
+                          <Split className="h-4 w-4" />
+                        </Button>
                         <ScheduleEditButton onClick={() => setEditingSchedule(schedule)} />
                         <ScheduleDeleteButton 
                           onConfirm={() => handleDeleteSchedule(schedule.id)}
@@ -258,6 +283,22 @@ export function DailyScheduleView({ onScheduleClick, refreshTrigger }: DailySche
         schedule={editingSchedule}
         onSuccess={fetchSchedules}
       />
+
+      {splitScheduleData && (
+        <SplitScheduleDialog
+          isOpen={!!splitScheduleData}
+          onClose={() => setSplitScheduleData(null)}
+          scheduleId={splitScheduleData.scheduleId}
+          workerName={splitScheduleData.workerName}
+          originalDate={splitScheduleData.date}
+          originalHours={splitScheduleData.hours}
+          originalProjectId={splitScheduleData.projectId}
+          onSuccess={() => {
+            fetchSchedules();
+            setSplitScheduleData(null);
+          }}
+        />
+      )}
     </div>
   );
 }
