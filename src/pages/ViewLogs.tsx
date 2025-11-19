@@ -469,112 +469,6 @@ const ViewLogs = () => {
           </div>
         </div>
 
-        <Card className="shadow-medium">
-          <CardHeader className="border-b border-border">
-            <CardTitle className="flex items-center gap-2">
-              <Filter className="w-5 h-5 text-primary" />
-              Filters & Sort
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="startDate" className="text-sm">Start Date</Label>
-                <Input
-                  id="startDate"
-                  type="date"
-                  value={filters.startDate}
-                  onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="endDate" className="text-sm">End Date</Label>
-                <Input
-                  id="endDate"
-                  type="date"
-                  value={filters.endDate}
-                  onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="worker" className="text-sm">Worker</Label>
-                <Select value={filters.workerId} onValueChange={(value) => setFilters({ ...filters, workerId: value })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="All workers" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-popover z-50">
-                    <SelectItem value="all">All workers</SelectItem>
-                    {workers.map((worker) => (
-                      <SelectItem key={worker.id} value={worker.id}>
-                        {worker.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="trade" className="text-sm">Trade</Label>
-                <Select value={filters.tradeId} onValueChange={(value) => setFilters({ ...filters, tradeId: value })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="All trades" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-popover z-50">
-                    <SelectItem value="all">All trades</SelectItem>
-                    {trades.map((trade) => (
-                      <SelectItem key={trade.id} value={trade.id}>
-                        {trade.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="project" className="text-sm">Project</Label>
-                <Select value={filters.projectId} onValueChange={(value) => setFilters({ ...filters, projectId: value })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="All projects" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-popover z-50">
-                    <SelectItem value="all">All projects</SelectItem>
-                    {projects.map((project) => (
-                      <SelectItem key={project.id} value={project.id}>
-                        {project.project_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="sortBy" className="text-sm">Sort By</Label>
-                <Select value={filters.sortBy} onValueChange={(value) => setFilters({ ...filters, sortBy: value })}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-popover z-50">
-                    <SelectItem value="date-desc">Date (Newest)</SelectItem>
-                    <SelectItem value="date-asc">Date (Oldest)</SelectItem>
-                    <SelectItem value="worker">Worker (A-Z)</SelectItem>
-                    <SelectItem value="project">Project (A-Z)</SelectItem>
-                    <SelectItem value="hours">Hours (High-Low)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="mt-4 flex justify-between items-center">
-              <Button 
-                onClick={() => setIsAddEntryDialogOpen(true)}
-                className="gap-2"
-              >
-                <Plus className="w-4 h-4" />
-                Add Entry
-              </Button>
-              <Button variant="outline" onClick={clearFilters}>
-                Clear Filters
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
         {/* Add Entry Dialog */}
         <Dialog open={isAddEntryDialogOpen} onOpenChange={setIsAddEntryDialogOpen}>
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -606,51 +500,148 @@ const ViewLogs = () => {
           <CardHeader className="border-b border-border">
             <div className="flex items-center justify-between">
               <CardTitle>Time Entries ({groupedLogs.length} entries, {filteredLogs.length} total logs)</CardTitle>
-              {selectedLogs.size > 0 && (
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={handleMassDelete}
-                  className="gap-2"
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setFilters(prev => ({ ...prev, paymentStatus: 'all' }))}
+                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                    filters.paymentStatus === 'all'
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-background text-muted-foreground hover:bg-muted'
+                  }`}
                 >
-                  <Trash2 className="w-4 h-4" />
-                  Delete Selected ({selectedLogs.size})
-                </Button>
-              )}
+                  All
+                </button>
+                <button
+                  onClick={() => setFilters(prev => ({ ...prev, paymentStatus: 'paid' }))}
+                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                    filters.paymentStatus === 'paid'
+                      ? 'bg-green-600 text-white'
+                      : 'bg-background text-muted-foreground hover:bg-muted'
+                  }`}
+                >
+                  Paid
+                </button>
+                <button
+                  onClick={() => setFilters(prev => ({ ...prev, paymentStatus: 'unpaid' }))}
+                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                    filters.paymentStatus === 'unpaid'
+                      ? 'bg-muted-foreground/20 text-foreground'
+                      : 'bg-background text-muted-foreground hover:bg-muted'
+                  }`}
+                >
+                  Unpaid
+                </button>
+                {selectedLogs.size > 0 && (
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={handleMassDelete}
+                    className="gap-2 ml-2"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Delete Selected ({selectedLogs.size})
+                  </Button>
+                )}
+              </div>
             </div>
             
-            {/* Payment Status Filter Bar */}
-            <div className="flex items-center gap-2 px-6 py-3 border-b border-border bg-muted/30">
-              <button
-                onClick={() => setFilters(prev => ({ ...prev, paymentStatus: 'all' }))}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                  filters.paymentStatus === 'all'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-background text-muted-foreground hover:bg-muted'
-                }`}
-              >
-                All
-              </button>
-              <button
-                onClick={() => setFilters(prev => ({ ...prev, paymentStatus: 'paid' }))}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                  filters.paymentStatus === 'paid'
-                    ? 'bg-green-600 text-white'
-                    : 'bg-background text-muted-foreground hover:bg-muted'
-                }`}
-              >
-                Paid
-              </button>
-              <button
-                onClick={() => setFilters(prev => ({ ...prev, paymentStatus: 'unpaid' }))}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                  filters.paymentStatus === 'unpaid'
-                    ? 'bg-muted-foreground/20 text-foreground'
-                    : 'bg-background text-muted-foreground hover:bg-muted'
-                }`}
-              >
-                Unpaid
-              </button>
+            {/* Filters Section */}
+            <div className="mt-6 pt-6 border-t border-border">
+              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="startDate" className="text-sm">Start Date</Label>
+                  <Input
+                    id="startDate"
+                    type="date"
+                    value={filters.startDate}
+                    onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="endDate" className="text-sm">End Date</Label>
+                  <Input
+                    id="endDate"
+                    type="date"
+                    value={filters.endDate}
+                    onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="worker" className="text-sm">Worker</Label>
+                  <Select value={filters.workerId} onValueChange={(value) => setFilters({ ...filters, workerId: value })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All workers" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-popover z-50">
+                      <SelectItem value="all">All workers</SelectItem>
+                      {workers.map((worker) => (
+                        <SelectItem key={worker.id} value={worker.id}>
+                          {worker.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="trade" className="text-sm">Trade</Label>
+                  <Select value={filters.tradeId} onValueChange={(value) => setFilters({ ...filters, tradeId: value })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All trades" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-popover z-50">
+                      <SelectItem value="all">All trades</SelectItem>
+                      {trades.map((trade) => (
+                        <SelectItem key={trade.id} value={trade.id}>
+                          {trade.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="project" className="text-sm">Project</Label>
+                  <Select value={filters.projectId} onValueChange={(value) => setFilters({ ...filters, projectId: value })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All projects" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-popover z-50">
+                      <SelectItem value="all">All projects</SelectItem>
+                      {projects.map((project) => (
+                        <SelectItem key={project.id} value={project.id}>
+                          {project.project_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="sortBy" className="text-sm">Sort By</Label>
+                  <Select value={filters.sortBy} onValueChange={(value) => setFilters({ ...filters, sortBy: value })}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-popover z-50">
+                      <SelectItem value="date-desc">Date (Newest)</SelectItem>
+                      <SelectItem value="date-asc">Date (Oldest)</SelectItem>
+                      <SelectItem value="worker">Worker (A-Z)</SelectItem>
+                      <SelectItem value="project">Project (A-Z)</SelectItem>
+                      <SelectItem value="hours">Hours (High-Low)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="mt-4 flex justify-between items-center">
+                <Button 
+                  onClick={() => setIsAddEntryDialogOpen(true)}
+                  className="gap-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add Entry
+                </Button>
+                <Button variant="outline" onClick={clearFilters}>
+                  Clear Filters
+                </Button>
+              </div>
             </div>
           </CardHeader>
           <CardContent className="p-0">
