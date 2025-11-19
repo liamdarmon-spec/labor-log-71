@@ -407,11 +407,31 @@ const ViewLogs = () => {
     
     let confirmMessage = `Are you sure you want to delete ${selectedLogs.size} time ${selectedLogs.size === 1 ? 'entry' : 'entries'}?`;
     if (linkedCount > 0) {
-      confirmMessage += `\n\n${linkedCount} of these ${linkedCount === 1 ? 'entry is' : 'entries are'} linked to schedule${linkedCount === 1 ? '' : 's'}. The schedule${linkedCount === 1 ? '' : 's'} will remain but will no longer be linked to ${linkedCount === 1 ? 'a' : ''} time log${linkedCount === 1 ? '' : 's'}.`;
+      confirmMessage += `\n\n${linkedCount} of these ${linkedCount === 1 ? 'entry is' : 'entries are'} linked to schedule${linkedCount === 1 ? '' : 's'}. The linked schedule${linkedCount === 1 ? '' : 's'} will also be deleted.`;
     }
 
     const confirmed = window.confirm(confirmMessage);
     if (!confirmed) return;
+
+    // Delete linked schedules first if they exist
+    if (linkedCount > 0) {
+      const scheduleIds = logsWithSchedules?.map(log => log.schedule_id).filter(Boolean) || [];
+      if (scheduleIds.length > 0) {
+        const { error: scheduleError } = await supabase
+          .from('scheduled_shifts')
+          .delete()
+          .in('id', scheduleIds);
+
+        if (scheduleError) {
+          toast({
+            title: 'Error',
+            description: 'Failed to delete linked schedules',
+            variant: 'destructive',
+          });
+          return;
+        }
+      }
+    }
 
     const { error } = await supabase
       .from('daily_logs')
@@ -427,7 +447,7 @@ const ViewLogs = () => {
     } else {
       toast({
         title: 'Success',
-        description: `Successfully deleted ${selectedLogs.size} ${selectedLogs.size === 1 ? 'entry' : 'entries'}`,
+        description: `Successfully deleted ${selectedLogs.size} ${selectedLogs.size === 1 ? 'entry' : 'entries'}${linkedCount > 0 ? ' and linked schedules' : ''}`,
       });
       setSelectedLogs(new Set());
       fetchData();

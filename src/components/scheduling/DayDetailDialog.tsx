@@ -4,9 +4,11 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
-import { Trash2, Plus, ClipboardCheck, Edit2 } from "lucide-react";
+import { Plus, ClipboardCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { EditScheduleDialog } from "./EditScheduleDialog";
+import { ScheduleEditButton } from "./ScheduleEditButton";
+import { ScheduleDeleteButton } from "./ScheduleDeleteButton";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,6 +28,7 @@ interface ScheduledShift {
   scheduled_date: string;
   scheduled_hours: number;
   notes: string | null;
+  converted_to_timelog?: boolean;
   worker: { name: string; trade: string } | null;
   project: { project_name: string; client_name: string } | null;
   trade: { name: string } | null;
@@ -86,12 +89,6 @@ export function DayDetailDialog({ open, onOpenChange, date, onRefresh, onAddSche
       .eq("schedule_id", id)
       .maybeSingle();
 
-    const confirmMessage = relatedLog
-      ? "This schedule has been converted to a time log. Deleting it will also remove the linked time log entry. Continue?"
-      : "Are you sure you want to delete this schedule?";
-
-    if (!window.confirm(confirmMessage)) return;
-
     // If there's a related log, delete it first
     if (relatedLog) {
       const { error: logError } = await supabase
@@ -102,7 +99,7 @@ export function DayDetailDialog({ open, onOpenChange, date, onRefresh, onAddSche
       if (logError) {
         toast({
           title: "Error",
-          description: "Failed to delete related time log",
+          description: "Failed to delete time log",
           variant: "destructive"
         });
         return;
@@ -125,7 +122,7 @@ export function DayDetailDialog({ open, onOpenChange, date, onRefresh, onAddSche
 
     toast({
       title: "Success",
-      description: relatedLog ? "Schedule and related time log deleted" : "Schedule deleted successfully"
+      description: relatedLog ? "Schedule and time log deleted" : "Schedule deleted"
     });
     
     fetchDaySchedules();
@@ -303,22 +300,11 @@ export function DayDetailDialog({ open, onOpenChange, date, onRefresh, onAddSche
                             </span>
                           </div>
                           <div className="flex items-center gap-1">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
-                              onClick={() => setEditingSchedule(schedule)}
-                            >
-                              <Edit2 className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
-                              onClick={() => handleDelete(schedule.id)}
-                            >
-                              <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                            </Button>
+                            <ScheduleEditButton onClick={() => setEditingSchedule(schedule)} />
+                            <ScheduleDeleteButton 
+                              onConfirm={() => handleDelete(schedule.id)}
+                              hasTimeLog={schedule.converted_to_timelog || false}
+                            />
                           </div>
                         </div>
                       ))}

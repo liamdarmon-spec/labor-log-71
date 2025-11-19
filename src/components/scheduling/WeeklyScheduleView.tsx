@@ -1,12 +1,14 @@
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Plus, Trash2, Edit2, UserCog } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, UserCog } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { startOfWeek, endOfWeek, addWeeks, format, addDays, isSameDay } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { EditScheduleDialog } from "./EditScheduleDialog";
 import { WorkerScheduleDialog } from "./WorkerScheduleDialog";
+import { ScheduleEditButton } from "./ScheduleEditButton";
+import { ScheduleDeleteButton } from "./ScheduleDeleteButton";
 
 interface ScheduledShift {
   id: string;
@@ -16,6 +18,7 @@ interface ScheduledShift {
   scheduled_date: string;
   scheduled_hours: number;
   notes: string | null;
+  converted_to_timelog?: boolean;
   worker: { name: string; trade: string } | null;
   project: { project_name: string; client_name: string } | null;
 }
@@ -64,21 +67,13 @@ export function WeeklyScheduleView({ onScheduleClick, refreshTrigger }: WeeklySc
     setSchedules(data || []);
   };
 
-  const handleDeleteSchedule = async (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    
+  const handleDeleteSchedule = async (id: string) => {
     // Check if this schedule has been converted to a time log
     const { data: relatedLog } = await supabase
       .from("daily_logs")
       .select("id")
       .eq("schedule_id", id)
       .maybeSingle();
-
-    const confirmMessage = relatedLog
-      ? "This schedule has been converted to a time log. Deleting it will also remove the linked time log entry. Continue?"
-      : "Are you sure you want to delete this schedule?";
-
-    if (!window.confirm(confirmMessage)) return;
 
     // If there's a related log, delete it first
     if (relatedLog) {
@@ -90,7 +85,7 @@ export function WeeklyScheduleView({ onScheduleClick, refreshTrigger }: WeeklySc
       if (logError) {
         toast({
           title: "Error",
-          description: "Failed to delete related time log",
+          description: "Failed to delete time log",
           variant: "destructive"
         });
         return;
@@ -113,7 +108,7 @@ export function WeeklyScheduleView({ onScheduleClick, refreshTrigger }: WeeklySc
 
     toast({
       title: "Success",
-      description: relatedLog ? "Schedule and related time log deleted" : "Schedule deleted successfully"
+      description: relatedLog ? "Schedule and time log deleted" : "Schedule deleted"
     });
     fetchSchedules();
   };
@@ -261,26 +256,12 @@ export function WeeklyScheduleView({ onScheduleClick, refreshTrigger }: WeeklySc
                             <p className="text-muted-foreground truncate flex-1 text-xs">
                               {shift.project?.project_name || "Unknown"} • {shift.scheduled_hours}h
                             </p>
-                            <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-5 w-5"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setEditingSchedule(shift);
-                                }}
-                              >
-                                <Edit2 className="h-3 w-3" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-5 w-5"
-                                onClick={(e) => handleDeleteSchedule(shift.id, e)}
-                              >
-                                <Trash2 className="h-3 w-3 text-destructive" />
-                              </Button>
+                            <div className="flex items-center gap-0.5">
+                              <ScheduleEditButton onClick={() => setEditingSchedule(shift)} />
+                              <ScheduleDeleteButton 
+                                onConfirm={() => handleDeleteSchedule(shift.id)}
+                                hasTimeLog={shift.converted_to_timelog || false}
+                              />
                             </div>
                           </div>
                         ))}
