@@ -11,6 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Calendar, Clock, FileText, Plus, Trash2 } from 'lucide-react';
 import { z } from 'zod';
 import { AddProjectDialog } from './AddProjectDialog';
+import { DatePickerWithPresets } from '@/components/ui/date-picker-with-presets';
 
 const jobEntrySchema = z.object({
   project_id: z.string().trim().nonempty({ message: 'Please select a project' }),
@@ -283,13 +284,10 @@ export const SingleEntryTab = () => {
                 <Calendar className="w-4 h-4 inline mr-1" />
                 Date
               </Label>
-              <Input
-                id="date"
-                type="date"
-                value={formData.date}
-                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+              <DatePickerWithPresets
+                date={new Date(formData.date)}
+                onDateChange={(date) => setFormData({ ...formData, date: date.toISOString().split('T')[0] })}
                 disabled={loading}
-                className="h-11"
               />
             </div>
 
