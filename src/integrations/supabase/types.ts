@@ -182,6 +182,7 @@ export type Database = {
           id: string
           notes: string | null
           paid_by: string
+          paid_via: string | null
           payment_date: string
           start_date: string
           updated_at: string
@@ -195,6 +196,7 @@ export type Database = {
           id?: string
           notes?: string | null
           paid_by: string
+          paid_via?: string | null
           payment_date?: string
           start_date: string
           updated_at?: string
@@ -208,6 +210,7 @@ export type Database = {
           id?: string
           notes?: string | null
           paid_by?: string
+          paid_via?: string | null
           payment_date?: string
           start_date?: string
           updated_at?: string

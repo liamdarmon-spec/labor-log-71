@@ -21,6 +21,7 @@ interface Payment {
   amount: number;
   payment_date: string;
   notes: string | null;
+  paid_via: string | null;
 }
 
 interface Company {
@@ -39,10 +40,11 @@ const Payments = () => {
     start_date: '',
     end_date: '',
     paid_by: '',
-    company_id: 'none',
+    company_id: '',
     amount: '',
     payment_date: new Date().toISOString().split('T')[0],
     notes: '',
+    paid_via: '',
   });
   const { toast } = useToast();
 
@@ -76,7 +78,7 @@ const Payments = () => {
     setCompanies(data || []);
   };
 
-  const calculateAmountForDateRange = async (startDate: string, endDate: string) => {
+  const calculateAmountForDateRange = async (startDate: string, endDate: string, companyId?: string) => {
     if (!startDate || !endDate) {
       setCalculatedAmount(null);
       return;
@@ -84,14 +86,29 @@ const Payments = () => {
 
     setIsCalculating(true);
     try {
-      const { data: logs, error } = await supabase
+      let query = supabase
         .from('daily_logs')
         .select(`
           hours_worked,
-          workers (hourly_rate)
+          workers (hourly_rate),
+          projects (company_id)
         `)
         .gte('date', startDate)
         .lte('date', endDate);
+
+      // Filter by company if provided
+      if (companyId) {
+        const { data: projectIds } = await supabase
+          .from('projects')
+          .select('id')
+          .eq('company_id', companyId);
+        
+        if (projectIds && projectIds.length > 0) {
+          query = query.in('project_id', projectIds.map(p => p.id));
+        }
+      }
+
+      const { data: logs, error } = await query;
 
       if (error) throw error;
 
@@ -129,23 +146,34 @@ const Payments = () => {
   };
 
   useEffect(() => {
-    if (formData.start_date && formData.end_date) {
+    if (formData.start_date && formData.end_date && formData.company_id) {
       const timeoutId = setTimeout(() => {
-        calculateAmountForDateRange(formData.start_date, formData.end_date);
+        calculateAmountForDateRange(formData.start_date, formData.end_date, formData.company_id);
       }, 300);
       return () => clearTimeout(timeoutId);
     } else {
       setCalculatedAmount(null);
     }
-  }, [formData.start_date, formData.end_date]);
+  }, [formData.start_date, formData.end_date, formData.company_id]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.start_date || !formData.end_date || !formData.paid_by || !formData.amount) {
+    if (!formData.start_date || !formData.end_date || !formData.paid_by || !formData.amount || !formData.company_id) {
       toast({
         title: 'Validation Error',
         description: 'Please fill in all required fields',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Validate paid_via is required for Forma Homes
+    const formaHomesCompany = companies.find(c => c.name === 'Forma Homes');
+    if (formaHomesCompany && formData.company_id === formaHomesCompany.id && !formData.paid_via) {
+      toast({
+        title: 'Validation Error',
+        description: 'Please select how the payment was made for Forma Homes',
         variant: 'destructive',
       });
       return;
@@ -155,10 +183,11 @@ const Payments = () => {
       start_date: formData.start_date,
       end_date: formData.end_date,
       paid_by: formData.paid_by,
-      company_id: formData.company_id || null,
+      company_id: formData.company_id,
       amount: parseFloat(formData.amount),
       payment_date: formData.payment_date,
       notes: formData.notes || null,
+      paid_via: formData.paid_via || null,
     };
 
     if (editingPayment) {
@@ -209,10 +238,11 @@ const Payments = () => {
       start_date: payment.start_date,
       end_date: payment.end_date,
       paid_by: payment.paid_by,
-      company_id: payment.company_id || 'none',
+      company_id: payment.company_id || '',
       amount: payment.amount.toString(),
       payment_date: payment.payment_date,
       notes: payment.notes || '',
+      paid_via: payment.paid_via || '',
     });
     setIsDialogOpen(true);
   };
@@ -248,10 +278,11 @@ const Payments = () => {
       start_date: '',
       end_date: '',
       paid_by: '',
-      company_id: 'none',
+      company_id: '',
       amount: '',
       payment_date: new Date().toISOString().split('T')[0],
       notes: '',
+      paid_via: '',
     });
   };
 
@@ -392,13 +423,12 @@ const Payments = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="company">Company (Optional)</Label>
-                <Select value={formData.company_id} onValueChange={(value) => setFormData({ ...formData, company_id: value === 'none' ? '' : value })}>
+                <Label htmlFor="company">Company *</Label>
+                <Select value={formData.company_id} onValueChange={(value) => setFormData({ ...formData, company_id: value })}>
                   <SelectTrigger id="company">
                     <SelectValue placeholder="Select company" />
                   </SelectTrigger>
                   <SelectContent className="bg-popover z-50">
-                    <SelectItem value="none">None</SelectItem>
                     {companies.map((company) => (
                       <SelectItem key={company.id} value={company.id}>
                         {company.name}
@@ -407,6 +437,21 @@ const Payments = () => {
                   </SelectContent>
                 </Select>
               </div>
+
+              {formData.company_id === companies.find(c => c.name === 'Forma Homes')?.id && (
+                <div className="space-y-2">
+                  <Label htmlFor="paid_via">Paid Via *</Label>
+                  <Select value={formData.paid_via} onValueChange={(value) => setFormData({ ...formData, paid_via: value })}>
+                    <SelectTrigger id="paid_via">
+                      <SelectValue placeholder="Select payment method" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-popover z-50">
+                      <SelectItem value="DHY">DHY</SelectItem>
+                      <SelectItem value="Reimbursement Needed">Reimbursement Needed</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
