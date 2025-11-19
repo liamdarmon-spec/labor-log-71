@@ -6,12 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
 import { DatePickerWithPresets } from "@/components/ui/date-picker-with-presets";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { Loader2, User, Users } from "lucide-react";
+import { Loader2, User, Users, Trash2, Plus } from "lucide-react";
+import { Card } from "@/components/ui/card";
 
 interface Worker {
   id: string;
@@ -29,6 +29,13 @@ interface Project {
 interface Trade {
   id: string;
   name: string;
+}
+
+interface WorkerScheduleEntry {
+  worker_id: string;
+  project_id: string;
+  trade_id: string;
+  hours: string;
 }
 
 interface AddToScheduleDialogProps {
@@ -53,11 +60,10 @@ export function AddToScheduleDialog({ open, onOpenChange, onScheduleCreated, def
   const [hours, setHours] = useState("");
   const [notes, setNotes] = useState("");
 
-  // Bulk form
+  // Multiple workers form
   const [bulkDate, setBulkDate] = useState<Date | undefined>(defaultDate || new Date());
-  const [bulkProject, setBulkProject] = useState("");
-  const [bulkHours, setBulkHours] = useState("8");
-  const [selectedWorkers, setSelectedWorkers] = useState<Set<string>>(new Set());
+  const [workerEntries, setWorkerEntries] = useState<Record<string, WorkerScheduleEntry>>({});
+  const [excludedWorkers, setExcludedWorkers] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (open) {
@@ -78,7 +84,16 @@ export function AddToScheduleDialog({ open, onOpenChange, onScheduleCreated, def
 
     if (workersRes.data) {
       setWorkers(workersRes.data);
-      setSelectedWorkers(new Set(workersRes.data.map(w => w.id)));
+      const initialEntries: Record<string, WorkerScheduleEntry> = {};
+      workersRes.data.forEach(worker => {
+        initialEntries[worker.id] = {
+          worker_id: worker.id,
+          project_id: "",
+          trade_id: worker.trade_id || "",
+          hours: "8"
+        };
+      });
+      setWorkerEntries(initialEntries);
     }
     if (projectsRes.data) setProjects(projectsRes.data);
     if (tradesRes.data) setTrades(tradesRes.data);
@@ -93,21 +108,23 @@ export function AddToScheduleDialog({ open, onOpenChange, onScheduleCreated, def
   };
 
   const handleToggleWorker = (workerId: string) => {
-    const newSelected = new Set(selectedWorkers);
-    if (newSelected.has(workerId)) {
-      newSelected.delete(workerId);
+    const newExcluded = new Set(excludedWorkers);
+    if (newExcluded.has(workerId)) {
+      newExcluded.delete(workerId);
     } else {
-      newSelected.add(workerId);
+      newExcluded.add(workerId);
     }
-    setSelectedWorkers(newSelected);
+    setExcludedWorkers(newExcluded);
   };
 
-  const handleToggleAll = () => {
-    if (selectedWorkers.size === workers.length) {
-      setSelectedWorkers(new Set());
-    } else {
-      setSelectedWorkers(new Set(workers.map(w => w.id)));
-    }
+  const updateWorkerEntry = (workerId: string, field: keyof WorkerScheduleEntry, value: string) => {
+    setWorkerEntries(prev => ({
+      ...prev,
+      [workerId]: {
+        ...prev[workerId],
+        [field]: value
+      }
+    }));
   };
 
   const handleSingleSubmit = async (e: React.FormEvent) => {
@@ -160,10 +177,26 @@ export function AddToScheduleDialog({ open, onOpenChange, onScheduleCreated, def
   const handleBulkSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (selectedWorkers.size === 0 || !bulkProject || !bulkDate || !bulkHours) {
+    if (!bulkDate) {
       toast({
-        title: "Missing fields",
-        description: "Please select workers, project, date, and hours",
+        title: "Missing date",
+        description: "Please select a date",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const activeWorkers = workers.filter(w => !excludedWorkers.has(w.id));
+    
+    const validEntries = activeWorkers.filter(worker => {
+      const entry = workerEntries[worker.id];
+      return entry && entry.project_id && entry.hours && parseFloat(entry.hours) > 0;
+    });
+
+    if (validEntries.length === 0) {
+      toast({
+        title: "No valid entries",
+        description: "Please add at least one worker with project and hours",
         variant: "destructive"
       });
       return;
@@ -173,14 +206,14 @@ export function AddToScheduleDialog({ open, onOpenChange, onScheduleCreated, def
 
     const { data: userData } = await supabase.auth.getUser();
 
-    const schedules = Array.from(selectedWorkers).map(workerId => {
-      const worker = workers.find(w => w.id === workerId);
+    const schedules = validEntries.map(worker => {
+      const entry = workerEntries[worker.id];
       return {
-        worker_id: workerId,
-        project_id: bulkProject,
-        trade_id: worker?.trade_id || null,
+        worker_id: worker.id,
+        project_id: entry.project_id,
+        trade_id: entry.trade_id || null,
         scheduled_date: format(bulkDate, "yyyy-MM-dd"),
-        scheduled_hours: parseFloat(bulkHours),
+        scheduled_hours: parseFloat(entry.hours),
         created_by: userData.user?.id
       };
     });
@@ -216,14 +249,24 @@ export function AddToScheduleDialog({ open, onOpenChange, onScheduleCreated, def
     setHours("");
     setNotes("");
     setBulkDate(new Date());
-    setBulkProject("");
-    setBulkHours("8");
-    setSelectedWorkers(new Set());
+    setExcludedWorkers(new Set());
+    const initialEntries: Record<string, WorkerScheduleEntry> = {};
+    workers.forEach(worker => {
+      initialEntries[worker.id] = {
+        worker_id: worker.id,
+        project_id: "",
+        trade_id: worker.trade_id || "",
+        hours: "8"
+      };
+    });
+    setWorkerEntries(initialEntries);
   };
+
+  const activeWorkerCount = workers.filter(w => !excludedWorkers.has(w.id)).length;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add to Schedule</DialogTitle>
         </DialogHeader>
@@ -343,81 +386,102 @@ export function AddToScheduleDialog({ open, onOpenChange, onScheduleCreated, def
 
           <TabsContent value="bulk">
             <form onSubmit={handleBulkSubmit} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="bulk-date">Date *</Label>
-                  <DatePickerWithPresets
-                    date={bulkDate}
-                    onDateChange={setBulkDate}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="bulk-project">Project *</Label>
-                  <Select value={bulkProject} onValueChange={setBulkProject}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select project" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {projects.map((project) => (
-                        <SelectItem key={project.id} value={project.id}>
-                          {project.project_name} - {project.client_name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="bulk-hours">Default Hours *</Label>
-                  <Input
-                    id="bulk-hours"
-                    type="number"
-                    step="0.5"
-                    min="0"
-                    max="24"
-                    value={bulkHours}
-                    onChange={(e) => setBulkHours(e.target.value)}
-                    placeholder="8"
-                  />
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="bulk-date">Date *</Label>
+                <DatePickerWithPresets
+                  date={bulkDate}
+                  onDateChange={setBulkDate}
+                />
               </div>
 
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <Label>Select Workers *</Label>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={handleToggleAll}
-                  >
-                    {selectedWorkers.size === workers.length ? "Deselect All" : "Select All"}
-                  </Button>
+                  <Label>Configure Workers ({activeWorkerCount} active)</Label>
                 </div>
 
-                <div className="border rounded-lg p-4 max-h-64 overflow-y-auto">
-                  <div className="space-y-2">
-                    {workers.map((worker) => (
-                      <div key={worker.id} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`bulk-${worker.id}`}
-                          checked={selectedWorkers.has(worker.id)}
-                          onCheckedChange={() => handleToggleWorker(worker.id)}
-                        />
-                        <label
-                          htmlFor={`bulk-${worker.id}`}
-                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex-1"
-                        >
-                          {worker.name} - {worker.trade}
-                        </label>
-                      </div>
-                    ))}
-                  </div>
+                <div className="space-y-2 max-h-96 overflow-y-auto">
+                  {workers.map((worker) => {
+                    const isExcluded = excludedWorkers.has(worker.id);
+                    const entry = workerEntries[worker.id];
+
+                    return (
+                      <Card key={worker.id} className={`p-4 ${isExcluded ? "opacity-50" : ""}`}>
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3 flex-1">
+                              <h4 className="font-medium">{worker.name}</h4>
+                              <span className="text-sm text-muted-foreground">{worker.trade}</span>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleToggleWorker(worker.id)}
+                            >
+                              {isExcluded ? <Plus className="h-4 w-4" /> : <Trash2 className="h-4 w-4" />}
+                            </Button>
+                          </div>
+
+                          {!isExcluded && (
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                              <div className="space-y-2">
+                                <Label className="text-xs">Project *</Label>
+                                <Select
+                                  value={entry?.project_id || ""}
+                                  onValueChange={(value) => updateWorkerEntry(worker.id, "project_id", value)}
+                                >
+                                  <SelectTrigger className="h-9">
+                                    <SelectValue placeholder="Select" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {projects.map((project) => (
+                                      <SelectItem key={project.id} value={project.id}>
+                                        {project.project_name}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+
+                              <div className="space-y-2">
+                                <Label className="text-xs">Trade</Label>
+                                <Select
+                                  value={entry?.trade_id || ""}
+                                  onValueChange={(value) => updateWorkerEntry(worker.id, "trade_id", value)}
+                                >
+                                  <SelectTrigger className="h-9">
+                                    <SelectValue placeholder="Select" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {trades.map((trade) => (
+                                      <SelectItem key={trade.id} value={trade.id}>
+                                        {trade.name}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+
+                              <div className="space-y-2">
+                                <Label className="text-xs">Hours *</Label>
+                                <Input
+                                  type="number"
+                                  step="0.5"
+                                  min="0"
+                                  max="24"
+                                  value={entry?.hours || ""}
+                                  onChange={(e) => updateWorkerEntry(worker.id, "hours", e.target.value)}
+                                  placeholder="8"
+                                  className="h-9"
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </Card>
+                    );
+                  })}
                 </div>
-                <p className="text-sm text-muted-foreground">
-                  {selectedWorkers.size} worker(s) selected
-                </p>
               </div>
 
               <div className="flex gap-2 justify-end">
@@ -431,7 +495,7 @@ export function AddToScheduleDialog({ open, onOpenChange, onScheduleCreated, def
                       Scheduling...
                     </>
                   ) : (
-                    `Schedule ${selectedWorkers.size} Worker(s)`
+                    `Schedule ${activeWorkerCount} Worker(s)`
                   )}
                 </Button>
               </div>
