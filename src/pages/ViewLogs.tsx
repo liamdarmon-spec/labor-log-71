@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Search, Filter, Calendar, Download, Edit2, X, Plus, FileText, Files, Trash2 } from 'lucide-react';
+import { Search, Filter, Calendar, Download, Edit2, X, Plus, FileText, Files, Trash2, CheckCircle2, Circle } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { SingleEntryTab } from '@/components/dashboard/SingleEntryTab';
 import { BulkEntryTab } from '@/components/dashboard/BulkEntryTab';
@@ -29,7 +29,18 @@ interface LogEntry {
     hourly_rate: number;
     trades: { name: string } | null;
   };
-  projects: { project_name: string; client_name: string };
+  projects: { 
+    project_name: string; 
+    client_name: string;
+    company_id: string | null;
+  };
+}
+
+interface Payment {
+  id: string;
+  start_date: string;
+  end_date: string;
+  company_id: string | null;
 }
 
 interface GroupedLogEntry {
@@ -65,6 +76,7 @@ const ViewLogs = () => {
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [trades, setTrades] = useState<Trade[]>([]);
+  const [payments, setPayments] = useState<Payment[]>([]);
   const [editingLog, setEditingLog] = useState<LogEntry | null>(null);
   const [isAddEntryDialogOpen, setIsAddEntryDialogOpen] = useState(false);
   const [selectedLogs, setSelectedLogs] = useState<Set<string>>(new Set());
@@ -167,7 +179,11 @@ const ViewLogs = () => {
           hourly_rate,
           trades (name)
         ),
-        projects (project_name, client_name)
+        projects (
+          project_name, 
+          client_name,
+          company_id
+        )
       `)
       .order('date', { ascending: false });
 
@@ -203,6 +219,24 @@ const ViewLogs = () => {
       .select('id, name')
       .order('name');
     setTrades(tradesData || []);
+
+    // Fetch payments
+    const { data: paymentsData } = await supabase
+      .from('payments')
+      .select('id, start_date, end_date, company_id');
+    setPayments(paymentsData || []);
+  };
+
+  const isLogPaid = (log: LogEntry): boolean => {
+    if (!log.projects.company_id) return false;
+    
+    return payments.some(payment => {
+      if (payment.company_id !== log.projects.company_id) return false;
+      const logDate = new Date(log.date);
+      const startDate = new Date(payment.start_date);
+      const endDate = new Date(payment.end_date);
+      return logDate >= startDate && logDate <= endDate;
+    });
   };
 
   const applyFilters = async () => {
@@ -587,6 +621,7 @@ const ViewLogs = () => {
                     <TableHead className="font-semibold">Trade</TableHead>
                     <TableHead className="font-semibold">Projects & Hours</TableHead>
                     <TableHead className="font-semibold text-right">Total Cost</TableHead>
+                    <TableHead className="font-semibold">Payment Status</TableHead>
                     <TableHead className="font-semibold">Notes</TableHead>
                     <TableHead className="font-semibold text-right">Actions</TableHead>
                   </TableRow>
@@ -639,6 +674,24 @@ const ViewLogs = () => {
                       </TableCell>
                       <TableCell className="text-right font-bold text-lg text-primary">
                         ${group.total_cost.toFixed(2)}
+                      </TableCell>
+                      <TableCell>
+                        {group.entries.every(log => isLogPaid(log)) ? (
+                          <div className="flex items-center gap-1.5 text-green-600">
+                            <CheckCircle2 className="h-4 w-4" />
+                            <span className="text-sm font-medium">Paid</span>
+                          </div>
+                        ) : group.entries.some(log => isLogPaid(log)) ? (
+                          <div className="flex items-center gap-1.5 text-amber-600">
+                            <Circle className="h-4 w-4" />
+                            <span className="text-sm font-medium">Partial</span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1.5 text-muted-foreground">
+                            <Circle className="h-4 w-4" />
+                            <span className="text-sm font-medium">Unpaid</span>
+                          </div>
+                        )}
                       </TableCell>
                       <TableCell className="max-w-xs">
                         {group.entries.length === 1 && group.entries[0].notes ? (
