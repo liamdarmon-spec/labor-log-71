@@ -4,8 +4,9 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
-import { Trash2, Plus, ClipboardCheck } from "lucide-react";
+import { Trash2, Plus, ClipboardCheck, Edit2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { EditScheduleDialog } from "./EditScheduleDialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,6 +23,7 @@ interface ScheduledShift {
   worker_id: string;
   project_id: string;
   trade_id: string | null;
+  scheduled_date: string;
   scheduled_hours: number;
   notes: string | null;
   worker: { name: string; trade: string } | null;
@@ -43,6 +45,7 @@ export function DayDetailDialog({ open, onOpenChange, date, onRefresh, onAddSche
   const [loading, setLoading] = useState(false);
   const [convertDialogOpen, setConvertDialogOpen] = useState(false);
   const [selectedSchedules, setSelectedSchedules] = useState<ScheduledShift[]>([]);
+  const [editingSchedule, setEditingSchedule] = useState<ScheduledShift | null>(null);
 
   useEffect(() => {
     if (open && date) {
@@ -269,14 +272,24 @@ export function DayDetailDialog({ open, onOpenChange, date, onRefresh, onAddSche
                               {schedule.scheduled_hours}h
                             </span>
                           </div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
-                            onClick={() => handleDelete(schedule.id)}
-                          >
-                            <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                          </Button>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                              onClick={() => setEditingSchedule(schedule)}
+                            >
+                              <Edit2 className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                              onClick={() => handleDelete(schedule.id)}
+                            >
+                              <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                            </Button>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -305,6 +318,16 @@ export function DayDetailDialog({ open, onOpenChange, date, onRefresh, onAddSche
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        <EditScheduleDialog
+          open={!!editingSchedule}
+          onOpenChange={(open) => !open && setEditingSchedule(null)}
+          schedule={editingSchedule}
+          onSuccess={() => {
+            fetchDaySchedules();
+            onRefresh();
+          }}
+        />
       </DialogContent>
     </Dialog>
   );
