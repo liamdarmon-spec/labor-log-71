@@ -14,6 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Calendar, Save, UserCheck, Plus, Trash2, Edit, UserPlus, X, CheckCircle2 } from 'lucide-react';
 import { z } from 'zod';
+import { AddProjectDialog } from './AddProjectDialog';
 
 const jobEntrySchema = z.object({
   project_id: z.string().trim().nonempty({ message: 'Please select a project' }),
@@ -78,6 +79,7 @@ export const BulkEntryTab = ({ onSuccess }: { onSuccess?: () => void }) => {
   const [editingWorker, setEditingWorker] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [isAddWorkerDialogOpen, setIsAddWorkerDialogOpen] = useState(false);
+  const [isAddProjectDialogOpen, setIsAddProjectDialogOpen] = useState(false);
   const [newWorkerForm, setNewWorkerForm] = useState({
     name: '',
     trade_id: '',
@@ -658,12 +660,24 @@ export const BulkEntryTab = ({ onSuccess }: { onSuccess?: () => void }) => {
                         <Label>Project</Label>
                         <Select
                           value={job.project_id}
-                          onValueChange={(value) => updateJobEntry(editingWorker, job.id, 'project_id', value)}
+                          onValueChange={(value) => {
+                            if (value === 'add-new') {
+                              setIsAddProjectDialogOpen(true);
+                            } else {
+                              updateJobEntry(editingWorker, job.id, 'project_id', value);
+                            }
+                          }}
                         >
                           <SelectTrigger>
                             <SelectValue placeholder="Select project" />
                           </SelectTrigger>
-                          <SelectContent>
+                          <SelectContent className="bg-popover z-50">
+                            <SelectItem value="add-new" className="text-primary font-medium">
+                              <div className="flex items-center gap-2">
+                                <Plus className="w-4 h-4" />
+                                Add New Project
+                              </div>
+                            </SelectItem>
                             {projects.map((project) => (
                               <SelectItem key={project.id} value={project.id}>
                                 {project.project_name} - {project.client_name}
@@ -805,6 +819,12 @@ export const BulkEntryTab = ({ onSuccess }: { onSuccess?: () => void }) => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AddProjectDialog 
+        open={isAddProjectDialogOpen} 
+        onOpenChange={setIsAddProjectDialogOpen}
+        onProjectAdded={fetchProjects}
+      />
     </div>
   );
 };
