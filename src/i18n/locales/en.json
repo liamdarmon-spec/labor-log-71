@@ -1,0 +1,100 @@
+{
+  "app": {
+    "name": "Forma Tracking",
+    "subtitle": "Labor Management"
+  },
+  "nav": {
+    "schedule": "Schedule",
+    "timeLogs": "Time Logs",
+    "payments": "Payments",
+    "dashboard": "Dashboard",
+    "admin": "Admin",
+    "logout": "Logout"
+  },
+  "schedule": {
+    "title": "Schedule Management",
+    "description": "Manage worker schedules and shifts",
+    "addSchedule": "Add Schedule",
+    "daily": "Daily",
+    "weekly": "Weekly",
+    "monthly": "Monthly",
+    "worker": "Worker",
+    "project": "Project",
+    "hours": "Hours",
+    "trade": "Trade",
+    "notes": "Notes",
+    "actions": "Actions",
+    "edit": "Edit",
+    "delete": "Delete",
+    "view": "View"
+  },
+  "timeLogs": {
+    "title": "Time Logs",
+    "description": "View and manage worker time logs",
+    "date": "Date",
+    "worker": "Worker",
+    "project": "Project",
+    "hours": "Hours Worked",
+    "trade": "Trade",
+    "notes": "Notes",
+    "actions": "Actions"
+  },
+  "payments": {
+    "title": "Payments",
+    "description": "Track and manage worker payments",
+    "paidBy": "Paid By",
+    "amount": "Amount",
+    "period": "Period",
+    "status": "Status",
+    "reimbursement": "Reimbursement",
+    "notes": "Notes"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "description": "Analytics and reports overview",
+    "analytics": "Analytics",
+    "reports": "Reports",
+    "costCalculator": "Cost Calculator"
+  },
+  "admin": {
+    "title": "Admin Panel",
+    "description": "System administration",
+    "users": "Users",
+    "workers": "Workers",
+    "projects": "Projects",
+    "trades": "Trades",
+    "logs": "Logs",
+    "archivedLogs": "Archived Logs",
+    "settings": "Settings",
+    "reports": "Reports"
+  },
+  "timeEntry": {
+    "title": "Time Entry",
+    "description": "Log hours for workers and projects",
+    "bulkEntry": "Bulk Entry",
+    "singleEntry": "Single Entry"
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "submit": "Submit",
+    "search": "Search",
+    "filter": "Filter",
+    "export": "Export",
+    "import": "Import",
+    "loading": "Loading...",
+    "noData": "No data available",
+    "success": "Success",
+    "error": "Error",
+    "confirm": "Confirm",
+    "yes": "Yes",
+    "no": "No",
+    "active": "Active",
+    "inactive": "Inactive",
+    "total": "Total",
+    "select": "Select",
+    "all": "All",
+    "from": "From",
+    "to": "To"
+  }
+}

@@ -1,0 +1,100 @@
+{
+  "app": {
+    "name": "Forma Tracking",
+    "subtitle": "Gestión Laboral"
+  },
+  "nav": {
+    "schedule": "Horario",
+    "timeLogs": "Registros de Tiempo",
+    "payments": "Pagos",
+    "dashboard": "Panel",
+    "admin": "Administración",
+    "logout": "Cerrar Sesión"
+  },
+  "schedule": {
+    "title": "Gestión de Horarios",
+    "description": "Administrar horarios y turnos de trabajadores",
+    "addSchedule": "Agregar Horario",
+    "daily": "Diario",
+    "weekly": "Semanal",
+    "monthly": "Mensual",
+    "worker": "Trabajador",
+    "project": "Proyecto",
+    "hours": "Horas",
+    "trade": "Oficio",
+    "notes": "Notas",
+    "actions": "Acciones",
+    "edit": "Editar",
+    "delete": "Eliminar",
+    "view": "Ver"
+  },
+  "timeLogs": {
+    "title": "Registros de Tiempo",
+    "description": "Ver y administrar registros de tiempo de trabajadores",
+    "date": "Fecha",
+    "worker": "Trabajador",
+    "project": "Proyecto",
+    "hours": "Horas Trabajadas",
+    "trade": "Oficio",
+    "notes": "Notas",
+    "actions": "Acciones"
+  },
+  "payments": {
+    "title": "Pagos",
+    "description": "Rastrear y administrar pagos de trabajadores",
+    "paidBy": "Pagado Por",
+    "amount": "Monto",
+    "period": "Período",
+    "status": "Estado",
+    "reimbursement": "Reembolso",
+    "notes": "Notas"
+  },
+  "dashboard": {
+    "title": "Panel de Control",
+    "description": "Resumen de análisis e informes",
+    "analytics": "Análisis",
+    "reports": "Informes",
+    "costCalculator": "Calculadora de Costos"
+  },
+  "admin": {
+    "title": "Panel de Administración",
+    "description": "Administración del sistema",
+    "users": "Usuarios",
+    "workers": "Trabajadores",
+    "projects": "Proyectos",
+    "trades": "Oficios",
+    "logs": "Registros",
+    "archivedLogs": "Registros Archivados",
+    "settings": "Configuración",
+    "reports": "Informes"
+  },
+  "timeEntry": {
+    "title": "Entrada de Tiempo",
+    "description": "Registrar horas para trabajadores y proyectos",
+    "bulkEntry": "Entrada Masiva",
+    "singleEntry": "Entrada Individual"
+  },
+  "common": {
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "submit": "Enviar",
+    "search": "Buscar",
+    "filter": "Filtrar",
+    "export": "Exportar",
+    "import": "Importar",
+    "loading": "Cargando...",
+    "noData": "No hay datos disponibles",
+    "success": "Éxito",
+    "error": "Error",
+    "confirm": "Confirmar",
+    "yes": "Sí",
+    "no": "No",
+    "active": "Activo",
+    "inactive": "Inactivo",
+    "total": "Total",
+    "select": "Seleccionar",
+    "all": "Todos",
+    "from": "Desde",
+    "to": "Hasta"
+  }
+}
