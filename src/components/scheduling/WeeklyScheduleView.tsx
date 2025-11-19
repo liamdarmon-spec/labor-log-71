@@ -64,6 +64,36 @@ export function WeeklyScheduleView({ onScheduleClick, refreshTrigger }: WeeklySc
   const handleDeleteSchedule = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     
+    // Check if this schedule has been converted to a time log
+    const { data: relatedLog } = await supabase
+      .from("daily_logs")
+      .select("id")
+      .eq("schedule_id", id)
+      .maybeSingle();
+
+    const confirmMessage = relatedLog
+      ? "This schedule has been converted to a time log. Deleting it will also remove the linked time log entry. Continue?"
+      : "Are you sure you want to delete this schedule?";
+
+    if (!window.confirm(confirmMessage)) return;
+
+    // If there's a related log, delete it first
+    if (relatedLog) {
+      const { error: logError } = await supabase
+        .from("daily_logs")
+        .delete()
+        .eq("id", relatedLog.id);
+
+      if (logError) {
+        toast({
+          title: "Error",
+          description: "Failed to delete related time log",
+          variant: "destructive"
+        });
+        return;
+      }
+    }
+    
     const { error } = await supabase
       .from("scheduled_shifts")
       .delete()
@@ -80,9 +110,8 @@ export function WeeklyScheduleView({ onScheduleClick, refreshTrigger }: WeeklySc
 
     toast({
       title: "Success",
-      description: "Schedule deleted"
+      description: relatedLog ? "Schedule and related time log deleted" : "Schedule deleted successfully"
     });
-
     fetchSchedules();
   };
 

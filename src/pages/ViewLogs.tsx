@@ -24,6 +24,7 @@ interface LogEntry {
   worker_id: string;
   project_id: string;
   trade_id: string | null;
+  schedule_id: string | null;
   workers: { 
     name: string; 
     hourly_rate: number;
@@ -395,10 +396,21 @@ const ViewLogs = () => {
   const handleMassDelete = async () => {
     if (selectedLogs.size === 0) return;
 
-    const confirmed = window.confirm(
-      `Are you sure you want to delete ${selectedLogs.size} time ${selectedLogs.size === 1 ? 'entry' : 'entries'}?`
-    );
+    // Check if any of the selected logs are linked to schedules
+    const { data: logsWithSchedules } = await supabase
+      .from('daily_logs')
+      .select('id, schedule_id')
+      .in('id', Array.from(selectedLogs))
+      .not('schedule_id', 'is', null);
 
+    const linkedCount = logsWithSchedules?.length || 0;
+    
+    let confirmMessage = `Are you sure you want to delete ${selectedLogs.size} time ${selectedLogs.size === 1 ? 'entry' : 'entries'}?`;
+    if (linkedCount > 0) {
+      confirmMessage += `\n\n${linkedCount} of these ${linkedCount === 1 ? 'entry is' : 'entries are'} linked to schedule${linkedCount === 1 ? '' : 's'}. The schedule${linkedCount === 1 ? '' : 's'} will remain but will no longer be linked to ${linkedCount === 1 ? 'a' : ''} time log${linkedCount === 1 ? '' : 's'}.`;
+    }
+
+    const confirmed = window.confirm(confirmMessage);
     if (!confirmed) return;
 
     const { error } = await supabase
@@ -827,7 +839,15 @@ const ViewLogs = () => {
                       variant="destructive"
                       size="icon"
                       onClick={async () => {
-                        if (!confirm('Are you sure you want to delete this entry?')) return;
+                        // Check if this log is linked to a schedule
+                        const logWithSchedule = logs.find(log => log.id === entry.id);
+                        let confirmMessage = 'Are you sure you want to delete this entry?';
+                        
+                        if (logWithSchedule?.schedule_id) {
+                          confirmMessage = 'This time log is linked to a schedule. Deleting it will keep the schedule but remove the link. Continue?';
+                        }
+                        
+                        if (!confirm(confirmMessage)) return;
                         
                         const { error } = await supabase
                           .from('daily_logs')
