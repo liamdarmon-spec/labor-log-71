@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Plus, Trash2, Edit2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Trash2, Edit2, UserCog } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { format, addDays } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { EditScheduleDialog } from "./EditScheduleDialog";
+import { WorkerScheduleDialog } from "./WorkerScheduleDialog";
 
 interface ScheduledShift {
   id: string;
@@ -31,6 +32,8 @@ export function DailyScheduleView({ onScheduleClick, refreshTrigger }: DailySche
   const [schedules, setSchedules] = useState<ScheduledShift[]>([]);
   const [loading, setLoading] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState<ScheduledShift | null>(null);
+  const [workerDialogOpen, setWorkerDialogOpen] = useState(false);
+  const [selectedWorker, setSelectedWorker] = useState<{ id: string; name: string } | null>(null);
 
   useEffect(() => {
     fetchSchedules();
@@ -194,63 +197,71 @@ export function DailyScheduleView({ onScheduleClick, refreshTrigger }: DailySche
           </div>
         ) : (
           <div className="space-y-4">
-            {Object.values(schedulesByWorker).map((group) => {
-              const totalWorkerHours = group.shifts.reduce((sum, s) => sum + Number(s.scheduled_hours), 0);
-              
-              return (
-                <div key={group.shifts[0].id} className="border rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <div>
-                      <h3 className="font-semibold">{group.worker?.name || "Unknown"}</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {group.worker?.trade}
-                      </p>
-                    </div>
-                    <Badge variant="secondary">
-                      {totalWorkerHours}h
-                    </Badge>
+            {Object.entries(schedulesByWorker).map(([workerId, { worker, shifts }]) => (
+              <Card key={workerId} className="overflow-hidden">
+                <div className="p-4 bg-muted/50 border-b flex items-center justify-between">
+                  <div className="flex-1">
+                    <h4 className="font-semibold">{worker?.name || "Unknown Worker"}</h4>
+                    <p className="text-sm text-muted-foreground">{worker?.trade || "No trade"}</p>
                   </div>
-                  <div className="space-y-2">
-                    {group.shifts.map((schedule) => (
-                      <div
-                        key={schedule.id}
-                        className="flex items-center justify-between p-3 bg-muted/50 rounded-md group hover:bg-muted transition-colors"
-                      >
-                        <div className="flex-1">
-                          <p className="font-medium">{schedule.project?.project_name || "Unknown"}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {schedule.project?.client_name} • {schedule.scheduled_hours}h
-                          </p>
-                          {schedule.notes && (
-                            <p className="text-sm text-muted-foreground mt-1">
-                              Note: {schedule.notes}
-                            </p>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="opacity-0 group-hover:opacity-100 transition-opacity"
-                            onClick={() => setEditingSchedule(schedule)}
-                          >
-                            <Edit2 className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="opacity-0 group-hover:opacity-100 transition-opacity"
-                            onClick={() => handleDeleteSchedule(schedule.id)}
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline">
+                      {shifts.reduce((sum, s) => sum + Number(s.scheduled_hours), 0)}h total
+                    </Badge>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedWorker({ id: workerId, name: worker?.name || "Unknown" });
+                        setWorkerDialogOpen(true);
+                      }}
+                      className="gap-1"
+                    >
+                      <UserCog className="h-4 w-4" />
+                      Manage
+                    </Button>
                   </div>
                 </div>
-              );
-            })}
+                <div className="p-4 space-y-2">
+                  {shifts.map((schedule) => (
+                    <div
+                      key={schedule.id}
+                      className="flex items-center justify-between p-3 bg-muted/50 rounded-md group hover:bg-muted transition-colors"
+                    >
+                      <div className="flex-1">
+                        <p className="font-medium">{schedule.project?.project_name || "Unknown"}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {schedule.project?.client_name} • {schedule.scheduled_hours}h
+                        </p>
+                        {schedule.notes && (
+                          <p className="text-sm text-muted-foreground mt-1">
+                            Note: {schedule.notes}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => setEditingSchedule(schedule)}
+                        >
+                          <Edit2 className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => handleDeleteSchedule(schedule.id)}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            ))}
           </div>
         )}
       </Card>
