@@ -630,7 +630,14 @@ const ViewLogs = () => {
                   </Select>
                 </div>
               </div>
-              <div className="mt-4 flex justify-end items-center">
+              <div className="mt-4 flex justify-between items-center">
+                <Button 
+                  onClick={() => setIsAddEntryDialogOpen(true)}
+                  className="gap-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add Entry
+                </Button>
                 <Button variant="outline" onClick={clearFilters}>
                   Clear Filters
                 </Button>
