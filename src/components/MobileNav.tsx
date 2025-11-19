@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { Menu, PlusCircle, Eye, DollarSign, BarChart3, Settings, LogOut } from 'lucide-react';
+import { Menu, PlusCircle, Eye, DollarSign, BarChart3, Settings, LogOut, CalendarClock } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -13,6 +13,7 @@ export const MobileNav = () => {
 
   const navItems = [
     { path: '/', icon: PlusCircle, label: 'Entry' },
+    { path: '/schedule', icon: CalendarClock, label: 'Schedule' },
     { path: '/view-logs', icon: Eye, label: 'Time Logs' },
     { path: '/payments', icon: DollarSign, label: 'Payments' },
     { path: '/dashboard', icon: BarChart3, label: 'Dashboard' },
