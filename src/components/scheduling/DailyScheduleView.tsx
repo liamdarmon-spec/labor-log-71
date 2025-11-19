@@ -1,13 +1,15 @@
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Plus, Trash2, Edit2, UserCog } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, UserCog } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { format, addDays } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { EditScheduleDialog } from "./EditScheduleDialog";
 import { WorkerScheduleDialog } from "./WorkerScheduleDialog";
+import { ScheduleEditButton } from "./ScheduleEditButton";
+import { ScheduleDeleteButton } from "./ScheduleDeleteButton";
 
 interface ScheduledShift {
   id: string;
@@ -17,6 +19,7 @@ interface ScheduledShift {
   scheduled_date: string;
   scheduled_hours: number;
   notes: string | null;
+  converted_to_timelog?: boolean;
   worker: { name: string; trade: string } | null;
   project: { project_name: string; client_name: string } | null;
 }
@@ -70,12 +73,6 @@ export function DailyScheduleView({ onScheduleClick, refreshTrigger }: DailySche
       .eq("schedule_id", id)
       .maybeSingle();
 
-    const confirmMessage = relatedLog
-      ? "This schedule has been converted to a time log. Deleting it will also remove the linked time log entry. Continue?"
-      : "Are you sure you want to delete this schedule?";
-
-    if (!window.confirm(confirmMessage)) return;
-
     // If there's a related log, delete it first
     if (relatedLog) {
       const { error: logError } = await supabase
@@ -86,7 +83,7 @@ export function DailyScheduleView({ onScheduleClick, refreshTrigger }: DailySche
       if (logError) {
         toast({
           title: "Error",
-          description: "Failed to delete related time log",
+          description: "Failed to delete time log",
           variant: "destructive"
         });
         return;
@@ -109,7 +106,7 @@ export function DailyScheduleView({ onScheduleClick, refreshTrigger }: DailySche
 
     toast({
       title: "Success",
-      description: relatedLog ? "Schedule and related time log deleted" : "Schedule deleted successfully"
+      description: relatedLog ? "Schedule and time log deleted" : "Schedule deleted"
     });
     fetchSchedules();
   };
@@ -240,22 +237,11 @@ export function DailyScheduleView({ onScheduleClick, refreshTrigger }: DailySche
                         )}
                       </div>
                       <div className="flex items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="opacity-0 group-hover:opacity-100 transition-opacity"
-                          onClick={() => setEditingSchedule(schedule)}
-                        >
-                          <Edit2 className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="opacity-0 group-hover:opacity-100 transition-opacity"
-                          onClick={() => handleDeleteSchedule(schedule.id)}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
+                        <ScheduleEditButton onClick={() => setEditingSchedule(schedule)} />
+                        <ScheduleDeleteButton 
+                          onConfirm={() => handleDeleteSchedule(schedule.id)}
+                          hasTimeLog={schedule.converted_to_timelog || false}
+                        />
                       </div>
                     </div>
                   ))}
