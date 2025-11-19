@@ -12,7 +12,6 @@ export const MobileNav = () => {
   const { signOut } = useAuth();
 
   const navItems = [
-    { path: '/', icon: PlusCircle, label: 'Entry' },
     { path: '/schedule', icon: CalendarClock, label: 'Schedule' },
     { path: '/view-logs', icon: Eye, label: 'Time Logs' },
     { path: '/payments', icon: DollarSign, label: 'Payments' },
