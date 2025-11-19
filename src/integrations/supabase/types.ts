@@ -288,6 +288,39 @@ export type Database = {
           },
         ]
       }
+      schedule_modifications: {
+        Row: {
+          id: string
+          metadata: Json | null
+          modification_type: string
+          modified_at: string
+          modified_by: string | null
+          new_schedule_id: string | null
+          notes: string | null
+          original_schedule_id: string
+        }
+        Insert: {
+          id?: string
+          metadata?: Json | null
+          modification_type: string
+          modified_at?: string
+          modified_by?: string | null
+          new_schedule_id?: string | null
+          notes?: string | null
+          original_schedule_id: string
+        }
+        Update: {
+          id?: string
+          metadata?: Json | null
+          modification_type?: string
+          modified_at?: string
+          modified_by?: string | null
+          new_schedule_id?: string | null
+          notes?: string | null
+          original_schedule_id?: string
+        }
+        Relationships: []
+      }
       scheduled_shifts: {
         Row: {
           converted_to_timelog: boolean | null
@@ -506,6 +539,13 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      split_schedule_for_multi_project: {
+        Args: { p_original_schedule_id: string; p_time_log_entries: Json }
+        Returns: {
+          schedule_id: string
+          time_log_id: string
+        }[]
       }
     }
     Enums: {
