@@ -84,8 +84,10 @@ export type Database = {
           date: string
           hours_worked: number
           id: string
+          last_synced_at: string | null
           notes: string | null
           project_id: string
+          schedule_id: string | null
           trade_id: string | null
           worker_id: string
         }
@@ -95,8 +97,10 @@ export type Database = {
           date?: string
           hours_worked: number
           id?: string
+          last_synced_at?: string | null
           notes?: string | null
           project_id: string
+          schedule_id?: string | null
           trade_id?: string | null
           worker_id: string
         }
@@ -106,8 +110,10 @@ export type Database = {
           date?: string
           hours_worked?: number
           id?: string
+          last_synced_at?: string | null
           notes?: string | null
           project_id?: string
+          schedule_id?: string | null
           trade_id?: string | null
           worker_id?: string
         }
@@ -117,6 +123,13 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "daily_logs_schedule_id_fkey"
+            columns: ["schedule_id"]
+            isOneToOne: false
+            referencedRelation: "scheduled_shifts"
             referencedColumns: ["id"]
           },
           {
@@ -281,10 +294,12 @@ export type Database = {
           created_at: string
           created_by: string | null
           id: string
+          last_synced_at: string | null
           notes: string | null
           project_id: string
           scheduled_date: string
           scheduled_hours: number
+          status: string | null
           trade_id: string | null
           updated_at: string
           worker_id: string
@@ -294,10 +309,12 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          last_synced_at?: string | null
           notes?: string | null
           project_id: string
           scheduled_date: string
           scheduled_hours: number
+          status?: string | null
           trade_id?: string | null
           updated_at?: string
           worker_id: string
@@ -307,10 +324,12 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          last_synced_at?: string | null
           notes?: string | null
           project_id?: string
           scheduled_date?: string
           scheduled_hours?: number
+          status?: string | null
           trade_id?: string | null
           updated_at?: string
           worker_id?: string
