@@ -97,6 +97,7 @@ const ViewLogs = () => {
     projectId: 'all',
     tradeId: 'all',
     sortBy: 'date-desc',
+    paymentStatus: 'all',
   });
   
   const { toast } = useToast();
@@ -136,13 +137,25 @@ const ViewLogs = () => {
 
   useEffect(() => {
     groupLogsByDateAndWorker();
-  }, [filteredLogs]);
+  }, [filteredLogs, filters.paymentStatus]);
 
   const groupLogsByDateAndWorker = () => {
     const grouped = new Map<string, GroupedLogEntry>();
 
-    filteredLogs.forEach((log) => {
-      const key = `${log.date}_${log.worker_id}`;
+    let logsToGroup = filteredLogs;
+    
+    // Apply payment status filter
+    if (filters.paymentStatus !== 'all') {
+      logsToGroup = filteredLogs.filter(log => {
+        const isPaid = isLogPaid(log);
+        if (filters.paymentStatus === 'paid') return isPaid;
+        if (filters.paymentStatus === 'unpaid') return !isPaid;
+        return false;
+      });
+    }
+
+    logsToGroup.forEach((log) => {
+      const key = `${log.date}-${log.worker_id}`;
       
       if (!grouped.has(key)) {
         grouped.set(key, {
@@ -315,6 +328,7 @@ const ViewLogs = () => {
       projectId: 'all',
       tradeId: 'all',
       sortBy: 'date-desc',
+      paymentStatus: 'all',
     });
   };
 
@@ -603,6 +617,40 @@ const ViewLogs = () => {
                   Delete Selected ({selectedLogs.size})
                 </Button>
               )}
+            </div>
+            
+            {/* Payment Status Filter Bar */}
+            <div className="flex items-center gap-2 px-6 py-3 border-b border-border bg-muted/30">
+              <button
+                onClick={() => setFilters(prev => ({ ...prev, paymentStatus: 'all' }))}
+                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                  filters.paymentStatus === 'all'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-background text-muted-foreground hover:bg-muted'
+                }`}
+              >
+                All
+              </button>
+              <button
+                onClick={() => setFilters(prev => ({ ...prev, paymentStatus: 'paid' }))}
+                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                  filters.paymentStatus === 'paid'
+                    ? 'bg-green-600 text-white'
+                    : 'bg-background text-muted-foreground hover:bg-muted'
+                }`}
+              >
+                Paid
+              </button>
+              <button
+                onClick={() => setFilters(prev => ({ ...prev, paymentStatus: 'unpaid' }))}
+                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                  filters.paymentStatus === 'unpaid'
+                    ? 'bg-muted-foreground/20 text-foreground'
+                    : 'bg-background text-muted-foreground hover:bg-muted'
+                }`}
+              >
+                Unpaid
+              </button>
             </div>
           </CardHeader>
           <CardContent className="p-0">
