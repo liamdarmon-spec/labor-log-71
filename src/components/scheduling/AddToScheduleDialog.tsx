@@ -133,7 +133,7 @@ export function AddToScheduleDialog({ open, onOpenChange, onScheduleCreated, def
           id: crypto.randomUUID(),
           project_id: "",
           trade_id: workers.find(w => w.id === workerId)?.trade_id || "",
-          hours: "8"
+          hours: ""
         }
       ]
     }));
