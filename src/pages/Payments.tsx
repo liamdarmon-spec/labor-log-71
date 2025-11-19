@@ -41,6 +41,8 @@ const Payments = () => {
   const [calculatedAmount, setCalculatedAmount] = useState<number | null>(null);
   const [isCalculating, setIsCalculating] = useState(false);
   const [reimbursementFilter, setReimbursementFilter] = useState<'all' | 'pending' | 'reimbursed'>('all');
+  const [selectedMonth, setSelectedMonth] = useState<string>('');
+  const [selectedCompany, setSelectedCompany] = useState<string>('');
   const [formData, setFormData] = useState({
     start_date: '',
     end_date: '',
@@ -326,21 +328,45 @@ const Payments = () => {
   };
 
   const filteredPayments = payments.filter((payment) => {
-    if (reimbursementFilter === 'all') return true;
+    // Reimbursement status filter
+    let matchesStatus = true;
     if (reimbursementFilter === 'pending') {
-      return payment.paid_via === 'Reimbursement Needed' && payment.reimbursement_status !== 'reimbursed';
+      matchesStatus = payment.paid_via === 'Reimbursement Needed' && payment.reimbursement_status !== 'reimbursed';
+    } else if (reimbursementFilter === 'reimbursed') {
+      matchesStatus = payment.paid_via !== 'Reimbursement Needed' || payment.reimbursement_status === 'reimbursed';
     }
-    if (reimbursementFilter === 'reimbursed') {
-      return payment.paid_via !== 'Reimbursement Needed' || payment.reimbursement_status === 'reimbursed';
+
+    // Month filter
+    let matchesMonth = true;
+    if (selectedMonth) {
+      const paymentMonth = format(new Date(payment.payment_date), 'yyyy-MM');
+      matchesMonth = paymentMonth === selectedMonth;
     }
-    return true;
+
+    // Company filter
+    let matchesCompany = true;
+    if (selectedCompany) {
+      matchesCompany = payment.company_id === selectedCompany;
+    }
+
+    return matchesStatus && matchesMonth && matchesCompany;
   });
 
   const totalPayments = filteredPayments.reduce((sum, p) => sum + parseFloat(p.amount.toString()), 0);
-  const pendingReimbursements = payments.filter(p => 
+  const allPendingReimbursements = payments.filter(p => 
     p.paid_via === 'Reimbursement Needed' && p.reimbursement_status !== 'reimbursed'
   );
-  const totalPendingAmount = pendingReimbursements.reduce((sum, p) => sum + p.amount, 0);
+  const totalPendingAmount = allPendingReimbursements.reduce((sum, p) => sum + p.amount, 0);
+
+  // Generate month options (last 12 months)
+  const monthOptions = Array.from({ length: 12 }, (_, i) => {
+    const date = new Date();
+    date.setMonth(date.getMonth() - i);
+    return {
+      value: format(date, 'yyyy-MM'),
+      label: format(date, 'MMMM yyyy')
+    };
+  });
 
   return (
     <Layout>
@@ -362,41 +388,134 @@ const Payments = () => {
           </div>
         </div>
 
-        {pendingReimbursements.length > 0 && (
-          <Card className="bg-amber-50 dark:bg-amber-950 border-amber-200 dark:border-amber-800">
+        {/* Summary KPI Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <Card>
             <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
+              <div className="flex items-start justify-between">
                 <div>
-                  <h3 className="font-semibold text-amber-900 dark:text-amber-100">
-                    Pending Reimbursements
-                  </h3>
-                  <p className="text-sm text-amber-700 dark:text-amber-300">
-                    {pendingReimbursements.length} payment{pendingReimbursements.length !== 1 ? 's' : ''} awaiting DHY reimbursement
+                  <p className="text-sm text-muted-foreground font-medium">Total Payments</p>
+                  <p className="text-2xl sm:text-3xl font-bold text-foreground mt-1">
+                    ${totalPayments.toFixed(2)}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {filteredPayments.length} payment{filteredPayments.length !== 1 ? 's' : ''}
                   </p>
                 </div>
-                <div className="text-right">
-                  <p className="text-2xl font-bold text-amber-900 dark:text-amber-100">
-                    ${totalPendingAmount.toFixed(2)}
-                  </p>
-                  <p className="text-xs text-amber-700 dark:text-amber-300">Total pending</p>
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <DollarSign className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
                 </div>
               </div>
             </CardContent>
           </Card>
-        )}
 
-        <div className="flex gap-4 mb-4">
-          <Select value={reimbursementFilter} onValueChange={(value: any) => setReimbursementFilter(value)}>
-            <SelectTrigger className="w-[220px]">
-              <SelectValue placeholder="Filter by status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Payments</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="reimbursed">Complete</SelectItem>
-            </SelectContent>
-          </Select>
+          <Card className="bg-amber-50 dark:bg-amber-950 border-amber-200 dark:border-amber-800">
+            <CardContent className="pt-6">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-sm text-amber-700 dark:text-amber-300 font-medium">Total Outstanding</p>
+                  <p className="text-2xl sm:text-3xl font-bold text-amber-900 dark:text-amber-100 mt-1">
+                    ${totalPendingAmount.toFixed(2)}
+                  </p>
+                  <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
+                    {allPendingReimbursements.length} pending reimbursement{allPendingReimbursements.length !== 1 ? 's' : ''}
+                  </p>
+                </div>
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-amber-200 dark:bg-amber-900 flex items-center justify-center">
+                  <DollarSign className="w-5 h-5 sm:w-6 sm:h-6 text-amber-900 dark:text-amber-100" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="sm:col-span-2 lg:col-span-1">
+            <CardContent className="pt-6">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground font-medium">Completed Payments</p>
+                  <p className="text-2xl sm:text-3xl font-bold text-foreground mt-1">
+                    ${(totalPayments - totalPendingAmount).toFixed(2)}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {filteredPayments.length - allPendingReimbursements.length} completed
+                  </p>
+                </div>
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-success/10 flex items-center justify-center">
+                  <DollarSign className="w-5 h-5 sm:w-6 sm:h-6 text-success" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
+
+        {/* Filters */}
+        <Card>
+          <CardContent className="pt-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div>
+                <Label htmlFor="status-filter" className="text-sm font-medium mb-2 block">Status</Label>
+                <Select value={reimbursementFilter} onValueChange={(value: any) => setReimbursementFilter(value)}>
+                  <SelectTrigger id="status-filter">
+                    <SelectValue placeholder="Filter by status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Payments</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="reimbursed">Complete</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="month-filter" className="text-sm font-medium mb-2 block">Month</Label>
+                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                  <SelectTrigger id="month-filter">
+                    <SelectValue placeholder="All months" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">All months</SelectItem>
+                    {monthOptions.map((month) => (
+                      <SelectItem key={month.value} value={month.value}>
+                        {month.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="company-filter" className="text-sm font-medium mb-2 block">Company</Label>
+                <Select value={selectedCompany} onValueChange={setSelectedCompany}>
+                  <SelectTrigger id="company-filter">
+                    <SelectValue placeholder="All companies" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">All companies</SelectItem>
+                    {companies.map((company) => (
+                      <SelectItem key={company.id} value={company.id}>
+                        {company.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex items-end">
+                <Button 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={() => {
+                    setReimbursementFilter('all');
+                    setSelectedMonth('');
+                    setSelectedCompany('');
+                  }}
+                >
+                  Clear Filters
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         <Card className="shadow-medium">
           <CardHeader className="border-b border-border">
