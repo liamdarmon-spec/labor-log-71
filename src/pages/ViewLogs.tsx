@@ -26,6 +26,7 @@ interface LogEntry {
   trade_id: string | null;
   workers: { 
     name: string; 
+    hourly_rate: number;
     trades: { name: string } | null;
   };
   projects: { project_name: string; client_name: string };
@@ -37,6 +38,7 @@ interface GroupedLogEntry {
   worker_name: string;
   trade_name: string;
   total_hours: number;
+  total_cost: number;
   entries: LogEntry[];
   log_ids: string[];
 }
@@ -137,15 +139,18 @@ const ViewLogs = () => {
           worker_name: log.workers.name,
           trade_name: log.workers.trades?.name || 'N/A',
           total_hours: 0,
+          total_cost: 0,
           entries: [],
           log_ids: [],
         });
       }
 
       const group = grouped.get(key)!;
+      const cost = parseFloat(log.hours_worked.toString()) * parseFloat(log.workers.hourly_rate.toString());
       group.entries.push(log);
       group.log_ids.push(log.id);
       group.total_hours += parseFloat(log.hours_worked.toString());
+      group.total_cost += cost;
     });
 
     setGroupedLogs(Array.from(grouped.values()));
@@ -159,6 +164,7 @@ const ViewLogs = () => {
         *,
         workers (
           name,
+          hourly_rate,
           trades (name)
         ),
         projects (project_name, client_name)
@@ -580,7 +586,7 @@ const ViewLogs = () => {
                     <TableHead className="font-semibold">Worker</TableHead>
                     <TableHead className="font-semibold">Trade</TableHead>
                     <TableHead className="font-semibold">Projects & Hours</TableHead>
-                    <TableHead className="font-semibold text-right">Total Hours</TableHead>
+                    <TableHead className="font-semibold text-right">Total Cost</TableHead>
                     <TableHead className="font-semibold">Notes</TableHead>
                     <TableHead className="font-semibold text-right">Actions</TableHead>
                   </TableRow>
@@ -632,7 +638,7 @@ const ViewLogs = () => {
                         </div>
                       </TableCell>
                       <TableCell className="text-right font-bold text-lg text-primary">
-                        {group.total_hours.toFixed(1)}h
+                        ${group.total_cost.toFixed(2)}
                       </TableCell>
                       <TableCell className="max-w-xs">
                         {group.entries.length === 1 && group.entries[0].notes ? (
