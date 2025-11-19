@@ -62,6 +62,7 @@ export function WorkerScheduleDialog({
   const [showReassignConfirm, setShowReassignConfirm] = useState(false);
 
   useEffect(() => {
+    console.log("WorkerScheduleDialog useEffect", { open, workerId, date });
     if (open && workerId && date) {
       fetchSchedules();
       fetchWorkers();
