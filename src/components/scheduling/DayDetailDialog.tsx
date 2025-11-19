@@ -112,7 +112,7 @@ export function DayDetailDialog({ open, onOpenChange, date, onRefresh, onAddSche
               }}
             >
               <Plus className="h-4 w-4 mr-1" />
-              Add Schedule
+              Add to Schedule
             </Button>
           </DialogTitle>
         </DialogHeader>
@@ -147,7 +147,7 @@ export function DayDetailDialog({ open, onOpenChange, date, onRefresh, onAddSche
                 }}
               >
                 <Plus className="h-4 w-4 mr-2" />
-                Add Schedule
+                Add to Schedule
               </Button>
             </div>
           ) : (
