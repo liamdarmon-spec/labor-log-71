@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Plus, UserCog } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, UserCog, Split } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { startOfWeek, endOfWeek, addWeeks, format, addDays, isSameDay } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
@@ -9,6 +9,7 @@ import { EditScheduleDialog } from "./EditScheduleDialog";
 import { WorkerScheduleDialog } from "./WorkerScheduleDialog";
 import { ScheduleEditButton } from "./ScheduleEditButton";
 import { ScheduleDeleteButton } from "./ScheduleDeleteButton";
+import { SplitScheduleDialog } from "@/components/dashboard/SplitScheduleDialog";
 
 interface ScheduledShift {
   id: string;
@@ -36,6 +37,13 @@ export function WeeklyScheduleView({ onScheduleClick, refreshTrigger }: WeeklySc
   const [editingSchedule, setEditingSchedule] = useState<ScheduledShift | null>(null);
   const [workerDialogOpen, setWorkerDialogOpen] = useState(false);
   const [selectedWorker, setSelectedWorker] = useState<{ id: string; name: string; date: string } | null>(null);
+  const [splitScheduleData, setSplitScheduleData] = useState<{
+    scheduleId: string;
+    workerName: string;
+    date: string;
+    hours: number;
+    projectId: string;
+  } | null>(null);
 
   useEffect(() => {
     fetchSchedules();
@@ -257,6 +265,24 @@ export function WeeklyScheduleView({ onScheduleClick, refreshTrigger }: WeeklySc
                               {shift.project?.project_name || "Unknown"} • {shift.scheduled_hours}h
                             </p>
                             <div className="flex items-center gap-0.5">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSplitScheduleData({
+                                    scheduleId: shift.id,
+                                    workerName: worker?.name || "Unknown",
+                                    date: shift.scheduled_date,
+                                    hours: shift.scheduled_hours,
+                                    projectId: shift.project_id
+                                  });
+                                }}
+                                title="Split into multiple projects"
+                              >
+                                <Split className="h-3 w-3" />
+                              </Button>
                               <ScheduleEditButton onClick={() => setEditingSchedule(shift)} />
                               <ScheduleDeleteButton 
                                 onConfirm={() => handleDeleteSchedule(shift.id)}
@@ -283,6 +309,22 @@ export function WeeklyScheduleView({ onScheduleClick, refreshTrigger }: WeeklySc
         schedule={editingSchedule}
         onSuccess={fetchSchedules}
       />
+
+      {splitScheduleData && (
+        <SplitScheduleDialog
+          isOpen={!!splitScheduleData}
+          onClose={() => setSplitScheduleData(null)}
+          scheduleId={splitScheduleData.scheduleId}
+          workerName={splitScheduleData.workerName}
+          originalDate={splitScheduleData.date}
+          originalHours={splitScheduleData.hours}
+          originalProjectId={splitScheduleData.projectId}
+          onSuccess={() => {
+            fetchSchedules();
+            setSplitScheduleData(null);
+          }}
+        />
+      )}
     </div>
   );
 }
