@@ -7,7 +7,8 @@ import { TradesTab } from '@/components/admin/TradesTab';
 import { LogsTab } from '@/components/admin/LogsTab';
 import { ReportsTab } from '@/components/admin/ReportsTab';
 import { UsersTab } from '@/components/admin/UsersTab';
-import { Users, Briefcase, Wrench, FileText, BarChart3, UserCog } from 'lucide-react';
+import { ArchivedLogsTab } from '@/components/admin/ArchivedLogsTab';
+import { Users, Briefcase, Wrench, FileText, BarChart3, UserCog, Archive } from 'lucide-react';
 
 const Admin = () => {
   const [activeTab, setActiveTab] = useState('workers');
@@ -23,7 +24,7 @@ const Admin = () => {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-6 lg:w-auto lg:inline-grid h-auto">
+          <TabsList className="grid w-full grid-cols-7 lg:w-auto lg:inline-grid h-auto">
             <TabsTrigger value="users" className="gap-2 py-3">
               <UserCog className="w-4 h-4" />
               <span className="hidden sm:inline">Users</span>
@@ -43,6 +44,10 @@ const Admin = () => {
             <TabsTrigger value="logs" className="gap-2 py-3">
               <FileText className="w-4 h-4" />
               <span className="hidden sm:inline">Logs</span>
+            </TabsTrigger>
+            <TabsTrigger value="archived" className="gap-2 py-3">
+              <Archive className="w-4 h-4" />
+              <span className="hidden sm:inline">Archived</span>
             </TabsTrigger>
             <TabsTrigger value="reports" className="gap-2 py-3">
               <BarChart3 className="w-4 h-4" />
@@ -68,6 +73,10 @@ const Admin = () => {
 
           <TabsContent value="logs" className="mt-6">
             <LogsTab />
+          </TabsContent>
+
+          <TabsContent value="archived" className="mt-6">
+            <ArchivedLogsTab />
           </TabsContent>
 
           <TabsContent value="reports" className="mt-6">
