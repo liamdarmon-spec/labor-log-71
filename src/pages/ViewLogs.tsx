@@ -79,6 +79,10 @@ const ViewLogs = () => {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [editingLog, setEditingLog] = useState<LogEntry | null>(null);
   const [isAddEntryDialogOpen, setIsAddEntryDialogOpen] = useState(false);
+  const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false);
+  const [scheduleDefaultDate, setScheduleDefaultDate] = useState<Date>();
+  const [scheduleRefresh, setScheduleRefresh] = useState(0);
+  const [activeTab, setActiveTab] = useState("logs");
   const [selectedLogs, setSelectedLogs] = useState<Set<string>>(new Set());
   const [selectedGroup, setSelectedGroup] = useState<GroupedLogEntry | null>(null);
   const [editForm, setEditForm] = useState({
