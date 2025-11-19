@@ -241,12 +241,14 @@ export function WeeklyScheduleView({ onScheduleClick, refreshTrigger }: WeeklySc
                             className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
                             onClick={(e) => {
                               e.stopPropagation();
+                              console.log("UserCog button clicked", { workerId, workerName: worker?.name, date: format(day, "yyyy-MM-dd") });
                               setSelectedWorker({ 
                                 id: workerId, 
                                 name: worker?.name || "Unknown",
                                 date: format(day, "yyyy-MM-dd")
                               });
                               setWorkerDialogOpen(true);
+                              console.log("State set, dialog should open");
                             }}
                           >
                             <UserCog className="h-3 w-3" />
