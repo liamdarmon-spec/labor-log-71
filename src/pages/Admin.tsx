@@ -15,71 +15,71 @@ const Admin = () => {
 
   return (
     <Layout>
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Admin Dashboard</h1>
-          <p className="text-muted-foreground mt-2">
+      <div className="space-y-4 sm:space-y-6">
+        <div className="space-y-1 sm:space-y-2">
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Admin Dashboard</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">
             Manage workers, trades, projects, and generate reports
           </p>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-7 lg:w-auto lg:inline-grid h-auto">
-            <TabsTrigger value="users" className="gap-2 py-3">
-              <UserCog className="w-4 h-4" />
-              <span className="hidden sm:inline">Users</span>
+          <TabsList className="grid w-full grid-cols-7 h-auto gap-1 p-1 bg-muted/50">
+            <TabsTrigger value="users" className="gap-1 sm:gap-2 py-2 sm:py-3 text-xs sm:text-sm flex-col sm:flex-row">
+              <UserCog className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span className="text-[10px] sm:text-sm">Users</span>
             </TabsTrigger>
-            <TabsTrigger value="workers" className="gap-2 py-3">
-              <Users className="w-4 h-4" />
-              <span className="hidden sm:inline">Workers</span>
+            <TabsTrigger value="workers" className="gap-1 sm:gap-2 py-2 sm:py-3 text-xs sm:text-sm flex-col sm:flex-row">
+              <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span className="text-[10px] sm:text-sm">Workers</span>
             </TabsTrigger>
-            <TabsTrigger value="trades" className="gap-2 py-3">
-              <Wrench className="w-4 h-4" />
-              <span className="hidden sm:inline">Trades</span>
+            <TabsTrigger value="trades" className="gap-1 sm:gap-2 py-2 sm:py-3 text-xs sm:text-sm flex-col sm:flex-row">
+              <Wrench className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span className="text-[10px] sm:text-sm">Trades</span>
             </TabsTrigger>
-            <TabsTrigger value="projects" className="gap-2 py-3">
-              <Briefcase className="w-4 h-4" />
-              <span className="hidden sm:inline">Projects</span>
+            <TabsTrigger value="projects" className="gap-1 sm:gap-2 py-2 sm:py-3 text-xs sm:text-sm flex-col sm:flex-row">
+              <Briefcase className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span className="text-[10px] sm:text-sm">Projects</span>
             </TabsTrigger>
-            <TabsTrigger value="logs" className="gap-2 py-3">
-              <FileText className="w-4 h-4" />
-              <span className="hidden sm:inline">Logs</span>
+            <TabsTrigger value="logs" className="gap-1 sm:gap-2 py-2 sm:py-3 text-xs sm:text-sm flex-col sm:flex-row">
+              <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span className="text-[10px] sm:text-sm">Logs</span>
             </TabsTrigger>
-            <TabsTrigger value="archived" className="gap-2 py-3">
-              <Archive className="w-4 h-4" />
-              <span className="hidden sm:inline">Archived</span>
+            <TabsTrigger value="archived" className="gap-1 sm:gap-2 py-2 sm:py-3 text-xs sm:text-sm flex-col sm:flex-row">
+              <Archive className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span className="text-[10px] sm:text-sm">Archive</span>
             </TabsTrigger>
-            <TabsTrigger value="reports" className="gap-2 py-3">
-              <BarChart3 className="w-4 h-4" />
-              <span className="hidden sm:inline">Reports</span>
+            <TabsTrigger value="reports" className="gap-1 sm:gap-2 py-2 sm:py-3 text-xs sm:text-sm flex-col sm:flex-row">
+              <BarChart3 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span className="text-[10px] sm:text-sm">Reports</span>
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="users" className="mt-6">
+          <TabsContent value="users" className="mt-4 sm:mt-6">
             <UsersTab />
           </TabsContent>
 
-          <TabsContent value="workers" className="mt-6">
+          <TabsContent value="workers" className="mt-4 sm:mt-6">
             <WorkersTab />
           </TabsContent>
 
-          <TabsContent value="trades" className="mt-6">
+          <TabsContent value="trades" className="mt-4 sm:mt-6">
             <TradesTab />
           </TabsContent>
 
-          <TabsContent value="projects" className="mt-6">
+          <TabsContent value="projects" className="mt-4 sm:mt-6">
             <ProjectsTab />
           </TabsContent>
 
-          <TabsContent value="logs" className="mt-6">
+          <TabsContent value="logs" className="mt-4 sm:mt-6">
             <LogsTab />
           </TabsContent>
 
-          <TabsContent value="archived" className="mt-6">
+          <TabsContent value="archived" className="mt-4 sm:mt-6">
             <ArchivedLogsTab />
           </TabsContent>
 
-          <TabsContent value="reports" className="mt-6">
+          <TabsContent value="reports" className="mt-4 sm:mt-6">
             <ReportsTab />
           </TabsContent>
         </Tabs>
