@@ -86,15 +86,18 @@ export function DayDetailDialog({ open, onOpenChange, date, onRefresh, onAddSche
 
   const totalHours = schedules.reduce((sum, s) => sum + Number(s.scheduled_hours), 0);
 
-  // Group schedules by project
-  const schedulesByProject = schedules.reduce((acc, schedule) => {
-    const projectName = schedule.project?.project_name || "Unknown";
-    if (!acc[projectName]) {
-      acc[projectName] = [];
+  // Group schedules by worker
+  const schedulesByWorker = schedules.reduce((acc, schedule) => {
+    const workerName = schedule.worker?.name || "Unknown";
+    if (!acc[workerName]) {
+      acc[workerName] = {
+        worker: schedule.worker,
+        schedules: []
+      };
     }
-    acc[projectName].push(schedule);
+    acc[workerName].schedules.push(schedule);
     return acc;
-  }, {} as Record<string, ScheduledShift[]>);
+  }, {} as Record<string, { worker: ScheduledShift['worker']; schedules: ScheduledShift[] }>);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -118,18 +121,15 @@ export function DayDetailDialog({ open, onOpenChange, date, onRefresh, onAddSche
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
+          <div className="flex items-center gap-4 p-3 bg-muted/50 rounded-lg">
             <div>
-              <p className="text-sm text-muted-foreground">Total Workers</p>
-              <p className="text-2xl font-bold">{schedules.length}</p>
+              <p className="text-sm text-muted-foreground">Workers</p>
+              <p className="text-xl font-semibold">{Object.keys(schedulesByWorker).length}</p>
             </div>
+            <div className="h-8 w-px bg-border" />
             <div>
               <p className="text-sm text-muted-foreground">Total Hours</p>
-              <p className="text-2xl font-bold">{totalHours}h</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Projects</p>
-              <p className="text-2xl font-bold">{Object.keys(schedulesByProject).length}</p>
+              <p className="text-xl font-semibold">{totalHours}h</p>
             </div>
           </div>
 
@@ -151,50 +151,49 @@ export function DayDetailDialog({ open, onOpenChange, date, onRefresh, onAddSche
               </Button>
             </div>
           ) : (
-            <div className="space-y-4">
-              {Object.entries(schedulesByProject).map(([projectName, projectSchedules]) => (
-                <div key={projectName} className="border rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <div>
-                      <h3 className="font-semibold">{projectName}</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {projectSchedules[0]?.project?.client_name}
-                      </p>
-                    </div>
-                    <Badge variant="secondary">
-                      {projectSchedules.reduce((sum, s) => sum + Number(s.scheduled_hours), 0)}h
-                    </Badge>
-                  </div>
-                  <div className="space-y-2">
-                    {projectSchedules.map((schedule) => (
-                      <div
-                        key={schedule.id}
-                        className="flex items-center justify-between p-3 bg-muted/50 rounded-md group hover:bg-muted transition-colors"
-                      >
-                        <div className="flex-1">
-                          <p className="font-medium">{schedule.worker?.name}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {schedule.worker?.trade} • {schedule.scheduled_hours}h
-                          </p>
-                          {schedule.notes && (
-                            <p className="text-sm text-muted-foreground mt-1">
-                              Note: {schedule.notes}
-                            </p>
-                          )}
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="opacity-0 group-hover:opacity-100 transition-opacity"
-                          onClick={() => handleDelete(schedule.id)}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
+            <div className="space-y-3">
+              {Object.entries(schedulesByWorker).map(([workerName, { worker, schedules: workerSchedules }]) => {
+                const totalWorkerHours = workerSchedules.reduce((sum, s) => sum + Number(s.scheduled_hours), 0);
+                
+                return (
+                  <div key={workerName} className="border rounded-lg p-4">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-lg">{workerName}</h3>
+                        <p className="text-sm text-muted-foreground">{worker?.trade}</p>
                       </div>
-                    ))}
+                      <Badge variant="secondary" className="text-sm">
+                        {totalWorkerHours}h
+                      </Badge>
+                    </div>
+                    <div className="space-y-2">
+                      {workerSchedules.map((schedule) => (
+                        <div
+                          key={schedule.id}
+                          className="flex items-center justify-between p-2 rounded group hover:bg-muted/50 transition-colors"
+                        >
+                          <div className="flex-1 flex items-center gap-2">
+                            <span className="text-sm font-medium">
+                              {schedule.project?.project_name}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              {schedule.scheduled_hours}h
+                            </span>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={() => handleDelete(schedule.id)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
