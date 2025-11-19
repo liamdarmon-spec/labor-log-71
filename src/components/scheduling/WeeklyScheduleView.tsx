@@ -86,7 +86,8 @@ export function WeeklyScheduleView({ onScheduleClick, refreshTrigger }: WeeklySc
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(currentWeekStart, i));
 
   const getSchedulesForDay = (day: Date) => {
-    return schedules.filter(s => isSameDay(new Date(s.scheduled_date), day));
+    const dayStr = format(day, "yyyy-MM-dd");
+    return schedules.filter(s => s.scheduled_date === dayStr);
   };
 
   const getTotalHoursForDay = (day: Date) => {
