@@ -12,6 +12,7 @@ import ViewLogs from "./pages/ViewLogs";
 import Schedule from "./pages/Schedule";
 import Payments from "./pages/Payments";
 import NotFound from "./pages/NotFound";
+import "./i18n/config";
 
 const queryClient = new QueryClient();
 
