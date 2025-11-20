@@ -1,6 +1,5 @@
-import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
-import { HardHat, LogOut, Settings, Eye, PlusCircle, BarChart3, DollarSign, CalendarClock, Languages } from 'lucide-react';
+import { HardHat, Settings, Eye, BarChart3, DollarSign, CalendarClock, Languages } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { MobileNav } from '@/components/MobileNav';
 import { useTranslation } from 'react-i18next';
@@ -16,7 +15,6 @@ interface LayoutProps {
 }
 
 export const Layout = ({ children }: LayoutProps) => {
-  const { signOut, user, isAdmin } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const { t, i18n } = useTranslation();
@@ -103,16 +101,6 @@ export const Layout = ({ children }: LayoutProps) => {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => signOut()}
-              className="gap-2 h-9"
-            >
-              <LogOut className="w-4 h-4" />
-              <span>{t('nav.logout')}</span>
-            </Button>
           </nav>
         </div>
       </header>
