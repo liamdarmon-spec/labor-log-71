@@ -159,21 +159,24 @@ export function MonthlyScheduleView({ onDayClick, refreshTrigger }: MonthlySched
   return (
     <TooltipProvider>
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
+        {/* Header - Responsive */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
               size="icon"
+              className="h-8 w-8 sm:h-10 sm:w-10"
               onClick={() => setCurrentMonth(addMonths(currentMonth, -1))}
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <h3 className="text-lg font-semibold min-w-[200px] text-center">
+            <h3 className="text-base sm:text-lg font-semibold min-w-[160px] sm:min-w-[200px] text-center">
               {format(currentMonth, "MMMM yyyy")}
             </h3>
             <Button
               variant="outline"
               size="icon"
+              className="h-8 w-8 sm:h-10 sm:w-10"
               onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
             >
               <ChevronRight className="h-4 w-4" />
@@ -185,34 +188,39 @@ export function MonthlyScheduleView({ onDayClick, refreshTrigger }: MonthlySched
             onClick={() => setCurrentMonth(new Date())}
           >
             <Calendar className="h-4 w-4 mr-2" />
-            This Month
+            <span className="hidden sm:inline">This Month</span>
+            <span className="sm:hidden">Today</span>
           </Button>
         </div>
 
         {loading ? (
-          <Card className="p-4">
-            <div className="grid grid-cols-7 gap-2">
+          <Card className="p-2 sm:p-4">
+            <div className="grid grid-cols-7 gap-1 sm:gap-2">
               {Array.from({ length: 35 }).map((_, i) => (
-                <Skeleton key={i} className="h-[120px]" />
+                <Skeleton key={i} className="h-[100px] sm:h-[120px]" />
               ))}
             </div>
           </Card>
         ) : (
-          <Card className="p-4">
-            <div className="grid grid-cols-7 gap-2 mb-2">
+          <Card className="p-2 sm:p-4">
+            {/* Day Headers - Responsive */}
+            <div className="grid grid-cols-7 gap-1 sm:gap-2 mb-2">
               {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day, idx) => (
                 <div 
                   key={day} 
-                  className={`text-center font-semibold text-sm p-2 ${
+                  className={`text-center font-semibold text-[10px] sm:text-sm p-1 sm:p-2 ${
                     idx === 0 || idx === 6 ? "text-muted-foreground/70" : "text-muted-foreground"
                   }`}
                 >
-                  {day}
+                  {/* Show full name on desktop, abbreviation on mobile */}
+                  <span className="hidden sm:inline">{day}</span>
+                  <span className="sm:hidden">{day[0]}</span>
                 </div>
               ))}
             </div>
 
-            <div className="grid grid-cols-7 gap-2">
+            {/* Calendar Grid - Responsive */}
+            <div className="grid grid-cols-7 gap-1 sm:gap-2">
               {calendarDays.map((day) => {
                 const daySchedules = getSchedulesForDay(day);
                 const totalHours = getTotalHoursForDay(day);
@@ -237,77 +245,82 @@ export function MonthlyScheduleView({ onDayClick, refreshTrigger }: MonthlySched
                 return (
                   <Card
                     key={day.toISOString()}
-                    className={`p-2 min-h-[140px] cursor-pointer transition-all hover:shadow-md ${
+                    className={`p-1 sm:p-2 min-h-[80px] sm:min-h-[140px] cursor-pointer transition-all hover:shadow-md ${
                       !isCurrentMonth ? "opacity-40 bg-muted/20" : ""
-                    } ${isToday ? "ring-2 ring-primary shadow-lg" : ""} ${
+                    } ${isToday ? "ring-1 sm:ring-2 ring-primary shadow-lg" : ""} ${
                       isWeekendDay ? "bg-muted/30" : ""
                     } ${isPastDay ? "bg-muted/10" : ""}`}
                     onClick={() => onDayClick(day)}
                   >
-                    <div className="flex items-center justify-between mb-2">
-                      <span className={`text-sm font-semibold ${
-                        isToday ? "text-primary bg-primary/10 px-2 py-0.5 rounded-full" : 
+                    {/* Day Number and Badge */}
+                    <div className="flex items-center justify-between mb-1 sm:mb-2">
+                      <span className={`text-xs sm:text-sm font-semibold ${
+                        isToday ? "text-primary bg-primary/10 px-1 sm:px-2 py-0.5 rounded-full" : 
                         isWeekendDay ? "text-muted-foreground" : ""
                       }`}>
                         {format(day, "d")}
                       </span>
                       {isToday && (
-                        <Badge variant="secondary" className="text-[10px] h-5">Today</Badge>
+                        <Badge variant="secondary" className="text-[8px] sm:text-[10px] h-4 sm:h-5 px-1">
+                          <span className="hidden sm:inline">Today</span>
+                          <span className="sm:hidden">•</span>
+                        </Badge>
                       )}
                     </div>
 
+                    {/* Total Hours Badge - Responsive */}
                     {totalHours > 0 && (
-                      <div className="flex items-center gap-1 mb-2 bg-primary/5 rounded px-1.5 py-1">
-                        <Clock className="h-3 w-3 text-primary" />
-                        <span className="text-xs font-medium text-primary">
+                      <div className="flex items-center gap-0.5 sm:gap-1 mb-1 sm:mb-2 bg-primary/5 rounded px-1 sm:px-1.5 py-0.5 sm:py-1">
+                        <Clock className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-primary" />
+                        <span className="text-[10px] sm:text-xs font-medium text-primary">
                           {totalHours}h
                         </span>
                       </div>
                     )}
 
-                    <div className="space-y-1.5">
+                    <div className="space-y-1 sm:space-y-1.5">
                       {Object.values(workerGroups).slice(0, 4).map((group) => {
                         const totalWorkerHours = group.shifts.reduce((sum, s) => sum + Number(s.scheduled_hours), 0);
-                        const uniqueProjects = Array.from(new Set(group.shifts.map(s => s.project_id)));
                         
                         return (
                           <Tooltip key={group.shifts[0].worker_id}>
                             <TooltipTrigger asChild>
                               <div
-                                className="bg-gradient-to-br from-card to-muted/30 p-2 rounded-md border border-border/50 hover:border-border transition-all group/worker shadow-sm hover:shadow"
+                                className="bg-gradient-to-br from-card to-muted/30 p-1 sm:p-2 rounded-md border border-border/50 hover:border-border transition-all group/worker shadow-sm hover:shadow"
                                 onClick={(e) => e.stopPropagation()}
                               >
-                                {/* Worker Header */}
-                                <div className="flex items-center justify-between mb-1.5">
-                                  <div className="flex items-center gap-1.5 flex-1 min-w-0">
-                                    <User className="h-3.5 w-3.5 text-primary flex-shrink-0" />
-                                    <span className="font-semibold text-xs truncate text-foreground">
+                                {/* Worker Header - Responsive */}
+                                <div className="flex items-center justify-between mb-1 sm:mb-1.5">
+                                  <div className="flex items-center gap-1 sm:gap-1.5 flex-1 min-w-0">
+                                    <User className="h-2.5 w-2.5 sm:h-3.5 sm:w-3.5 text-primary flex-shrink-0" />
+                                    <span className="font-semibold text-[10px] sm:text-xs truncate text-foreground">
                                       {group.worker?.name || "Unknown"}
                                     </span>
                                   </div>
-                                  <Badge variant="outline" className="h-5 text-[10px] px-1.5 font-bold bg-primary/5">
+                                  <Badge variant="outline" className="h-4 sm:h-5 text-[9px] sm:text-[10px] px-1 sm:px-1.5 font-bold bg-primary/5">
                                     {totalWorkerHours}h
                                   </Badge>
                                 </div>
 
-                                {/* Projects List */}
-                                <div className="space-y-1">
+                                {/* Projects List - Responsive */}
+                                <div className="space-y-0.5 sm:space-y-1">
                                   {group.shifts.map((shift, idx) => (
                                     <div
                                       key={shift.id}
-                                      className={`flex items-center justify-between gap-1.5 p-1 rounded text-[10px] ${
+                                      className={`flex items-center justify-between gap-1 sm:gap-1.5 p-0.5 sm:p-1 rounded text-[9px] sm:text-[10px] ${
                                         getProjectColor(shift.project_id)
                                       }`}
                                     >
-                                      <div className="flex items-center gap-1 flex-1 min-w-0">
-                                        <Briefcase className="h-2.5 w-2.5 flex-shrink-0" />
+                                      <div className="flex items-center gap-0.5 sm:gap-1 flex-1 min-w-0">
+                                        <Briefcase className="h-2 w-2 sm:h-2.5 sm:w-2.5 flex-shrink-0" />
                                         <span className="truncate font-medium">
                                           {shift.project?.project_name || "Unknown"}
                                         </span>
                                       </div>
-                                      <div className="flex items-center gap-1">
-                                        <span className="font-bold">{shift.scheduled_hours}h</span>
-                                        <div className="flex items-center gap-0.5 opacity-0 group-hover/worker:opacity-100 transition-opacity">
+                                      <div className="flex items-center gap-0.5 sm:gap-1">
+                                        <span className="font-bold text-[9px] sm:text-[10px]">{shift.scheduled_hours}h</span>
+                                        {/* Action buttons - only show on hover on larger screens */}
+                                        <div className="hidden sm:flex items-center gap-0.5 opacity-0 group-hover/worker:opacity-100 transition-opacity">
                                           <Button
                                             variant="ghost"
                                             size="icon"
@@ -341,10 +354,10 @@ export function MonthlyScheduleView({ onDayClick, refreshTrigger }: MonthlySched
                                   ))}
                                 </div>
 
-                                {/* Worker Trade Badge */}
+                                {/* Worker Trade Badge - Responsive */}
                                 {group.worker?.trade && (
-                                  <div className="mt-1.5 pt-1 border-t border-border/30">
-                                    <span className="text-[9px] text-muted-foreground font-medium">
+                                  <div className="mt-1 sm:mt-1.5 pt-0.5 sm:pt-1 border-t border-border/30">
+                                    <span className="text-[8px] sm:text-[9px] text-muted-foreground font-medium">
                                       {group.worker.trade}
                                     </span>
                                   </div>
@@ -376,8 +389,8 @@ export function MonthlyScheduleView({ onDayClick, refreshTrigger }: MonthlySched
                       {Object.values(workerGroups).length > 4 && (
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <div className="text-xs text-muted-foreground bg-muted/30 rounded p-1.5 text-center cursor-help hover:bg-muted/50 transition-colors">
-                              +{Object.values(workerGroups).length - 4} more workers
+                            <div className="text-[10px] sm:text-xs text-muted-foreground bg-muted/30 rounded p-1 sm:p-1.5 text-center cursor-help hover:bg-muted/50 transition-colors">
+                              +{Object.values(workerGroups).length - 4} <span className="hidden sm:inline">more workers</span>
                             </div>
                           </TooltipTrigger>
                           <TooltipContent>
