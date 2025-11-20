@@ -266,52 +266,52 @@ export function MonthlyScheduleView({ onDayClick, refreshTrigger }: MonthlySched
                     )}
 
                     <div className="space-y-1.5">
-                      {Object.values(workerGroups).slice(0, 3).map((group) => {
+                      {Object.values(workerGroups).slice(0, 4).map((group) => {
                         const totalWorkerHours = group.shifts.reduce((sum, s) => sum + Number(s.scheduled_hours), 0);
+                        const uniqueProjects = Array.from(new Set(group.shifts.map(s => s.project_id)));
                         
                         return (
-                          <div key={group.shifts[0].id} className="space-y-1">
-                            <div className="bg-gradient-to-r from-muted/80 to-muted/40 p-1.5 rounded-md border border-border/30">
-                              <div className="flex items-center gap-1.5">
-                                <User className="h-3 w-3 text-foreground/70" />
-                                <div className="flex-1 min-w-0">
-                                  <div className="font-semibold text-xs truncate text-foreground">
-                                    {group.worker?.name || "Unknown"}
+                          <Tooltip key={group.shifts[0].worker_id}>
+                            <TooltipTrigger asChild>
+                              <div
+                                className="bg-gradient-to-br from-card to-muted/30 p-2 rounded-md border border-border/50 hover:border-border transition-all group/worker shadow-sm hover:shadow"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                {/* Worker Header */}
+                                <div className="flex items-center justify-between mb-1.5">
+                                  <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                                    <User className="h-3.5 w-3.5 text-primary flex-shrink-0" />
+                                    <span className="font-semibold text-xs truncate text-foreground">
+                                      {group.worker?.name || "Unknown"}
+                                    </span>
                                   </div>
-                                  <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                                    <Clock className="h-2.5 w-2.5" />
+                                  <Badge variant="outline" className="h-5 text-[10px] px-1.5 font-bold bg-primary/5">
                                     {totalWorkerHours}h
-                                  </div>
+                                  </Badge>
                                 </div>
-                              </div>
-                            </div>
-                            
-                            {/* Show individual shifts for this worker */}
-                            {group.shifts.map((shift) => (
-                              <Tooltip key={shift.id}>
-                                <TooltipTrigger asChild>
-                                  <div
-                                    className={`p-1.5 rounded-md text-xs border transition-all group/shift hover:shadow-sm ${
-                                      getProjectColor(shift.project_id)
-                                    }`}
-                                    onClick={(e) => e.stopPropagation()}
-                                  >
-                                    <div className="flex items-center justify-between gap-1">
+
+                                {/* Projects List */}
+                                <div className="space-y-1">
+                                  {group.shifts.map((shift, idx) => (
+                                    <div
+                                      key={shift.id}
+                                      className={`flex items-center justify-between gap-1.5 p-1 rounded text-[10px] ${
+                                        getProjectColor(shift.project_id)
+                                      }`}
+                                    >
                                       <div className="flex items-center gap-1 flex-1 min-w-0">
                                         <Briefcase className="h-2.5 w-2.5 flex-shrink-0" />
-                                        <span className="font-medium truncate text-[10px]">
+                                        <span className="truncate font-medium">
                                           {shift.project?.project_name || "Unknown"}
                                         </span>
                                       </div>
                                       <div className="flex items-center gap-1">
-                                        <Badge variant="outline" className="h-4 text-[9px] px-1 font-semibold">
-                                          {shift.scheduled_hours}h
-                                        </Badge>
-                                        <div className="flex items-center gap-0.5 opacity-0 group-hover/shift:opacity-100 transition-opacity">
+                                        <span className="font-bold">{shift.scheduled_hours}h</span>
+                                        <div className="flex items-center gap-0.5 opacity-0 group-hover/worker:opacity-100 transition-opacity">
                                           <Button
                                             variant="ghost"
                                             size="icon"
-                                            className="h-5 w-5 hover:bg-background/80"
+                                            className="h-4 w-4 hover:bg-background/80"
                                             onClick={(e) => {
                                               e.stopPropagation();
                                               setSplitScheduleData({
@@ -324,7 +324,7 @@ export function MonthlyScheduleView({ onDayClick, refreshTrigger }: MonthlySched
                                             }}
                                             title="Split into multiple projects"
                                           >
-                                            <Split className="h-3 w-3" />
+                                            <Split className="h-2.5 w-2.5" />
                                           </Button>
                                           <ScheduleEditButton 
                                             onClick={() => {
@@ -338,44 +338,58 @@ export function MonthlyScheduleView({ onDayClick, refreshTrigger }: MonthlySched
                                         </div>
                                       </div>
                                     </div>
+                                  ))}
+                                </div>
+
+                                {/* Worker Trade Badge */}
+                                {group.worker?.trade && (
+                                  <div className="mt-1.5 pt-1 border-t border-border/30">
+                                    <span className="text-[9px] text-muted-foreground font-medium">
+                                      {group.worker.trade}
+                                    </span>
                                   </div>
-                                </TooltipTrigger>
-                                <TooltipContent side="top" className="max-w-xs">
-                                  <div className="space-y-1">
-                                    <div className="font-semibold">{shift.project?.project_name}</div>
-                                    <div className="text-xs text-muted-foreground">
-                                      Client: {shift.project?.client_name}
+                                )}
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-xs">
+                              <div className="space-y-1.5">
+                                <div className="font-semibold">{group.worker?.name}</div>
+                                <div className="text-xs text-muted-foreground">
+                                  Trade: {group.worker?.trade}
+                                </div>
+                                <div className="text-xs font-medium">
+                                  Total: {totalWorkerHours}h across {group.shifts.length} project{group.shifts.length > 1 ? 's' : ''}
+                                </div>
+                                <div className="space-y-0.5 pt-1 border-t">
+                                  {group.shifts.map((shift) => (
+                                    <div key={shift.id} className="text-xs">
+                                      • {shift.project?.project_name}: {shift.scheduled_hours}h
+                                      {shift.notes && ` - ${shift.notes}`}
                                     </div>
-                                    <div className="text-xs">
-                                      Worker: {group.worker?.name} ({group.worker?.trade})
-                                    </div>
-                                    <div className="text-xs">Hours: {shift.scheduled_hours}</div>
-                                    {shift.notes && (
-                                      <div className="text-xs text-muted-foreground">
-                                        Notes: {shift.notes}
-                                      </div>
-                                    )}
-                                  </div>
-                                </TooltipContent>
-                              </Tooltip>
-                            ))}
-                          </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </TooltipContent>
+                          </Tooltip>
                         );
                       })}
-                      {Object.values(workerGroups).length > 3 && (
+                      {Object.values(workerGroups).length > 4 && (
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <div className="text-xs text-muted-foreground bg-muted/30 rounded p-1 text-center cursor-help">
-                              +{Object.values(workerGroups).length - 3} more workers
+                            <div className="text-xs text-muted-foreground bg-muted/30 rounded p-1.5 text-center cursor-help hover:bg-muted/50 transition-colors">
+                              +{Object.values(workerGroups).length - 4} more workers
                             </div>
                           </TooltipTrigger>
                           <TooltipContent>
                             <div className="space-y-1">
-                              {Object.values(workerGroups).slice(3).map((group) => (
-                                <div key={group.shifts[0].id} className="text-xs">
-                                  {group.worker?.name}
-                                </div>
-                              ))}
+                              {Object.values(workerGroups).slice(4).map((group) => {
+                                const totalHours = group.shifts.reduce((sum, s) => sum + Number(s.scheduled_hours), 0);
+                                return (
+                                  <div key={group.shifts[0].worker_id} className="text-xs">
+                                    {group.worker?.name} - {totalHours}h
+                                  </div>
+                                );
+                              })}
                             </div>
                           </TooltipContent>
                         </Tooltip>
