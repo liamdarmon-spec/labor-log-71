@@ -27,6 +27,7 @@ export function WeeklyScheduleView({ onScheduleClick, refreshTrigger, scheduleTy
     startDate: currentWeekStart,
     endDate: weekEnd,
     projectId,
+    refreshTrigger, // Add refresh trigger
   });
 
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(currentWeekStart, i));
