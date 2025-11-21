@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Plus, UserCog, Split } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Split, User, Briefcase, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { format, addDays } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
@@ -36,8 +36,6 @@ export function DailyScheduleView({ onScheduleClick, refreshTrigger }: DailySche
   const [schedules, setSchedules] = useState<ScheduledShift[]>([]);
   const [loading, setLoading] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState<ScheduledShift | null>(null);
-  const [workerDialogOpen, setWorkerDialogOpen] = useState(false);
-  const [selectedWorker, setSelectedWorker] = useState<{ id: string; name: string } | null>(null);
   const [splitScheduleData, setSplitScheduleData] = useState<{
     scheduleId: string;
     workerName: string;
@@ -134,6 +132,20 @@ export function DailyScheduleView({ onScheduleClick, refreshTrigger }: DailySche
     return acc;
   }, {} as Record<string, { worker: ScheduledShift['worker'], shifts: ScheduledShift[] }>);
 
+  // Generate a consistent color for each project
+  const getProjectColor = (projectId: string) => {
+    const colors = [
+      "bg-blue-100 text-blue-700 border-blue-200",
+      "bg-green-100 text-green-700 border-green-200",
+      "bg-purple-100 text-purple-700 border-purple-200",
+      "bg-orange-100 text-orange-700 border-orange-200",
+      "bg-pink-100 text-pink-700 border-pink-200",
+      "bg-cyan-100 text-cyan-700 border-cyan-200",
+    ];
+    const hash = projectId.split('').reduce((acc, char) => char.charCodeAt(0) + acc, 0);
+    return colors[hash % colors.length];
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -202,77 +214,78 @@ export function DailyScheduleView({ onScheduleClick, refreshTrigger }: DailySche
           </div>
         ) : (
           <div className="space-y-4">
-            {Object.entries(schedulesByWorker).map(([workerId, { worker, shifts }]) => (
-              <Card key={workerId} className="overflow-hidden">
-                <div className="p-4 bg-muted/50 border-b flex items-center justify-between">
-                  <div className="flex-1">
-                    <h4 className="font-semibold">{worker?.name || "Unknown Worker"}</h4>
-                    <p className="text-sm text-muted-foreground">{worker?.trade || "No trade"}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline">
-                      {shifts.reduce((sum, s) => sum + Number(s.scheduled_hours), 0)}h total
-                    </Badge>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setSelectedWorker({ id: workerId, name: worker?.name || "Unknown" });
-                        setWorkerDialogOpen(true);
-                      }}
-                      className="gap-1"
-                    >
-                      <UserCog className="h-4 w-4" />
-                      Manage
-                    </Button>
-                  </div>
-                </div>
-                <div className="p-4 space-y-2">
-                  {shifts.map((schedule) => (
-                    <div
-                      key={schedule.id}
-                      className="flex items-center justify-between p-3 bg-muted/50 rounded-md group hover:bg-muted transition-colors"
-                    >
-                      <div className="flex-1">
-                        <p className="font-medium">{schedule.project?.project_name || "Unknown"}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {schedule.project?.client_name} • {schedule.scheduled_hours}h
-                        </p>
-                        {schedule.notes && (
-                          <p className="text-sm text-muted-foreground mt-1">
-                            Note: {schedule.notes}
-                          </p>
-                        )}
+            {Object.entries(schedulesByWorker).map(([workerId, { worker, shifts }]) => {
+              const totalWorkerHours = shifts.reduce((sum, s) => sum + Number(s.scheduled_hours), 0);
+              
+              return (
+                <Card key={workerId} className="p-4 bg-gradient-to-br from-card to-muted/30 border border-border/50 hover:border-border transition-all shadow-sm hover:shadow group/worker">
+                  {/* Worker Header with Summary */}
+                  <div className="space-y-2 mb-3">
+                    <div className="flex items-center gap-2">
+                      <User className="h-4 w-4 text-primary flex-shrink-0" />
+                      <span className="font-semibold text-base text-foreground">
+                        {worker?.name || "Unknown"}
+                      </span>
+                    </div>
+                    
+                    {/* Summary Section */}
+                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <Briefcase className="h-3.5 w-3.5" />
+                        <span>{shifts.length}</span>
                       </div>
                       <div className="flex items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setSplitScheduleData({
-                              scheduleId: schedule.id,
-                              workerName: worker?.name || "Unknown",
-                              date: schedule.scheduled_date,
-                              hours: schedule.scheduled_hours,
-                              projectId: schedule.project_id
-                            });
-                          }}
-                          className="h-8 px-2"
-                          title="Split into multiple projects"
-                        >
-                          <Split className="h-4 w-4" />
-                        </Button>
-                        <ScheduleEditButton onClick={() => setEditingSchedule(schedule)} />
-                        <ScheduleDeleteButton 
-                          onConfirm={() => handleDeleteSchedule(schedule.id)}
-                          hasTimeLog={schedule.converted_to_timelog || false}
-                        />
+                        <Clock className="h-3.5 w-3.5" />
+                        <span>{totalWorkerHours}h</span>
                       </div>
                     </div>
-                  ))}
-                </div>
-              </Card>
-            ))}
+                  </div>
+
+                  {/* Projects List */}
+                  <div className="space-y-2">
+                    {shifts.map((shift) => (
+                      <div
+                        key={shift.id}
+                        className={`flex items-center justify-between gap-2 p-2 rounded text-sm ${
+                          getProjectColor(shift.project_id)
+                        }`}
+                      >
+                        <span className="font-medium flex-1">
+                          {shift.project?.project_name || "Unknown"}
+                        </span>
+                        
+                        {/* Action buttons */}
+                        <div className="flex items-center gap-1 opacity-0 group-hover/worker:opacity-100 transition-opacity">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 hover:bg-background/80"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSplitScheduleData({
+                                scheduleId: shift.id,
+                                workerName: worker?.name || "Unknown",
+                                date: shift.scheduled_date,
+                                hours: shift.scheduled_hours,
+                                projectId: shift.project_id
+                              });
+                            }}
+                            title="Split into multiple projects"
+                          >
+                            <Split className="h-3.5 w-3.5" />
+                          </Button>
+                          <ScheduleEditButton onClick={() => setEditingSchedule(shift)} />
+                          <ScheduleDeleteButton 
+                            onConfirm={() => handleDeleteSchedule(shift.id)}
+                            hasTimeLog={shift.converted_to_timelog || false}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              );
+            })}
           </div>
         )}
       </Card>
