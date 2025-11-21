@@ -1,5 +1,9 @@
 import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { isPast, isFuture, parseISO } from "date-fns";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -13,13 +17,199 @@ import {
 } from "@/components/ui/alert-dialog";
 
 interface ScheduleDeleteButtonProps {
-  onConfirm: () => void;
-  hasTimeLog?: boolean;
+  scheduleId: string;
+  scheduleDate: string;
+  onSuccess: () => void;
 }
 
-export function ScheduleDeleteButton({ onConfirm, hasTimeLog }: ScheduleDeleteButtonProps) {
+export function ScheduleDeleteButton({ scheduleId, scheduleDate, onSuccess }: ScheduleDeleteButtonProps) {
+  const { toast } = useToast();
+  const [open, setOpen] = useState(false);
+  const [hasTimeLog, setHasTimeLog] = useState(false);
+  const [timeLogIds, setTimeLogIds] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      checkForTimeLog();
+    }
+  }, [open, scheduleId]);
+
+  const checkForTimeLog = async () => {
+    const { data, error } = await supabase
+      .from("daily_logs")
+      .select("id")
+      .eq("schedule_id", scheduleId);
+
+    if (error) {
+      console.error("Error checking for time log:", error);
+      return;
+    }
+
+    setHasTimeLog((data?.length || 0) > 0);
+    setTimeLogIds(data?.map(log => log.id) || []);
+  };
+
+  const schedDate = parseISO(scheduleDate);
+  const isFutureSchedule = isFuture(schedDate) && !hasTimeLog;
+  const needsConfirmation = !isFutureSchedule;
+
+  const handleSimpleDelete = async () => {
+    setLoading(true);
+    const { error } = await supabase
+      .from("scheduled_shifts")
+      .delete()
+      .eq("id", scheduleId);
+
+    setLoading(false);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete schedule",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    toast({
+      title: "Success",
+      description: "Schedule deleted successfully"
+    });
+    setOpen(false);
+    onSuccess();
+  };
+
+  const handleKeepTimeLog = async () => {
+    setLoading(true);
+
+    // Set schedule_id to NULL on all related time logs
+    if (timeLogIds.length > 0) {
+      const { error: updateError } = await supabase
+        .from("daily_logs")
+        .update({ schedule_id: null })
+        .in("id", timeLogIds);
+
+      if (updateError) {
+        toast({
+          title: "Error",
+          description: "Failed to update time logs",
+          variant: "destructive"
+        });
+        setLoading(false);
+        return;
+      }
+    }
+
+    // Delete the schedule
+    const { error: deleteError } = await supabase
+      .from("scheduled_shifts")
+      .delete()
+      .eq("id", scheduleId);
+
+    setLoading(false);
+
+    if (deleteError) {
+      toast({
+        title: "Error",
+        description: "Failed to delete schedule",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    toast({
+      title: "Success",
+      description: "Schedule deleted. Time logs preserved."
+    });
+    setOpen(false);
+    onSuccess();
+  };
+
+  const handleDeleteBoth = async () => {
+    setLoading(true);
+
+    // Delete time logs first
+    if (timeLogIds.length > 0) {
+      const { error: logError } = await supabase
+        .from("daily_logs")
+        .delete()
+        .in("id", timeLogIds);
+
+      if (logError) {
+        toast({
+          title: "Error",
+          description: "Failed to delete time logs",
+          variant: "destructive"
+        });
+        setLoading(false);
+        return;
+      }
+    }
+
+    // Delete the schedule
+    const { error: scheduleError } = await supabase
+      .from("scheduled_shifts")
+      .delete()
+      .eq("id", scheduleId);
+
+    setLoading(false);
+
+    if (scheduleError) {
+      toast({
+        title: "Error",
+        description: "Failed to delete schedule",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    toast({
+      title: "Success",
+      description: "Schedule and time logs deleted"
+    });
+    setOpen(false);
+    onSuccess();
+  };
+
+  if (!needsConfirmation) {
+    // Simple delete for future schedules without time logs
+    return (
+      <AlertDialog open={open} onOpenChange={setOpen}>
+        <AlertDialogTrigger asChild>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 px-2 hover:bg-destructive hover:text-destructive-foreground"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </AlertDialogTrigger>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Schedule</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete this schedule. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleSimpleDelete} 
+              disabled={loading}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              {loading ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    );
+  }
+
+  // Advanced delete dialog for past schedules or schedules with time logs
   return (
-    <AlertDialog>
+    <AlertDialog open={open} onOpenChange={setOpen}>
       <AlertDialogTrigger asChild>
         <Button
           variant="ghost"
@@ -31,18 +221,37 @@ export function ScheduleDeleteButton({ onConfirm, hasTimeLog }: ScheduleDeleteBu
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Delete Schedule</AlertDialogTitle>
+          <AlertDialogTitle>This schedule already has a time log</AlertDialogTitle>
           <AlertDialogDescription>
-            {hasTimeLog
-              ? "This schedule has a linked time log. Both the schedule and time log will be deleted. This action cannot be undone."
-              : "This will permanently delete this schedule. This action cannot be undone."}
+            Deleting it may affect payroll or reporting. What do you want to do?
           </AlertDialogDescription>
         </AlertDialogHeader>
+        <div className="space-y-3 py-4">
+          <Button
+            variant="outline"
+            className="w-full justify-start text-left"
+            onClick={handleKeepTimeLog}
+            disabled={loading}
+          >
+            <div className="flex flex-col items-start">
+              <span className="font-semibold">Keep the time log and remove this schedule</span>
+              <span className="text-xs text-muted-foreground">Recommended - Preserves payroll data</span>
+            </div>
+          </Button>
+          <Button
+            variant="outline"
+            className="w-full justify-start text-left border-destructive/50 hover:bg-destructive/10"
+            onClick={handleDeleteBoth}
+            disabled={loading}
+          >
+            <div className="flex flex-col items-start">
+              <span className="font-semibold">Delete both schedule and time log</span>
+              <span className="text-xs text-muted-foreground">Warning - This will affect payroll records</span>
+            </div>
+          </Button>
+        </div>
         <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction onClick={onConfirm} className="bg-destructive hover:bg-destructive/90">
-            Delete
-          </AlertDialogAction>
+          <AlertDialogCancel disabled={loading}>Cancel</AlertDialogCancel>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

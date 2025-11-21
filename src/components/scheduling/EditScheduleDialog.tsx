@@ -8,7 +8,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { DatePickerWithPresets } from "@/components/ui/date-picker-with-presets";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { format } from "date-fns";
+import { format, isFuture, parseISO } from "date-fns";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle, ExternalLink } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 interface ScheduledShift {
   id: string;
@@ -47,10 +50,14 @@ interface EditScheduleDialogProps {
 
 export function EditScheduleDialog({ open, onOpenChange, schedule, onSuccess }: EditScheduleDialogProps) {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [trades, setTrades] = useState<Trade[]>([]);
   const [loading, setLoading] = useState(false);
+  const [hasTimeLog, setHasTimeLog] = useState(false);
+  const [timeLogId, setTimeLogId] = useState<string | null>(null);
+  const [isLocked, setIsLocked] = useState(false);
 
   const [formData, setFormData] = useState({
     worker_id: "",
@@ -77,8 +84,33 @@ export function EditScheduleDialog({ open, onOpenChange, schedule, onSuccess }: 
         scheduled_hours: schedule.scheduled_hours.toString(),
         notes: schedule.notes || ""
       });
+      checkForTimeLog(schedule.id, schedule.scheduled_date);
     }
   }, [schedule]);
+
+  const checkForTimeLog = async (scheduleId: string, scheduleDate: string) => {
+    const schedDate = parseISO(scheduleDate);
+    const isFutureDate = isFuture(schedDate);
+
+    // Check if there's a related time log
+    const { data, error } = await supabase
+      .from("daily_logs")
+      .select("id")
+      .eq("schedule_id", scheduleId)
+      .maybeSingle();
+
+    if (error) {
+      console.error("Error checking for time log:", error);
+      return;
+    }
+
+    const logExists = !!data;
+    setHasTimeLog(logExists);
+    setTimeLogId(data?.id || null);
+
+    // Lock editing if there's a time log and the date is today or in the past
+    setIsLocked(logExists && !isFutureDate);
+  };
 
   const fetchData = async () => {
     const [workersRes, projectsRes, tradesRes] = await Promise.all([
@@ -90,6 +122,11 @@ export function EditScheduleDialog({ open, onOpenChange, schedule, onSuccess }: 
     if (workersRes.data) setWorkers(workersRes.data);
     if (projectsRes.data) setProjects(projectsRes.data);
     if (tradesRes.data) setTrades(tradesRes.data);
+  };
+
+  const handleEditTimeLog = () => {
+    onOpenChange(false);
+    navigate("/daily-log");
   };
 
   const handleSubmit = async () => {
@@ -144,12 +181,34 @@ export function EditScheduleDialog({ open, onOpenChange, schedule, onSuccess }: 
         <DialogHeader>
           <DialogTitle>Edit Schedule Entry</DialogTitle>
         </DialogHeader>
+        
+        {isLocked && (
+          <Alert variant="destructive" className="mt-2">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription className="flex flex-col gap-2">
+              <div>
+                A time log has already been created for this schedule. Hours and project changes should be made on the time log, not the schedule.
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleEditTimeLog}
+                className="w-fit gap-2"
+              >
+                <ExternalLink className="h-3 w-3" />
+                Edit time log instead
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
+
         <div className="space-y-4 py-4">
           <div className="space-y-2">
             <Label htmlFor="date">Date</Label>
             <DatePickerWithPresets
               date={formData.scheduled_date}
               onDateChange={(date) => setFormData({ ...formData, scheduled_date: date })}
+              disabled={isLocked}
             />
           </div>
 
@@ -158,6 +217,7 @@ export function EditScheduleDialog({ open, onOpenChange, schedule, onSuccess }: 
             <Select
               value={formData.worker_id}
               onValueChange={(value) => setFormData({ ...formData, worker_id: value })}
+              disabled={isLocked}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select worker" />
@@ -177,6 +237,7 @@ export function EditScheduleDialog({ open, onOpenChange, schedule, onSuccess }: 
             <Select
               value={formData.project_id}
               onValueChange={(value) => setFormData({ ...formData, project_id: value })}
+              disabled={isLocked}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select project" />
@@ -196,6 +257,7 @@ export function EditScheduleDialog({ open, onOpenChange, schedule, onSuccess }: 
             <Select
               value={formData.trade_id}
               onValueChange={(value) => setFormData({ ...formData, trade_id: value })}
+              disabled={isLocked}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select trade (optional)" />
@@ -220,6 +282,7 @@ export function EditScheduleDialog({ open, onOpenChange, schedule, onSuccess }: 
               value={formData.scheduled_hours}
               onChange={(e) => setFormData({ ...formData, scheduled_hours: e.target.value })}
               placeholder="8"
+              disabled={isLocked}
             />
           </div>
 
@@ -238,7 +301,7 @@ export function EditScheduleDialog({ open, onOpenChange, schedule, onSuccess }: 
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={loading}>
+          <Button onClick={handleSubmit} disabled={loading || isLocked}>
             {loading ? "Updating..." : "Update Schedule"}
           </Button>
         </DialogFooter>
