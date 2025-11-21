@@ -153,7 +153,9 @@ export const ProjectTasks = ({ projectId, onUpdate }: { projectId: string; onUpd
         return <Users className="w-3 h-3" />;
       case 'inspection':
         return <CheckSquare className="w-3 h-3" />;
-      case 'delivery':
+      case 'milestone':
+        return <AlertTriangle className="w-3 h-3" />;
+      case 'punchlist':
         return <Package className="w-3 h-3" />;
       default:
         return <CheckSquare className="w-3 h-3" />;
@@ -326,7 +328,8 @@ export const ProjectTasks = ({ projectId, onUpdate }: { projectId: string; onUpd
               <SelectItem value="todo">To-Do</SelectItem>
               <SelectItem value="meeting">Meeting</SelectItem>
               <SelectItem value="inspection">Inspection</SelectItem>
-              <SelectItem value="delivery">Delivery</SelectItem>
+              <SelectItem value="milestone">Milestone</SelectItem>
+              <SelectItem value="punchlist">Punchlist</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -374,7 +377,8 @@ export const ProjectTasks = ({ projectId, onUpdate }: { projectId: string; onUpd
                       <SelectItem value="todo">To-Do</SelectItem>
                       <SelectItem value="meeting">Meeting</SelectItem>
                       <SelectItem value="inspection">Inspection</SelectItem>
-                      <SelectItem value="delivery">Delivery</SelectItem>
+                      <SelectItem value="milestone">Milestone</SelectItem>
+                      <SelectItem value="punchlist">Punchlist</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -440,6 +444,9 @@ export const ProjectTasks = ({ projectId, onUpdate }: { projectId: string; onUpd
           <div className="text-center space-y-4">
             <p className="text-muted-foreground">
               No tasks yet. Start by adding today's priorities or upcoming inspections.
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Tasks due this week will appear here and on the Calendar view.
             </p>
             <div className="flex justify-center gap-2">
               <Button variant="outline" onClick={() => quickAddTask('todo')}>

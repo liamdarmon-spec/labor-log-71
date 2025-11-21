@@ -145,9 +145,11 @@ export const ProjectScheduleTab = ({ projectId }: { projectId: string }) => {
           <ProjectScheduleCalendar projectId={projectId} />
         ) : schedules.length === 0 ? (
           <Card className="p-12">
-            <p className="text-center text-muted-foreground">
-              No scheduled shifts for this project this month
-            </p>
+            <div className="text-center text-muted-foreground space-y-2">
+              <Calendar className="w-12 h-12 mx-auto opacity-50 mb-4" />
+              <p>No labor scheduled this month.</p>
+              <p className="text-sm">Click a day in the calendar to add worker shifts, subs, or meetings.</p>
+            </div>
           </Card>
         ) : (
           <div className="space-y-3">
