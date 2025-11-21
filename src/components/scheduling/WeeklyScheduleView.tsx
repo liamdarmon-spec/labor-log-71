@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Plus, User, Briefcase, Clock } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, User, Briefcase, Clock, Calendar as CalendarIcon, Loader2 } from "lucide-react";
 import { startOfWeek, endOfWeek, addWeeks, format, addDays, isSameDay } from "date-fns";
 import { UniversalDayDetailDialog } from "./UniversalDayDetailDialog";
 import { useSchedulerData } from "@/lib/scheduler/useSchedulerData";
@@ -12,9 +12,10 @@ interface WeeklyScheduleViewProps {
   onScheduleClick: (date: Date) => void;
   refreshTrigger: number;
   scheduleType: "workers" | "subs" | "meetings" | "all";
+  projectId?: string;
 }
 
-export function WeeklyScheduleView({ onScheduleClick, refreshTrigger, scheduleType }: WeeklyScheduleViewProps) {
+export function WeeklyScheduleView({ onScheduleClick, refreshTrigger, scheduleType, projectId }: WeeklyScheduleViewProps) {
   const [currentWeekStart, setCurrentWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 0 }));
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
@@ -25,6 +26,7 @@ export function WeeklyScheduleView({ onScheduleClick, refreshTrigger, scheduleTy
     filter: scheduleType as SchedulerFilterMode,
     startDate: currentWeekStart,
     endDate: weekEnd,
+    projectId,
   });
 
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(currentWeekStart, i));
@@ -72,18 +74,58 @@ export function WeeklyScheduleView({ onScheduleClick, refreshTrigger, scheduleTy
           const totalMeetings = daySummary?.totalMeetings || 0;
           const totalHours = daySummary?.totalHours || 0;
 
+          // Compute total items based on filter
+          let totalItems = 0;
+          let summaryText = "";
+
+          if (scheduleType === "workers") {
+            totalItems = totalWorkers;
+            summaryText = totalWorkers === 0 
+              ? "0 scheduled" 
+              : totalWorkers === 1 
+                ? `1 worker · ${totalHours}h`
+                : `${totalWorkers} workers · ${totalHours}h`;
+          } else if (scheduleType === "subs") {
+            totalItems = totalSubs;
+            summaryText = totalSubs === 0 
+              ? "0 scheduled" 
+              : totalSubs === 1 
+                ? `1 sub · ${totalHours}h`
+                : `${totalSubs} subs · ${totalHours}h`;
+          } else if (scheduleType === "meetings") {
+            totalItems = totalMeetings;
+            summaryText = totalMeetings === 0 
+              ? "0 scheduled" 
+              : totalMeetings === 1 
+                ? "1 meeting"
+                : `${totalMeetings} meetings`;
+          } else {
+            // "all" mode
+            totalItems = totalWorkers + totalSubs + totalMeetings;
+            if (totalItems === 0) {
+              summaryText = "0 scheduled";
+            } else {
+              const parts = [];
+              if (totalWorkers > 0) parts.push(`${totalWorkers}w`);
+              if (totalSubs > 0) parts.push(`${totalSubs}s`);
+              if (totalMeetings > 0) parts.push(`${totalMeetings}m`);
+              summaryText = parts.join(" · ");
+              if (totalHours > 0) summaryText += ` · ${totalHours}h`;
+            }
+          }
+
           return (
             <Card
               key={day.toISOString()}
               className={`p-3 min-h-[200px] cursor-pointer hover:shadow-md transition-all ${
                 isToday ? "ring-2 ring-primary shadow-lg" : ""
-              }`}
+              } ${totalItems === 0 ? "bg-muted/20" : ""}`}
               onClick={() => setSelectedDate(day)}
             >
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium">{format(day, "EEE")}</p>
+                    <p className="text-sm font-medium text-muted-foreground">{format(day, "EEE")}</p>
                     <p className={`text-lg font-bold ${isToday ? "text-primary" : ""}`}>
                       {format(day, "d")}
                     </p>
@@ -91,7 +133,7 @@ export function WeeklyScheduleView({ onScheduleClick, refreshTrigger, scheduleTy
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8"
+                    className="h-8 w-8 hover:bg-primary/10"
                     onClick={(e) => {
                       e.stopPropagation();
                       onScheduleClick(day);
@@ -101,54 +143,48 @@ export function WeeklyScheduleView({ onScheduleClick, refreshTrigger, scheduleTy
                   </Button>
                 </div>
 
-                {/* Summary */}
-                {totalHours > 0 && (
+                {/* Loading or Summary */}
+                {loading ? (
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    {totalWorkers > 0 && (
-                      <div className="flex items-center gap-1">
-                        <User className="h-3 w-3" />
-                        <span>{totalWorkers}</span>
-                      </div>
-                    )}
-                    {totalSubs > 0 && (
-                      <div className="flex items-center gap-1">
-                        <Briefcase className="h-3 w-3" />
-                        <span>{totalSubs}S</span>
-                      </div>
-                    )}
-                    <div className="flex items-center gap-1">
-                      <Clock className="h-3 w-3" />
-                      <span>{totalHours}h</span>
-                    </div>
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    <span>Loading...</span>
+                  </div>
+                ) : (
+                  <div className="text-xs text-muted-foreground font-medium">
+                    {summaryText}
                   </div>
                 )}
 
-                {/* Assignment Preview Pills */}
-                <div className="space-y-1">
-                  {assignments.slice(0, 3).map((assignment) => (
-                    <Badge
-                      key={assignment.id}
-                      variant="secondary"
-                      className="w-full justify-start text-xs truncate"
-                    >
-                      {assignment.type === 'worker' && <User className="h-2.5 w-2.5 mr-1" />}
-                      {assignment.type === 'sub' && <Briefcase className="h-2.5 w-2.5 mr-1" />}
-                      {assignment.label}
-                    </Badge>
-                  ))}
-                  {assignments.length > 3 && (
-                    <p className="text-[10px] text-muted-foreground text-center">
-                      +{assignments.length - 3} more
-                    </p>
-                  )}
-                </div>
+                {/* Assignment Preview Pills (max 2) */}
+                {!loading && assignments.length > 0 && (
+                  <div className="space-y-1 mt-2">
+                    {assignments.slice(0, 2).map((assignment) => (
+                      <Badge
+                        key={assignment.id}
+                        variant="secondary"
+                        className="w-full justify-start text-[10px] truncate py-1"
+                      >
+                        {assignment.type === 'worker' && '👷'}
+                        {assignment.type === 'sub' && '🔧'}
+                        {assignment.type === 'meeting' && '📅'}
+                        <span className="ml-1 truncate">
+                          {assignment.label}
+                          {assignment.totalHours && ` · ${assignment.totalHours}h`}
+                        </span>
+                      </Badge>
+                    ))}
+                    {assignments.length > 2 && (
+                      <p className="text-[10px] text-muted-foreground text-center pt-1">
+                        +{assignments.length - 2} more
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
             </Card>
           );
         })}
       </div>
-
-      {loading && <p className="text-center text-muted-foreground">Loading schedules...</p>}
 
       <UniversalDayDetailDialog
         open={!!selectedDate}
@@ -160,6 +196,7 @@ export function WeeklyScheduleView({ onScheduleClick, refreshTrigger, scheduleTy
             onScheduleClick(selectedDate);
           }
         }}
+        projectContext={projectId}
       />
     </div>
   );
