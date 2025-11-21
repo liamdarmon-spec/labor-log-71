@@ -46,7 +46,7 @@ export function useBudgetLinesWithActuals(projectId: string) {
   return useQuery({
     queryKey: ['budget_lines_actuals', projectId],
     queryFn: async () => {
-      // Get budget lines
+      // Get ALL budget lines (not just labor)
       const { data: budgetLines, error: budgetError } = await supabase
         .from('project_budget_lines')
         .select(`
@@ -54,11 +54,12 @@ export function useBudgetLinesWithActuals(projectId: string) {
           cost_codes (code, name)
         `)
         .eq('project_id', projectId)
-        .eq('category', 'labor');
+        .order('category')
+        .order('cost_code_id');
       
       if (budgetError) throw budgetError;
 
-      // Get actuals from labor_actuals_by_cost_code view
+      // Get actuals from labor_actuals_by_cost_code view (only labor has actuals tracked for now)
       const { data: actuals, error: actualsError } = await supabase
         .from('labor_actuals_by_cost_code')
         .select('*')
@@ -73,8 +74,9 @@ export function useBudgetLinesWithActuals(projectId: string) {
 
       return (budgetLines || []).map(line => ({
         ...line,
-        actual_hours: actualsMap.get(line.cost_code_id)?.hours || 0,
-        actual_cost: actualsMap.get(line.cost_code_id)?.cost || 0,
+        // Only labor category has actuals tracked; others show 0
+        actual_hours: line.category === 'labor' ? (actualsMap.get(line.cost_code_id)?.hours || 0) : 0,
+        actual_cost: line.category === 'labor' ? (actualsMap.get(line.cost_code_id)?.cost || 0) : 0,
       })) as BudgetLineWithActuals[];
     },
   });
