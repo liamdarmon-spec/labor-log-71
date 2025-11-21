@@ -9,11 +9,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { DollarSign, Plus, Edit2, Trash2, Calendar, Eye } from 'lucide-react';
+import { DollarSign, Plus, Edit2, Trash2, Calendar, Eye, Check } from 'lucide-react';
 import { format } from 'date-fns';
 import { PayrollRunView } from '@/components/payments/PayrollRunView';
+import { GlobalUnpaidLaborView } from '@/components/payments/GlobalUnpaidLaborView';
 
 interface Payment {
   id: string;
@@ -575,114 +577,238 @@ const Payments = () => {
           </CardContent>
         </Card>
 
-        <Card className="shadow-medium">
-          <CardHeader className="border-b border-border">
-            <CardTitle className="flex items-center gap-2">
-              <DollarSign className="w-5 h-5 text-primary" />
-              Payment Records
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-6">
-            <div className="border rounded-lg overflow-hidden">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/50">
-                    <TableHead className="font-semibold">Date Range</TableHead>
-                    <TableHead className="font-semibold">Paid By</TableHead>
-                    <TableHead className="font-semibold">Payment Date</TableHead>
-                    <TableHead className="font-semibold">Company</TableHead>
-                    <TableHead className="font-semibold">Paid Via</TableHead>
-                    <TableHead className="font-semibold">Status</TableHead>
-                    <TableHead className="font-semibold text-right">Amount</TableHead>
-                    <TableHead className="font-semibold">Notes</TableHead>
-                    <TableHead className="font-semibold text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {payments.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
-                        No payments found
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    filteredPayments.map((payment) => (
-                      <TableRow key={payment.id} className="hover:bg-muted/30 transition-colors">
-                        <TableCell className="font-medium">
-                          <div className="flex items-center gap-2">
-                            <Calendar className="w-4 h-4 text-muted-foreground" />
-                            {new Date(payment.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {new Date(payment.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                          </div>
-                        </TableCell>
-                        <TableCell>{payment.paid_by}</TableCell>
-                        <TableCell>
-                          {new Date(payment.payment_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                        </TableCell>
-                        <TableCell>{companies.find(c => c.id === payment.company_id)?.name || '-'}</TableCell>
-                        <TableCell>{payment.paid_via || '-'}</TableCell>
-                        <TableCell>
-                          {(payment.paid_via === 'Reimbursement Needed' && payment.reimbursement_status !== 'reimbursed') ? (
-                            <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-700">
-                              Pending
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300 dark:bg-green-950 dark:text-green-300 dark:border-green-700">
-                              Complete
-                            </Badge>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right font-semibold text-primary">
-                          ${parseFloat(payment.amount.toString()).toFixed(2)}
-                        </TableCell>
-                        <TableCell className="max-w-xs truncate text-muted-foreground">
-                          {payment.notes || '-'}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex gap-2 justify-end">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setSelectedPaymentId(payment.id)}
-                            >
-                              <Eye className="w-4 h-4 mr-1" />
-                              View Payroll
-                            </Button>
-                            {(payment.paid_via === 'Reimbursement Needed' && payment.reimbursement_status !== 'reimbursed') && (
-                              <Button
-                                variant="default"
-                                size="sm"
-                                onClick={() => handleMarkAsReimbursed(payment.id)}
-                                className="bg-green-600 hover:bg-green-700 text-white"
-                              >
-                                Mark Complete
-                              </Button>
-                            )}
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleEdit(payment)}
-                            >
-                              <Edit2 className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDelete(payment.id)}
-                              className="text-destructive hover:text-destructive"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Tabbed Interface for Different Views */}
+        <Tabs defaultValue="labor-runs" className="w-full">
+          <TabsList className="grid w-full max-w-2xl grid-cols-3 mb-6">
+            <TabsTrigger value="labor-runs">Labor Pay Runs</TabsTrigger>
+            <TabsTrigger value="all-payments">All Payments</TabsTrigger>
+            <TabsTrigger value="unpaid-labor">Unpaid Labor</TabsTrigger>
+          </TabsList>
 
+          {/* Labor Pay Runs Tab */}
+          <TabsContent value="labor-runs">
+            <Card className="shadow-medium">
+              <CardHeader className="border-b border-border">
+                <CardTitle className="flex items-center gap-2">
+                  <DollarSign className="w-5 h-5 text-primary" />
+                  Labor Pay Runs
+                </CardTitle>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Payment records for labor costs grouped by date range and company
+                </p>
+              </CardHeader>
+              <CardContent className="pt-6">
+                <div className="border rounded-lg overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted/50">
+                        <TableHead className="font-semibold">Date Range</TableHead>
+                        <TableHead className="font-semibold">Paid By</TableHead>
+                        <TableHead className="font-semibold">Company</TableHead>
+                        <TableHead className="font-semibold">Paid Via</TableHead>
+                        <TableHead className="font-semibold">Status</TableHead>
+                        <TableHead className="font-semibold text-right">Amount</TableHead>
+                        <TableHead className="font-semibold text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredPayments.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                            No payment records found
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        filteredPayments.map((payment) => (
+                          <TableRow key={payment.id} className="hover:bg-muted/30 transition-colors">
+                            <TableCell className="font-medium">
+                              <div className="flex items-center gap-2">
+                                <Calendar className="w-4 h-4 text-muted-foreground" />
+                                {new Date(payment.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {new Date(payment.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                              </div>
+                            </TableCell>
+                            <TableCell>{payment.paid_by}</TableCell>
+                            <TableCell>{companies.find(c => c.id === payment.company_id)?.name || '-'}</TableCell>
+                            <TableCell>{payment.paid_via || '-'}</TableCell>
+                            <TableCell>
+                              {payment.reimbursement_status === 'reimbursed' ? (
+                                <Badge className="bg-green-500/10 text-green-700 dark:text-green-300 border-green-200 dark:border-green-900">
+                                  <Check className="w-3 h-3 mr-1" />
+                                  Reimbursed
+                                </Badge>
+                              ) : payment.reimbursement_status === 'pending' || payment.paid_via === 'Reimbursement Needed' ? (
+                                <Badge variant="outline" className="bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300 border-amber-200 dark:border-amber-900">
+                                  Pending Reimbursement
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300 border-green-200 dark:border-green-700">
+                                  Complete
+                                </Badge>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right font-semibold text-primary">
+                              ${parseFloat(payment.amount.toString()).toFixed(2)}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex gap-2 justify-end">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setSelectedPaymentId(payment.id)}
+                                >
+                                  <Eye className="w-4 h-4 mr-1" />
+                                  View
+                                </Button>
+                                {payment.reimbursement_status === 'pending' && (
+                                  <Button
+                                    variant="default"
+                                    size="sm"
+                                    onClick={() => handleMarkAsReimbursed(payment.id)}
+                                    className="bg-green-600 hover:bg-green-700 text-white gap-1"
+                                  >
+                                    <Check className="w-3 h-3" />
+                                    Mark Reimbursed
+                                  </Button>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* All Payments Tab */}
+          <TabsContent value="all-payments">
+            <Card className="shadow-medium">
+              <CardHeader className="border-b border-border">
+                <CardTitle className="flex items-center gap-2">
+                  <DollarSign className="w-5 h-5 text-primary" />
+                  All Payment Records
+                </CardTitle>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Complete payment history with detailed information
+                </p>
+              </CardHeader>
+              <CardContent className="pt-6">
+                <div className="border rounded-lg overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted/50">
+                        <TableHead className="font-semibold">Date Range</TableHead>
+                        <TableHead className="font-semibold">Paid By</TableHead>
+                        <TableHead className="font-semibold">Payment Date</TableHead>
+                        <TableHead className="font-semibold">Company</TableHead>
+                        <TableHead className="font-semibold">Paid Via</TableHead>
+                        <TableHead className="font-semibold">Status</TableHead>
+                        <TableHead className="font-semibold text-right">Amount</TableHead>
+                        <TableHead className="font-semibold">Notes</TableHead>
+                        <TableHead className="font-semibold text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredPayments.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
+                            No payments found
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        filteredPayments.map((payment) => (
+                          <TableRow key={payment.id} className="hover:bg-muted/30 transition-colors">
+                            <TableCell className="font-medium">
+                              <div className="flex items-center gap-2">
+                                <Calendar className="w-4 h-4 text-muted-foreground" />
+                                {new Date(payment.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {new Date(payment.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                              </div>
+                            </TableCell>
+                            <TableCell>{payment.paid_by}</TableCell>
+                            <TableCell>
+                              {new Date(payment.payment_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                            </TableCell>
+                            <TableCell>{companies.find(c => c.id === payment.company_id)?.name || '-'}</TableCell>
+                            <TableCell>{payment.paid_via || '-'}</TableCell>
+                            <TableCell>
+                              {payment.reimbursement_status === 'reimbursed' ? (
+                                <Badge className="bg-green-500/10 text-green-700 dark:text-green-300 border-green-200 dark:border-green-900">
+                                  <Check className="w-3 h-3 mr-1" />
+                                  Reimbursed
+                                </Badge>
+                              ) : payment.reimbursement_status === 'pending' || payment.paid_via === 'Reimbursement Needed' ? (
+                                <Badge variant="outline" className="bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300 border-amber-200 dark:border-amber-900">
+                                  Pending Reimbursement
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300 border-green-200 dark:border-green-700">
+                                  Complete
+                                </Badge>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right font-semibold text-primary">
+                              ${parseFloat(payment.amount.toString()).toFixed(2)}
+                            </TableCell>
+                            <TableCell className="max-w-xs truncate text-muted-foreground">
+                              {payment.notes || '-'}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex gap-2 justify-end">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setSelectedPaymentId(payment.id)}
+                                >
+                                  <Eye className="w-4 h-4 mr-1" />
+                                  View
+                                </Button>
+                                {payment.reimbursement_status === 'pending' && (
+                                  <Button
+                                    variant="default"
+                                    size="sm"
+                                    onClick={() => handleMarkAsReimbursed(payment.id)}
+                                    className="bg-green-600 hover:bg-green-700 text-white gap-1"
+                                  >
+                                    <Check className="w-3 h-3" />
+                                    Mark Reimbursed
+                                  </Button>
+                                )}
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleEdit(payment)}
+                                >
+                                  <Edit2 className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDelete(payment.id)}
+                                  className="text-destructive hover:text-destructive"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Unpaid Labor Tab */}
+          <TabsContent value="unpaid-labor">
+            <GlobalUnpaidLaborView />
+          </TabsContent>
+        </Tabs>
+
+        {/* Payment Dialog */}
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
