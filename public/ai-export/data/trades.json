@@ -1,0 +1,62 @@
+[
+  {
+    "id": "23eefcd0-f03e-42ef-88f5-b4b42f4918ef",
+    "name": "Carpenter",
+    "description": "Framing, finish work, cabinetry",
+    "created_at": "2025-11-18T20:16:08.165291Z"
+  },
+  {
+    "id": "7392a8cc-0b81-4e86-8612-8aebe42dc56d",
+    "name": "Electrician",
+    "description": "Electrical installation and repair",
+    "created_at": "2025-11-18T20:16:08.165291Z"
+  },
+  {
+    "id": "77bca39e-531e-4982-ae8d-d504fcd92ae2",
+    "name": "Plumber",
+    "description": "Plumbing installation and repair",
+    "created_at": "2025-11-18T20:16:08.165291Z"
+  },
+  {
+    "id": "ec7bfa98-7779-40ab-b930-0741938a2d63",
+    "name": "HVAC Technician",
+    "description": "Heating, ventilation, and air conditioning",
+    "created_at": "2025-11-18T20:16:08.165291Z"
+  },
+  {
+    "id": "d226c348-3c4c-4d98-b767-a7d855dbb88b",
+    "name": "Mason",
+    "description": "Bricklaying, stonework, concrete",
+    "created_at": "2025-11-18T20:16:08.165291Z"
+  },
+  {
+    "id": "4dc9237e-3212-4c1b-b6f4-d060cc097f4d",
+    "name": "Painter",
+    "description": "Interior and exterior painting",
+    "created_at": "2025-11-18T20:16:08.165291Z"
+  },
+  {
+    "id": "bd928a6e-e8a1-4e68-b48f-6b9064b40073",
+    "name": "Roofer",
+    "description": "Roofing installation and repair",
+    "created_at": "2025-11-18T20:16:08.165291Z"
+  },
+  {
+    "id": "a6efb327-0e45-459b-88bb-5d3db1024d93",
+    "name": "Drywall Installer",
+    "description": "Drywall hanging and finishing",
+    "created_at": "2025-11-18T20:16:08.165291Z"
+  },
+  {
+    "id": "a7145ac8-8cd1-4837-918e-5607a76dcc2d",
+    "name": "Flooring Installer",
+    "description": "Hardwood, tile, carpet installation",
+    "created_at": "2025-11-18T20:16:08.165291Z"
+  },
+  {
+    "id": "6d02cb3e-fb65-4f31-b174-ecc69bfcc94c",
+    "name": "General Laborer",
+    "description": "General construction support",
+    "created_at": "2025-11-18T20:16:08.165291Z"
+  }
+]

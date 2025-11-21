@@ -1,0 +1,35 @@
+[
+  {
+    "id": "0aac9ad8-c010-4fd9-aac7-68b7980c540a",
+    "name": "Emmanuel",
+    "trade": "Mason",
+    "trade_id": "d226c348-3c4c-4d98-b767-a7d855dbb88b",
+    "hourly_rate": 25.00,
+    "phone": null,
+    "active": true,
+    "created_at": "2025-11-18T20:54:22.033194Z",
+    "updated_at": "2025-11-18T20:54:22.033194Z"
+  },
+  {
+    "id": "485513d3-554a-49ea-a793-1097fa3b5176",
+    "name": "Wilver",
+    "trade": "Painter",
+    "trade_id": "4dc9237e-3212-4c1b-b6f4-d060cc097f4d",
+    "hourly_rate": 25.00,
+    "phone": null,
+    "active": true,
+    "created_at": "2025-11-18T21:01:30.393277Z",
+    "updated_at": "2025-11-18T21:01:30.393277Z"
+  },
+  {
+    "id": "eacf91fe-3366-4e0f-956b-10c584c8692f",
+    "name": "Gerson",
+    "trade": "Electrician",
+    "trade_id": "7392a8cc-0b81-4e86-8612-8aebe42dc56d",
+    "hourly_rate": 27.50,
+    "phone": null,
+    "active": true,
+    "created_at": "2025-11-18T22:31:40.659495Z",
+    "updated_at": "2025-11-18T22:31:40.659495Z"
+  }
+]

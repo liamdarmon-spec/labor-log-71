@@ -1,0 +1,26 @@
+[
+  {
+    "id": "24815336-545a-4120-85ce-05fb52922482",
+    "project_id": "69050d1a-b85b-40fd-8ef5-bb3058ab930e",
+    "title": "Kitchen Renovation",
+    "status": "draft",
+    "subtotal_amount": 0.00,
+    "tax_amount": 122130.00,
+    "total_amount": 122130.00,
+    "created_at": "2025-11-21T05:31:17.529505Z",
+    "updated_at": "2025-11-21T05:31:17.529505Z",
+    "items": [
+      {
+        "id": "e45ca868-9973-48ad-a0b9-5ee9d0e9eb82",
+        "estimate_id": "24815336-545a-4120-85ce-05fb52922482",
+        "description": "12312",
+        "quantity": 1.00,
+        "unit": "sq",
+        "unit_price": 0.00,
+        "line_total": 0.00,
+        "category": "labor",
+        "created_at": "2025-11-21T05:31:17.772786Z"
+      }
+    ]
+  }
+]

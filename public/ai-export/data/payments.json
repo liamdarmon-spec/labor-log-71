@@ -1,0 +1,18 @@
+[
+  {
+    "id": "6288e584-bfbd-4322-96d1-22ab4d1cf4a5",
+    "company_id": "bd3910ba-9004-4f64-9263-c7e7ecfb765f",
+    "paid_by": "Leo paid cash",
+    "amount": 620,
+    "start_date": "2025-11-09",
+    "end_date": "2025-11-14",
+    "payment_date": "2025-11-20",
+    "paid_via": "Reimbursement Needed",
+    "reimbursement_status": "reimbursed",
+    "reimbursement_date": "2025-11-20",
+    "notes": null,
+    "created_at": "2025-11-20T04:28:17.751409Z",
+    "created_by": null,
+    "updated_at": "2025-11-20T04:28:37.977405Z"
+  }
+]
