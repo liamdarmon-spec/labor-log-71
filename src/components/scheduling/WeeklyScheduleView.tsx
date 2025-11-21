@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Plus, UserCog, Split } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Split, User, Briefcase, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { startOfWeek, endOfWeek, addWeeks, format, addDays, isSameDay } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
@@ -35,8 +35,6 @@ export function WeeklyScheduleView({ onScheduleClick, refreshTrigger }: WeeklySc
   const [schedules, setSchedules] = useState<ScheduledShift[]>([]);
   const [loading, setLoading] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState<ScheduledShift | null>(null);
-  const [workerDialogOpen, setWorkerDialogOpen] = useState(false);
-  const [selectedWorker, setSelectedWorker] = useState<{ id: string; name: string; date: string } | null>(null);
   const [splitScheduleData, setSplitScheduleData] = useState<{
     scheduleId: string;
     workerName: string;
@@ -132,6 +130,20 @@ export function WeeklyScheduleView({ onScheduleClick, refreshTrigger }: WeeklySc
     return getSchedulesForDay(day).reduce((sum, s) => sum + Number(s.scheduled_hours), 0);
   };
 
+  // Generate a consistent color for each project
+  const getProjectColor = (projectId: string) => {
+    const colors = [
+      "bg-blue-100 text-blue-700 border-blue-200",
+      "bg-green-100 text-green-700 border-green-200",
+      "bg-purple-100 text-purple-700 border-purple-200",
+      "bg-orange-100 text-orange-700 border-orange-200",
+      "bg-pink-100 text-pink-700 border-pink-200",
+      "bg-cyan-100 text-cyan-700 border-cyan-200",
+    ];
+    const hash = projectId.split('').reduce((acc, char) => char.charCodeAt(0) + acc, 0);
+    return colors[hash % colors.length];
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -215,85 +227,82 @@ export function WeeklyScheduleView({ onScheduleClick, refreshTrigger }: WeeklySc
                   </p>
                 )}
 
-                <div className="space-y-1">
-                  {Object.values(workerGroups).map(({ workerId, worker, shifts }) => (
-                    <Card 
-                      key={workerId} 
-                      className="p-3 hover:bg-accent/50 transition-colors group cursor-pointer"
-                      onClick={() => {
-                        setSelectedWorker({ 
-                          id: workerId, 
-                          name: worker?.name || "Unknown",
-                          date: format(day, "yyyy-MM-dd")
-                        });
-                        setWorkerDialogOpen(true);
-                      }}
-                    >
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-sm truncate">{worker?.name || "Unknown"}</p>
-                          <p className="text-xs text-muted-foreground truncate">{worker?.trade || "No trade"}</p>
-                        </div>
-                        <div className="flex items-center gap-1 ml-2 flex-shrink-0">
-                          <span className="text-xs font-semibold bg-primary/10 text-primary px-2 py-0.5 rounded">
-                            {shifts.reduce((sum, s) => sum + Number(s.scheduled_hours), 0)}h
-                          </span>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              console.log("UserCog button clicked", { workerId, workerName: worker?.name, date: format(day, "yyyy-MM-dd") });
-                              setSelectedWorker({ 
-                                id: workerId, 
-                                name: worker?.name || "Unknown",
-                                date: format(day, "yyyy-MM-dd")
-                              });
-                              setWorkerDialogOpen(true);
-                              console.log("State set, dialog should open");
-                            }}
-                          >
-                            <UserCog className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </div>
-                      <div className="space-y-1">
-                        {shifts.map((shift) => (
-                          <div key={shift.id} className="flex items-center justify-between gap-2 p-1.5 bg-background/50 rounded">
-                            <p className="text-muted-foreground truncate flex-1 text-xs">
-                              {shift.project?.project_name || "Unknown"} • {shift.scheduled_hours}h
-                            </p>
+                <div className="space-y-2">
+                  {Object.values(workerGroups).map(({ workerId, worker, shifts }) => {
+                    const totalWorkerHours = shifts.reduce((sum, s) => sum + Number(s.scheduled_hours), 0);
+                    
+                    return (
+                      <Card 
+                        key={workerId} 
+                        className="p-2 bg-gradient-to-br from-card to-muted/30 border border-border/50 hover:border-border transition-all shadow-sm hover:shadow group/worker"
+                      >
+                        {/* Worker Header with Summary */}
+                        <div className="space-y-1 mb-2">
+                          <div className="flex items-center gap-1">
+                            <User className="h-3 w-3 text-primary flex-shrink-0" />
+                            <span className="font-semibold text-xs text-foreground truncate">
+                              {worker?.name || "Unknown"}
+                            </span>
+                          </div>
+                          
+                          {/* Summary Section */}
+                          <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
                             <div className="flex items-center gap-0.5">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-6 w-6"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSplitScheduleData({
-                                    scheduleId: shift.id,
-                                    workerName: worker?.name || "Unknown",
-                                    date: shift.scheduled_date,
-                                    hours: shift.scheduled_hours,
-                                    projectId: shift.project_id
-                                  });
-                                }}
-                                title="Split into multiple projects"
-                              >
-                                <Split className="h-3 w-3" />
-                              </Button>
-                              <ScheduleEditButton onClick={() => setEditingSchedule(shift)} />
-                              <ScheduleDeleteButton 
-                                onConfirm={() => handleDeleteSchedule(shift.id)}
-                                hasTimeLog={shift.converted_to_timelog || false}
-                              />
+                              <Briefcase className="h-2.5 w-2.5" />
+                              <span>{shifts.length}</span>
+                            </div>
+                            <div className="flex items-center gap-0.5">
+                              <Clock className="h-2.5 w-2.5" />
+                              <span>{totalWorkerHours}h</span>
                             </div>
                           </div>
-                        ))}
-                      </div>
-                    </Card>
-                  ))}
+                        </div>
+
+                        {/* Projects List */}
+                        <div className="space-y-1">
+                          {shifts.map((shift) => (
+                            <div
+                              key={shift.id}
+                              className={`flex items-center justify-between gap-1 p-1 rounded text-[10px] ${
+                                getProjectColor(shift.project_id)
+                              }`}
+                            >
+                              <span className="font-medium flex-1 truncate">
+                                {shift.project?.project_name || "Unknown"}
+                              </span>
+                              
+                              {/* Action buttons */}
+                              <div className="flex items-center gap-0.5 opacity-0 group-hover/worker:opacity-100 transition-opacity">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-5 w-5 hover:bg-background/80"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSplitScheduleData({
+                                      scheduleId: shift.id,
+                                      workerName: worker?.name || "Unknown",
+                                      date: shift.scheduled_date,
+                                      hours: shift.scheduled_hours,
+                                      projectId: shift.project_id
+                                    });
+                                  }}
+                                  title="Split into multiple projects"
+                                >
+                                  <Split className="h-3 w-3" />
+                                </Button>
+                                <ScheduleEditButton onClick={() => setEditingSchedule(shift)} />
+                                <ScheduleDeleteButton 
+                                  onConfirm={() => handleDeleteSchedule(shift.id)}
+                                  hasTimeLog={shift.converted_to_timelog || false}
+                                />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </Card>
+                    );
+                  })}
                 </div>
               </div>
             </Card>
