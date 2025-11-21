@@ -6,6 +6,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { startOfWeek, endOfWeek, addWeeks, format, addDays, isSameDay } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { UniversalDayDetailDialog } from "./UniversalDayDetailDialog";
+// Scheduler engine types - will be integrated in next step
+import type { SchedulerFilterMode } from "@/lib/scheduler/types";
+// import { useSchedulerData } from "@/lib/scheduler/useSchedulerData";
 
 interface ScheduledShift {
   id: string;
@@ -31,6 +34,14 @@ export function WeeklyScheduleView({ onScheduleClick, refreshTrigger, scheduleTy
   const [schedules, setSchedules] = useState<ScheduledShift[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+
+  // TODO: In next step, replace fetchSchedules with useSchedulerData hook
+  // const { days, assignmentsByDay, loading: hookLoading } = useSchedulerData({
+  //   viewMode: "week",
+  //   filter: scheduleType as SchedulerFilterMode,
+  //   startDate: currentWeekStart,
+  //   endDate: endOfWeek(currentWeekStart, { weekStartsOn: 0 }),
+  // });
 
   useEffect(() => {
     fetchSchedules();
