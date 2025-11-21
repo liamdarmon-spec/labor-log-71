@@ -4,9 +4,11 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, startOfWeek, endOfWeek, isSameMonth, isSameDay, addMonths } from 'date-fns';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, User, Users } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, User, Users, AlertTriangle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { DayDetailDialog } from '@/components/scheduling/DayDetailDialog';
+import { useScheduleConflicts } from '@/hooks/useScheduleConflicts';
 
 interface ScheduledShift {
   id: string;
@@ -39,6 +41,10 @@ export const ProjectScheduleCalendar = ({ projectId }: { projectId: string }) =>
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [loading, setLoading] = useState(false);
   const [dayDialogDate, setDayDialogDate] = useState<Date | null>(null);
+  const [conflictWorkerId, setConflictWorkerId] = useState<string | null>(null);
+  const [conflictDate, setConflictDate] = useState<string | null>(null);
+  
+  const { conflicts } = useScheduleConflicts(conflictWorkerId, conflictDate);
 
   useEffect(() => {
     fetchData();
@@ -84,8 +90,27 @@ export const ProjectScheduleCalendar = ({ projectId }: { projectId: string }) =>
     setLoading(false);
   };
 
-  const openDayDialog = (date: Date) => {
+  const openDayDialog = (date: Date, workerId?: string) => {
     setDayDialogDate(date);
+  };
+
+  const handleScheduleAdded = async (workerId: string, date: string) => {
+    setConflictWorkerId(workerId);
+    setConflictDate(date);
+    await fetchData();
+  };
+
+  const dismissConflict = () => {
+    setConflictWorkerId(null);
+    setConflictDate(null);
+  };
+
+  const openDayDialogForConflict = () => {
+    if (conflictDate) {
+      const [year, month, day] = conflictDate.split('-').map(Number);
+      setDayDialogDate(new Date(year, month - 1, day));
+      dismissConflict();
+    }
   };
 
   const monthStart = startOfMonth(currentMonth);
@@ -108,6 +133,32 @@ export const ProjectScheduleCalendar = ({ projectId }: { projectId: string }) =>
 
   return (
     <div className="space-y-4">
+      {conflicts.hasConflicts && conflicts.scheduleCount > 1 && (
+        <Alert variant="default" className="border-amber-500 bg-amber-50 dark:bg-amber-950/30">
+          <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+          <AlertTitle className="text-amber-900 dark:text-amber-100">Schedule Conflict Detected</AlertTitle>
+          <AlertDescription className="text-amber-800 dark:text-amber-200">
+            This worker has {conflicts.scheduleCount} schedules on {conflictDate ? format(new Date(conflictDate), 'MMM d, yyyy') : 'this date'} across multiple projects:
+            <span className="font-medium"> {conflicts.projectNames.join(', ')}</span>.
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={openDayDialogForConflict}
+              className="ml-2 mt-2"
+            >
+              Open Day Schedule to Rebalance
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={dismissConflict}
+              className="ml-2 mt-2"
+            >
+              Dismiss
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Button
@@ -239,7 +290,7 @@ export const ProjectScheduleCalendar = ({ projectId }: { projectId: string }) =>
         }}
         date={dayDialogDate}
         onRefresh={fetchData}
-        onAddSchedule={() => {}}
+        onAddSchedule={handleScheduleAdded}
         projectContext={projectId}
       />
     </div>

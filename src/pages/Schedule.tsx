@@ -21,8 +21,7 @@ const Schedule = () => {
   const [viewMode, setViewMode] = useState<ViewMode>("weekly");
   const [scheduleType, setScheduleType] = useState<ScheduleType>("all");
 
-  const handleScheduleClick = (date: Date) => {
-    setScheduleDefaultDate(date);
+  const handleScheduleClick = () => {
     setIsScheduleDialogOpen(true);
   };
 
