@@ -77,8 +77,50 @@ export type Database = {
         }
         Relationships: []
       }
+      cost_codes: {
+        Row: {
+          category: string
+          code: string
+          created_at: string | null
+          default_trade_id: string | null
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          category: string
+          code: string
+          created_at?: string | null
+          default_trade_id?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          category?: string
+          code?: string
+          created_at?: string | null
+          default_trade_id?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cost_codes_default_trade_id_fkey"
+            columns: ["default_trade_id"]
+            isOneToOne: false
+            referencedRelation: "trades"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       daily_logs: {
         Row: {
+          cost_code_id: string | null
           created_at: string | null
           created_by: string | null
           date: string
@@ -92,6 +134,7 @@ export type Database = {
           worker_id: string
         }
         Insert: {
+          cost_code_id?: string | null
           created_at?: string | null
           created_by?: string | null
           date?: string
@@ -105,6 +148,7 @@ export type Database = {
           worker_id: string
         }
         Update: {
+          cost_code_id?: string | null
           created_at?: string | null
           created_by?: string | null
           date?: string
@@ -118,6 +162,13 @@ export type Database = {
           worker_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "daily_logs_cost_code_id_fkey"
+            columns: ["cost_code_id"]
+            isOneToOne: false
+            referencedRelation: "cost_codes"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "daily_logs_project_id_fkey"
             columns: ["project_id"]
@@ -179,43 +230,69 @@ export type Database = {
       estimate_items: {
         Row: {
           category: string | null
+          cost_code_id: string | null
           created_at: string | null
           description: string
           estimate_id: string
           id: string
+          is_allowance: boolean | null
           line_total: number
+          planned_hours: number | null
           quantity: number
+          trade_id: string | null
           unit: string | null
           unit_price: number
         }
         Insert: {
           category?: string | null
+          cost_code_id?: string | null
           created_at?: string | null
           description: string
           estimate_id: string
           id?: string
+          is_allowance?: boolean | null
           line_total?: number
+          planned_hours?: number | null
           quantity?: number
+          trade_id?: string | null
           unit?: string | null
           unit_price?: number
         }
         Update: {
           category?: string | null
+          cost_code_id?: string | null
           created_at?: string | null
           description?: string
           estimate_id?: string
           id?: string
+          is_allowance?: boolean | null
           line_total?: number
+          planned_hours?: number | null
           quantity?: number
+          trade_id?: string | null
           unit?: string | null
           unit_price?: number
         }
         Relationships: [
           {
+            foreignKeyName: "estimate_items_cost_code_id_fkey"
+            columns: ["cost_code_id"]
+            isOneToOne: false
+            referencedRelation: "cost_codes"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "estimate_items_estimate_id_fkey"
             columns: ["estimate_id"]
             isOneToOne: false
             referencedRelation: "estimates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estimate_items_trade_id_fkey"
+            columns: ["trade_id"]
+            isOneToOne: false
+            referencedRelation: "trades"
             referencedColumns: ["id"]
           },
         ]
@@ -478,8 +555,87 @@ export type Database = {
           },
         ]
       }
+      project_budget_lines: {
+        Row: {
+          budget_amount: number
+          budget_hours: number | null
+          category: string
+          cost_code_id: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          is_allowance: boolean | null
+          project_id: string
+          source_estimate_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          budget_amount?: number
+          budget_hours?: number | null
+          category: string
+          cost_code_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_allowance?: boolean | null
+          project_id: string
+          source_estimate_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          budget_amount?: number
+          budget_hours?: number | null
+          category?: string
+          cost_code_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_allowance?: boolean | null
+          project_id?: string
+          source_estimate_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_budget_lines_cost_code_id_fkey"
+            columns: ["cost_code_id"]
+            isOneToOne: false
+            referencedRelation: "cost_codes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_budget_lines_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_costs_view"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "project_budget_lines_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_dashboard_view"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "project_budget_lines_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_budget_lines_source_estimate_id_fkey"
+            columns: ["source_estimate_id"]
+            isOneToOne: false
+            referencedRelation: "estimates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_budgets: {
         Row: {
+          baseline_estimate_id: string | null
           created_at: string | null
           id: string
           labor_budget: number | null
@@ -490,6 +646,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          baseline_estimate_id?: string | null
           created_at?: string | null
           id?: string
           labor_budget?: number | null
@@ -500,6 +657,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          baseline_estimate_id?: string | null
           created_at?: string | null
           id?: string
           labor_budget?: number | null
@@ -510,6 +668,13 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "project_budgets_baseline_estimate_id_fkey"
+            columns: ["baseline_estimate_id"]
+            isOneToOne: false
+            referencedRelation: "estimates"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "project_budgets_project_id_fkey"
             columns: ["project_id"]
@@ -697,6 +862,7 @@ export type Database = {
       scheduled_shifts: {
         Row: {
           converted_to_timelog: boolean | null
+          cost_code_id: string | null
           created_at: string
           created_by: string | null
           id: string
@@ -712,6 +878,7 @@ export type Database = {
         }
         Insert: {
           converted_to_timelog?: boolean | null
+          cost_code_id?: string | null
           created_at?: string
           created_by?: string | null
           id?: string
@@ -727,6 +894,7 @@ export type Database = {
         }
         Update: {
           converted_to_timelog?: boolean | null
+          cost_code_id?: string | null
           created_at?: string
           created_by?: string | null
           id?: string
@@ -741,6 +909,13 @@ export type Database = {
           worker_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "scheduled_shifts_cost_code_id_fkey"
+            columns: ["cost_code_id"]
+            isOneToOne: false
+            referencedRelation: "cost_codes"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "scheduled_shifts_project_id_fkey"
             columns: ["project_id"]
@@ -788,6 +963,7 @@ export type Database = {
       sub_logs: {
         Row: {
           amount: number
+          cost_code_id: string | null
           created_at: string | null
           created_by: string | null
           date: string
@@ -798,6 +974,7 @@ export type Database = {
         }
         Insert: {
           amount?: number
+          cost_code_id?: string | null
           created_at?: string | null
           created_by?: string | null
           date?: string
@@ -808,6 +985,7 @@ export type Database = {
         }
         Update: {
           amount?: number
+          cost_code_id?: string | null
           created_at?: string | null
           created_by?: string | null
           date?: string
@@ -817,6 +995,13 @@ export type Database = {
           sub_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "sub_logs_cost_code_id_fkey"
+            columns: ["cost_code_id"]
+            isOneToOne: false
+            referencedRelation: "cost_codes"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "sub_logs_project_id_fkey"
             columns: ["project_id"]
@@ -849,6 +1034,7 @@ export type Database = {
       }
       sub_scheduled_shifts: {
         Row: {
+          cost_code_id: string | null
           created_at: string | null
           id: string
           notes: string | null
@@ -860,6 +1046,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          cost_code_id?: string | null
           created_at?: string | null
           id?: string
           notes?: string | null
@@ -871,6 +1058,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          cost_code_id?: string | null
           created_at?: string | null
           id?: string
           notes?: string | null
@@ -882,6 +1070,13 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "sub_scheduled_shifts_cost_code_id_fkey"
+            columns: ["cost_code_id"]
+            isOneToOne: false
+            referencedRelation: "cost_codes"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "sub_scheduled_shifts_project_id_fkey"
             columns: ["project_id"]
@@ -1039,6 +1234,47 @@ export type Database = {
       }
     }
     Views: {
+      labor_actuals_by_cost_code: {
+        Row: {
+          actual_cost: number | null
+          actual_hours: number | null
+          cost_code: string | null
+          cost_code_id: string | null
+          cost_code_name: string | null
+          project_id: string | null
+          worker_count: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "daily_logs_cost_code_id_fkey"
+            columns: ["cost_code_id"]
+            isOneToOne: false
+            referencedRelation: "cost_codes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "daily_logs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_costs_view"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "daily_logs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_dashboard_view"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "daily_logs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payment_labor_summary: {
         Row: {
           end_date: string | null
@@ -1358,6 +1594,10 @@ export type Database = {
           schedule_id: string
           time_log_id: string
         }[]
+      }
+      sync_estimate_to_budget: {
+        Args: { p_estimate_id: string }
+        Returns: undefined
       }
     }
     Enums: {
