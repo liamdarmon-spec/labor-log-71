@@ -289,17 +289,26 @@ export function MonthlyScheduleView({ onDayClick, refreshTrigger }: MonthlySched
                                 className="bg-gradient-to-br from-card to-muted/30 p-1 sm:p-2 rounded-md border border-border/50 hover:border-border transition-all group/worker shadow-sm hover:shadow"
                                 onClick={(e) => e.stopPropagation()}
                               >
-                                {/* Worker Header - Responsive */}
-                                <div className="flex items-center justify-between mb-1 sm:mb-1.5">
-                                  <div className="flex items-center gap-1 sm:gap-1.5 flex-1 min-w-0">
+                                 {/* Worker Header - Responsive */}
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-1 sm:gap-1.5">
                                     <User className="h-2.5 w-2.5 sm:h-3.5 sm:w-3.5 text-primary flex-shrink-0" />
                                     <span className="font-semibold text-[10px] sm:text-xs truncate text-foreground">
                                       {group.worker?.name || "Unknown"}
                                     </span>
                                   </div>
-                                  <Badge variant="outline" className="h-4 sm:h-5 text-[9px] sm:text-[10px] px-1 sm:px-1.5 font-bold bg-primary/5">
-                                    {totalWorkerHours}h
-                                  </Badge>
+                                  
+                                  {/* Summary Section */}
+                                  <div className="flex items-center gap-2 sm:gap-3 text-[9px] sm:text-[10px] text-muted-foreground">
+                                    <div className="flex items-center gap-0.5 sm:gap-1">
+                                      <Briefcase className="h-2 w-2 sm:h-2.5 sm:w-2.5" />
+                                      <span>{group.shifts.length}</span>
+                                    </div>
+                                    <div className="flex items-center gap-0.5 sm:gap-1">
+                                      <Clock className="h-2 w-2 sm:h-2.5 sm:w-2.5" />
+                                      <span>{totalWorkerHours}h</span>
+                                    </div>
+                                  </div>
                                 </div>
 
                                 {/* Projects List - Responsive */}
@@ -311,57 +320,43 @@ export function MonthlyScheduleView({ onDayClick, refreshTrigger }: MonthlySched
                                         getProjectColor(shift.project_id)
                                       }`}
                                     >
-                                      <div className="flex items-center gap-0.5 sm:gap-1 flex-1 min-w-0">
-                                        <Briefcase className="h-2 w-2 sm:h-2.5 sm:w-2.5 flex-shrink-0" />
-                                        <span className="truncate font-medium">
-                                          {shift.project?.project_name || "Unknown"}
-                                        </span>
-                                      </div>
-                                      <div className="flex items-center gap-0.5 sm:gap-1">
-                                        <span className="font-bold text-[9px] sm:text-[10px]">{shift.scheduled_hours}h</span>
-                                        {/* Action buttons - only show on hover on larger screens */}
-                                        <div className="hidden sm:flex items-center gap-0.5 opacity-0 group-hover/worker:opacity-100 transition-opacity">
-                                          <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-4 w-4 hover:bg-background/80"
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              setSplitScheduleData({
-                                                scheduleId: shift.id,
-                                                workerName: group.worker?.name || "Unknown",
-                                                date: shift.scheduled_date,
-                                                hours: shift.scheduled_hours,
-                                                projectId: shift.project_id
-                                              });
-                                            }}
-                                            title="Split into multiple projects"
-                                          >
-                                            <Split className="h-2.5 w-2.5" />
-                                          </Button>
-                                          <ScheduleEditButton 
-                                            onClick={() => {
-                                              setEditingSchedule(shift);
-                                            }} 
-                                          />
-                                          <ScheduleDeleteButton 
-                                            onConfirm={() => handleDeleteSchedule(shift.id)}
-                                            hasTimeLog={shift.converted_to_timelog || false}
-                                          />
-                                        </div>
+                                      <span className="truncate font-medium flex-1">
+                                        {shift.project?.project_name || "Unknown"}
+                                      </span>
+                                      
+                                      {/* Action buttons - only show on hover on larger screens */}
+                                      <div className="hidden sm:flex items-center gap-0.5 opacity-0 group-hover/worker:opacity-100 transition-opacity">
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-4 w-4 hover:bg-background/80"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setSplitScheduleData({
+                                              scheduleId: shift.id,
+                                              workerName: group.worker?.name || "Unknown",
+                                              date: shift.scheduled_date,
+                                              hours: shift.scheduled_hours,
+                                              projectId: shift.project_id
+                                            });
+                                          }}
+                                          title="Split into multiple projects"
+                                        >
+                                          <Split className="h-2.5 w-2.5" />
+                                        </Button>
+                                        <ScheduleEditButton 
+                                          onClick={() => {
+                                            setEditingSchedule(shift);
+                                          }} 
+                                        />
+                                        <ScheduleDeleteButton 
+                                          onConfirm={() => handleDeleteSchedule(shift.id)}
+                                          hasTimeLog={shift.converted_to_timelog || false}
+                                        />
                                       </div>
                                     </div>
                                   ))}
                                 </div>
-
-                                {/* Worker Trade Badge - Responsive */}
-                                {group.worker?.trade && (
-                                  <div className="mt-1 sm:mt-1.5 pt-0.5 sm:pt-1 border-t border-border/30">
-                                    <span className="text-[8px] sm:text-[9px] text-muted-foreground font-medium">
-                                      {group.worker.trade}
-                                    </span>
-                                  </div>
-                                )}
                               </div>
                             </TooltipTrigger>
                             <TooltipContent side="top" className="max-w-xs">
