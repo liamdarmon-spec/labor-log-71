@@ -2,10 +2,11 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useUnifiedProjectBudget, BudgetCategory } from '@/hooks/useUnifiedProjectBudget';
-import { UnifiedBudgetSummaryCards } from './UnifiedBudgetSummaryCards';
+import { BudgetSummaryCards } from './BudgetSummaryCards';
+import { CategorySummaryCards } from './CategorySummaryCards';
 import { UnifiedCostCodeLedger } from './UnifiedCostCodeLedger';
-import { LaborDrillDown } from './LaborDrillDown';
-import { LaborBillsSection } from './LaborBillsSection';
+import { LaborDetailTable } from './LaborDetailTable';
+import { UnpaidLaborBills } from './UnpaidLaborBills';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { format } from 'date-fns';
@@ -88,12 +89,11 @@ export const ProjectBudgetCosts = ({ projectId }: { projectId: string }) => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold">Unified Project Budget</h3>
-      </div>
+      {/* Top Summary Row - Total Budget, Actual, Variance */}
+      <BudgetSummaryCards summary={budgetData.summary} />
 
-      {/* Summary Cards */}
-      <UnifiedBudgetSummaryCards
+      {/* Category Summary Row - Labor, Subs, Materials, Misc */}
+      <CategorySummaryCards
         summary={budgetData.summary}
         selectedCategory={selectedCategory}
         onCategorySelect={setSelectedCategory}
@@ -108,11 +108,11 @@ export const ProjectBudgetCosts = ({ projectId }: { projectId: string }) => {
         />
       </div>
 
-      {/* Unpaid Labor Bills - Outstanding amounts owed */}
-      <LaborBillsSection projectId={projectId} />
+      {/* Unpaid Labor as "Open Bills" */}
+      <UnpaidLaborBills projectId={projectId} />
 
-      {/* Labor Drill-Down */}
-      <LaborDrillDown costCodeLines={budgetData.costCodeLines} />
+      {/* Labor Detail Table */}
+      <LaborDetailTable projectId={projectId} />
 
       {/* Payments Section - Cash flow tracking only */}
       <Card>
