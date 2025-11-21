@@ -45,7 +45,7 @@ export const ProjectTasks = ({ projectId, onUpdate }: { projectId: string; onUpd
     priority: 'medium',
     task_type: 'todo',
     due_date: '',
-    assigned_worker_id: '',
+    assigned_worker_id: 'unassigned',
   });
 
   useEffect(() => {
@@ -96,7 +96,7 @@ export const ProjectTasks = ({ projectId, onUpdate }: { projectId: string; onUpd
         priority: formData.priority,
         task_type: formData.task_type,
         due_date: formData.due_date || null,
-        assigned_worker_id: formData.assigned_worker_id || null,
+        assigned_worker_id: formData.assigned_worker_id === 'unassigned' ? null : formData.assigned_worker_id,
       });
 
       if (error) throw error;
@@ -110,7 +110,7 @@ export const ProjectTasks = ({ projectId, onUpdate }: { projectId: string; onUpd
         priority: 'medium',
         task_type: 'todo',
         due_date: '',
-        assigned_worker_id: '',
+        assigned_worker_id: 'unassigned',
       });
       fetchTodos();
       if (onUpdate) onUpdate();
@@ -401,12 +401,12 @@ export const ProjectTasks = ({ projectId, onUpdate }: { projectId: string; onUpd
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="assigned_worker_id">Assignee</Label>
-                  <Select value={formData.assigned_worker_id} onValueChange={(value) => setFormData({ ...formData, assigned_worker_id: value })}>
+                  <Select value={formData.assigned_worker_id} onValueChange={(value) => setFormData({ ...formData, assigned_worker_id: value === 'unassigned' ? '' : value })}>
                     <SelectTrigger id="assigned_worker_id">
                       <SelectValue placeholder="Unassigned" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Unassigned</SelectItem>
+                      <SelectItem value="unassigned">Unassigned</SelectItem>
                       {workers.map((worker) => (
                         <SelectItem key={worker.id} value={worker.id}>
                           {worker.name}
