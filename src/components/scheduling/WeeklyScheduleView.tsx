@@ -1,27 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Plus, Split, User, Briefcase, Clock } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { ChevronLeft, ChevronRight, Plus, User, Briefcase, Clock } from "lucide-react";
 import { startOfWeek, endOfWeek, addWeeks, format, addDays, isSameDay } from "date-fns";
-import { useToast } from "@/hooks/use-toast";
 import { UniversalDayDetailDialog } from "./UniversalDayDetailDialog";
-// Scheduler engine types - will be integrated in next step
+import { useSchedulerData } from "@/lib/scheduler/useSchedulerData";
 import type { SchedulerFilterMode } from "@/lib/scheduler/types";
-// import { useSchedulerData } from "@/lib/scheduler/useSchedulerData";
-
-interface ScheduledShift {
-  id: string;
-  worker_id: string;
-  project_id: string;
-  trade_id: string | null;
-  scheduled_date: string;
-  scheduled_hours: number;
-  notes: string | null;
-  converted_to_timelog?: boolean;
-  worker: { name: string; trade: string } | null;
-  project: { project_name: string; client_name: string } | null;
-}
+import { Badge } from "@/components/ui/badge";
 
 interface WeeklyScheduleViewProps {
   onScheduleClick: (date: Date) => void;
@@ -31,78 +16,18 @@ interface WeeklyScheduleViewProps {
 
 export function WeeklyScheduleView({ onScheduleClick, refreshTrigger, scheduleType }: WeeklyScheduleViewProps) {
   const [currentWeekStart, setCurrentWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 0 }));
-  const [schedules, setSchedules] = useState<ScheduledShift[]>([]);
-  const [loading, setLoading] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
-  // TODO: In next step, replace fetchSchedules with useSchedulerData hook
-  // const { days, assignmentsByDay, loading: hookLoading } = useSchedulerData({
-  //   viewMode: "week",
-  //   filter: scheduleType as SchedulerFilterMode,
-  //   startDate: currentWeekStart,
-  //   endDate: endOfWeek(currentWeekStart, { weekStartsOn: 0 }),
-  // });
-
-  useEffect(() => {
-    fetchSchedules();
-  }, [currentWeekStart, refreshTrigger, scheduleType]);
-
-  const fetchSchedules = async () => {
-    setLoading(true);
-    const weekEnd = endOfWeek(currentWeekStart, { weekStartsOn: 0 });
-
-    if (scheduleType === "workers" || scheduleType === "all") {
-      const { data, error } = await supabase
-        .from("scheduled_shifts")
-        .select(`
-          *,
-          worker:workers(name, trade),
-          project:projects(project_name, client_name)
-        `)
-        .gte("scheduled_date", format(currentWeekStart, "yyyy-MM-dd"))
-        .lte("scheduled_date", format(weekEnd, "yyyy-MM-dd"))
-        .order("scheduled_date")
-        .order("worker_id");
-
-      setLoading(false);
-
-      if (error) {
-        console.error("Error fetching schedules:", error);
-        return;
-      }
-
-      setSchedules(data || []);
-    } else {
-      setLoading(false);
-      setSchedules([]);
-    }
-  };
-
+  const weekEnd = endOfWeek(currentWeekStart, { weekStartsOn: 0 });
+  
+  const { days, assignmentsByDay, loading } = useSchedulerData({
+    viewMode: "week",
+    filter: scheduleType as SchedulerFilterMode,
+    startDate: currentWeekStart,
+    endDate: weekEnd,
+  });
 
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(currentWeekStart, i));
-
-  const getSchedulesForDay = (day: Date) => {
-    const dayStr = format(day, "yyyy-MM-dd");
-    return schedules.filter(s => s.scheduled_date === dayStr);
-  };
-
-  const getTotalHoursForDay = (day: Date) => {
-    return getSchedulesForDay(day).reduce((sum, s) => sum + Number(s.scheduled_hours), 0);
-  };
-
-  // Generate a consistent color for each project
-  const getProjectColor = (projectId: string) => {
-    const colors = [
-      "bg-blue-100 text-blue-700 border-blue-200",
-      "bg-green-100 text-green-700 border-green-200",
-      "bg-purple-100 text-purple-700 border-purple-200",
-      "bg-orange-100 text-orange-700 border-orange-200",
-      "bg-pink-100 text-pink-700 border-pink-200",
-      "bg-cyan-100 text-cyan-700 border-cyan-200",
-    ];
-    const hash = projectId.split('').reduce((acc, char) => char.charCodeAt(0) + acc, 0);
-    return colors[hash % colors.length];
-  };
 
   return (
     <div className="space-y-4">
@@ -137,24 +62,15 @@ export function WeeklyScheduleView({ onScheduleClick, refreshTrigger, scheduleTy
 
       <div className="grid grid-cols-1 md:grid-cols-7 gap-2">
         {weekDays.map((day) => {
-          const daySchedules = getSchedulesForDay(day);
-          const totalHours = getTotalHoursForDay(day);
-          
-          // Group schedules by worker
-          const workerGroups = daySchedules.reduce((acc, schedule) => {
-            const workerId = schedule.worker_id;
-            if (!acc[workerId]) {
-              acc[workerId] = {
-                workerId,
-                worker: schedule.worker,
-                shifts: []
-              };
-            }
-            acc[workerId].shifts.push(schedule);
-            return acc;
-          }, {} as Record<string, { workerId: string; worker: ScheduledShift['worker'], shifts: ScheduledShift[] }>);
-
+          const dayStr = format(day, "yyyy-MM-dd");
+          const daySummary = days.find(d => d.date === dayStr);
+          const assignments = assignmentsByDay[dayStr] || [];
           const isToday = isSameDay(day, new Date());
+
+          const totalWorkers = daySummary?.totalWorkers || 0;
+          const totalSubs = daySummary?.totalSubs || 0;
+          const totalMeetings = daySummary?.totalMeetings || 0;
+          const totalHours = daySummary?.totalHours || 0;
 
           return (
             <Card
@@ -185,64 +101,46 @@ export function WeeklyScheduleView({ onScheduleClick, refreshTrigger, scheduleTy
                   </Button>
                 </div>
 
+                {/* Summary */}
                 {totalHours > 0 && (
-                  <p className="text-xs text-muted-foreground">
-                    {totalHours}h scheduled
-                  </p>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    {totalWorkers > 0 && (
+                      <div className="flex items-center gap-1">
+                        <User className="h-3 w-3" />
+                        <span>{totalWorkers}</span>
+                      </div>
+                    )}
+                    {totalSubs > 0 && (
+                      <div className="flex items-center gap-1">
+                        <Briefcase className="h-3 w-3" />
+                        <span>{totalSubs}S</span>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-1">
+                      <Clock className="h-3 w-3" />
+                      <span>{totalHours}h</span>
+                    </div>
+                  </div>
                 )}
 
-                <div className="space-y-2">
-                  {Object.values(workerGroups).map(({ workerId, worker, shifts }) => {
-                    const totalWorkerHours = shifts.reduce((sum, s) => sum + Number(s.scheduled_hours), 0);
-                    
-                    return (
-                      <Card 
-                        key={workerId} 
-                        className="p-2 bg-gradient-to-br from-card to-muted/30 border border-border/50 hover:border-border transition-all shadow-sm hover:shadow group/worker"
-                      >
-                        {/* Worker Header with Summary */}
-                        <div className="space-y-1 mb-2">
-                          <div className="flex items-center gap-1">
-                            <User className="h-3 w-3 text-primary flex-shrink-0" />
-                            <span className="font-semibold text-xs text-foreground truncate">
-                              {worker?.name || "Unknown"}
-                            </span>
-                          </div>
-                          
-                          {/* Summary Section */}
-                          <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
-                            <div className="flex items-center gap-0.5">
-                              <Briefcase className="h-2.5 w-2.5" />
-                              <span>{shifts.length}</span>
-                            </div>
-                            <div className="flex items-center gap-0.5">
-                              <Clock className="h-2.5 w-2.5" />
-                              <span>{totalWorkerHours}h</span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Projects List */}
-                        <div className="space-y-1">
-                          {shifts.map((shift) => (
-                            <div
-                              key={shift.id}
-                              className={`flex items-center justify-between gap-1 p-1 rounded text-[10px] ${
-                                getProjectColor(shift.project_id)
-                              }`}
-                            >
-                              <div className="flex items-center gap-2">
-                                <span className="font-medium flex-1 truncate">
-                                  {shift.project?.project_name || "Unknown"}
-                                </span>
-                                <span className="text-xs opacity-70">{shift.scheduled_hours}h</span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </Card>
-                    );
-                  })}
+                {/* Assignment Preview Pills */}
+                <div className="space-y-1">
+                  {assignments.slice(0, 3).map((assignment) => (
+                    <Badge
+                      key={assignment.id}
+                      variant="secondary"
+                      className="w-full justify-start text-xs truncate"
+                    >
+                      {assignment.type === 'worker' && <User className="h-2.5 w-2.5 mr-1" />}
+                      {assignment.type === 'sub' && <Briefcase className="h-2.5 w-2.5 mr-1" />}
+                      {assignment.label}
+                    </Badge>
+                  ))}
+                  {assignments.length > 3 && (
+                    <p className="text-[10px] text-muted-foreground text-center">
+                      +{assignments.length - 3} more
+                    </p>
+                  )}
                 </div>
               </div>
             </Card>
@@ -256,7 +154,7 @@ export function WeeklyScheduleView({ onScheduleClick, refreshTrigger, scheduleTy
         open={!!selectedDate}
         onOpenChange={(open) => !open && setSelectedDate(null)}
         date={selectedDate}
-        onRefresh={fetchSchedules}
+        onRefresh={() => {}}
         onAddSchedule={() => {
           if (selectedDate) {
             onScheduleClick(selectedDate);
