@@ -9,8 +9,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Plus, Trash2, FileText, CheckCircle2, TrendingUp, Star } from 'lucide-react';
+import { Plus, Trash2, FileText, CheckCircle2, TrendingUp, Star, Zap } from 'lucide-react';
 import { format } from 'date-fns';
+import { CreateEstimateDialog } from './CreateEstimateDialog';
 
 interface Estimate {
   id: string;
@@ -34,14 +35,6 @@ export const ProjectEstimatesEnhanced = ({ projectId }: { projectId: string }) =
   const [estimates, setEstimates] = useState<Estimate[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [formData, setFormData] = useState({
-    title: '',
-    status: 'draft',
-    tax_amount: '0',
-  });
-  const [lineItems, setLineItems] = useState<EstimateItem[]>([
-    { description: '', quantity: '1', unit: 'ea', unit_price: '0', line_total: 0, category: 'labor' }
-  ]);
 
   useEffect(() => {
     fetchEstimates();
@@ -165,49 +158,28 @@ export const ProjectEstimatesEnhanced = ({ projectId }: { projectId: string }) =
 
   const syncToBudget = async (estimateId: string) => {
     try {
-      const { data: items, error: itemsError } = await supabase
-        .from('estimate_items')
-        .select('line_total, category')
-        .eq('estimate_id', estimateId);
+      // Call the database function to sync estimate to budget
+      const { error } = await supabase.rpc('sync_estimate_to_budget', {
+        p_estimate_id: estimateId
+      });
 
-      if (itemsError) throw itemsError;
+      if (error) throw error;
 
-      const laborTotal = items?.filter(i => i.category === 'labor').reduce((sum, item) => sum + Number(item.line_total), 0) || 0;
-      const subsTotal = items?.filter(i => i.category === 'subs').reduce((sum, item) => sum + Number(item.line_total), 0) || 0;
-      const materialsTotal = items?.filter(i => i.category === 'materials').reduce((sum, item) => sum + Number(item.line_total), 0) || 0;
-
-      const { error: budgetError } = await supabase
-        .from('project_budgets')
-        .upsert({
-          project_id: projectId,
-          labor_budget: laborTotal,
-          subs_budget: subsTotal,
-          materials_budget: materialsTotal,
-          updated_at: new Date().toISOString(),
-        }, {
-          onConflict: 'project_id'
-        });
-
-      if (budgetError) throw budgetError;
-
-      // Mark this estimate as budget source
-      await supabase
-        .from('estimates')
-        .update({ is_budget_source: false })
-        .eq('project_id', projectId);
-
-      const { error: markError } = await supabase
-        .from('estimates')
-        .update({ is_budget_source: true })
-        .eq('id', estimateId);
-
-      if (markError) throw markError;
-
-      toast.success('Budget synced from estimate');
+      toast.success('Estimate accepted and synced to budget successfully');
       fetchEstimates();
     } catch (error) {
       console.error('Error syncing to budget:', error);
       toast.error('Failed to sync budget');
+    }
+  };
+
+  const acceptAndSetBudget = async (estimateId: string) => {
+    try {
+      // This is a single action that accepts the estimate and sets it as budget
+      await syncToBudget(estimateId);
+    } catch (error) {
+      console.error('Error accepting and setting budget:', error);
+      toast.error('Failed to accept and set budget');
     }
   };
 
@@ -256,187 +228,18 @@ export const ProjectEstimatesEnhanced = ({ projectId }: { projectId: string }) =
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold">Project Estimates</h3>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="w-4 h-4 mr-2" />
-              New Estimate
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Create New Estimate</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="title">Title *</Label>
-                  <Input
-                    id="title"
-                    value={formData.title}
-                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                    placeholder="e.g., Kitchen Renovation Estimate"
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="status">Status</Label>
-                  <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
-                    <SelectTrigger id="status">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="draft">Draft</SelectItem>
-                      <SelectItem value="sent">Sent</SelectItem>
-                      <SelectItem value="accepted">Accepted</SelectItem>
-                      <SelectItem value="rejected">Rejected</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <Label>Line Items</Label>
-                  <Button type="button" variant="outline" size="sm" onClick={addLineItem}>
-                    <Plus className="w-3 h-3 mr-1" />
-                    Add Item
-                  </Button>
-                </div>
-                <div className="space-y-2">
-                  {lineItems.map((item, index) => (
-                    <div key={index} className="grid grid-cols-12 gap-2 items-end">
-                      <div className="col-span-3">
-                        <Input
-                          placeholder="Description"
-                          value={item.description}
-                          onChange={(e) => updateLineItem(index, 'description', e.target.value)}
-                          required
-                        />
-                      </div>
-                      <div className="col-span-2">
-                        <Select
-                          value={item.category}
-                          onValueChange={(value) => updateLineItem(index, 'category', value)}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="labor">Labor</SelectItem>
-                            <SelectItem value="subs">Subs</SelectItem>
-                            <SelectItem value="materials">Materials</SelectItem>
-                            <SelectItem value="allowance">Allowance</SelectItem>
-                            <SelectItem value="other">Other</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="col-span-1">
-                        <Input
-                          type="number"
-                          step="0.01"
-                          placeholder="Qty"
-                          value={item.quantity}
-                          onChange={(e) => updateLineItem(index, 'quantity', e.target.value)}
-                          required
-                        />
-                      </div>
-                      <div className="col-span-2">
-                        <Input
-                          placeholder="Unit"
-                          value={item.unit}
-                          onChange={(e) => updateLineItem(index, 'unit', e.target.value)}
-                        />
-                      </div>
-                      <div className="col-span-2">
-                        <Input
-                          type="number"
-                          step="0.01"
-                          placeholder="Price"
-                          value={item.unit_price}
-                          onChange={(e) => updateLineItem(index, 'unit_price', e.target.value)}
-                          required
-                        />
-                      </div>
-                      <div className="col-span-1">
-                        <p className="text-sm font-medium">${item.line_total.toFixed(2)}</p>
-                      </div>
-                      <div className="col-span-1">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => removeLineItem(index)}
-                          disabled={lineItems.length === 1}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="border-t pt-4 space-y-2">
-                <div className="grid grid-cols-2 gap-4 mb-3">
-                  <div className="space-y-1 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Labor:</span>
-                      <span className="font-medium">${categorySubtotals.labor.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Subs:</span>
-                      <span className="font-medium">${categorySubtotals.subs.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Materials:</span>
-                      <span className="font-medium">${categorySubtotals.materials.toFixed(2)}</span>
-                    </div>
-                  </div>
-                  <div className="space-y-1 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Allowance:</span>
-                      <span className="font-medium">${categorySubtotals.allowance.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Other:</span>
-                      <span className="font-medium">${categorySubtotals.other.toFixed(2)}</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex justify-between text-sm border-t pt-2">
-                  <span>Subtotal:</span>
-                  <span className="font-medium">${calculateSubtotal().toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between items-center text-sm">
-                  <span>Tax:</span>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      className="w-24 h-8"
-                      value={formData.tax_amount}
-                      onChange={(e) => setFormData({ ...formData, tax_amount: e.target.value })}
-                    />
-                  </div>
-                </div>
-                <div className="flex justify-between text-lg font-bold border-t pt-2">
-                  <span>Total:</span>
-                  <span>${calculateTotal().toFixed(2)}</span>
-                </div>
-              </div>
-
-              <div className="flex gap-2 justify-end">
-                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit">Create Estimate</Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
+        <Button onClick={() => setIsDialogOpen(true)}>
+          <Plus className="w-4 h-4 mr-2" />
+          New Estimate
+        </Button>
       </div>
+
+      <CreateEstimateDialog
+        open={isDialogOpen}
+        onOpenChange={setIsDialogOpen}
+        projectId={projectId}
+        onSuccess={fetchEstimates}
+      />
 
       {estimates.length === 0 ? (
         <Card className="p-12">
@@ -482,7 +285,18 @@ export const ProjectEstimatesEnhanced = ({ projectId }: { projectId: string }) =
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-2">
-                      {estimate.status === 'accepted' && (
+                      {!estimate.is_budget_source && estimate.status !== 'accepted' && (
+                        <Button
+                          size="sm"
+                          variant="default"
+                          onClick={() => acceptAndSetBudget(estimate.id)}
+                          className="gap-1"
+                        >
+                          <Zap className="w-4 h-4" />
+                          Accept & Set as Budget
+                        </Button>
+                      )}
+                      {estimate.status === 'accepted' && !estimate.is_budget_source && (
                         <Button
                           size="sm"
                           variant="outline"
