@@ -17,7 +17,7 @@ import type {
 } from './types';
 
 export function useSchedulerData(params: SchedulerDataParams): SchedulerDataResult {
-  const { viewMode, filter, startDate, endDate, projectId } = params;
+  const { viewMode, filter, startDate, endDate, projectId, refreshTrigger } = params;
   const [days, setDays] = useState<SchedulerDaySummary[]>([]);
   const [assignmentsByDay, setAssignmentsByDay] = useState<Record<string, SchedulerAssignmentPreview[]>>({});
   const [loading, setLoading] = useState(true);
@@ -77,7 +77,7 @@ export function useSchedulerData(params: SchedulerDataParams): SchedulerDataResu
     } finally {
       setLoading(false);
     }
-  }, [startDateStr, endDateStr, filter, projectId, startDate, endDate]);
+  }, [startDateStr, endDateStr, filter, projectId, startDate, endDate, refreshTrigger]);
 
   useEffect(() => {
     fetchSchedulerData();

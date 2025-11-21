@@ -27,6 +27,7 @@ export function MonthlyScheduleView({ onDayClick, refreshTrigger, scheduleType }
     filter: scheduleType as SchedulerFilterMode,
     startDate: monthStart,
     endDate: monthEnd,
+    refreshTrigger, // Add refresh trigger
   });
 
 

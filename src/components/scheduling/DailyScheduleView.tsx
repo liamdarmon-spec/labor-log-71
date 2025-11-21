@@ -23,10 +23,11 @@ export function DailyScheduleView({ onScheduleClick, refreshTrigger, scheduleTyp
     filter: scheduleType as SchedulerFilterMode,
     startDate: currentDate,
     endDate: currentDate,
+    refreshTrigger, // Add refresh trigger
   });
 
   const dayStr = format(currentDate, "yyyy-MM-dd");
-  const daySummary = days[0];
+  const daySummary = days.find(d => d.date === dayStr);
   const assignments = assignmentsByDay[dayStr] || [];
 
   const totalWorkers = daySummary?.totalWorkers || 0;
@@ -89,39 +90,60 @@ export function DailyScheduleView({ onScheduleClick, refreshTrigger, scheduleTyp
       </div>
 
       <Card className="p-6">
-        <div className="grid grid-cols-4 gap-4 mb-6 pb-4 border-b">
-          <div>
-            <p className="text-sm text-muted-foreground">Workers</p>
-            <p className="text-2xl font-bold">{totalWorkers}</p>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">Subs</p>
-            <p className="text-2xl font-bold">{totalSubs}</p>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">Meetings</p>
-            <p className="text-2xl font-bold">{totalMeetings}</p>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">Total Hours</p>
-            <p className="text-2xl font-bold">{totalHours}h</p>
-          </div>
-        </div>
-
         {loading ? (
-          <p className="text-center text-muted-foreground py-8">Loading...</p>
-        ) : assignments.length === 0 ? (
-          <div className="text-center py-8">
-            <p className="text-muted-foreground mb-4">No schedules for this day</p>
-            <Button onClick={() => onScheduleClick(currentDate)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add to Schedule
-            </Button>
-          </div>
+          <>
+            <div className="grid grid-cols-4 gap-4 mb-6 pb-4 border-b">
+              <div>
+                <p className="text-sm text-muted-foreground">Workers</p>
+                <div className="h-8 w-12 bg-muted animate-pulse rounded mt-1"></div>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Subs</p>
+                <div className="h-8 w-12 bg-muted animate-pulse rounded mt-1"></div>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Meetings</p>
+                <div className="h-8 w-12 bg-muted animate-pulse rounded mt-1"></div>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Total Hours</p>
+                <div className="h-8 w-16 bg-muted animate-pulse rounded mt-1"></div>
+              </div>
+            </div>
+            <p className="text-center text-muted-foreground py-8">Loading schedules...</p>
+          </>
         ) : (
-          <div className="space-y-4">
-            {/* Workers Section */}
-            {workerAssignments.length > 0 && (
+          <>
+            <div className="grid grid-cols-4 gap-4 mb-6 pb-4 border-b">
+              <div>
+                <p className="text-sm text-muted-foreground">Workers</p>
+                <p className="text-2xl font-bold">{totalWorkers}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Subs</p>
+                <p className="text-2xl font-bold">{totalSubs}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Meetings</p>
+                <p className="text-2xl font-bold">{totalMeetings}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Total Hours</p>
+                <p className="text-2xl font-bold">{totalHours}h</p>
+              </div>
+            </div>
+            {assignments.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-muted-foreground mb-4">No schedules for this day</p>
+                <Button onClick={() => onScheduleClick(currentDate)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add to Schedule
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {/* Workers Section */}
+                {workerAssignments.length > 0 && (
               <div className="space-y-3">
                 <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
                   <User className="h-4 w-4" />
@@ -199,6 +221,8 @@ export function DailyScheduleView({ onScheduleClick, refreshTrigger, scheduleTyp
               </div>
             )}
           </div>
+        )}
+          </>
         )}
       </Card>
 

@@ -32,6 +32,7 @@ export interface SchedulerDataParams {
   startDate: Date;
   endDate: Date;
   projectId?: string;
+  refreshTrigger?: number;
 }
 
 export interface SchedulerDataResult {
