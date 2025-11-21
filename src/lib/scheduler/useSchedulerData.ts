@@ -77,7 +77,7 @@ export function useSchedulerData(params: SchedulerDataParams): SchedulerDataResu
     } finally {
       setLoading(false);
     }
-  }, [startDateStr, endDateStr, filter, projectId, startDate, endDate, refreshTrigger]);
+  }, [startDateStr, endDateStr, filter, projectId, refreshTrigger]);
 
   useEffect(() => {
     fetchSchedulerData();
