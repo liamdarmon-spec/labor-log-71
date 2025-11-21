@@ -7,10 +7,7 @@ import { ChevronLeft, ChevronRight, Split, Clock, User, Briefcase, Calendar } fr
 import { supabase } from "@/integrations/supabase/client";
 import { startOfMonth, endOfMonth, eachDayOfInterval, format, isSameMonth, isSameDay, addMonths, startOfWeek, endOfWeek, isPast, isWeekend } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
-import { EditScheduleDialog } from "./EditScheduleDialog";
-import { ScheduleEditButton } from "./ScheduleEditButton";
-import { ScheduleDeleteButton } from "./ScheduleDeleteButton";
-import { SplitScheduleDialog } from "@/components/dashboard/SplitScheduleDialog";
+import { UniversalDayDetailDialog } from "./UniversalDayDetailDialog";
 import {
   Tooltip,
   TooltipContent,
@@ -38,18 +35,10 @@ interface MonthlyScheduleViewProps {
 }
 
 export function MonthlyScheduleView({ onDayClick, refreshTrigger, scheduleType }: MonthlyScheduleViewProps) {
-  const { toast } = useToast();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [schedules, setSchedules] = useState<ScheduledShift[]>([]);
   const [loading, setLoading] = useState(false);
-  const [editingSchedule, setEditingSchedule] = useState<ScheduledShift | null>(null);
-  const [splitScheduleData, setSplitScheduleData] = useState<{
-    scheduleId: string;
-    workerName: string;
-    date: string;
-    hours: number;
-    projectId: string;
-  } | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
   useEffect(() => {
     fetchSchedules();
@@ -211,7 +200,7 @@ export function MonthlyScheduleView({ onDayClick, refreshTrigger, scheduleType }
                     } ${isToday ? "ring-1 sm:ring-2 ring-primary shadow-lg" : ""} ${
                       isWeekendDay ? "bg-muted/30" : ""
                     } ${isPastDay ? "bg-muted/10" : ""}`}
-                    onClick={() => onDayClick(day)}
+                    onClick={() => setSelectedDate(day)}
                   >
                     {/* Day Number and Badge */}
                     <div className="flex items-center justify-between mb-1 sm:mb-2">
@@ -246,9 +235,8 @@ export function MonthlyScheduleView({ onDayClick, refreshTrigger, scheduleType }
                         return (
                           <Tooltip key={group.shifts[0].worker_id}>
                             <TooltipTrigger asChild>
-                              <div
+                               <div
                                 className="bg-gradient-to-br from-card to-muted/30 p-1 sm:p-2 rounded-md border border-border/50 hover:border-border transition-all group/worker shadow-sm hover:shadow"
-                                onClick={(e) => e.stopPropagation()}
                               >
                                  {/* Worker Header - Responsive */}
                                 <div className="space-y-1">
@@ -285,37 +273,6 @@ export function MonthlyScheduleView({ onDayClick, refreshTrigger, scheduleType }
                                         {shift.project?.project_name || "Unknown"}
                                       </span>
                                       
-                                      {/* Action buttons - only show on hover on larger screens */}
-                                      <div className="hidden sm:flex items-center gap-0.5 opacity-0 group-hover/worker:opacity-100 transition-opacity">
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          className="h-4 w-4 hover:bg-background/80"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            setSplitScheduleData({
-                                              scheduleId: shift.id,
-                                              workerName: group.worker?.name || "Unknown",
-                                              date: shift.scheduled_date,
-                                              hours: shift.scheduled_hours,
-                                              projectId: shift.project_id
-                                            });
-                                          }}
-                                          title="Split into multiple projects"
-                                        >
-                                          <Split className="h-2.5 w-2.5" />
-                                        </Button>
-                                          <ScheduleEditButton 
-                                            onClick={() => {
-                                              setEditingSchedule(shift);
-                                            }} 
-                                          />
-                                          <ScheduleDeleteButton 
-                                            scheduleId={shift.id}
-                                            scheduleDate={shift.scheduled_date}
-                                            onSuccess={fetchSchedules}
-                                          />
-                                      </div>
                                     </div>
                                   ))}
                                 </div>
@@ -372,28 +329,17 @@ export function MonthlyScheduleView({ onDayClick, refreshTrigger, scheduleType }
           </Card>
         )}
 
-        <EditScheduleDialog
-          open={!!editingSchedule}
-          onOpenChange={(open) => !open && setEditingSchedule(null)}
-          schedule={editingSchedule}
-          onSuccess={fetchSchedules}
+        <UniversalDayDetailDialog
+          open={!!selectedDate}
+          onOpenChange={(open) => !open && setSelectedDate(null)}
+          date={selectedDate}
+          onRefresh={fetchSchedules}
+          onAddSchedule={() => {
+            if (selectedDate) {
+              onDayClick(selectedDate);
+            }
+          }}
         />
-
-        {splitScheduleData && (
-          <SplitScheduleDialog
-            isOpen={!!splitScheduleData}
-            onClose={() => setSplitScheduleData(null)}
-            scheduleId={splitScheduleData.scheduleId}
-            workerName={splitScheduleData.workerName}
-            originalDate={splitScheduleData.date}
-            originalHours={splitScheduleData.hours}
-            originalProjectId={splitScheduleData.projectId}
-            onSuccess={() => {
-              fetchSchedules();
-              setSplitScheduleData(null);
-            }}
-          />
-        )}
       </div>
     </TooltipProvider>
   );
