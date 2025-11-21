@@ -59,6 +59,7 @@ export const ProjectsTab = () => {
     const { data, error } = await supabase
       .from('companies')
       .select('*')
+      .in('name', ['Forma Homes', 'GA Painting'])
       .order('name');
 
     if (error) {
