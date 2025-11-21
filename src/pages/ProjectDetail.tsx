@@ -8,12 +8,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Clock, DollarSign, User, Calendar } from 'lucide-react';
 import { toast } from 'sonner';
-import { format, addDays } from 'date-fns';
-import { ProjectHealth } from '@/components/project/ProjectHealth';
-import { ProjectTodosKanban } from '@/components/project/ProjectTodosKanban';
-import { ProjectScheduleEnhanced } from '@/components/project/ProjectScheduleEnhanced';
-import { ProjectActivityTimeline } from '@/components/project/ProjectActivityTimeline';
-import { ProjectCosts } from '@/components/project/ProjectCosts';
+import { format } from 'date-fns';
+import { ProjectOverview } from '@/components/project/ProjectOverview';
+import { ProjectEstimates } from '@/components/project/ProjectEstimates';
+import { ProjectBudgetCosts } from '@/components/project/ProjectBudgetCosts';
+import { ProjectSubs } from '@/components/project/ProjectSubs';
+import { ProjectInvoices } from '@/components/project/ProjectInvoices';
+import { ProjectTasks } from '@/components/project/ProjectTasks';
+import { ProjectScheduleTab } from '@/components/project/ProjectScheduleTab';
 
 interface ProjectDashboard {
   project_id: string;
@@ -34,15 +36,10 @@ const ProjectDetail = () => {
   const navigate = useNavigate();
   const [project, setProject] = useState<ProjectDashboard | null>(null);
   const [loading, setLoading] = useState(true);
-  const [openTaskCount, setOpenTaskCount] = useState(0);
-  const [upcomingScheduleCount, setUpcomingScheduleCount] = useState(0);
-  const [recentActivityCount, setRecentActivityCount] = useState(0);
-  const [totalCost, setTotalCost] = useState(0);
 
   useEffect(() => {
     if (id) {
       fetchProjectData();
-      fetchTabCounts();
     }
   }, [id]);
 
@@ -62,49 +59,6 @@ const ProjectDetail = () => {
       toast.error('Failed to load project data');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchTabCounts = async () => {
-    try {
-      // Open tasks count (not done)
-      const { count: tasksCount } = await supabase
-        .from('project_todos')
-        .select('*', { count: 'exact', head: true })
-        .eq('project_id', id)
-        .not('status', 'eq', 'done');
-      
-      // Upcoming schedule count (next 30 days)
-      const today = format(new Date(), 'yyyy-MM-dd');
-      const thirtyDaysLater = format(addDays(new Date(), 30), 'yyyy-MM-dd');
-      const { count: schedulesCount } = await supabase
-        .from('scheduled_shifts')
-        .select('*', { count: 'exact', head: true })
-        .eq('project_id', id)
-        .gte('scheduled_date', today)
-        .lte('scheduled_date', thirtyDaysLater);
-      
-      // Recent activity count (last 14 days)
-      const fourteenDaysAgo = format(addDays(new Date(), -14), 'yyyy-MM-dd');
-      const { count: logsCount } = await supabase
-        .from('daily_logs')
-        .select('*', { count: 'exact', head: true })
-        .eq('project_id', id)
-        .gte('date', fourteenDaysAgo);
-
-      // Get total cost from project_costs_view
-      const { data: costData } = await supabase
-        .from('project_costs_view')
-        .select('labor_total_cost')
-        .eq('project_id', id)
-        .single();
-
-      setOpenTaskCount(tasksCount || 0);
-      setUpcomingScheduleCount(schedulesCount || 0);
-      setRecentActivityCount(logsCount || 0);
-      setTotalCost(costData?.labor_total_cost || 0);
-    } catch (error) {
-      console.error('Error fetching tab counts:', error);
     }
   };
 
@@ -240,60 +194,44 @@ const ProjectDetail = () => {
           </Card>
         </div>
 
-        {/* Project Health Overview */}
-        <ProjectHealth projectId={id!} />
-
         {/* Tabs for different sections */}
-        <Tabs defaultValue="tasks" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="tasks" className="gap-2">
-              Tasks
-              {openTaskCount > 0 && (
-                <Badge variant="secondary" className="ml-1 h-5 min-w-5 rounded-full px-1.5 text-xs">
-                  {openTaskCount}
-                </Badge>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="schedule" className="gap-2">
-              Labor Schedule
-              {upcomingScheduleCount > 0 && (
-                <Badge variant="secondary" className="ml-1 h-5 min-w-5 rounded-full px-1.5 text-xs">
-                  {upcomingScheduleCount}
-                </Badge>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="activity" className="gap-2">
-              Activity & Logs
-              {recentActivityCount > 0 && (
-                <Badge variant="secondary" className="ml-1 h-5 min-w-5 rounded-full px-1.5 text-xs">
-                  {recentActivityCount}
-                </Badge>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="costs" className="gap-2">
-              Costs & Payments
-              {totalCost > 0 && (
-                <Badge variant="secondary" className="ml-1 h-5 min-w-5 rounded-full px-1.5 text-xs">
-                  ${totalCost.toFixed(0)}
-                </Badge>
-              )}
-            </TabsTrigger>
+        <Tabs defaultValue="overview" className="w-full">
+          <TabsList className="grid w-full grid-cols-7">
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="estimates">Estimates</TabsTrigger>
+            <TabsTrigger value="budget">Budget & Costs</TabsTrigger>
+            <TabsTrigger value="subs">Subs</TabsTrigger>
+            <TabsTrigger value="invoices">Invoices</TabsTrigger>
+            <TabsTrigger value="tasks">Tasks</TabsTrigger>
+            <TabsTrigger value="schedule">Schedule</TabsTrigger>
           </TabsList>
 
+          <TabsContent value="overview" className="mt-6">
+            <ProjectOverview projectId={id!} />
+          </TabsContent>
+
+          <TabsContent value="estimates" className="mt-6">
+            <ProjectEstimates projectId={id!} />
+          </TabsContent>
+
+          <TabsContent value="budget" className="mt-6">
+            <ProjectBudgetCosts projectId={id!} />
+          </TabsContent>
+
+          <TabsContent value="subs" className="mt-6">
+            <ProjectSubs projectId={id!} />
+          </TabsContent>
+
+          <TabsContent value="invoices" className="mt-6">
+            <ProjectInvoices projectId={id!} />
+          </TabsContent>
+
           <TabsContent value="tasks" className="mt-6">
-            <ProjectTodosKanban projectId={id!} onUpdate={fetchTabCounts} />
+            <ProjectTasks projectId={id!} />
           </TabsContent>
 
           <TabsContent value="schedule" className="mt-6">
-            <ProjectScheduleEnhanced projectId={id!} />
-          </TabsContent>
-
-          <TabsContent value="activity" className="mt-6">
-            <ProjectActivityTimeline projectId={id!} />
-          </TabsContent>
-
-          <TabsContent value="costs" className="mt-6">
-            <ProjectCosts projectId={id!} />
+            <ProjectScheduleTab projectId={id!} />
           </TabsContent>
         </Tabs>
       </div>
