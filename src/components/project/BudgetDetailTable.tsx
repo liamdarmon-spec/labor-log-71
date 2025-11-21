@@ -73,6 +73,11 @@ export function BudgetDetailTable({ projectId }: BudgetDetailTableProps) {
 
   return (
     <>
+      <div className="mb-3">
+        <p className="text-sm text-muted-foreground">
+          💡 Actuals are currently tracked for <strong>Labor</strong> category only. Subs, Materials, and Other categories will show budget only.
+        </p>
+      </div>
       <Card>
         <Table>
           <TableHeader>
@@ -94,29 +99,33 @@ export function BudgetDetailTable({ projectId }: BudgetDetailTableProps) {
               const amountDelta = line.actual_cost - line.budget_amount;
               
               return (
-                <TableRow 
-                  key={line.id}
-                  className="cursor-pointer hover:bg-muted/50"
-                  onClick={() => setSelectedLine(line.id)}
-                >
-                  <TableCell className="font-medium">
-                    {line.cost_codes ? `${line.cost_codes.code} - ${line.cost_codes.name}` : 'No Code'}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="capitalize">{line.category}</Badge>
-                  </TableCell>
-                  <TableCell className="text-right">{line.budget_hours?.toFixed(1) || '—'}</TableCell>
-                  <TableCell className="text-right">{line.actual_hours.toFixed(1)}</TableCell>
-                  <TableCell className={`text-right ${hoursDelta > 0 ? 'text-destructive' : hoursDelta < 0 ? 'text-green-600' : ''}`}>
-                    {hoursDelta !== 0 ? (hoursDelta > 0 ? '+' : '') + hoursDelta.toFixed(1) : '—'}
-                  </TableCell>
-                  <TableCell className="text-right">${line.budget_amount.toFixed(2)}</TableCell>
-                  <TableCell className="text-right">${line.actual_cost.toFixed(2)}</TableCell>
-                  <TableCell className={`text-right ${amountDelta > 0 ? 'text-destructive' : amountDelta < 0 ? 'text-green-600' : ''}`}>
-                    {amountDelta !== 0 ? (amountDelta > 0 ? '+$' : '-$') + Math.abs(amountDelta).toFixed(2) : '—'}
-                  </TableCell>
-                  <TableCell>{line.is_allowance ? '✓' : ''}</TableCell>
-                </TableRow>
+            <TableRow 
+              key={line.id}
+              className="cursor-pointer hover:bg-muted/50"
+              onClick={() => setSelectedLine(line.id)}
+            >
+              <TableCell className="font-medium">
+                {line.cost_codes ? `${line.cost_codes.code} - ${line.cost_codes.name}` : 'No Code'}
+              </TableCell>
+              <TableCell>
+                <Badge variant="outline" className="capitalize">{line.category}</Badge>
+              </TableCell>
+              <TableCell className="text-right">{line.budget_hours?.toFixed(1) || '—'}</TableCell>
+              <TableCell className="text-right">
+                {line.category === 'labor' ? line.actual_hours.toFixed(1) : '—'}
+              </TableCell>
+              <TableCell className={`text-right ${hoursDelta > 0 ? 'text-destructive' : hoursDelta < 0 ? 'text-green-600' : ''}`}>
+                {line.category === 'labor' && hoursDelta !== 0 ? (hoursDelta > 0 ? '+' : '') + hoursDelta.toFixed(1) : '—'}
+              </TableCell>
+              <TableCell className="text-right">${line.budget_amount.toFixed(2)}</TableCell>
+              <TableCell className="text-right">
+                {line.category === 'labor' ? `$${line.actual_cost.toFixed(2)}` : '—'}
+              </TableCell>
+              <TableCell className={`text-right ${amountDelta > 0 ? 'text-destructive' : amountDelta < 0 ? 'text-green-600' : ''}`}>
+                {line.category === 'labor' && amountDelta !== 0 ? (amountDelta > 0 ? '+$' : '-$') + Math.abs(amountDelta).toFixed(2) : '—'}
+              </TableCell>
+              <TableCell>{line.is_allowance ? '✓' : ''}</TableCell>
+            </TableRow>
               );
             })}
           </TableBody>
