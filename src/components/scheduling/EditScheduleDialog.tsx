@@ -12,12 +12,14 @@ import { format, isFuture, parseISO } from "date-fns";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, ExternalLink } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useCostCodes } from "@/hooks/useCostCodes";
 
 interface ScheduledShift {
   id: string;
   worker_id: string;
   project_id: string;
   trade_id: string | null;
+  cost_code_id?: string | null;
   scheduled_date: string;
   scheduled_hours: number;
   notes: string | null;
@@ -59,10 +61,13 @@ export function EditScheduleDialog({ open, onOpenChange, schedule, onSuccess }: 
   const [timeLogId, setTimeLogId] = useState<string | null>(null);
   const [isLocked, setIsLocked] = useState(false);
 
+  const { data: laborCostCodes } = useCostCodes('labor');
+
   const [formData, setFormData] = useState({
     worker_id: "",
     project_id: "",
     trade_id: "",
+    cost_code_id: "",
     scheduled_date: new Date(),
     scheduled_hours: "",
     notes: ""
@@ -80,6 +85,7 @@ export function EditScheduleDialog({ open, onOpenChange, schedule, onSuccess }: 
         worker_id: schedule.worker_id,
         project_id: schedule.project_id,
         trade_id: schedule.trade_id || "",
+        cost_code_id: schedule.cost_code_id || "",
         scheduled_date: new Date(schedule.scheduled_date),
         scheduled_hours: schedule.scheduled_hours.toString(),
         notes: schedule.notes || ""
@@ -149,6 +155,7 @@ export function EditScheduleDialog({ open, onOpenChange, schedule, onSuccess }: 
         worker_id: formData.worker_id,
         project_id: formData.project_id,
         trade_id: formData.trade_id || null,
+        cost_code_id: formData.cost_code_id || null,
         scheduled_date: format(formData.scheduled_date, "yyyy-MM-dd"),
         scheduled_hours: parseFloat(formData.scheduled_hours),
         notes: formData.notes || null
@@ -266,6 +273,26 @@ export function EditScheduleDialog({ open, onOpenChange, schedule, onSuccess }: 
                 {trades.map((trade) => (
                   <SelectItem key={trade.id} value={trade.id}>
                     {trade.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="cost_code">Cost Code</Label>
+            <Select
+              value={formData.cost_code_id}
+              onValueChange={(value) => setFormData({ ...formData, cost_code_id: value })}
+              disabled={isLocked}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select cost code (optional)" />
+              </SelectTrigger>
+              <SelectContent>
+                {laborCostCodes?.map((code) => (
+                  <SelectItem key={code.id} value={code.id}>
+                    {code.code} - {code.name}
                   </SelectItem>
                 ))}
               </SelectContent>
