@@ -270,6 +270,7 @@ export type Database = {
           priority: string
           project_id: string
           status: string
+          task_type: string
           title: string
           updated_at: string
         }
@@ -284,6 +285,7 @@ export type Database = {
           priority?: string
           project_id: string
           status?: string
+          task_type?: string
           title: string
           updated_at?: string
         }
@@ -298,6 +300,7 @@ export type Database = {
           priority?: string
           project_id?: string
           status?: string
+          task_type?: string
           title?: string
           updated_at?: string
         }
