@@ -6,7 +6,7 @@
  * It does NOT modify any UI or change existing behavior.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { format, eachDayOfInterval } from 'date-fns';
 import type {
@@ -23,17 +23,15 @@ export function useSchedulerData(params: SchedulerDataParams): SchedulerDataResu
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
-  useEffect(() => {
-    fetchSchedulerData();
-  }, [filter, startDate, endDate, projectId]);
+  // Memoize date strings to prevent infinite re-renders
+  const startDateStr = useMemo(() => format(startDate, 'yyyy-MM-dd'), [startDate.getTime()]);
+  const endDateStr = useMemo(() => format(endDate, 'yyyy-MM-dd'), [endDate.getTime()]);
 
-  const fetchSchedulerData = async () => {
+  const fetchSchedulerData = useCallback(async () => {
+
     try {
       setLoading(true);
       setError(null);
-
-      const startDateStr = format(startDate, 'yyyy-MM-dd');
-      const endDateStr = format(endDate, 'yyyy-MM-dd');
 
       // Initialize all days in range
       const dateRange = eachDayOfInterval({ start: startDate, end: endDate });
@@ -79,7 +77,11 @@ export function useSchedulerData(params: SchedulerDataParams): SchedulerDataResu
     } finally {
       setLoading(false);
     }
-  };
+  }, [startDateStr, endDateStr, filter, projectId, startDate, endDate]);
+
+  useEffect(() => {
+    fetchSchedulerData();
+  }, [fetchSchedulerData]);
 
   return { days, assignmentsByDay, loading, error };
 }
