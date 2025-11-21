@@ -5,6 +5,7 @@ import { useUnifiedProjectBudget, BudgetCategory } from '@/hooks/useUnifiedProje
 import { UnifiedBudgetSummaryCards } from './UnifiedBudgetSummaryCards';
 import { UnifiedCostCodeLedger } from './UnifiedCostCodeLedger';
 import { LaborDrillDown } from './LaborDrillDown';
+import { LaborBillsSection } from './LaborBillsSection';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { format } from 'date-fns';
@@ -107,10 +108,13 @@ export const ProjectBudgetCosts = ({ projectId }: { projectId: string }) => {
         />
       </div>
 
+      {/* Unpaid Labor Bills - Outstanding amounts owed */}
+      <LaborBillsSection projectId={projectId} />
+
       {/* Labor Drill-Down */}
       <LaborDrillDown costCodeLines={budgetData.costCodeLines} />
 
-      {/* Payments Section */}
+      {/* Payments Section - Cash flow tracking only */}
       <Card>
         <CardHeader>
           <CardTitle>Payments Affecting This Project</CardTitle>

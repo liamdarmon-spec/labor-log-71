@@ -228,9 +228,11 @@ const Payments = () => {
         handleCloseDialog();
       }
     } else {
-      const { error } = await supabase
+      const { data: newPayment, error } = await supabase
         .from('payments')
-        .insert([paymentData]);
+        .insert([paymentData])
+        .select()
+        .single();
 
       if (error) {
         toast({
@@ -239,9 +241,47 @@ const Payments = () => {
           variant: 'destructive',
         });
       } else {
+        // Mark daily_logs as paid for this date range and company
+        const { data: projectIds } = await supabase
+          .from('projects')
+          .select('id')
+          .eq('company_id', formData.company_id);
+
+        if (projectIds && projectIds.length > 0 && newPayment) {
+          // Get the logs to update and calculate paid amounts
+          const { data: logsToUpdate } = await supabase
+            .from('daily_logs')
+            .select('id, hours_worked, workers(hourly_rate)')
+            .gte('date', formData.start_date)
+            .lte('date', formData.end_date)
+            .in('project_id', projectIds.map(p => p.id))
+            .eq('payment_status', 'unpaid');
+
+          // Update each log with calculated paid_amount
+          if (logsToUpdate && logsToUpdate.length > 0) {
+            const updates = logsToUpdate.map((log: any) => ({
+              id: log.id,
+              payment_status: 'paid',
+              payment_id: newPayment.id,
+              paid_amount: log.hours_worked * (log.workers?.hourly_rate || 0),
+            }));
+
+            for (const update of updates) {
+              await supabase
+                .from('daily_logs')
+                .update({
+                  payment_status: update.payment_status,
+                  payment_id: update.payment_id,
+                  paid_amount: update.paid_amount,
+                })
+                .eq('id', update.id);
+            }
+          }
+        }
+
         toast({
           title: 'Success',
-          description: 'Payment added successfully',
+          description: 'Payment recorded and labor marked as paid',
         });
         fetchPayments();
         handleCloseDialog();

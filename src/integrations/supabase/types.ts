@@ -128,6 +128,9 @@ export type Database = {
           id: string
           last_synced_at: string | null
           notes: string | null
+          paid_amount: number | null
+          payment_id: string | null
+          payment_status: string | null
           project_id: string
           schedule_id: string | null
           trade_id: string | null
@@ -142,6 +145,9 @@ export type Database = {
           id?: string
           last_synced_at?: string | null
           notes?: string | null
+          paid_amount?: number | null
+          payment_id?: string | null
+          payment_status?: string | null
           project_id: string
           schedule_id?: string | null
           trade_id?: string | null
@@ -156,6 +162,9 @@ export type Database = {
           id?: string
           last_synced_at?: string | null
           notes?: string | null
+          paid_amount?: number | null
+          payment_id?: string | null
+          payment_status?: string | null
           project_id?: string
           schedule_id?: string | null
           trade_id?: string | null
@@ -167,6 +176,20 @@ export type Database = {
             columns: ["cost_code_id"]
             isOneToOne: false
             referencedRelation: "cost_codes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "daily_logs_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payment_labor_summary"
+            referencedColumns: ["payment_id"]
+          },
+          {
+            foreignKeyName: "daily_logs_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
             referencedColumns: ["id"]
           },
           {
@@ -1530,6 +1553,49 @@ export type Database = {
             columns: ["worker_id"]
             isOneToOne: false
             referencedRelation: "workers_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      unpaid_labor_bills: {
+        Row: {
+          company_id: string | null
+          company_name: string | null
+          log_count: number | null
+          period_end: string | null
+          period_start: string | null
+          project_id: string | null
+          project_name: string | null
+          total_amount: number | null
+          total_hours: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "daily_logs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_costs_view"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "daily_logs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_dashboard_view"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "daily_logs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "projects_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
         ]
