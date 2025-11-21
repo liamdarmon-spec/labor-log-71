@@ -10,6 +10,7 @@ import ViewLogs from "./pages/ViewLogs";
 import Schedule from "./pages/Schedule";
 import Payments from "./pages/Payments";
 import Projects from "./pages/Projects";
+import ProjectDetail from "./pages/ProjectDetail";
 import NotFound from "./pages/NotFound";
 import "./i18n/config";
 
@@ -28,6 +29,7 @@ const App = () => (
           <Route path="/schedule" element={<Schedule />} />
           <Route path="/payments" element={<Payments />} />
           <Route path="/projects" element={<Projects />} />
+          <Route path="/projects/:id" element={<ProjectDetail />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="*" element={<NotFound />} />
         </Routes>

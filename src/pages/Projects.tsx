@@ -5,7 +5,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, MapPin, User, Building2, Calendar, Clock, DollarSign } from 'lucide-react';
+import { Plus, Search, MapPin, User, Building2, Calendar, Clock, DollarSign, ArrowRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { AddProjectDialog } from '@/components/dashboard/AddProjectDialog';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -30,6 +31,7 @@ interface ProjectStats {
 }
 
 const Projects = () => {
+  const navigate = useNavigate();
   const [projects, setProjects] = useState<Project[]>([]);
   const [filteredProjects, setFilteredProjects] = useState<Project[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -174,7 +176,11 @@ const Projects = () => {
             {filteredProjects.map((project) => {
               const stats = projectStats[project.id];
               return (
-                <Card key={project.id} className="hover:shadow-lg transition-shadow">
+                <Card 
+                  key={project.id} 
+                  className="hover:shadow-lg transition-shadow cursor-pointer"
+                  onClick={() => navigate(`/projects/${project.id}`)}
+                >
                   <CardHeader>
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
@@ -251,6 +257,21 @@ const Projects = () => {
                           )}
                         </>
                       )}
+                    </div>
+
+                    <div className="pt-3 border-t flex items-center justify-end">
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="gap-2"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/projects/${project.id}`);
+                        }}
+                      >
+                        View Details
+                        <ArrowRight className="w-4 h-4" />
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
