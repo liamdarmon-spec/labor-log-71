@@ -1301,6 +1301,7 @@ export type Database = {
           name: string
           phone: string | null
           trade: string | null
+          trade_id: string | null
           updated_at: string | null
         }
         Insert: {
@@ -1313,6 +1314,7 @@ export type Database = {
           name: string
           phone?: string | null
           trade?: string | null
+          trade_id?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -1325,15 +1327,25 @@ export type Database = {
           name?: string
           phone?: string | null
           trade?: string | null
+          trade_id?: string | null
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "subs_trade_id_fkey"
+            columns: ["trade_id"]
+            isOneToOne: false
+            referencedRelation: "trades"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       trades: {
         Row: {
           created_at: string | null
           default_labor_cost_code_id: string | null
           default_material_cost_code_id: string | null
+          default_sub_cost_code_id: string | null
           description: string | null
           id: string
           name: string
@@ -1342,6 +1354,7 @@ export type Database = {
           created_at?: string | null
           default_labor_cost_code_id?: string | null
           default_material_cost_code_id?: string | null
+          default_sub_cost_code_id?: string | null
           description?: string | null
           id?: string
           name: string
@@ -1350,6 +1363,7 @@ export type Database = {
           created_at?: string | null
           default_labor_cost_code_id?: string | null
           default_material_cost_code_id?: string | null
+          default_sub_cost_code_id?: string | null
           description?: string | null
           id?: string
           name?: string
@@ -1365,6 +1379,13 @@ export type Database = {
           {
             foreignKeyName: "trades_default_material_cost_code_id_fkey"
             columns: ["default_material_cost_code_id"]
+            isOneToOne: false
+            referencedRelation: "cost_codes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trades_default_sub_cost_code_id_fkey"
+            columns: ["default_sub_cost_code_id"]
             isOneToOne: false
             referencedRelation: "cost_codes"
             referencedColumns: ["id"]
