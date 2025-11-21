@@ -1039,6 +1039,59 @@ export type Database = {
       }
     }
     Views: {
+      payment_labor_summary: {
+        Row: {
+          end_date: string | null
+          labor_cost: number | null
+          paid_by: string | null
+          payment_date: string | null
+          payment_id: string | null
+          project_id: string | null
+          project_name: string | null
+          start_date: string | null
+          total_hours: number | null
+          worker_id: string | null
+          worker_name: string | null
+          worker_trade: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "daily_logs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_costs_view"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "daily_logs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_dashboard_view"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "daily_logs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "daily_logs_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "workers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "daily_logs_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "workers_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_activity_view: {
         Row: {
           cost: number | null

@@ -11,8 +11,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { DollarSign, Plus, Edit2, Trash2, Calendar } from 'lucide-react';
+import { DollarSign, Plus, Edit2, Trash2, Calendar, Eye } from 'lucide-react';
 import { format } from 'date-fns';
+import { PayrollRunView } from '@/components/payments/PayrollRunView';
 
 interface Payment {
   id: string;
@@ -43,6 +44,7 @@ const Payments = () => {
   const [reimbursementFilter, setReimbursementFilter] = useState<'all' | 'pending' | 'reimbursed'>('all');
   const [selectedMonth, setSelectedMonth] = useState<string>('all');
   const [selectedCompany, setSelectedCompany] = useState<string>('all');
+  const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     start_date: '',
     end_date: '',
@@ -368,13 +370,25 @@ const Payments = () => {
     };
   });
 
+  // Show payroll run view if a payment is selected
+  if (selectedPaymentId) {
+    return (
+      <Layout>
+        <PayrollRunView 
+          paymentId={selectedPaymentId} 
+          onClose={() => setSelectedPaymentId(null)} 
+        />
+      </Layout>
+    );
+  }
+
   return (
     <Layout>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold">Payments</h1>
-            <p className="text-muted-foreground mt-2">Track and manage payment records</p>
+            <h1 className="text-3xl font-bold">Payments & Payroll</h1>
+            <p className="text-muted-foreground mt-2">Track payment records and view payroll breakdowns</p>
           </div>
           <div className="flex items-center gap-4">
             <div className="text-right">
@@ -581,6 +595,14 @@ const Payments = () => {
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-2 justify-end">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setSelectedPaymentId(payment.id)}
+                            >
+                              <Eye className="w-4 h-4 mr-1" />
+                              View Payroll
+                            </Button>
                             {(payment.paid_via === 'Reimbursement Needed' && payment.reimbursement_status !== 'reimbursed') && (
                               <Button
                                 variant="default"
