@@ -66,6 +66,7 @@ export function EstimateItemDialog({ open, onOpenChange, onSave, estimateItem }:
     : 'other';
 
   const { data: costCodes } = useCostCodes(categoryForCostCodes as any);
+  const { data: allCostCodes } = useCostCodes(); // For cost code selection reverse lookup
   
   const { data: trades } = useQuery({
     queryKey: ['trades'],
@@ -82,6 +83,20 @@ export function EstimateItemDialog({ open, onOpenChange, onSave, estimateItem }:
 
   const lineTotal = formData.quantity * formData.unit_price;
   const showPlannedHours = formData.category === 'Labor';
+
+  // Auto-set category when cost code is selected
+  const handleCostCodeChange = (costCodeId: string) => {
+    const selectedCostCode = allCostCodes?.find(cc => cc.id === costCodeId);
+    if (selectedCostCode) {
+      const newCategory = selectedCostCode.category === 'labor' ? 'Labor'
+        : selectedCostCode.category === 'subs' ? 'Subs'
+        : selectedCostCode.category === 'materials' ? 'Materials'
+        : 'Other';
+      setFormData({ ...formData, cost_code_id: costCodeId, category: newCategory });
+    } else {
+      setFormData({ ...formData, cost_code_id: costCodeId });
+    }
+  };
 
   const handleSave = () => {
     onSave(formData);
@@ -126,7 +141,7 @@ export function EstimateItemDialog({ open, onOpenChange, onSave, estimateItem }:
               <Label>Cost Code</Label>
               <Select 
                 value={formData.cost_code_id || ''} 
-                onValueChange={(value) => setFormData({ ...formData, cost_code_id: value || null })}
+                onValueChange={handleCostCodeChange}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select cost code..." />
@@ -139,6 +154,11 @@ export function EstimateItemDialog({ open, onOpenChange, onSave, estimateItem }:
                   ))}
                 </SelectContent>
               </Select>
+              {!formData.cost_code_id && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  ⚠️ Budget sync will be most accurate when each line item has a cost code
+                </p>
+              )}
             </div>
           </div>
 
