@@ -9,8 +9,8 @@ import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Clock, DollarSign, User, Calendar } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
-import { ProjectOverview } from '@/components/project/ProjectOverview';
-import { ProjectEstimates } from '@/components/project/ProjectEstimates';
+import { ProjectOverviewEnhanced } from '@/components/project/ProjectOverviewEnhanced';
+import { ProjectEstimatesEnhanced } from '@/components/project/ProjectEstimatesEnhanced';
 import { ProjectBudgetCosts } from '@/components/project/ProjectBudgetCosts';
 import { ProjectSubs } from '@/components/project/ProjectSubs';
 import { ProjectInvoices } from '@/components/project/ProjectInvoices';
@@ -207,11 +207,11 @@ const ProjectDetail = () => {
           </TabsList>
 
           <TabsContent value="overview" className="mt-6">
-            <ProjectOverview projectId={id!} />
+            <ProjectOverviewEnhanced projectId={id!} />
           </TabsContent>
 
           <TabsContent value="estimates" className="mt-6">
-            <ProjectEstimates projectId={id!} />
+            <ProjectEstimatesEnhanced projectId={id!} />
           </TabsContent>
 
           <TabsContent value="budget" className="mt-6">
