@@ -40,7 +40,7 @@ interface DayDetailDialogProps {
   onOpenChange: (open: boolean) => void;
   date: Date | null;
   onRefresh: () => void;
-  onAddSchedule: (date: Date) => void;
+  onAddSchedule: (workerId?: string, date?: string) => void;
   highlightWorkerId?: string | null;
   projectContext?: string;
 }
@@ -175,7 +175,7 @@ export function DayDetailDialog({ open, onOpenChange, date, onRefresh, onAddSche
               size="sm"
               onClick={() => {
                 if (date) {
-                  onAddSchedule(date);
+                  onAddSchedule();
                   onOpenChange(false);
                 }
               }}
@@ -207,7 +207,7 @@ export function DayDetailDialog({ open, onOpenChange, date, onRefresh, onAddSche
               <Button
                 onClick={() => {
                   if (date) {
-                    onAddSchedule(date);
+                    onAddSchedule();
                     onOpenChange(false);
                   }
                 }}
