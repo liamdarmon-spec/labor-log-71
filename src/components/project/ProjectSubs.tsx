@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { Plus, Users, DollarSign, TrendingUp, TrendingDown } from 'lucide-react';
 import { format } from 'date-fns';
+import { ProjectSubsCalendar } from './ProjectSubsCalendar';
 
 interface Sub {
   id: string;
@@ -46,6 +47,7 @@ export const ProjectSubs = ({ projectId }: { projectId: string }) => {
   const [isLogDialogOpen, setIsLogDialogOpen] = useState(false);
   const [subsBudget, setSubsBudget] = useState(0);
   const [subsActual, setSubsActual] = useState(0);
+  const [viewMode, setViewMode] = useState<'tabs' | 'calendar'>('tabs');
   const [logForm, setLogForm] = useState({
     sub_id: '',
     date: format(new Date(), 'yyyy-MM-dd'),
@@ -160,6 +162,29 @@ export const ProjectSubs = ({ projectId }: { projectId: string }) => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold">Subcontractors</h3>
+        <div className="flex gap-2">
+          <Button
+            variant={viewMode === 'tabs' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setViewMode('tabs')}
+          >
+            Details
+          </Button>
+          <Button
+            variant={viewMode === 'calendar' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setViewMode('calendar')}
+          >
+            Calendar
+          </Button>
+        </div>
+      </div>
+
+      {viewMode === 'calendar' ? (
+        <ProjectSubsCalendar projectId={projectId} />
+      ) : (
+        <>
+          <div className="flex justify-end">
         <Dialog open={isLogDialogOpen} onOpenChange={setIsLogDialogOpen}>
           <DialogTrigger asChild>
             <Button>
@@ -364,6 +389,8 @@ export const ProjectSubs = ({ projectId }: { projectId: string }) => {
           </Card>
         </TabsContent>
       </Tabs>
+        </>
+      )}
     </div>
   );
 };

@@ -42,9 +42,10 @@ interface DayDetailDialogProps {
   onRefresh: () => void;
   onAddSchedule: (date: Date) => void;
   highlightWorkerId?: string | null;
+  projectContext?: string;
 }
 
-export function DayDetailDialog({ open, onOpenChange, date, onRefresh, onAddSchedule, highlightWorkerId }: DayDetailDialogProps) {
+export function DayDetailDialog({ open, onOpenChange, date, onRefresh, onAddSchedule, highlightWorkerId, projectContext }: DayDetailDialogProps) {
   const { toast } = useToast();
   const [schedules, setSchedules] = useState<ScheduledShift[]>([]);
   const [loading, setLoading] = useState(false);
