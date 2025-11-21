@@ -52,6 +52,13 @@ export const ProjectBudgetCosts = ({ projectId }: { projectId: string }) => {
 
   useEffect(() => {
     fetchData();
+    
+    // Listen for budget updates from estimates
+    const handleBudgetUpdate = () => {
+      fetchData();
+    };
+    window.addEventListener('budget-updated', handleBudgetUpdate);
+    return () => window.removeEventListener('budget-updated', handleBudgetUpdate);
   }, [projectId]);
 
   const fetchData = async () => {
