@@ -35,6 +35,7 @@ export interface BudgetSummary {
   labor_budget: number;
   labor_actual: number;
   labor_variance: number;
+  labor_unpaid: number;
   subs_budget: number;
   subs_actual: number;
   subs_variance: number;
@@ -72,6 +73,7 @@ export function useUnifiedProjectBudget(projectId: string) {
           hours_worked,
           notes,
           cost_code_id,
+          payment_status,
           workers (name, hourly_rate)
         `)
         .eq('project_id', projectId)
@@ -192,7 +194,14 @@ export function useUnifiedProjectBudget(projectId: string) {
         variance: line.budget_amount - line.actual_amount,
       }));
 
-      // 5. Calculate summary totals
+      // 5. Calculate summary totals including unpaid labor
+      const unpaidLaborAmount = (laborLogs || []).reduce((sum: number, log: any) => {
+        if (log.payment_status === 'unpaid') {
+          return sum + (log.hours_worked * (log.workers?.hourly_rate || 0));
+        }
+        return sum;
+      }, 0);
+
       const summary: BudgetSummary = {
         total_budget: 0,
         total_actual: 0,
@@ -200,6 +209,7 @@ export function useUnifiedProjectBudget(projectId: string) {
         labor_budget: 0,
         labor_actual: 0,
         labor_variance: 0,
+        labor_unpaid: unpaidLaborAmount,
         subs_budget: 0,
         subs_actual: 0,
         subs_variance: 0,
