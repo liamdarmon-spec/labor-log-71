@@ -7,7 +7,7 @@ import { format, startOfMonth, endOfMonth, eachDayOfInterval, startOfWeek, endOf
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, User, Users, AlertTriangle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { DayDetailDialog } from '@/components/scheduling/DayDetailDialog';
+import { UniversalDayDetailDialog } from '@/components/scheduling/UniversalDayDetailDialog';
 import { useScheduleConflicts } from '@/hooks/useScheduleConflicts';
 
 interface ScheduledShift {
@@ -283,14 +283,18 @@ export const ProjectScheduleCalendar = ({ projectId }: { projectId: string }) =>
         </div>
       </Card>
 
-      <DayDetailDialog
+      <UniversalDayDetailDialog
         open={!!dayDialogDate}
         onOpenChange={(open) => {
           if (!open) setDayDialogDate(null);
         }}
         date={dayDialogDate}
         onRefresh={fetchData}
-        onAddSchedule={handleScheduleAdded}
+        onAddSchedule={() => {
+          if (dayDialogDate) {
+            handleScheduleAdded('', format(dayDialogDate, 'yyyy-MM-dd'));
+          }
+        }}
         projectContext={projectId}
       />
     </div>

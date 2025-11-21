@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AddToScheduleDialog } from "@/components/scheduling/AddToScheduleDialog";
-import { DayDetailDialog } from "@/components/scheduling/DayDetailDialog";
+import { UniversalDayDetailDialog } from "@/components/scheduling/UniversalDayDetailDialog";
 import { WeeklyScheduleView } from "@/components/scheduling/WeeklyScheduleView";
 import { DailyScheduleView } from "@/components/scheduling/DailyScheduleView";
 import { MonthlyScheduleView } from "@/components/scheduling/MonthlyScheduleView";
@@ -102,7 +102,7 @@ const Schedule = () => {
           defaultDate={scheduleDefaultDate}
         />
 
-        <DayDetailDialog
+        <UniversalDayDetailDialog
           open={isDayDetailDialogOpen}
           onOpenChange={setIsDayDetailDialogOpen}
           date={selectedDay}
