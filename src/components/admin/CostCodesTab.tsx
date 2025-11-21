@@ -40,6 +40,8 @@ interface CostCode {
   description?: string;
   is_active: boolean;
   created_at: string;
+  trade_id: string | null;
+  trades: { name: string } | null;
 }
 
 const CATEGORIES = [
@@ -77,7 +79,7 @@ export const CostCodesTab = () => {
   const fetchCostCodes = async () => {
     const { data, error } = await supabase
       .from('cost_codes')
-      .select('*')
+      .select('*, trades!cost_codes_trade_id_fkey(name)')
       .order('code');
 
     if (error) {
@@ -355,6 +357,7 @@ export const CostCodesTab = () => {
               <TableRow>
                 <TableHead>Code</TableHead>
                 <TableHead>Name</TableHead>
+                <TableHead>Trade</TableHead>
                 <TableHead>Category</TableHead>
                 <TableHead>Description</TableHead>
                 <TableHead>Status</TableHead>
@@ -364,7 +367,7 @@ export const CostCodesTab = () => {
             <TableBody>
               {filteredCostCodes.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground">
+                  <TableCell colSpan={7} className="text-center text-muted-foreground">
                     No cost codes found
                   </TableCell>
                 </TableRow>
@@ -373,6 +376,9 @@ export const CostCodesTab = () => {
                   <TableRow key={code.id}>
                     <TableCell className="font-medium">{code.code}</TableCell>
                     <TableCell>{code.name}</TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {code.trades?.name || '—'}
+                    </TableCell>
                     <TableCell>
                       <Badge className={getCategoryColor(code.category)}>
                         {CATEGORIES.find(c => c.value === code.category)?.label}

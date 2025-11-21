@@ -86,6 +86,7 @@ export type Database = {
           id: string
           is_active: boolean
           name: string
+          trade_id: string | null
           updated_at: string | null
         }
         Insert: {
@@ -96,6 +97,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           name: string
+          trade_id?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -106,12 +108,20 @@ export type Database = {
           id?: string
           is_active?: boolean
           name?: string
+          trade_id?: string | null
           updated_at?: string | null
         }
         Relationships: [
           {
             foreignKeyName: "cost_codes_default_trade_id_fkey"
             columns: ["default_trade_id"]
+            isOneToOne: false
+            referencedRelation: "trades"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cost_codes_trade_id_fkey"
+            columns: ["trade_id"]
             isOneToOne: false
             referencedRelation: "trades"
             referencedColumns: ["id"]
