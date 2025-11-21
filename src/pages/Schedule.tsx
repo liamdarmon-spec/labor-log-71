@@ -21,7 +21,10 @@ const Schedule = () => {
   const [viewMode, setViewMode] = useState<ViewMode>("weekly");
   const [scheduleType, setScheduleType] = useState<ScheduleType>("all");
 
-  const handleScheduleClick = () => {
+  const handleScheduleClick = (date?: Date) => {
+    if (date) {
+      setScheduleDefaultDate(date);
+    }
     setIsScheduleDialogOpen(true);
   };
 
@@ -73,7 +76,7 @@ const Schedule = () => {
 
         <div className={viewMode === "daily" ? "block" : "hidden"}>
           <DailyScheduleView
-            onScheduleClick={handleScheduleClick}
+            onScheduleClick={(date) => handleScheduleClick(date)}
             refreshTrigger={scheduleRefresh}
             scheduleType={scheduleType}
           />
@@ -81,7 +84,7 @@ const Schedule = () => {
 
         <div className={viewMode === "weekly" ? "block" : "hidden"}>
           <WeeklyScheduleView 
-            onScheduleClick={handleScheduleClick}
+            onScheduleClick={(date) => handleScheduleClick(date)}
             refreshTrigger={scheduleRefresh}
             scheduleType={scheduleType}
           />

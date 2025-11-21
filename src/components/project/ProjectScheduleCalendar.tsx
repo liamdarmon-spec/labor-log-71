@@ -1,164 +1,36 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { supabase } from '@/integrations/supabase/client';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, startOfWeek, endOfWeek, isSameMonth, isSameDay, addMonths } from 'date-fns';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, User, Users, AlertTriangle } from 'lucide-react';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, startOfWeek, endOfWeek, isSameMonth, isSameDay, addMonths, isWeekend } from 'date-fns';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, User } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { UniversalDayDetailDialog } from '@/components/scheduling/UniversalDayDetailDialog';
-import { useScheduleConflicts } from '@/hooks/useScheduleConflicts';
-
-interface ScheduledShift {
-  id: string;
-  worker_id: string;
-  scheduled_date: string;
-  scheduled_hours: number;
-  worker: { name: string } | null;
-}
-
-interface SubSchedule {
-  id: string;
-  sub_id: string;
-  scheduled_date: string;
-  scheduled_hours: number | null;
-  subs?: { name: string } | null;
-}
-
-interface Meeting {
-  id: string;
-  title: string;
-  due_date: string;
-  task_type: string;
-}
+import { useSchedulerData } from '@/lib/scheduler/useSchedulerData';
+import type { SchedulerFilterMode } from '@/lib/scheduler/types';
 
 export const ProjectScheduleCalendar = ({ projectId }: { projectId: string }) => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [viewFilter, setViewFilter] = useState<'workers' | 'subs' | 'meetings' | 'all'>('workers');
-  const [workerSchedules, setWorkerSchedules] = useState<ScheduledShift[]>([]);
-  const [subSchedules, setSubSchedules] = useState<SubSchedule[]>([]);
-  const [meetings, setMeetings] = useState<Meeting[]>([]);
-  const [loading, setLoading] = useState(false);
   const [dayDialogDate, setDayDialogDate] = useState<Date | null>(null);
-  const [conflictWorkerId, setConflictWorkerId] = useState<string | null>(null);
-  const [conflictDate, setConflictDate] = useState<string | null>(null);
-  
-  const { conflicts } = useScheduleConflicts(conflictWorkerId, conflictDate);
-
-  useEffect(() => {
-    fetchData();
-  }, [currentMonth, projectId, viewFilter]);
-
-  const fetchData = async () => {
-    setLoading(true);
-    const monthStart = format(startOfMonth(currentMonth), 'yyyy-MM-dd');
-    const monthEnd = format(endOfMonth(currentMonth), 'yyyy-MM-dd');
-
-    if (viewFilter === 'workers' || viewFilter === 'all') {
-      const { data } = await supabase
-        .from('scheduled_shifts')
-        .select('id, worker_id, scheduled_date, scheduled_hours, worker:workers(name)')
-        .eq('project_id', projectId)
-        .gte('scheduled_date', monthStart)
-        .lte('scheduled_date', monthEnd);
-      setWorkerSchedules(data || []);
-    }
-
-    if (viewFilter === 'subs' || viewFilter === 'all') {
-      const { data } = await supabase
-        .from('sub_scheduled_shifts')
-        .select('id, sub_id, scheduled_date, scheduled_hours, subs(name)')
-        .eq('project_id', projectId)
-        .gte('scheduled_date', monthStart)
-        .lte('scheduled_date', monthEnd);
-      setSubSchedules(data || []);
-    }
-
-    if (viewFilter === 'meetings' || viewFilter === 'all') {
-      const { data } = await supabase
-        .from('project_todos')
-        .select('id, title, due_date, task_type')
-        .eq('project_id', projectId)
-        .in('task_type', ['meeting', 'inspection'])
-        .not('due_date', 'is', null)
-        .gte('due_date', monthStart)
-        .lte('due_date', monthEnd);
-      setMeetings(data || []);
-    }
-
-    setLoading(false);
-  };
-
-  const openDayDialog = (date: Date, workerId?: string) => {
-    setDayDialogDate(date);
-  };
-
-  const handleScheduleAdded = async (workerId: string, date: string) => {
-    setConflictWorkerId(workerId);
-    setConflictDate(date);
-    await fetchData();
-  };
-
-  const dismissConflict = () => {
-    setConflictWorkerId(null);
-    setConflictDate(null);
-  };
-
-  const openDayDialogForConflict = () => {
-    if (conflictDate) {
-      const [year, month, day] = conflictDate.split('-').map(Number);
-      setDayDialogDate(new Date(year, month - 1, day));
-      dismissConflict();
-    }
-  };
 
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
+
+  const { days, assignmentsByDay, loading } = useSchedulerData({
+    viewMode: 'month',
+    filter: viewFilter as SchedulerFilterMode,
+    startDate: monthStart,
+    endDate: monthEnd,
+    projectId,
+  });
+
   const calendarStart = startOfWeek(monthStart, { weekStartsOn: 0 });
   const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 0 });
   const calendarDays = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
 
-  const getDataForDay = (day: Date) => {
-    const dayStr = format(day, 'yyyy-MM-dd');
-    const workers = workerSchedules.filter(s => s.scheduled_date === dayStr);
-    const subs = subSchedules.filter(s => s.scheduled_date === dayStr);
-    const dayMeetings = meetings.filter(m => m.due_date === dayStr);
-    
-    const workerHours = workers.reduce((sum, s) => sum + s.scheduled_hours, 0);
-    const subHours = subs.reduce((sum, s) => sum + (s.scheduled_hours || 0), 0);
-
-    return { workers, subs, meetings: dayMeetings, workerHours, subHours };
-  };
-
   return (
     <div className="space-y-4">
-      {conflicts.hasConflicts && conflicts.scheduleCount > 1 && (
-        <Alert variant="default" className="border-amber-500 bg-amber-50 dark:bg-amber-950/30">
-          <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-          <AlertTitle className="text-amber-900 dark:text-amber-100">Schedule Conflict Detected</AlertTitle>
-          <AlertDescription className="text-amber-800 dark:text-amber-200">
-            This worker has {conflicts.scheduleCount} schedules on {conflictDate ? format(new Date(conflictDate), 'MMM d, yyyy') : 'this date'} across multiple projects:
-            <span className="font-medium"> {conflicts.projectNames.join(', ')}</span>.
-            <div className="flex gap-2 mt-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={openDayDialogForConflict}
-              >
-                Open Day Schedule to Rebalance
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={dismissConflict}
-              >
-                Dismiss
-              </Button>
-            </div>
-          </AlertDescription>
-        </Alert>
-      )}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Button
@@ -217,18 +89,29 @@ export const ProjectScheduleCalendar = ({ projectId }: { projectId: string }) =>
         {/* Calendar Grid */}
         <div className="grid grid-cols-7 gap-2">
           {calendarDays.map((day) => {
-            const { workers, subs, meetings: dayMeetings, workerHours, subHours } = getDataForDay(day);
+            const dayStr = format(day, 'yyyy-MM-dd');
+            const daySummary = days.find(d => d.date === dayStr);
+            const assignments = assignmentsByDay[dayStr] || [];
+            
             const isToday = isSameDay(day, new Date());
             const isCurrentMonth = isSameMonth(day, currentMonth);
-            const hasData = workers.length > 0 || subs.length > 0 || dayMeetings.length > 0;
+            const isWeekendDay = isWeekend(day);
+
+            const totalWorkers = daySummary?.totalWorkers || 0;
+            const totalSubs = daySummary?.totalSubs || 0;
+            const totalMeetings = daySummary?.totalMeetings || 0;
+            const totalHours = daySummary?.totalHours || 0;
+            const hasConflicts = daySummary?.hasConflicts || false;
 
             return (
               <Card
                 key={day.toISOString()}
                 className={`p-2 min-h-[100px] cursor-pointer transition-all hover:shadow-md ${
                   !isCurrentMonth ? 'opacity-40 bg-muted/20' : ''
-                } ${isToday ? 'ring-2 ring-primary shadow-lg' : ''}`}
-                onClick={() => openDayDialog(day)}
+                } ${isToday ? 'ring-2 ring-primary shadow-lg' : ''} ${
+                  isWeekendDay ? 'bg-muted/30' : ''
+                } ${hasConflicts ? 'border-orange-400' : ''}`}
+                onClick={() => setDayDialogDate(day)}
               >
                 <div className="flex items-center justify-between mb-2">
                   <span className={`text-sm font-semibold ${
@@ -238,41 +121,47 @@ export const ProjectScheduleCalendar = ({ projectId }: { projectId: string }) =>
                   </span>
                 </div>
 
-                {hasData && (
+                {totalHours > 0 && (
                   <div className="space-y-1">
-                    {(viewFilter === 'workers' || viewFilter === 'all') && workerHours > 0 && (
-                      <div className="flex items-center gap-1 text-xs bg-blue-50 dark:bg-blue-950/30 px-2 py-1 rounded">
-                        <User className="h-3 w-3 text-blue-600 dark:text-blue-400" />
-                        <span className="font-medium">{workers.length}W</span>
-                        <Clock className="h-3 w-3 ml-1 text-blue-600 dark:text-blue-400" />
-                        <span>{workerHours}h</span>
-                      </div>
-                    )}
+                    <div className="flex items-center gap-1 text-xs bg-primary/5 px-2 py-1 rounded">
+                      {totalWorkers > 0 && (
+                        <>
+                          <User className="h-3 w-3 text-primary" />
+                          <span className="font-medium">{totalWorkers}</span>
+                        </>
+                      )}
+                      {totalSubs > 0 && (
+                        <>
+                          <span className="mx-1">·</span>
+                          <span className="font-medium">{totalSubs}S</span>
+                        </>
+                      )}
+                      {totalMeetings > 0 && (
+                        <>
+                          <span className="mx-1">·</span>
+                          <span className="font-medium">{totalMeetings}M</span>
+                        </>
+                      )}
+                      <span className="mx-1">·</span>
+                      <Clock className="h-3 w-3" />
+                      <span>{totalHours}h</span>
+                    </div>
 
-                    {(viewFilter === 'subs' || viewFilter === 'all') && subHours > 0 && (
-                      <div className="flex items-center gap-1 text-xs bg-green-50 dark:bg-green-950/30 px-2 py-1 rounded">
-                        <Users className="h-3 w-3 text-green-600 dark:text-green-400" />
-                        <span className="font-medium">{subs.length}S</span>
-                        <Clock className="h-3 w-3 ml-1 text-green-600 dark:text-green-400" />
-                        <span>{subHours}h</span>
+                    {/* Assignment Preview Pills */}
+                    {assignments.slice(0, 2).map((assignment) => (
+                      <div
+                        key={assignment.id}
+                        className="text-[10px] bg-muted/60 px-1.5 py-0.5 rounded truncate"
+                      >
+                        {assignment.type === 'worker' && '👷 '}
+                        {assignment.type === 'sub' && '🔧 '}
+                        {assignment.type === 'meeting' && '📅 '}
+                        {assignment.label}
                       </div>
-                    )}
-
-                    {(viewFilter === 'meetings' || viewFilter === 'all') && dayMeetings.length > 0 && (
-                      <div className="space-y-0.5">
-                        {dayMeetings.slice(0, 2).map((meeting) => (
-                          <div key={meeting.id} className="text-xs bg-purple-50 dark:bg-purple-950/30 px-1.5 py-0.5 rounded truncate">
-                            <Badge variant="outline" className="h-4 text-[10px] mr-1">
-                              {meeting.task_type === 'meeting' ? '📅' : '✓'}
-                            </Badge>
-                            <span className="text-purple-700 dark:text-purple-300">{meeting.title}</span>
-                          </div>
-                        ))}
-                        {dayMeetings.length > 2 && (
-                          <div className="text-[10px] text-muted-foreground px-1.5">
-                            +{dayMeetings.length - 2} more
-                          </div>
-                        )}
+                    ))}
+                    {assignments.length > 2 && (
+                      <div className="text-[9px] text-muted-foreground text-center">
+                        +{assignments.length - 2} more
                       </div>
                     )}
                   </div>
@@ -289,12 +178,8 @@ export const ProjectScheduleCalendar = ({ projectId }: { projectId: string }) =>
           if (!open) setDayDialogDate(null);
         }}
         date={dayDialogDate}
-        onRefresh={fetchData}
-        onAddSchedule={() => {
-          if (dayDialogDate) {
-            handleScheduleAdded('', format(dayDialogDate, 'yyyy-MM-dd'));
-          }
-        }}
+        onRefresh={() => {}}
+        onAddSchedule={() => {}}
         projectContext={projectId}
       />
     </div>
