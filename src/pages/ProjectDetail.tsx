@@ -12,6 +12,7 @@ import { format } from 'date-fns';
 import { ProjectTodos } from '@/components/project/ProjectTodos';
 import { ProjectSchedule } from '@/components/project/ProjectSchedule';
 import { ProjectActivity } from '@/components/project/ProjectActivity';
+import { ProjectCosts } from '@/components/project/ProjectCosts';
 
 interface ProjectDashboard {
   project_id: string;
@@ -231,7 +232,7 @@ const ProjectDetail = () => {
 
         {/* Tabs for different sections */}
         <Tabs defaultValue="tasks" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="tasks" className="gap-2">
               Tasks
               {taskCount > 0 && (
@@ -256,6 +257,9 @@ const ProjectDetail = () => {
                 </Badge>
               )}
             </TabsTrigger>
+            <TabsTrigger value="costs" className="gap-2">
+              Costs & Payments
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="tasks" className="mt-6">
@@ -268,6 +272,10 @@ const ProjectDetail = () => {
 
           <TabsContent value="activity" className="mt-6">
             <ProjectActivity projectId={id!} />
+          </TabsContent>
+
+          <TabsContent value="costs" className="mt-6">
+            <ProjectCosts projectId={id!} />
           </TabsContent>
         </Tabs>
       </div>
