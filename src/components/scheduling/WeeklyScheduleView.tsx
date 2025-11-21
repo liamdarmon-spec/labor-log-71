@@ -168,9 +168,12 @@ export function WeeklyScheduleView({ onScheduleClick, refreshTrigger, scheduleTy
                         {assignment.type === 'worker' && '👷'}
                         {assignment.type === 'sub' && '🔧'}
                         {assignment.type === 'meeting' && '📅'}
-                        <span className="ml-1 truncate">
-                          {assignment.label}
-                          {assignment.totalHours && ` · ${assignment.totalHours}h`}
+                        <span className="ml-1 truncate flex flex-col">
+                          <span className="truncate">{assignment.label}</span>
+                          {assignment.secondaryLabel && (
+                            <span className="text-muted-foreground truncate">{assignment.secondaryLabel}</span>
+                          )}
+                          {assignment.totalHours && <span> · {assignment.totalHours}h</span>}
                         </span>
                       </Badge>
                     ))}
