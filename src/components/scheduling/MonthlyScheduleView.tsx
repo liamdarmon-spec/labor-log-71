@@ -320,7 +320,7 @@ export function MonthlyScheduleView({ onDayClick, refreshTrigger }: MonthlySched
                                         getProjectColor(shift.project_id)
                                       }`}
                                     >
-                                      <span className="truncate font-medium flex-1">
+                                      <span className="font-medium flex-1">
                                         {shift.project?.project_name || "Unknown"}
                                       </span>
                                       
