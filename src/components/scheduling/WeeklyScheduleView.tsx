@@ -7,6 +7,9 @@ import { UniversalDayDetailDialog } from "./UniversalDayDetailDialog";
 import { useSchedulerData } from "@/lib/scheduler/useSchedulerData";
 import type { SchedulerFilterMode } from "@/lib/scheduler/types";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface WeeklyScheduleViewProps {
   onScheduleClick: (date: Date) => void;
@@ -18,6 +21,10 @@ interface WeeklyScheduleViewProps {
 export function WeeklyScheduleView({ onScheduleClick, refreshTrigger, scheduleType, projectId }: WeeklyScheduleViewProps) {
   const [currentWeekStart, setCurrentWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 0 }));
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedMeetingId, setSelectedMeetingId] = useState<string | null>(null);
+  const [meetingDetails, setMeetingDetails] = useState<any>(null);
+  const [loadingMeeting, setLoadingMeeting] = useState(false);
+  const { toast } = useToast();
 
   const weekEnd = endOfWeek(currentWeekStart, { weekStartsOn: 0 });
   
@@ -31,6 +38,36 @@ export function WeeklyScheduleView({ onScheduleClick, refreshTrigger, scheduleTy
   });
 
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(currentWeekStart, i));
+
+  const handleMeetingClick = async (meetingId: string) => {
+    setSelectedMeetingId(meetingId);
+    setLoadingMeeting(true);
+    
+    try {
+      const { data, error } = await supabase
+        .from('project_todos')
+        .select(`
+          *,
+          projects:project_id (project_name),
+          workers:assigned_worker_id (name)
+        `)
+        .eq('id', meetingId)
+        .single();
+
+      if (error) throw error;
+      setMeetingDetails(data);
+    } catch (error) {
+      console.error('Error fetching meeting details:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load meeting details",
+        variant: "destructive",
+      });
+      setSelectedMeetingId(null);
+    } finally {
+      setLoadingMeeting(false);
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -163,7 +200,15 @@ export function WeeklyScheduleView({ onScheduleClick, refreshTrigger, scheduleTy
                       <Badge
                         key={assignment.id}
                         variant="secondary"
-                        className="w-full justify-start text-[10px] truncate py-1"
+                        className={`w-full justify-start text-[10px] truncate py-1 ${
+                          assignment.type === 'meeting' ? 'cursor-pointer hover:bg-secondary/80' : ''
+                        }`}
+                        onClick={(e) => {
+                          if (assignment.type === 'meeting') {
+                            e.stopPropagation();
+                            handleMeetingClick(assignment.id);
+                          }
+                        }}
                       >
                         {assignment.type === 'worker' && '👷'}
                         {assignment.type === 'sub' && '🔧'}
@@ -202,6 +247,66 @@ export function WeeklyScheduleView({ onScheduleClick, refreshTrigger, scheduleTy
         }}
         projectContext={projectId}
       />
+
+      <Dialog open={!!selectedMeetingId} onOpenChange={(open) => !open && setSelectedMeetingId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Meeting Details</DialogTitle>
+          </DialogHeader>
+          {loadingMeeting ? (
+            <div className="flex items-center justify-center p-8">
+              <Loader2 className="h-6 w-6 animate-spin" />
+            </div>
+          ) : meetingDetails ? (
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Title</p>
+                <p className="text-lg font-semibold">{meetingDetails.title}</p>
+              </div>
+              
+              {meetingDetails.projects && (
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Project</p>
+                  <p>{meetingDetails.projects.project_name}</p>
+                </div>
+              )}
+              
+              {meetingDetails.description && (
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Description</p>
+                  <p className="text-sm">{meetingDetails.description}</p>
+                </div>
+              )}
+              
+              {meetingDetails.due_date && (
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Due Date</p>
+                  <p>{format(new Date(meetingDetails.due_date), "PPP")}</p>
+                </div>
+              )}
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Status</p>
+                  <Badge variant="secondary">{meetingDetails.status}</Badge>
+                </div>
+                
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Priority</p>
+                  <Badge variant="secondary">{meetingDetails.priority}</Badge>
+                </div>
+              </div>
+              
+              {meetingDetails.workers && (
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Assigned To</p>
+                  <p>{meetingDetails.workers.name}</p>
+                </div>
+              )}
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
