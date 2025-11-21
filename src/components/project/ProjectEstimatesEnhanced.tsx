@@ -48,28 +48,37 @@ export const ProjectEstimatesEnhanced = ({ projectId }: { projectId: string }) =
 
   const syncToBudget = async (estimateId: string) => {
     try {
-      // Call the database function to sync estimate to budget
       const { error } = await supabase.rpc('sync_estimate_to_budget', {
         p_estimate_id: estimateId
       });
 
       if (error) throw error;
 
-      toast.success('Estimate accepted and synced to budget successfully');
+      toast.success('Budget lines synced from estimate by cost code');
       fetchEstimates();
+      
+      // Notify other components to refresh
+      window.dispatchEvent(new CustomEvent('budget-updated'));
     } catch (error) {
       console.error('Error syncing to budget:', error);
       toast.error('Failed to sync budget');
     }
   };
 
-  const acceptAndSetBudget = async (estimateId: string) => {
+  const acceptEstimate = async (estimateId: string) => {
     try {
-      // This is a single action that accepts the estimate and sets it as budget
-      await syncToBudget(estimateId);
+      const { error } = await supabase
+        .from('estimates')
+        .update({ status: 'accepted' })
+        .eq('id', estimateId);
+
+      if (error) throw error;
+
+      toast.success('Estimate accepted. You can now sync to budget.');
+      fetchEstimates();
     } catch (error) {
-      console.error('Error accepting and setting budget:', error);
-      toast.error('Failed to accept and set budget');
+      console.error('Error accepting estimate:', error);
+      toast.error('Failed to accept estimate');
     }
   };
 
@@ -194,35 +203,24 @@ export const ProjectEstimatesEnhanced = ({ projectId }: { projectId: string }) =
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2">
-                        {!estimate.is_budget_source && estimate.status !== 'accepted' && (
-                          <Button
-                            size="sm"
-                            variant="default"
-                            onClick={() => acceptAndSetBudget(estimate.id)}
-                            className="gap-1"
-                          >
-                            <Zap className="w-4 h-4" />
-                            Accept & Set as Budget
-                          </Button>
-                        )}
-                        {estimate.status === 'accepted' && !estimate.is_budget_source && (
+                        {estimate.status !== 'accepted' && (
                           <Button
                             size="sm"
                             variant="outline"
+                            onClick={() => acceptEstimate(estimate.id)}
+                          >
+                            <CheckCircle2 className="w-4 h-4 mr-1" />
+                            Accept
+                          </Button>
+                        )}
+                        {estimate.status === 'accepted' && (
+                          <Button
+                            size="sm"
+                            variant="default"
                             onClick={() => syncToBudget(estimate.id)}
                           >
                             <TrendingUp className="w-4 h-4 mr-1" />
                             Sync to Budget
-                          </Button>
-                        )}
-                        {estimate.status !== 'accepted' && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => updateEstimateStatus(estimate.id, 'accepted')}
-                          >
-                            <CheckCircle2 className="w-4 h-4 mr-1" />
-                            Accept
                           </Button>
                         )}
                       </div>

@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { useBudgetLinesWithActuals } from "@/hooks/useProjectBudgetLines";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
@@ -21,8 +21,17 @@ interface BudgetDetailTableProps {
 }
 
 export function BudgetDetailTable({ projectId }: BudgetDetailTableProps) {
-  const { data: budgetLines, isLoading } = useBudgetLinesWithActuals(projectId);
+  const { data: budgetLines, isLoading, refetch } = useBudgetLinesWithActuals(projectId);
   const [selectedLine, setSelectedLine] = useState<string | null>(null);
+
+  // Listen for budget updates from estimates
+  useEffect(() => {
+    const handleBudgetUpdate = () => {
+      refetch();
+    };
+    window.addEventListener('budget-updated', handleBudgetUpdate);
+    return () => window.removeEventListener('budget-updated', handleBudgetUpdate);
+  }, [refetch]);
 
   const selectedBudgetLine = budgetLines?.find(line => line.id === selectedLine);
 
