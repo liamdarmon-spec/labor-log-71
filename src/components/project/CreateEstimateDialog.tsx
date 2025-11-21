@@ -33,7 +33,9 @@ export function CreateEstimateDialog({ open, onOpenChange, projectId, onSuccess 
   const [loading, setLoading] = useState(false);
 
   const handleAddItem = (itemData: EstimateItemFormData) => {
-    const lineTotal = itemData.quantity * itemData.unit_price;
+    const qty = parseFloat(itemData.quantity) || 0;
+    const price = parseFloat(itemData.unit_price) || 0;
+    const lineTotal = qty * price;
     const newItem: EstimateItemWithId = {
       ...itemData,
       id: crypto.randomUUID(),
@@ -44,7 +46,9 @@ export function CreateEstimateDialog({ open, onOpenChange, projectId, onSuccess 
 
   const handleEditItem = (itemData: EstimateItemFormData) => {
     if (!editingItem) return;
-    const lineTotal = itemData.quantity * itemData.unit_price;
+    const qty = parseFloat(itemData.quantity) || 0;
+    const price = parseFloat(itemData.unit_price) || 0;
+    const lineTotal = qty * price;
     setItems(items.map(item => 
       item.id === editingItem.id 
         ? { ...itemData, id: item.id, line_total: lineTotal }
@@ -70,8 +74,9 @@ export function CreateEstimateDialog({ open, onOpenChange, projectId, onSuccess 
       const catKey = item.category.toLowerCase() as keyof typeof totals;
       if (totals[catKey]) {
         totals[catKey].amount += item.line_total;
-        if (item.planned_hours) {
-          totals[catKey].hours += item.planned_hours;
+        const hours = parseFloat(item.planned_hours) || 0;
+        if (hours > 0) {
+          totals[catKey].hours += hours;
         }
       }
     });
@@ -121,12 +126,14 @@ export function CreateEstimateDialog({ open, onOpenChange, projectId, onSuccess 
         category: item.category,
         cost_code_id: item.cost_code_id,
         trade_id: item.trade_id,
-        quantity: item.quantity,
+        quantity: parseFloat(item.quantity),
         unit: item.unit,
-        unit_price: item.unit_price,
+        unit_price: parseFloat(item.unit_price),
         line_total: item.line_total,
-        planned_hours: item.planned_hours,
+        planned_hours: item.planned_hours ? parseFloat(item.planned_hours) : null,
         is_allowance: item.is_allowance,
+        area_name: item.area_name || null,
+        scope_group: item.scope_group || null,
       }));
 
       const { error: itemsError } = await supabase
@@ -227,7 +234,7 @@ export function CreateEstimateDialog({ open, onOpenChange, projectId, onSuccess 
                         </TableCell>
                         <TableCell className="text-right">{item.quantity}</TableCell>
                         <TableCell>{item.unit}</TableCell>
-                        <TableCell className="text-right">${item.unit_price.toFixed(2)}</TableCell>
+                        <TableCell className="text-right">${parseFloat(item.unit_price).toFixed(2)}</TableCell>
                         <TableCell className="text-right">{item.planned_hours || '—'}</TableCell>
                         <TableCell className="text-right font-medium">${item.line_total.toFixed(2)}</TableCell>
                         <TableCell>

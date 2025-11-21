@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { ProjectOverviewEnhanced } from '@/components/project/ProjectOverviewEnhanced';
 import { ProjectEstimatesEnhanced } from '@/components/project/ProjectEstimatesEnhanced';
+import { ProjectProposals } from '@/components/project/ProjectProposals';
 import { ProjectBudgetCosts } from '@/components/project/ProjectBudgetCosts';
 import { ProjectSubs } from '@/components/project/ProjectSubs';
 import { ProjectInvoices } from '@/components/project/ProjectInvoices';
@@ -196,9 +197,10 @@ const ProjectDetail = () => {
 
         {/* Tabs for different sections */}
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full grid-cols-7">
+          <TabsList className="grid w-full grid-cols-8">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="estimates">Estimates</TabsTrigger>
+            <TabsTrigger value="proposals">Proposals</TabsTrigger>
             <TabsTrigger value="budget">Budget & Costs</TabsTrigger>
             <TabsTrigger value="subs">Subs</TabsTrigger>
             <TabsTrigger value="invoices">Invoices</TabsTrigger>
@@ -212,6 +214,10 @@ const ProjectDetail = () => {
 
           <TabsContent value="estimates" className="mt-6">
             <ProjectEstimatesEnhanced projectId={id!} />
+          </TabsContent>
+
+          <TabsContent value="proposals" className="mt-6">
+            <ProjectProposals projectId={id!} />
           </TabsContent>
 
           <TabsContent value="budget" className="mt-6">
