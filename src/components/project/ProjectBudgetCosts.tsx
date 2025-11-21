@@ -259,6 +259,11 @@ export const ProjectBudgetCosts = ({ projectId }: { projectId: string }) => {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold">${costData.labor_budget.toFixed(2)}</p>
+            {costData.labor_budget === 0 && (
+              <p className="text-xs text-muted-foreground mt-2">
+                No budget set. <a href="#estimates" className="text-primary underline">Sync from estimate</a>
+              </p>
+            )}
           </CardContent>
         </Card>
 
@@ -288,6 +293,11 @@ export const ProjectBudgetCosts = ({ projectId }: { projectId: string }) => {
             <p className={`text-2xl font-bold ${laborVarianceColor}`}>
               {costData.labor_budget_variance >= 0 ? 'Under' : 'Over'} by ${Math.abs(costData.labor_budget_variance).toFixed(2)}
             </p>
+            {costData.labor_budget === 0 && costData.labor_total_cost > 0 && (
+              <p className="text-xs text-muted-foreground mt-2">
+                No budget for comparison
+              </p>
+            )}
           </CardContent>
         </Card>
       </div>

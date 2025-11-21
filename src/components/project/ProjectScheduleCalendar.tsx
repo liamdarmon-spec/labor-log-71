@@ -140,22 +140,22 @@ export const ProjectScheduleCalendar = ({ projectId }: { projectId: string }) =>
           <AlertDescription className="text-amber-800 dark:text-amber-200">
             This worker has {conflicts.scheduleCount} schedules on {conflictDate ? format(new Date(conflictDate), 'MMM d, yyyy') : 'this date'} across multiple projects:
             <span className="font-medium"> {conflicts.projectNames.join(', ')}</span>.
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={openDayDialogForConflict}
-              className="ml-2 mt-2"
-            >
-              Open Day Schedule to Rebalance
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={dismissConflict}
-              className="ml-2 mt-2"
-            >
-              Dismiss
-            </Button>
+            <div className="flex gap-2 mt-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={openDayDialogForConflict}
+              >
+                Open Day Schedule to Rebalance
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={dismissConflict}
+              >
+                Dismiss
+              </Button>
+            </div>
           </AlertDescription>
         </Alert>
       )}

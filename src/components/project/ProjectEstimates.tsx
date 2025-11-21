@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Plus, Trash2, FileText, CheckCircle2 } from 'lucide-react';
+import { Plus, Trash2, FileText, CheckCircle2, TrendingUp } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface Estimate {
@@ -18,15 +18,26 @@ interface Estimate {
   status: string;
   total_amount: number;
   created_at: string;
+  is_budget_source?: boolean;
 }
 
-interface EstimateItem {
+interface EstimateItemWithCategory {
   id?: string;
   description: string;
   quantity: string;
   unit: string;
   unit_price: string;
   line_total: number;
+  category: string;
+}
+
+interface EstimateItem {
+  description: string;
+  quantity: string;
+  unit: string;
+  unit_price: string;
+  line_total: number;
+  category?: string;
 }
 
 export const ProjectEstimates = ({ projectId }: { projectId: string }) => {
@@ -39,7 +50,7 @@ export const ProjectEstimates = ({ projectId }: { projectId: string }) => {
     tax_amount: '0',
   });
   const [lineItems, setLineItems] = useState<EstimateItem[]>([
-    { description: '', quantity: '1', unit: 'ea', unit_price: '0', line_total: 0 }
+    { description: '', quantity: '1', unit: 'ea', unit_price: '0', line_total: 0, category: 'labor' }
   ]);
 
   useEffect(() => {
@@ -78,7 +89,7 @@ export const ProjectEstimates = ({ projectId }: { projectId: string }) => {
   };
 
   const addLineItem = () => {
-    setLineItems([...lineItems, { description: '', quantity: '1', unit: 'ea', unit_price: '0', line_total: 0 }]);
+    setLineItems([...lineItems, { description: '', quantity: '1', unit: 'ea', unit_price: '0', line_total: 0, category: 'labor' }]);
   };
 
   const removeLineItem = (index: number) => {
@@ -136,11 +147,46 @@ export const ProjectEstimates = ({ projectId }: { projectId: string }) => {
       toast.success('Estimate created successfully');
       setIsDialogOpen(false);
       setFormData({ title: '', status: 'draft', tax_amount: '0' });
-      setLineItems([{ description: '', quantity: '1', unit: 'ea', unit_price: '0', line_total: 0 }]);
+      setLineItems([{ description: '', quantity: '1', unit: 'ea', unit_price: '0', line_total: 0, category: 'labor' }]);
       fetchEstimates();
     } catch (error) {
       console.error('Error creating estimate:', error);
       toast.error('Failed to create estimate');
+    }
+  };
+
+  const syncToBudget = async (estimateId: string) => {
+    try {
+      // Fetch estimate items to calculate category totals
+      const { data: items, error: itemsError } = await supabase
+        .from('estimate_items')
+        .select('*')
+        .eq('estimate_id', estimateId);
+
+      if (itemsError) throw itemsError;
+
+      const laborTotal = items?.reduce((sum, item) => sum + (item.line_total || 0), 0) || 0;
+
+      // Update project budget
+      const { error: budgetError } = await supabase
+        .from('project_budgets')
+        .upsert({
+          project_id: projectId,
+          labor_budget: laborTotal,
+          subs_budget: 0,
+          materials_budget: 0,
+          other_budget: 0,
+        }, {
+          onConflict: 'project_id'
+        });
+
+      if (budgetError) throw budgetError;
+
+      toast.success('Budget synced from estimate');
+      fetchEstimates();
+    } catch (error) {
+      console.error('Error syncing to budget:', error);
+      toast.error('Failed to sync budget');
     }
   };
 
@@ -342,7 +388,7 @@ export const ProjectEstimates = ({ projectId }: { projectId: string }) => {
                 <TableHead>Status</TableHead>
                 <TableHead>Date Created</TableHead>
                 <TableHead className="text-right">Total Amount</TableHead>
-                <TableHead>Actions</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -358,17 +404,29 @@ export const ProjectEstimates = ({ projectId }: { projectId: string }) => {
                   <TableCell className="text-right font-semibold">
                     ${Number(estimate.total_amount).toFixed(2)}
                   </TableCell>
-                  <TableCell>
-                    {estimate.status !== 'accepted' && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => updateEstimateStatus(estimate.id, 'accepted')}
-                      >
-                        <CheckCircle2 className="w-4 h-4 mr-1" />
-                        Accept
-                      </Button>
-                    )}
+                  <TableCell className="text-right">
+                    <div className="flex items-center justify-end gap-2">
+                      {estimate.status === 'accepted' && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => syncToBudget(estimate.id)}
+                        >
+                          <TrendingUp className="w-4 h-4 mr-1" />
+                          Sync to Budget
+                        </Button>
+                      )}
+                      {estimate.status !== 'accepted' && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => updateEstimateStatus(estimate.id, 'accepted')}
+                        >
+                          <CheckCircle2 className="w-4 h-4 mr-1" />
+                          Accept
+                        </Button>
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
