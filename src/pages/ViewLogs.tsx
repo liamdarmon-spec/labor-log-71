@@ -513,6 +513,10 @@ const ViewLogs = () => {
 
   return (
     <Layout>
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold text-foreground">Labor</h1>
+        <p className="text-muted-foreground mt-1">View and approve daily logs before running payments.</p>
+      </div>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
