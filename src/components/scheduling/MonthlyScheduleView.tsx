@@ -53,32 +53,37 @@ export function MonthlyScheduleView({ onDayClick, refreshTrigger, scheduleType }
 
   useEffect(() => {
     fetchSchedules();
-  }, [currentMonth, refreshTrigger]);
+  }, [currentMonth, refreshTrigger, scheduleType]);
 
   const fetchSchedules = async () => {
     setLoading(true);
     const monthStart = startOfMonth(currentMonth);
     const monthEnd = endOfMonth(currentMonth);
 
-    const { data, error } = await supabase
-      .from("scheduled_shifts")
-      .select(`
-        *,
-        worker:workers(name, trade),
-        project:projects(project_name, client_name)
-      `)
-      .gte("scheduled_date", format(monthStart, "yyyy-MM-dd"))
-      .lte("scheduled_date", format(monthEnd, "yyyy-MM-dd"))
-      .order("scheduled_date");
+    if (scheduleType === "workers" || scheduleType === "all") {
+      const { data, error } = await supabase
+        .from("scheduled_shifts")
+        .select(`
+          *,
+          worker:workers(name, trade),
+          project:projects(project_name, client_name)
+        `)
+        .gte("scheduled_date", format(monthStart, "yyyy-MM-dd"))
+        .lte("scheduled_date", format(monthEnd, "yyyy-MM-dd"))
+        .order("scheduled_date");
 
-    setLoading(false);
+      setLoading(false);
 
-    if (error) {
-      console.error("Error fetching schedules:", error);
-      return;
+      if (error) {
+        console.error("Error fetching schedules:", error);
+        return;
+      }
+
+      setSchedules(data || []);
+    } else {
+      setLoading(false);
+      setSchedules([]);
     }
-
-    setSchedules(data || []);
   };
 
 

@@ -46,32 +46,37 @@ export function WeeklyScheduleView({ onScheduleClick, refreshTrigger, scheduleTy
 
   useEffect(() => {
     fetchSchedules();
-  }, [currentWeekStart, refreshTrigger]);
+  }, [currentWeekStart, refreshTrigger, scheduleType]);
 
   const fetchSchedules = async () => {
     setLoading(true);
     const weekEnd = endOfWeek(currentWeekStart, { weekStartsOn: 0 });
 
-    const { data, error } = await supabase
-      .from("scheduled_shifts")
-      .select(`
-        *,
-        worker:workers(name, trade),
-        project:projects(project_name, client_name)
-      `)
-      .gte("scheduled_date", format(currentWeekStart, "yyyy-MM-dd"))
-      .lte("scheduled_date", format(weekEnd, "yyyy-MM-dd"))
-      .order("scheduled_date")
-      .order("worker_id");
+    if (scheduleType === "workers" || scheduleType === "all") {
+      const { data, error } = await supabase
+        .from("scheduled_shifts")
+        .select(`
+          *,
+          worker:workers(name, trade),
+          project:projects(project_name, client_name)
+        `)
+        .gte("scheduled_date", format(currentWeekStart, "yyyy-MM-dd"))
+        .lte("scheduled_date", format(weekEnd, "yyyy-MM-dd"))
+        .order("scheduled_date")
+        .order("worker_id");
 
-    setLoading(false);
+      setLoading(false);
 
-    if (error) {
-      console.error("Error fetching schedules:", error);
-      return;
+      if (error) {
+        console.error("Error fetching schedules:", error);
+        return;
+      }
+
+      setSchedules(data || []);
+    } else {
+      setLoading(false);
+      setSchedules([]);
     }
-
-    setSchedules(data || []);
   };
 
 
