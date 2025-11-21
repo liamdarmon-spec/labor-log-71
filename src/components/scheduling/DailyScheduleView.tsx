@@ -71,51 +71,6 @@ export function DailyScheduleView({ onScheduleClick, refreshTrigger }: DailySche
     setSchedules(data || []);
   };
 
-  const handleDeleteSchedule = async (id: string) => {
-    // Check if this schedule has been converted to a time log
-    const { data: relatedLog } = await supabase
-      .from("daily_logs")
-      .select("id")
-      .eq("schedule_id", id)
-      .maybeSingle();
-
-    // If there's a related log, delete it first
-    if (relatedLog) {
-      const { error: logError } = await supabase
-        .from("daily_logs")
-        .delete()
-        .eq("id", relatedLog.id);
-
-      if (logError) {
-        toast({
-          title: "Error",
-          description: "Failed to delete time log",
-          variant: "destructive"
-        });
-        return;
-      }
-    }
-
-    const { error } = await supabase
-      .from("scheduled_shifts")
-      .delete()
-      .eq("id", id);
-
-    if (error) {
-      toast({
-        title: "Error",
-        description: "Failed to delete schedule",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    toast({
-      title: "Success",
-      description: relatedLog ? "Schedule and time log deleted" : "Schedule deleted"
-    });
-    fetchSchedules();
-  };
 
   const totalHours = schedules.reduce((sum, s) => sum + Number(s.scheduled_hours), 0);
 
@@ -276,8 +231,9 @@ export function DailyScheduleView({ onScheduleClick, refreshTrigger }: DailySche
                           </Button>
                           <ScheduleEditButton onClick={() => setEditingSchedule(shift)} />
                           <ScheduleDeleteButton 
-                            onConfirm={() => handleDeleteSchedule(shift.id)}
-                            hasTimeLog={shift.converted_to_timelog || false}
+                            scheduleId={shift.id}
+                            scheduleDate={shift.scheduled_date}
+                            onSuccess={fetchSchedules}
                           />
                         </div>
                       </div>

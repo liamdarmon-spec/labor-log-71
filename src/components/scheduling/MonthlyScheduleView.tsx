@@ -80,51 +80,6 @@ export function MonthlyScheduleView({ onDayClick, refreshTrigger }: MonthlySched
     setSchedules(data || []);
   };
 
-  const handleDeleteSchedule = async (scheduleId: string) => {
-    // Check if there's a linked time log
-    const { data: linkedLog } = await supabase
-      .from('daily_logs')
-      .select('id')
-      .eq('schedule_id', scheduleId)
-      .maybeSingle();
-
-    // Delete linked time log first if it exists
-    if (linkedLog) {
-      const { error: logError } = await supabase
-        .from('daily_logs')
-        .delete()
-        .eq('schedule_id', scheduleId);
-
-      if (logError) {
-        toast({
-          title: 'Error',
-          description: 'Failed to delete linked time log',
-          variant: 'destructive',
-        });
-        return;
-      }
-    }
-
-    // Delete the schedule
-    const { error } = await supabase
-      .from('scheduled_shifts')
-      .delete()
-      .eq('id', scheduleId);
-
-    if (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to delete schedule',
-        variant: 'destructive',
-      });
-    } else {
-      toast({
-        title: 'Success',
-        description: 'Schedule deleted successfully',
-      });
-      fetchSchedules();
-    }
-  };
 
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
@@ -344,15 +299,16 @@ export function MonthlyScheduleView({ onDayClick, refreshTrigger }: MonthlySched
                                         >
                                           <Split className="h-2.5 w-2.5" />
                                         </Button>
-                                        <ScheduleEditButton 
-                                          onClick={() => {
-                                            setEditingSchedule(shift);
-                                          }} 
-                                        />
-                                        <ScheduleDeleteButton 
-                                          onConfirm={() => handleDeleteSchedule(shift.id)}
-                                          hasTimeLog={shift.converted_to_timelog || false}
-                                        />
+                                          <ScheduleEditButton 
+                                            onClick={() => {
+                                              setEditingSchedule(shift);
+                                            }} 
+                                          />
+                                          <ScheduleDeleteButton 
+                                            scheduleId={shift.id}
+                                            scheduleDate={shift.scheduled_date}
+                                            onSuccess={fetchSchedules}
+                                          />
                                       </div>
                                     </div>
                                   ))}

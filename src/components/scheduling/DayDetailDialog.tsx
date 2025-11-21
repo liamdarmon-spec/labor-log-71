@@ -81,53 +81,6 @@ export function DayDetailDialog({ open, onOpenChange, date, onRefresh, onAddSche
     setSchedules(data || []);
   };
 
-  const handleDelete = async (id: string) => {
-    // Check if this schedule has been converted to a time log
-    const { data: relatedLog } = await supabase
-      .from("daily_logs")
-      .select("id")
-      .eq("schedule_id", id)
-      .maybeSingle();
-
-    // If there's a related log, delete it first
-    if (relatedLog) {
-      const { error: logError } = await supabase
-        .from("daily_logs")
-        .delete()
-        .eq("id", relatedLog.id);
-
-      if (logError) {
-        toast({
-          title: "Error",
-          description: "Failed to delete time log",
-          variant: "destructive"
-        });
-        return;
-      }
-    }
-
-    const { error } = await supabase
-      .from("scheduled_shifts")
-      .delete()
-      .eq("id", id);
-
-    if (error) {
-      toast({
-        title: "Error",
-        description: "Failed to delete schedule",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    toast({
-      title: "Success",
-      description: relatedLog ? "Schedule and time log deleted" : "Schedule deleted"
-    });
-    
-    fetchDaySchedules();
-    onRefresh();
-  };
 
   const handleConvertToTimeLogs = async () => {
     if (!date) return;
@@ -302,8 +255,12 @@ export function DayDetailDialog({ open, onOpenChange, date, onRefresh, onAddSche
                           <div className="flex items-center gap-1">
                             <ScheduleEditButton onClick={() => setEditingSchedule(schedule)} />
                             <ScheduleDeleteButton 
-                              onConfirm={() => handleDelete(schedule.id)}
-                              hasTimeLog={schedule.converted_to_timelog || false}
+                              scheduleId={schedule.id}
+                              scheduleDate={schedule.scheduled_date}
+                              onSuccess={() => {
+                                fetchDaySchedules();
+                                onRefresh();
+                              }}
                             />
                           </div>
                         </div>
