@@ -14,6 +14,9 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+// Scheduler engine types - will be integrated in next step
+import type { SchedulerFilterMode } from "@/lib/scheduler/types";
+// import { useSchedulerData } from "@/lib/scheduler/useSchedulerData";
 
 interface ScheduledShift {
   id: string;
@@ -39,6 +42,14 @@ export function MonthlyScheduleView({ onDayClick, refreshTrigger, scheduleType }
   const [schedules, setSchedules] = useState<ScheduledShift[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+
+  // TODO: In next step, replace fetchSchedules with useSchedulerData hook
+  // const { days, assignmentsByDay, loading: hookLoading } = useSchedulerData({
+  //   viewMode: "month",
+  //   filter: scheduleType as SchedulerFilterMode,
+  //   startDate: startOfMonth(currentMonth),
+  //   endDate: endOfMonth(currentMonth),
+  // });
 
   useEffect(() => {
     fetchSchedules();

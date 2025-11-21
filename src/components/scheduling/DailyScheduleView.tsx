@@ -11,6 +11,9 @@ import { WorkerScheduleDialog } from "./WorkerScheduleDialog";
 import { ScheduleEditButton } from "./ScheduleEditButton";
 import { ScheduleDeleteButton } from "./ScheduleDeleteButton";
 import { SplitScheduleDialog } from "@/components/dashboard/SplitScheduleDialog";
+// Scheduler engine types - will be integrated in next step
+import type { SchedulerFilterMode } from "@/lib/scheduler/types";
+// import { useSchedulerData } from "@/lib/scheduler/useSchedulerData";
 
 interface ScheduledShift {
   id: string;
@@ -44,6 +47,14 @@ export function DailyScheduleView({ onScheduleClick, refreshTrigger, scheduleTyp
     hours: number;
     projectId: string;
   } | null>(null);
+
+  // TODO: In next step, replace fetchSchedules with useSchedulerData hook
+  // const { days, assignmentsByDay, loading: hookLoading } = useSchedulerData({
+  //   viewMode: "day",
+  //   filter: scheduleType as SchedulerFilterMode,
+  //   startDate: currentDate,
+  //   endDate: currentDate,
+  // });
 
   useEffect(() => {
     fetchSchedules();
