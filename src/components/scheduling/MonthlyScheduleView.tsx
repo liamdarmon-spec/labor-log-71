@@ -34,9 +34,10 @@ interface ScheduledShift {
 interface MonthlyScheduleViewProps {
   onDayClick: (date: Date) => void;
   refreshTrigger: number;
+  scheduleType: "workers" | "subs" | "meetings" | "all";
 }
 
-export function MonthlyScheduleView({ onDayClick, refreshTrigger }: MonthlyScheduleViewProps) {
+export function MonthlyScheduleView({ onDayClick, refreshTrigger, scheduleType }: MonthlyScheduleViewProps) {
   const { toast } = useToast();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [schedules, setSchedules] = useState<ScheduledShift[]>([]);

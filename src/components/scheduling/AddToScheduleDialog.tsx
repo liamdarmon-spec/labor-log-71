@@ -31,11 +31,11 @@ interface Trade {
   name: string;
 }
 
-interface WorkerScheduleEntry {
-  worker_id: string;
-  project_id: string;
-  trade_id: string;
-  hours: string;
+interface Sub {
+  id: string;
+  name: string;
+  company_name: string | null;
+  trade: string | null;
 }
 
 interface WorkerProjectEntry {
@@ -52,11 +52,15 @@ interface AddToScheduleDialogProps {
   defaultDate?: Date;
 }
 
+type ScheduleMode = 'workers' | 'subs' | 'meetings';
+
 export function AddToScheduleDialog({ open, onOpenChange, onScheduleCreated, defaultDate }: AddToScheduleDialogProps) {
   const { toast } = useToast();
+  const [mode, setMode] = useState<ScheduleMode>('workers');
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [trades, setTrades] = useState<Trade[]>([]);
+  const [subs, setSubs] = useState<Sub[]>([]);
   const [loading, setLoading] = useState(false);
 
   // Single worker form
@@ -72,21 +76,40 @@ export function AddToScheduleDialog({ open, onOpenChange, onScheduleCreated, def
   const [workerProjectEntries, setWorkerProjectEntries] = useState<Record<string, WorkerProjectEntry[]>>({});
   const [excludedWorkers, setExcludedWorkers] = useState<Set<string>>(new Set());
 
+  // Subs form
+  const [subDate, setSubDate] = useState<Date | undefined>(defaultDate || new Date());
+  const [selectedSub, setSelectedSub] = useState("");
+  const [subProject, setSubProject] = useState("");
+  const [subHours, setSubHours] = useState("8");
+  const [subNotes, setSubNotes] = useState("");
+
+  // Meetings form
+  const [meetingDate, setMeetingDate] = useState<Date | undefined>(defaultDate || new Date());
+  const [meetingTime, setMeetingTime] = useState("");
+  const [meetingTitle, setMeetingTitle] = useState("");
+  const [meetingProject, setMeetingProject] = useState("");
+  const [meetingAssignee, setMeetingAssignee] = useState("");
+  const [meetingType, setMeetingType] = useState<'meeting' | 'inspection'>('meeting');
+  const [meetingNotes, setMeetingNotes] = useState("");
+
   useEffect(() => {
     if (open) {
       fetchData();
       if (defaultDate) {
         setSelectedDate(defaultDate);
         setBulkDate(defaultDate);
+        setSubDate(defaultDate);
+        setMeetingDate(defaultDate);
       }
     }
   }, [open, defaultDate]);
 
   const fetchData = async () => {
-    const [workersRes, projectsRes, tradesRes] = await Promise.all([
+    const [workersRes, projectsRes, tradesRes, subsRes] = await Promise.all([
       supabase.from("workers").select("*").eq("active", true).order("name"),
       supabase.from("projects").select("*").eq("status", "Active").order("project_name"),
-      supabase.from("trades").select("*").order("name")
+      supabase.from("trades").select("*").order("name"),
+      supabase.from("subs").select("*").eq("active", true).order("name")
     ]);
 
     if (workersRes.data) {
@@ -104,6 +127,7 @@ export function AddToScheduleDialog({ open, onOpenChange, onScheduleCreated, def
     }
     if (projectsRes.data) setProjects(projectsRes.data);
     if (tradesRes.data) setTrades(tradesRes.data);
+    if (subsRes.data) setSubs(subsRes.data);
   };
 
   const handleWorkerChange = (workerId: string) => {
@@ -218,7 +242,6 @@ export function AddToScheduleDialog({ open, onOpenChange, onScheduleCreated, def
 
     const activeWorkers = workers.filter(w => !excludedWorkers.has(w.id));
     
-    // Flatten all project entries from all workers
     const allSchedules: any[] = [];
     activeWorkers.forEach(worker => {
       const entries = workerProjectEntries[worker.id] || [];
@@ -279,6 +302,98 @@ export function AddToScheduleDialog({ open, onOpenChange, onScheduleCreated, def
     onOpenChange(false);
   };
 
+  const handleSubSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!selectedSub || !subProject || !subDate) {
+      toast({
+        title: "Missing fields",
+        description: "Please fill in all required fields",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setLoading(true);
+
+    const { error } = await supabase.from("sub_scheduled_shifts").insert({
+      sub_id: selectedSub,
+      project_id: subProject,
+      scheduled_date: format(subDate, "yyyy-MM-dd"),
+      scheduled_hours: parseFloat(subHours),
+      notes: subNotes || null,
+    });
+
+    setLoading(false);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to create sub schedule",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    toast({
+      title: "Success",
+      description: "Sub schedule created successfully"
+    });
+
+    resetForm();
+    onScheduleCreated();
+    onOpenChange(false);
+  };
+
+  const handleMeetingSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!meetingTitle || !meetingProject || !meetingDate) {
+      toast({
+        title: "Missing fields",
+        description: "Please fill in all required fields",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setLoading(true);
+
+    const { data: userData } = await supabase.auth.getUser();
+
+    const { error } = await supabase.from("project_todos").insert({
+      title: meetingTitle,
+      project_id: meetingProject,
+      task_type: meetingType,
+      due_date: format(meetingDate, "yyyy-MM-dd"),
+      assigned_worker_id: meetingAssignee || null,
+      description: meetingNotes || null,
+      status: 'open',
+      priority: 'medium',
+      created_by: userData.user?.id
+    });
+
+    setLoading(false);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to create meeting",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    toast({
+      title: "Success",
+      description: `${meetingType === 'meeting' ? 'Meeting' : 'Inspection'} created successfully`
+    });
+
+    resetForm();
+    onScheduleCreated();
+    onOpenChange(false);
+  };
+
   const resetForm = () => {
     setSelectedWorker("");
     setSelectedProject("");
@@ -288,6 +403,18 @@ export function AddToScheduleDialog({ open, onOpenChange, onScheduleCreated, def
     setNotes("");
     setBulkDate(new Date());
     setExcludedWorkers(new Set());
+    setSelectedSub("");
+    setSubProject("");
+    setSubDate(new Date());
+    setSubHours("8");
+    setSubNotes("");
+    setMeetingTitle("");
+    setMeetingProject("");
+    setMeetingDate(new Date());
+    setMeetingTime("");
+    setMeetingAssignee("");
+    setMeetingType('meeting');
+    setMeetingNotes("");
     const initialEntries: Record<string, WorkerProjectEntry[]> = {};
     workers.forEach(worker => {
       initialEntries[worker.id] = [{
@@ -309,267 +436,469 @@ export function AddToScheduleDialog({ open, onOpenChange, onScheduleCreated, def
           <DialogTitle>Add to Schedule</DialogTitle>
         </DialogHeader>
 
-        <Tabs defaultValue="single" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="single" className="flex items-center gap-2">
-              <User className="h-4 w-4" />
-              Single Worker
-            </TabsTrigger>
-            <TabsTrigger value="bulk" className="flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              Multiple Workers
-            </TabsTrigger>
+        {/* Mode Selector */}
+        <Tabs value={mode} onValueChange={(v) => setMode(v as ScheduleMode)} className="w-full mb-4">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="workers">Workers</TabsTrigger>
+            <TabsTrigger value="subs">Subs</TabsTrigger>
+            <TabsTrigger value="meetings">Meetings</TabsTrigger>
           </TabsList>
+        </Tabs>
 
-          <TabsContent value="single">
-            <form onSubmit={handleSingleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="date">Date *</Label>
-                <DatePickerWithPresets
-                  date={selectedDate}
-                  onDateChange={setSelectedDate}
-                />
-              </div>
+        {/* Workers Mode */}
+        {mode === 'workers' && (
+          <Tabs defaultValue="single" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="single" className="flex items-center gap-2">
+                <User className="h-4 w-4" />
+                Single Worker
+              </TabsTrigger>
+              <TabsTrigger value="bulk" className="flex items-center gap-2">
+                <Users className="h-4 w-4" />
+                Multiple Workers
+              </TabsTrigger>
+            </TabsList>
 
-              <div className="space-y-2">
-                <Label htmlFor="worker">Worker *</Label>
-                <Select value={selectedWorker} onValueChange={handleWorkerChange}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select worker" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {workers.map((worker) => (
-                      <SelectItem key={worker.id} value={worker.id}>
-                        {worker.name} - {worker.trade}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="project">Project *</Label>
-                <Select value={selectedProject} onValueChange={setSelectedProject}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select project" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {projects.map((project) => (
-                      <SelectItem key={project.id} value={project.id}>
-                        {project.project_name} - {project.client_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="trade">Trade</Label>
-                <Select value={selectedTrade} onValueChange={setSelectedTrade}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select trade (optional)" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {trades.map((trade) => (
-                      <SelectItem key={trade.id} value={trade.id}>
-                        {trade.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="hours">Scheduled Hours *</Label>
-                <Input
-                  id="hours"
-                  type="number"
-                  step="0.5"
-                  min="0"
-                  max="24"
-                  value={hours}
-                  onChange={(e) => setHours(e.target.value)}
-                  placeholder="8"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="notes">Notes</Label>
-                <Textarea
-                  id="notes"
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Optional notes"
-                  rows={3}
-                />
-              </div>
-
-              <div className="flex gap-2 justify-end">
-                <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={loading}>
-                  {loading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Creating...
-                    </>
-                  ) : (
-                    "Create Schedule"
-                  )}
-                </Button>
-              </div>
-            </form>
-          </TabsContent>
-
-          <TabsContent value="bulk">
-            <form onSubmit={handleBulkSubmit} className="space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="bulk-date">Date *</Label>
-                <DatePickerWithPresets
-                  date={bulkDate}
-                  onDateChange={setBulkDate}
-                />
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <Label>Configure Workers ({activeWorkerCount} active)</Label>
+            <TabsContent value="single">
+              <form onSubmit={handleSingleSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="date">Date *</Label>
+                  <DatePickerWithPresets
+                    date={selectedDate}
+                    onDateChange={setSelectedDate}
+                  />
                 </div>
 
-                <div className="space-y-2 max-h-96 overflow-y-auto">
-                  {workers.map((worker) => {
-                    const isExcluded = excludedWorkers.has(worker.id);
-                    const entries = workerProjectEntries[worker.id] || [];
+                <div className="space-y-2">
+                  <Label htmlFor="worker">Worker *</Label>
+                  <Select value={selectedWorker} onValueChange={handleWorkerChange}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select worker" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {workers.map((worker) => (
+                        <SelectItem key={worker.id} value={worker.id}>
+                          {worker.name} - {worker.trade}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-                    return (
-                      <Card key={worker.id} className={`p-4 ${isExcluded ? "opacity-50" : ""}`}>
-                        <div className="space-y-3">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3 flex-1">
-                              <h4 className="font-medium">{worker.name}</h4>
-                              <span className="text-sm text-muted-foreground">{worker.trade}</span>
-                            </div>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleToggleWorker(worker.id)}
-                            >
-                              {isExcluded ? <Plus className="h-4 w-4" /> : <Trash2 className="h-4 w-4" />}
-                            </Button>
-                          </div>
+                <div className="space-y-2">
+                  <Label htmlFor="project">Project *</Label>
+                  <Select value={selectedProject} onValueChange={setSelectedProject}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select project" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {projects.map((project) => (
+                        <SelectItem key={project.id} value={project.id}>
+                          {project.project_name} - {project.client_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-                          {!isExcluded && (
-                            <div className="space-y-3">
-                              {entries.map((entry, index) => (
-                                <div key={entry.id} className="space-y-2">
-                                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                                    <div className="space-y-2">
-                                      <Label className="text-xs">Project *</Label>
-                                      <Select
-                                        value={entry.project_id}
-                                        onValueChange={(value) => updateProjectEntry(worker.id, entry.id, "project_id", value)}
-                                      >
-                                        <SelectTrigger className="h-9">
-                                          <SelectValue placeholder="Select" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          {projects.map((project) => (
-                                            <SelectItem key={project.id} value={project.id}>
-                                              {project.project_name}
-                                            </SelectItem>
-                                          ))}
-                                        </SelectContent>
-                                      </Select>
-                                    </div>
+                <div className="space-y-2">
+                  <Label htmlFor="trade">Trade</Label>
+                  <Select value={selectedTrade} onValueChange={setSelectedTrade}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select trade (optional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {trades.map((trade) => (
+                        <SelectItem key={trade.id} value={trade.id}>
+                          {trade.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-                                    <div className="space-y-2">
-                                      <Label className="text-xs">Trade</Label>
-                                      <Select
-                                        value={entry.trade_id}
-                                        onValueChange={(value) => updateProjectEntry(worker.id, entry.id, "trade_id", value)}
-                                      >
-                                        <SelectTrigger className="h-9">
-                                          <SelectValue placeholder="Select" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          {trades.map((trade) => (
-                                            <SelectItem key={trade.id} value={trade.id}>
-                                              {trade.name}
-                                            </SelectItem>
-                                          ))}
-                                        </SelectContent>
-                                      </Select>
-                                    </div>
+                <div className="space-y-2">
+                  <Label htmlFor="hours">Scheduled Hours *</Label>
+                  <Input
+                    id="hours"
+                    type="number"
+                    step="0.5"
+                    min="0"
+                    max="24"
+                    value={hours}
+                    onChange={(e) => setHours(e.target.value)}
+                    placeholder="8"
+                  />
+                </div>
 
-                                    <div className="space-y-2">
-                                      <div className="flex items-center justify-between">
-                                        <Label className="text-xs">Hours *</Label>
-                                        {entries.length > 1 && (
-                                          <Button
-                                            type="button"
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={() => removeProjectEntry(worker.id, entry.id)}
-                                            className="h-6 w-6 p-0"
-                                          >
-                                            <Trash2 className="h-3 w-3" />
-                                          </Button>
-                                        )}
-                                      </div>
-                                      <Input
-                                        type="number"
-                                        step="0.5"
-                                        min="0"
-                                        max="24"
-                                        value={entry.hours}
-                                        onChange={(e) => updateProjectEntry(worker.id, entry.id, "hours", e.target.value)}
-                                        placeholder="8"
-                                        className="h-9"
-                                      />
-                                    </div>
-                                  </div>
-                                </div>
-                              ))}
-                              
+                <div className="space-y-2">
+                  <Label htmlFor="notes">Notes</Label>
+                  <Textarea
+                    id="notes"
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Optional notes"
+                    rows={3}
+                  />
+                </div>
+
+                <div className="flex gap-2 justify-end">
+                  <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={loading}>
+                    {loading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Creating...
+                      </>
+                    ) : (
+                      "Create Schedule"
+                    )}
+                  </Button>
+                </div>
+              </form>
+            </TabsContent>
+
+            <TabsContent value="bulk">
+              <form onSubmit={handleBulkSubmit} className="space-y-6">
+                <div className="space-y-2">
+                  <Label htmlFor="bulk-date">Date *</Label>
+                  <DatePickerWithPresets
+                    date={bulkDate}
+                    onDateChange={setBulkDate}
+                  />
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label>Configure Workers ({activeWorkerCount} active)</Label>
+                  </div>
+
+                  <div className="space-y-2 max-h-96 overflow-y-auto">
+                    {workers.map((worker) => {
+                      const isExcluded = excludedWorkers.has(worker.id);
+                      const entries = workerProjectEntries[worker.id] || [];
+
+                      return (
+                        <Card key={worker.id} className={`p-4 ${isExcluded ? "opacity-50" : ""}`}>
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3 flex-1">
+                                <h4 className="font-medium">{worker.name}</h4>
+                                <span className="text-sm text-muted-foreground">{worker.trade}</span>
+                              </div>
                               <Button
                                 type="button"
-                                variant="outline"
+                                variant="ghost"
                                 size="sm"
-                                onClick={() => addProjectEntry(worker.id)}
-                                className="w-full"
+                                onClick={() => handleToggleWorker(worker.id)}
                               >
-                                <Plus className="h-4 w-4 mr-2" />
-                                Add Project
+                                {isExcluded ? <Plus className="h-4 w-4" /> : <Trash2 className="h-4 w-4" />}
                               </Button>
                             </div>
-                          )}
-                        </div>
-                      </Card>
-                    );
-                  })}
-                </div>
-              </div>
 
-              <div className="flex gap-2 justify-end">
-                <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={loading}>
-                  {loading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Scheduling...
-                    </>
-                  ) : (
-                    `Schedule ${activeWorkerCount} Worker(s)`
-                  )}
-                </Button>
-              </div>
-            </form>
-          </TabsContent>
-        </Tabs>
+                            {!isExcluded && (
+                              <div className="space-y-3">
+                                {entries.map((entry, index) => (
+                                  <div key={entry.id} className="space-y-2">
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                      <div className="space-y-2">
+                                        <Label className="text-xs">Project *</Label>
+                                        <Select
+                                          value={entry.project_id}
+                                          onValueChange={(value) => updateProjectEntry(worker.id, entry.id, "project_id", value)}
+                                        >
+                                          <SelectTrigger className="h-9">
+                                            <SelectValue placeholder="Select" />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            {projects.map((project) => (
+                                              <SelectItem key={project.id} value={project.id}>
+                                                {project.project_name}
+                                              </SelectItem>
+                                            ))}
+                                          </SelectContent>
+                                        </Select>
+                                      </div>
+
+                                      <div className="space-y-2">
+                                        <Label className="text-xs">Trade</Label>
+                                        <Select
+                                          value={entry.trade_id}
+                                          onValueChange={(value) => updateProjectEntry(worker.id, entry.id, "trade_id", value)}
+                                        >
+                                          <SelectTrigger className="h-9">
+                                            <SelectValue placeholder="Select" />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            {trades.map((trade) => (
+                                              <SelectItem key={trade.id} value={trade.id}>
+                                                {trade.name}
+                                              </SelectItem>
+                                            ))}
+                                          </SelectContent>
+                                        </Select>
+                                      </div>
+
+                                      <div className="space-y-2">
+                                        <Label className="text-xs">Hours *</Label>
+                                        <div className="flex gap-2">
+                                          <Input
+                                            type="number"
+                                            step="0.5"
+                                            min="0"
+                                            max="24"
+                                            className="h-9"
+                                            value={entry.hours}
+                                            onChange={(e) => updateProjectEntry(worker.id, entry.id, "hours", e.target.value)}
+                                            placeholder="8"
+                                          />
+                                          {entries.length > 1 && (
+                                            <Button
+                                              type="button"
+                                              variant="ghost"
+                                              size="icon"
+                                              className="h-9 w-9"
+                                              onClick={() => removeProjectEntry(worker.id, entry.id)}
+                                            >
+                                              <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => addProjectEntry(worker.id)}
+                                  className="w-full"
+                                >
+                                  <Plus className="h-4 w-4 mr-2" />
+                                  Add Another Project
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="flex gap-2 justify-end">
+                  <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={loading}>
+                    {loading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Creating...
+                      </>
+                    ) : (
+                      `Schedule ${activeWorkerCount} Worker${activeWorkerCount !== 1 ? 's' : ''}`
+                    )}
+                  </Button>
+                </div>
+              </form>
+            </TabsContent>
+          </Tabs>
+        )}
+
+        {/* Subs Mode */}
+        {mode === 'subs' && (
+          <form onSubmit={handleSubSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="sub-date">Date *</Label>
+              <DatePickerWithPresets
+                date={subDate}
+                onDateChange={setSubDate}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="sub">Sub *</Label>
+              <Select value={selectedSub} onValueChange={setSelectedSub}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select sub" />
+                </SelectTrigger>
+                <SelectContent>
+                  {subs.map((sub) => (
+                    <SelectItem key={sub.id} value={sub.id}>
+                      {sub.name} {sub.company_name ? `(${sub.company_name})` : ''} {sub.trade ? `- ${sub.trade}` : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="sub-project">Project *</Label>
+              <Select value={subProject} onValueChange={setSubProject}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select project" />
+                </SelectTrigger>
+                <SelectContent>
+                  {projects.map((project) => (
+                    <SelectItem key={project.id} value={project.id}>
+                      {project.project_name} - {project.client_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="sub-hours">Scheduled Hours *</Label>
+              <Input
+                id="sub-hours"
+                type="number"
+                step="0.5"
+                min="0"
+                value={subHours}
+                onChange={(e) => setSubHours(e.target.value)}
+                placeholder="8"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="sub-notes">Notes</Label>
+              <Textarea
+                id="sub-notes"
+                value={subNotes}
+                onChange={(e) => setSubNotes(e.target.value)}
+                placeholder="Optional notes"
+                rows={3}
+              />
+            </div>
+
+            <div className="flex gap-2 justify-end">
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={loading}>
+                {loading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  "Create Sub Schedule"
+                )}
+              </Button>
+            </div>
+          </form>
+        )}
+
+        {/* Meetings Mode */}
+        {mode === 'meetings' && (
+          <form onSubmit={handleMeetingSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="meeting-date">Date *</Label>
+              <DatePickerWithPresets
+                date={meetingDate}
+                onDateChange={setMeetingDate}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="meeting-time">Time (Optional)</Label>
+              <Input
+                id="meeting-time"
+                type="time"
+                value={meetingTime}
+                onChange={(e) => setMeetingTime(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="meeting-title">Title *</Label>
+              <Input
+                id="meeting-title"
+                value={meetingTitle}
+                onChange={(e) => setMeetingTitle(e.target.value)}
+                placeholder="e.g., City inspection"
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="meeting-project">Project *</Label>
+              <Select value={meetingProject} onValueChange={setMeetingProject} required>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select project" />
+                </SelectTrigger>
+                <SelectContent>
+                  {projects.map((project) => (
+                    <SelectItem key={project.id} value={project.id}>
+                      {project.project_name} - {project.client_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="meeting-type">Type *</Label>
+              <Select value={meetingType} onValueChange={(v) => setMeetingType(v as 'meeting' | 'inspection')}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="meeting">Meeting</SelectItem>
+                  <SelectItem value="inspection">Inspection</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="meeting-assignee">Assignee (Optional)</Label>
+              <Select value={meetingAssignee} onValueChange={setMeetingAssignee}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select worker (optional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  {workers.map((worker) => (
+                    <SelectItem key={worker.id} value={worker.id}>
+                      {worker.name} - {worker.trade}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="meeting-notes">Notes</Label>
+              <Textarea
+                id="meeting-notes"
+                value={meetingNotes}
+                onChange={(e) => setMeetingNotes(e.target.value)}
+                placeholder="Meeting details"
+                rows={3}
+              />
+            </div>
+
+            <div className="flex gap-2 justify-end">
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={loading}>
+                {loading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  `Create ${meetingType === 'meeting' ? 'Meeting' : 'Inspection'}`
+                )}
+              </Button>
+            </div>
+          </form>
+        )}
       </DialogContent>
     </Dialog>
   );

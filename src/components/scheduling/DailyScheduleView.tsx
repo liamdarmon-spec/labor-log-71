@@ -28,9 +28,10 @@ interface ScheduledShift {
 interface DailyScheduleViewProps {
   onScheduleClick: (date: Date) => void;
   refreshTrigger: number;
+  scheduleType: "workers" | "subs" | "meetings" | "all";
 }
 
-export function DailyScheduleView({ onScheduleClick, refreshTrigger }: DailyScheduleViewProps) {
+export function DailyScheduleView({ onScheduleClick, refreshTrigger, scheduleType }: DailyScheduleViewProps) {
   const { toast } = useToast();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [schedules, setSchedules] = useState<ScheduledShift[]>([]);
