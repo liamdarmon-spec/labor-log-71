@@ -178,6 +178,7 @@ export type Database = {
       }
       estimate_items: {
         Row: {
+          category: string | null
           created_at: string | null
           description: string
           estimate_id: string
@@ -188,6 +189,7 @@ export type Database = {
           unit_price: number
         }
         Insert: {
+          category?: string | null
           created_at?: string | null
           description: string
           estimate_id: string
@@ -198,6 +200,7 @@ export type Database = {
           unit_price?: number
         }
         Update: {
+          category?: string | null
           created_at?: string | null
           description?: string
           estimate_id?: string
@@ -221,6 +224,7 @@ export type Database = {
         Row: {
           created_at: string | null
           id: string
+          is_budget_source: boolean | null
           project_id: string
           status: string
           subtotal_amount: number | null
@@ -232,6 +236,7 @@ export type Database = {
         Insert: {
           created_at?: string | null
           id?: string
+          is_budget_source?: boolean | null
           project_id: string
           status?: string
           subtotal_amount?: number | null
@@ -243,6 +248,7 @@ export type Database = {
         Update: {
           created_at?: string | null
           id?: string
+          is_budget_source?: boolean | null
           project_id?: string
           status?: string
           subtotal_amount?: number | null
