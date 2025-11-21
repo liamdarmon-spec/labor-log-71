@@ -14,8 +14,8 @@ export const MobileNav = () => {
   const navItems = [
     { path: '/projects', icon: Building2, label: 'Projects' },
     { path: '/schedule', icon: CalendarClock, label: 'Schedule' },
-    { path: '/view-logs', icon: Eye, label: 'Time Logs' },
-    { path: '/payments', icon: DollarSign, label: 'Payments' },
+    { path: '/view-logs', icon: Eye, label: 'Labor' },
+    { path: '/payments', icon: DollarSign, label: 'Costs' },
     { path: '/dashboard', icon: BarChart3, label: 'Dashboard' },
     { path: '/admin', icon: Settings, label: 'Admin' },
   ];

@@ -43,7 +43,7 @@ export const Layout = ({ children }: LayoutProps) => {
               variant={location.pathname === '/projects' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => navigate('/projects')}
-              className="gap-2 h-9"
+              className={`gap-2 h-9 ${location.pathname === '/projects' ? 'font-semibold' : ''}`}
             >
               <Building2 className="w-4 h-4" />
               <span>Projects</span>
@@ -52,46 +52,46 @@ export const Layout = ({ children }: LayoutProps) => {
               variant={location.pathname === '/schedule' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => navigate('/schedule')}
-              className="gap-2 h-9"
+              className={`gap-2 h-9 ${location.pathname === '/schedule' ? 'font-semibold' : ''}`}
             >
               <CalendarClock className="w-4 h-4" />
-              <span>{t('nav.schedule')}</span>
+              <span>Schedule</span>
             </Button>
             <Button
               variant={location.pathname === '/view-logs' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => navigate('/view-logs')}
-              className="gap-2 h-9"
+              className={`gap-2 h-9 ${location.pathname === '/view-logs' ? 'font-semibold' : ''}`}
             >
               <Eye className="w-4 h-4" />
-              <span>{t('nav.timeLogs')}</span>
+              <span>Labor</span>
             </Button>
             <Button
               variant={location.pathname === '/payments' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => navigate('/payments')}
-              className="gap-2 h-9"
+              className={`gap-2 h-9 ${location.pathname === '/payments' ? 'font-semibold' : ''}`}
             >
               <DollarSign className="w-4 h-4" />
-              <span>{t('nav.payments')}</span>
+              <span>Costs</span>
             </Button>
             <Button
               variant={location.pathname === '/dashboard' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => navigate('/dashboard')}
-              className="gap-2 h-9"
+              className={`gap-2 h-9 ${location.pathname === '/dashboard' ? 'font-semibold' : ''}`}
             >
               <BarChart3 className="w-4 h-4" />
-              <span>{t('nav.dashboard')}</span>
+              <span>Dashboard</span>
             </Button>
             <Button
               variant={location.pathname === '/admin' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => navigate('/admin')}
-              className="gap-2 h-9"
+              className={`gap-2 h-9 ${location.pathname === '/admin' ? 'font-semibold' : ''}`}
             >
               <Settings className="w-4 h-4" />
-              <span>{t('nav.admin')}</span>
+              <span>Admin</span>
             </Button>
             
             <DropdownMenu>

@@ -424,6 +424,10 @@ const Payments = () => {
 
   return (
     <Layout>
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold text-foreground">Costs</h1>
+        <p className="text-muted-foreground mt-1">Review and record payments for labor and other job costs.</p>
+      </div>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
