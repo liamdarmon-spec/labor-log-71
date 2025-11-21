@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -30,7 +30,7 @@ interface Worker {
   name: string;
 }
 
-export const ProjectTodosKanban = ({ projectId, onUpdate }: { projectId: string; onUpdate?: () => void }) => {
+export const ProjectTasks = ({ projectId, onUpdate }: { projectId: string; onUpdate?: () => void }) => {
   const [todos, setTodos] = useState<Todo[]>([]);
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -62,7 +62,7 @@ export const ProjectTodosKanban = ({ projectId, onUpdate }: { projectId: string;
       if (error) throw error;
       setTodos(data || []);
     } catch (error) {
-      console.error('Error fetching todos:', error);
+      console.error('Error fetching tasks:', error);
       toast.error('Failed to load tasks');
     }
   };
@@ -188,9 +188,7 @@ export const ProjectTodosKanban = ({ projectId, onUpdate }: { projectId: string;
   const doneTasks = filteredTodos.filter(t => t.status === 'done');
 
   const TaskCard = ({ task }: { task: Todo }) => (
-    <Card className="p-3 cursor-pointer hover:shadow-md transition-shadow" onClick={() => {
-      // Future: open task detail dialog
-    }}>
+    <Card className="p-3 cursor-pointer hover:shadow-md transition-shadow">
       <div className="space-y-2">
         <div className="flex items-start justify-between gap-2">
           <h4 className="text-sm font-medium line-clamp-2 flex-1">{task.title}</h4>

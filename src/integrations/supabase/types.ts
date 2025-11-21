@@ -176,6 +176,105 @@ export type Database = {
           },
         ]
       }
+      estimate_items: {
+        Row: {
+          created_at: string | null
+          description: string
+          estimate_id: string
+          id: string
+          line_total: number
+          quantity: number
+          unit: string | null
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string | null
+          description: string
+          estimate_id: string
+          id?: string
+          line_total?: number
+          quantity?: number
+          unit?: string | null
+          unit_price?: number
+        }
+        Update: {
+          created_at?: string | null
+          description?: string
+          estimate_id?: string
+          id?: string
+          line_total?: number
+          quantity?: number
+          unit?: string | null
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "estimate_items_estimate_id_fkey"
+            columns: ["estimate_id"]
+            isOneToOne: false
+            referencedRelation: "estimates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      estimates: {
+        Row: {
+          created_at: string | null
+          id: string
+          project_id: string
+          status: string
+          subtotal_amount: number | null
+          tax_amount: number | null
+          title: string
+          total_amount: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          project_id: string
+          status?: string
+          subtotal_amount?: number | null
+          tax_amount?: number | null
+          title: string
+          total_amount?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          project_id?: string
+          status?: string
+          subtotal_amount?: number | null
+          tax_amount?: number | null
+          title?: string
+          total_amount?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "estimates_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_costs_view"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "estimates_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_dashboard_view"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "estimates_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invitations: {
         Row: {
           created_at: string | null
@@ -205,6 +304,114 @@ export type Database = {
           used_at?: string | null
         }
         Relationships: []
+      }
+      invoice_items: {
+        Row: {
+          created_at: string | null
+          description: string
+          id: string
+          invoice_id: string
+          line_total: number
+          quantity: number
+          unit: string | null
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string | null
+          description: string
+          id?: string
+          invoice_id: string
+          line_total?: number
+          quantity?: number
+          unit?: string | null
+          unit_price?: number
+        }
+        Update: {
+          created_at?: string | null
+          description?: string
+          id?: string
+          invoice_id?: string
+          line_total?: number
+          quantity?: number
+          unit?: string | null
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_items_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoices: {
+        Row: {
+          created_at: string | null
+          due_date: string | null
+          id: string
+          invoice_number: string
+          issue_date: string
+          notes: string | null
+          project_id: string
+          status: string
+          subtotal_amount: number | null
+          tax_amount: number | null
+          total_amount: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          due_date?: string | null
+          id?: string
+          invoice_number: string
+          issue_date?: string
+          notes?: string | null
+          project_id: string
+          status?: string
+          subtotal_amount?: number | null
+          tax_amount?: number | null
+          total_amount?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          due_date?: string | null
+          id?: string
+          invoice_number?: string
+          issue_date?: string
+          notes?: string | null
+          project_id?: string
+          status?: string
+          subtotal_amount?: number | null
+          tax_amount?: number | null
+          total_amount?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_costs_view"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "invoices_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_dashboard_view"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "invoices_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       payments: {
         Row: {
@@ -571,6 +778,107 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      sub_logs: {
+        Row: {
+          amount: number
+          created_at: string | null
+          created_by: string | null
+          date: string
+          description: string | null
+          id: string
+          project_id: string
+          sub_id: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string | null
+          created_by?: string | null
+          date?: string
+          description?: string | null
+          id?: string
+          project_id: string
+          sub_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string | null
+          created_by?: string | null
+          date?: string
+          description?: string | null
+          id?: string
+          project_id?: string
+          sub_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sub_logs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_costs_view"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "sub_logs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_dashboard_view"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "sub_logs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sub_logs_sub_id_fkey"
+            columns: ["sub_id"]
+            isOneToOne: false
+            referencedRelation: "subs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subs: {
+        Row: {
+          active: boolean | null
+          company_name: string | null
+          created_at: string | null
+          default_rate: number | null
+          email: string | null
+          id: string
+          name: string
+          phone: string | null
+          trade: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          active?: boolean | null
+          company_name?: string | null
+          created_at?: string | null
+          default_rate?: number | null
+          email?: string | null
+          id?: string
+          name: string
+          phone?: string | null
+          trade?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          active?: boolean | null
+          company_name?: string | null
+          created_at?: string | null
+          default_rate?: number | null
+          email?: string | null
+          id?: string
+          name?: string
+          phone?: string | null
+          trade?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       trades: {
         Row: {
