@@ -674,11 +674,29 @@ export function AddToScheduleDialog({
                         Default trade: {selectedWorkerData.trade}
                       </p>
                     )}
-                    {workerBookingWarnings[selectedWorker] && (
+                    {workerBookingWarnings[selectedWorker] && selectedDate && (
                       <Alert variant="default" className="mt-2">
                         <AlertCircle className="h-4 w-4" />
-                        <AlertDescription className="text-xs">
-                          This worker already has a shift scheduled on this date
+                        <AlertDescription className="flex flex-col gap-2">
+                          <div className="text-xs">
+                            This worker already has shifts on this day. Click to review the full day.
+                          </div>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="w-fit gap-2"
+                            onClick={() => {
+                              // Open a day detail view - we'd need to pass this as a prop
+                              // For now, just inform the user
+                              toast({
+                                title: "Worker Conflict",
+                                description: "This worker already has shifts scheduled on this date"
+                              });
+                            }}
+                          >
+                            View Day Schedule
+                          </Button>
                         </AlertDescription>
                       </Alert>
                     )}
@@ -918,84 +936,98 @@ export function AddToScheduleDialog({
         {/* Subs Mode */}
         {mode === 'subs' && (
           <form onSubmit={handleSubSubmit} className="space-y-6">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="sub-date">Date *</Label>
-                <DatePickerWithPresets
-                  date={subDate}
-                  onDateChange={setSubDate}
-                />
-              </div>
+            {/* Date & Project Section */}
+            <div className="space-y-4 p-4 border rounded-lg bg-muted/20">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Date & Project</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="sub-date">Date *</Label>
+                  <DatePickerWithPresets
+                    date={subDate}
+                    onDateChange={setSubDate}
+                  />
+                </div>
 
+                <div className="space-y-2">
+                  <Label htmlFor="sub-project">Project *</Label>
+                  <Select value={subProject} onValueChange={setSubProject}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select project" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {projects.map((project) => (
+                        <SelectItem key={project.id} value={project.id}>
+                          {project.project_name} - {project.client_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+
+            {/* Subcontractor Section */}
+            <div className="space-y-4 p-4 border rounded-lg bg-muted/20">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Subcontractor</h3>
               <div className="space-y-2">
-                <Label htmlFor="sub-project">Project *</Label>
-                <Select value={subProject} onValueChange={setSubProject}>
+                <Label htmlFor="sub">Sub *</Label>
+                <Select value={selectedSub} onValueChange={handleSubChange}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select project" />
+                    <SelectValue placeholder="Select sub" />
                   </SelectTrigger>
                   <SelectContent>
-                    {projects.map((project) => (
-                      <SelectItem key={project.id} value={project.id}>
-                        {project.project_name} - {project.client_name}
+                    {subs.map((sub) => (
+                      <SelectItem key={sub.id} value={sub.id}>
+                        {sub.name} {sub.company_name ? `(${sub.company_name})` : ''} {sub.trade ? `- ${sub.trade}` : ''}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                {selectedSubData && (
+                  <div className="text-xs text-muted-foreground space-y-1 mt-2">
+                    {selectedSubData.trade && <p>Trade: {selectedSubData.trade}</p>}
+                    {selectedSubData.company_name && <p>Company: {selectedSubData.company_name}</p>}
+                  </div>
+                )}
+                {subBookingWarning && (
+                  <Alert variant="default" className="mt-2">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription className="text-xs">
+                      This sub already has a schedule on this date
+                    </AlertDescription>
+                  </Alert>
+                )}
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="sub">Sub *</Label>
-              <Select value={selectedSub} onValueChange={handleSubChange}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select sub" />
-                </SelectTrigger>
-                <SelectContent>
-                  {subs.map((sub) => (
-                    <SelectItem key={sub.id} value={sub.id}>
-                      {sub.name} {sub.company_name ? `(${sub.company_name})` : ''} {sub.trade ? `- ${sub.trade}` : ''}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {selectedSubData && (
-                <div className="text-xs text-muted-foreground space-y-1 mt-2">
-                  {selectedSubData.trade && <p>Trade: {selectedSubData.trade}</p>}
-                  {selectedSubData.company_name && <p>Company: {selectedSubData.company_name}</p>}
+            {/* Shift Details Section */}
+            <div className="space-y-4 p-4 border rounded-lg bg-muted/20">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Shift Details</h3>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="sub-hours">Scheduled Hours *</Label>
+                  <Input
+                    id="sub-hours"
+                    type="number"
+                    step="0.5"
+                    min="0"
+                    value={subHours}
+                    onChange={(e) => setSubHours(e.target.value)}
+                    placeholder="8"
+                  />
                 </div>
-              )}
-              {subBookingWarning && (
-                <Alert variant="default" className="mt-2">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription className="text-xs">
-                    This sub already has a schedule on this date
-                  </AlertDescription>
-                </Alert>
-              )}
-            </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="sub-hours">Scheduled Hours *</Label>
-              <Input
-                id="sub-hours"
-                type="number"
-                step="0.5"
-                min="0"
-                value={subHours}
-                onChange={(e) => setSubHours(e.target.value)}
-                placeholder="8"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="sub-notes">Notes</Label>
-              <Textarea
-                id="sub-notes"
-                value={subNotes}
-                onChange={(e) => setSubNotes(e.target.value)}
-                placeholder="Optional notes"
-                rows={3}
-              />
+                <div className="space-y-2">
+                  <Label htmlFor="sub-notes">Notes</Label>
+                  <Textarea
+                    id="sub-notes"
+                    value={subNotes}
+                    onChange={(e) => setSubNotes(e.target.value)}
+                    placeholder="Optional notes"
+                    rows={3}
+                  />
+                </div>
+              </div>
             </div>
 
             {/* Add Another Checkbox */}
@@ -1034,93 +1066,106 @@ export function AddToScheduleDialog({
         {/* Meetings Mode */}
         {mode === 'meetings' && (
           <form onSubmit={handleMeetingSubmit} className="space-y-6">
-            <div className="grid grid-cols-3 gap-4">
-              <div className="col-span-2 space-y-2">
-                <Label htmlFor="meeting-date">Date *</Label>
-                <DatePickerWithPresets
-                  date={meetingDate}
-                  onDateChange={setMeetingDate}
+            {/* Meeting Details Section */}
+            <div className="space-y-4 p-4 border rounded-lg bg-muted/20">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Meeting Details</h3>
+              <div className="space-y-4">
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="col-span-2 space-y-2">
+                    <Label htmlFor="meeting-date">Date *</Label>
+                    <DatePickerWithPresets
+                      date={meetingDate}
+                      onDateChange={setMeetingDate}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="meeting-time">Time</Label>
+                    <Input
+                      id="meeting-time"
+                      type="time"
+                      value={meetingTime}
+                      onChange={(e) => setMeetingTime(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="meeting-title">Title *</Label>
+                  <Input
+                    id="meeting-title"
+                    value={meetingTitle}
+                    onChange={(e) => setMeetingTitle(e.target.value)}
+                    placeholder="e.g., City inspection, Client walkthrough"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="meeting-type">Type *</Label>
+                  <Select value={meetingType} onValueChange={(v) => setMeetingType(v as 'meeting' | 'inspection')}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="meeting">Meeting</SelectItem>
+                      <SelectItem value="inspection">Inspection</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+
+            {/* Project & Assignee Section */}
+            <div className="space-y-4 p-4 border rounded-lg bg-muted/20">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Project & Assignee</h3>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="meeting-project">Project *</Label>
+                  <Select value={meetingProject} onValueChange={setMeetingProject} required>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select project" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {projects.map((project) => (
+                        <SelectItem key={project.id} value={project.id}>
+                          {project.project_name} - {project.client_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="meeting-assignee">Assignee</Label>
+                  <Select value={meetingAssignee} onValueChange={setMeetingAssignee}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select worker (optional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {workers.map((worker) => (
+                        <SelectItem key={worker.id} value={worker.id}>
+                          {worker.name} - {worker.trade}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+
+            {/* Notes Section */}
+            <div className="space-y-4 p-4 border rounded-lg bg-muted/20">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Notes</h3>
+              <div className="space-y-2">
+                <Textarea
+                  id="meeting-notes"
+                  value={meetingNotes}
+                  onChange={(e) => setMeetingNotes(e.target.value)}
+                  placeholder="Meeting details, agenda items, etc."
+                  rows={3}
                 />
               </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="meeting-time">Time</Label>
-                <Input
-                  id="meeting-time"
-                  type="time"
-                  value={meetingTime}
-                  onChange={(e) => setMeetingTime(e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="meeting-title">Title *</Label>
-              <Input
-                id="meeting-title"
-                value={meetingTitle}
-                onChange={(e) => setMeetingTitle(e.target.value)}
-                placeholder="e.g., City inspection, Client walkthrough"
-                required
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="meeting-project">Project *</Label>
-                <Select value={meetingProject} onValueChange={setMeetingProject} required>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select project" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {projects.map((project) => (
-                      <SelectItem key={project.id} value={project.id}>
-                        {project.project_name} - {project.client_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="meeting-type">Type *</Label>
-                <Select value={meetingType} onValueChange={(v) => setMeetingType(v as 'meeting' | 'inspection')}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="meeting">Meeting</SelectItem>
-                    <SelectItem value="inspection">Inspection</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="meeting-assignee">Assignee</Label>
-              <Select value={meetingAssignee} onValueChange={setMeetingAssignee}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select worker (optional)" />
-                </SelectTrigger>
-                <SelectContent>
-                  {workers.map((worker) => (
-                    <SelectItem key={worker.id} value={worker.id}>
-                      {worker.name} - {worker.trade}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="meeting-notes">Notes</Label>
-              <Textarea
-                id="meeting-notes"
-                value={meetingNotes}
-                onChange={(e) => setMeetingNotes(e.target.value)}
-                placeholder="Meeting details, agenda items, etc."
-                rows={3}
-              />
             </div>
 
             {/* Add Another Checkbox */}
