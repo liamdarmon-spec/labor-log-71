@@ -4,11 +4,12 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, ClipboardCheck } from "lucide-react";
+import { Plus, ClipboardCheck, Split } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { EditScheduleDialog } from "./EditScheduleDialog";
 import { ScheduleEditButton } from "./ScheduleEditButton";
 import { ScheduleDeleteButton } from "./ScheduleDeleteButton";
+import { SplitScheduleDialog } from "@/components/dashboard/SplitScheduleDialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -40,21 +41,36 @@ interface DayDetailDialogProps {
   date: Date | null;
   onRefresh: () => void;
   onAddSchedule: (date: Date) => void;
+  highlightWorkerId?: string | null;
 }
 
-export function DayDetailDialog({ open, onOpenChange, date, onRefresh, onAddSchedule }: DayDetailDialogProps) {
+export function DayDetailDialog({ open, onOpenChange, date, onRefresh, onAddSchedule, highlightWorkerId }: DayDetailDialogProps) {
   const { toast } = useToast();
   const [schedules, setSchedules] = useState<ScheduledShift[]>([]);
   const [loading, setLoading] = useState(false);
   const [convertDialogOpen, setConvertDialogOpen] = useState(false);
   const [selectedSchedules, setSelectedSchedules] = useState<ScheduledShift[]>([]);
   const [editingSchedule, setEditingSchedule] = useState<ScheduledShift | null>(null);
+  const [splitScheduleData, setSplitScheduleData] = useState<{
+    scheduleId: string;
+    workerName: string;
+    date: string;
+    hours: number;
+    projectId: string;
+  } | null>(null);
+  const [focusedWorkerId, setFocusedWorkerId] = useState<string | null>(highlightWorkerId || null);
 
   useEffect(() => {
     if (open && date) {
       fetchDaySchedules();
     }
   }, [open, date]);
+
+  useEffect(() => {
+    if (highlightWorkerId) {
+      setFocusedWorkerId(highlightWorkerId);
+    }
+  }, [highlightWorkerId]);
 
   const fetchDaySchedules = async () => {
     if (!date) return;
@@ -220,14 +236,64 @@ export function DayDetailDialog({ open, onOpenChange, date, onRefresh, onAddSche
               <div className="space-y-3">
               {Object.entries(schedulesByWorker).map(([workerName, { worker, schedules: workerSchedules }]) => {
                 const totalWorkerHours = workerSchedules.reduce((sum, s) => sum + Number(s.scheduled_hours), 0);
+                const workerId = workerSchedules[0]?.worker_id;
+                const isHighlighted = focusedWorkerId === workerId;
+                const hasMultipleProjects = workerSchedules.length > 1;
                 
                 return (
-                  <div key={workerName} className="border rounded-lg p-4">
+                  <div 
+                    key={workerName} 
+                    className={`border rounded-lg p-4 transition-all ${
+                      isHighlighted ? 'ring-2 ring-primary shadow-lg' : ''
+                    }`}
+                  >
                     <div className="flex items-start justify-between mb-3">
-                      <h3 className="font-semibold text-lg">{workerName}</h3>
-                      <Badge variant="secondary" className="text-sm">
-                        {totalWorkerHours}h
-                      </Badge>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <h3 
+                            className="font-semibold text-lg cursor-pointer hover:text-primary transition-colors"
+                            onClick={() => setFocusedWorkerId(focusedWorkerId === workerId ? null : workerId)}
+                          >
+                            {workerName}
+                          </h3>
+                          {isHighlighted && (
+                            <Badge variant="default" className="text-xs">Viewing</Badge>
+                          )}
+                          {hasMultipleProjects && (
+                            <Badge variant="outline" className="text-xs">
+                              {workerSchedules.length} projects
+                            </Badge>
+                          )}
+                        </div>
+                        {worker?.trade && (
+                          <p className="text-xs text-muted-foreground mt-0.5">{worker.trade}</p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="secondary" className="text-sm">
+                          {totalWorkerHours}h
+                        </Badge>
+                        {hasMultipleProjects && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              const firstSchedule = workerSchedules[0];
+                              setSplitScheduleData({
+                                scheduleId: firstSchedule.id,
+                                workerName: workerName,
+                                date: firstSchedule.scheduled_date,
+                                hours: totalWorkerHours,
+                                projectId: firstSchedule.project_id
+                              });
+                            }}
+                            title="Rebalance projects"
+                          >
+                            <Split className="h-3 w-3 mr-1" />
+                            Rebalance
+                          </Button>
+                        )}
+                      </div>
                     </div>
                     <div className="space-y-2">
                       {workerSchedules.map((schedule) => (
@@ -253,6 +319,24 @@ export function DayDetailDialog({ open, onOpenChange, date, onRefresh, onAddSche
                             </span>
                           </div>
                           <div className="flex items-center gap-1">
+                            {workerSchedules.length === 1 && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setSplitScheduleData({
+                                    scheduleId: schedule.id,
+                                    workerName: workerName,
+                                    date: schedule.scheduled_date,
+                                    hours: schedule.scheduled_hours,
+                                    projectId: schedule.project_id
+                                  });
+                                }}
+                                title="Split into multiple projects"
+                              >
+                                <Split className="h-3 w-3" />
+                              </Button>
+                            )}
                             <ScheduleEditButton onClick={() => setEditingSchedule(schedule)} />
                             <ScheduleDeleteButton 
                               scheduleId={schedule.id}
@@ -301,6 +385,23 @@ export function DayDetailDialog({ open, onOpenChange, date, onRefresh, onAddSche
             onRefresh();
           }}
         />
+
+        {splitScheduleData && (
+          <SplitScheduleDialog
+            isOpen={!!splitScheduleData}
+            onClose={() => setSplitScheduleData(null)}
+            scheduleId={splitScheduleData.scheduleId}
+            workerName={splitScheduleData.workerName}
+            originalDate={splitScheduleData.date}
+            originalHours={splitScheduleData.hours}
+            originalProjectId={splitScheduleData.projectId}
+            onSuccess={() => {
+              fetchDaySchedules();
+              onRefresh();
+              setSplitScheduleData(null);
+            }}
+          />
+        )}
       </DialogContent>
     </Dialog>
   );
