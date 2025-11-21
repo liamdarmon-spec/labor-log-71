@@ -4,12 +4,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { WorkersTab } from '@/components/admin/WorkersTab';
 import { ProjectsTab } from '@/components/admin/ProjectsTab';
 import { TradesTab } from '@/components/admin/TradesTab';
+import { CostCodesTab } from '@/components/admin/CostCodesTab';
 import { LogsTab } from '@/components/admin/LogsTab';
 import { ReportsTab } from '@/components/admin/ReportsTab';
 import { UsersTab } from '@/components/admin/UsersTab';
 import { ArchivedLogsTab } from '@/components/admin/ArchivedLogsTab';
 import { SettingsTab } from '@/components/admin/SettingsTab';
-import { Users, Briefcase, Wrench, FileText, BarChart3, UserCog, Archive, Settings } from 'lucide-react';
+import { Users, Briefcase, Wrench, FileText, BarChart3, UserCog, Archive, Settings, Hash } from 'lucide-react';
 
 const Admin = () => {
   const [activeTab, setActiveTab] = useState('workers');
@@ -25,7 +26,7 @@ const Admin = () => {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-8 h-auto gap-1 p-1 bg-muted/50">
+          <TabsList className="grid w-full grid-cols-9 h-auto gap-1 p-1 bg-muted/50">
             <TabsTrigger value="users" className="gap-1 sm:gap-2 py-2 sm:py-3 text-xs sm:text-sm flex-col sm:flex-row">
               <UserCog className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               <span className="text-[10px] sm:text-sm">Users</span>
@@ -37,6 +38,10 @@ const Admin = () => {
             <TabsTrigger value="trades" className="gap-1 sm:gap-2 py-2 sm:py-3 text-xs sm:text-sm flex-col sm:flex-row">
               <Wrench className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               <span className="text-[10px] sm:text-sm">Trades</span>
+            </TabsTrigger>
+            <TabsTrigger value="costcodes" className="gap-1 sm:gap-2 py-2 sm:py-3 text-xs sm:text-sm flex-col sm:flex-row">
+              <Hash className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span className="text-[10px] sm:text-sm">Cost Codes</span>
             </TabsTrigger>
             <TabsTrigger value="projects" className="gap-1 sm:gap-2 py-2 sm:py-3 text-xs sm:text-sm flex-col sm:flex-row">
               <Briefcase className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
@@ -70,6 +75,10 @@ const Admin = () => {
 
           <TabsContent value="trades" className="mt-4 sm:mt-6">
             <TradesTab />
+          </TabsContent>
+
+          <TabsContent value="costcodes" className="mt-4 sm:mt-6">
+            <CostCodesTab />
           </TabsContent>
 
           <TabsContent value="projects" className="mt-4 sm:mt-6">

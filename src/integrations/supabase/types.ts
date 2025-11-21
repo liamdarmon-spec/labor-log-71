@@ -1172,23 +1172,44 @@ export type Database = {
       trades: {
         Row: {
           created_at: string | null
+          default_labor_cost_code_id: string | null
+          default_material_cost_code_id: string | null
           description: string | null
           id: string
           name: string
         }
         Insert: {
           created_at?: string | null
+          default_labor_cost_code_id?: string | null
+          default_material_cost_code_id?: string | null
           description?: string | null
           id?: string
           name: string
         }
         Update: {
           created_at?: string | null
+          default_labor_cost_code_id?: string | null
+          default_material_cost_code_id?: string | null
           description?: string | null
           id?: string
           name?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "trades_default_labor_cost_code_id_fkey"
+            columns: ["default_labor_cost_code_id"]
+            isOneToOne: false
+            referencedRelation: "cost_codes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trades_default_material_cost_code_id_fkey"
+            columns: ["default_material_cost_code_id"]
+            isOneToOne: false
+            referencedRelation: "cost_codes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
