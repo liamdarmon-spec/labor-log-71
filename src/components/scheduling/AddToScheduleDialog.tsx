@@ -15,6 +15,7 @@ import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useCostCodes } from "@/hooks/useCostCodes";
 
 interface Worker {
   id: string;
@@ -79,9 +80,12 @@ export function AddToScheduleDialog({
   const [selectedWorker, setSelectedWorker] = useState("");
   const [selectedProject, setSelectedProject] = useState("");
   const [selectedTrade, setSelectedTrade] = useState("");
+  const [selectedCostCode, setSelectedCostCode] = useState("");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(defaultDate || new Date());
   const [hours, setHours] = useState("");
   const [notes, setNotes] = useState("");
+
+  const { data: laborCostCodes } = useCostCodes('labor');
 
   // Multiple workers form
   const [bulkDate, setBulkDate] = useState<Date | undefined>(defaultDate || new Date());
@@ -192,6 +196,12 @@ export function AddToScheduleDialog({
     const worker = workers.find(w => w.id === workerId);
     if (worker?.trade_id) {
       setSelectedTrade(worker.trade_id);
+      
+      // Auto-select cost code based on trade
+      const defaultCode = laborCostCodes?.find(cc => cc.default_trade_id === worker.trade_id);
+      if (defaultCode) {
+        setSelectedCostCode(defaultCode.id);
+      }
     }
 
     // Check for existing bookings on selected date
@@ -273,6 +283,7 @@ export function AddToScheduleDialog({
       worker_id: selectedWorker,
       project_id: selectedProject,
       trade_id: selectedTrade || null,
+      cost_code_id: selectedCostCode || null,
       scheduled_date: format(selectedDate, "yyyy-MM-dd"),
       scheduled_hours: parseFloat(hours),
       notes: notes || null,
@@ -722,6 +733,23 @@ export function AddToScheduleDialog({
                         </SelectContent>
                       </Select>
                       <p className="text-xs text-muted-foreground">Auto-filled from worker's default trade</p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="cost_code">Cost Code</Label>
+                      <Select value={selectedCostCode} onValueChange={setSelectedCostCode}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select cost code (optional)" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {laborCostCodes?.map((code) => (
+                            <SelectItem key={code.id} value={code.id}>
+                              {code.code} - {code.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">For budget tracking and cost analysis</p>
                     </div>
 
                     <div className="space-y-2">

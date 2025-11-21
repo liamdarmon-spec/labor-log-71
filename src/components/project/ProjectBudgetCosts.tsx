@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { DollarSign, TrendingUp, TrendingDown, Edit, Users } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
+import { BudgetDetailTable } from './BudgetDetailTable';
 
 interface ProjectCostData {
   labor_total_hours: number;
@@ -341,6 +342,12 @@ export const ProjectBudgetCosts = ({ projectId }: { projectId: string }) => {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Budget Detail by Cost Code */}
+      <div>
+        <h3 className="text-lg font-semibold mb-4">Budget Detail by Cost Code</h3>
+        <BudgetDetailTable projectId={projectId} />
+      </div>
 
       {/* Payments */}
       <Card>
