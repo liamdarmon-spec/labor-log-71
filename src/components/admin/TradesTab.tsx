@@ -26,6 +26,7 @@ interface Trade {
   created_at: string;
   default_labor_cost_code_id: string | null;
   default_material_cost_code_id: string | null;
+  default_sub_cost_code_id: string | null;
 }
 
 export const TradesTab = () => {
@@ -37,11 +38,13 @@ export const TradesTab = () => {
     description: '',
     default_labor_cost_code_id: '',
     default_material_cost_code_id: '',
+    default_sub_cost_code_id: '',
   });
   const { toast } = useToast();
   
   const { data: laborCostCodes = [] } = useCostCodes('labor');
   const { data: materialCostCodes = [] } = useCostCodes('materials');
+  const { data: subCostCodes = [] } = useCostCodes('subs');
 
   useEffect(() => {
     fetchTrades();
@@ -81,6 +84,7 @@ export const TradesTab = () => {
             description: validatedData.description || null,
             default_labor_cost_code_id: formData.default_labor_cost_code_id || null,
             default_material_cost_code_id: formData.default_material_cost_code_id || null,
+            default_sub_cost_code_id: formData.default_sub_cost_code_id || null,
           })
           .eq('id', editingTrade.id);
 
@@ -91,20 +95,55 @@ export const TradesTab = () => {
           description: 'Trade updated successfully',
         });
       } else {
-        const { error } = await supabase.from('trades').insert([
-          {
+        // Create new trade
+        const { data: newTrade, error: tradeError } = await supabase
+          .from('trades')
+          .insert([{
             name: validatedData.name,
             description: validatedData.description || null,
-            default_labor_cost_code_id: formData.default_labor_cost_code_id || null,
-            default_material_cost_code_id: formData.default_material_cost_code_id || null,
-          },
-        ]);
+          }])
+          .select()
+          .single();
 
-        if (error) throw error;
+        if (tradeError) throw tradeError;
+
+        // Auto-create 3 default cost codes for the new trade
+        const baseCode = validatedData.name.substring(0, 3).toUpperCase();
+        
+        const costCodesToCreate = [
+          { code: `${baseCode}-L`, name: `${validatedData.name} Labor`, category: 'labor' },
+          { code: `${baseCode}-M`, name: `${validatedData.name} Material`, category: 'materials' },
+          { code: `${baseCode}-S`, name: `${validatedData.name} Sub`, category: 'subs' },
+        ];
+
+        const { data: createdCodes, error: codesError } = await supabase
+          .from('cost_codes')
+          .insert(
+            costCodesToCreate.map(cc => ({
+              ...cc,
+              trade_id: newTrade.id,
+              is_active: true,
+            }))
+          )
+          .select();
+
+        if (codesError) throw codesError;
+
+        // Link the created cost codes back to the trade
+        const { error: updateError } = await supabase
+          .from('trades')
+          .update({
+            default_labor_cost_code_id: createdCodes.find(c => c.category === 'labor')?.id,
+            default_material_cost_code_id: createdCodes.find(c => c.category === 'materials')?.id,
+            default_sub_cost_code_id: createdCodes.find(c => c.category === 'subs')?.id,
+          })
+          .eq('id', newTrade.id);
+
+        if (updateError) throw updateError;
 
         toast({
           title: 'Success',
-          description: 'Trade added successfully',
+          description: 'Trade and default cost codes created successfully',
         });
       }
 
@@ -155,6 +194,7 @@ export const TradesTab = () => {
       description: trade.description || '',
       default_labor_cost_code_id: trade.default_labor_cost_code_id || '',
       default_material_cost_code_id: trade.default_material_cost_code_id || '',
+      default_sub_cost_code_id: trade.default_sub_cost_code_id || '',
     });
     setIsDialogOpen(true);
   };
@@ -166,11 +206,12 @@ export const TradesTab = () => {
       description: '',
       default_labor_cost_code_id: '',
       default_material_cost_code_id: '',
+      default_sub_cost_code_id: '',
     });
   };
 
   const tradesWithMissingCodes = trades.filter(
-    t => !t.default_labor_cost_code_id || !t.default_material_cost_code_id
+    t => !t.default_labor_cost_code_id || !t.default_material_cost_code_id || !t.default_sub_cost_code_id
   );
 
   return (
@@ -265,6 +306,25 @@ export const TradesTab = () => {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="sub_cost_code">Default Sub Cost Code</Label>
+                <Select
+                  value={formData.default_sub_cost_code_id}
+                  onValueChange={(value) => setFormData({ ...formData, default_sub_cost_code_id: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select sub cost code" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">None</SelectItem>
+                    {subCostCodes.map((cc) => (
+                      <SelectItem key={cc.id} value={cc.id}>
+                        {cc.code} – {cc.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <Button type="submit" className="w-full">
                 {editingTrade ? 'Update Trade' : 'Add Trade'}
               </Button>
@@ -278,8 +338,9 @@ export const TradesTab = () => {
             <TableHeader>
               <TableRow className="bg-muted/50">
                 <TableHead className="font-semibold">Trade Name</TableHead>
-                <TableHead className="font-semibold">Labor Cost Code</TableHead>
-                <TableHead className="font-semibold">Material Cost Code</TableHead>
+                <TableHead className="font-semibold">Labor Code</TableHead>
+                <TableHead className="font-semibold">Material Code</TableHead>
+                <TableHead className="font-semibold">Sub Code</TableHead>
                 <TableHead className="font-semibold">Description</TableHead>
                 <TableHead className="text-right font-semibold">Actions</TableHead>
               </TableRow>
@@ -288,6 +349,7 @@ export const TradesTab = () => {
               {trades.map((trade) => {
                 const laborCode = laborCostCodes.find(cc => cc.id === trade.default_labor_cost_code_id);
                 const materialCode = materialCostCodes.find(cc => cc.id === trade.default_material_cost_code_id);
+                const subCode = subCostCodes.find(cc => cc.id === trade.default_sub_cost_code_id);
                 
                 return (
                   <TableRow key={trade.id} className="hover:bg-muted/30 transition-colors">
@@ -308,6 +370,18 @@ export const TradesTab = () => {
                       {materialCode ? (
                         <Badge variant="outline" className="text-xs">
                           {materialCode.code}
+                        </Badge>
+                      ) : (
+                        <span className="text-orange-600 text-xs flex items-center gap-1">
+                          <AlertTriangle className="w-3 h-3" />
+                          Not set
+                        </span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {subCode ? (
+                        <Badge variant="outline" className="text-xs">
+                          {subCode.code}
                         </Badge>
                       ) : (
                         <span className="text-orange-600 text-xs flex items-center gap-1">
