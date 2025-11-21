@@ -32,10 +32,14 @@ const ProjectDetail = () => {
   const navigate = useNavigate();
   const [project, setProject] = useState<ProjectDashboard | null>(null);
   const [loading, setLoading] = useState(true);
+  const [taskCount, setTaskCount] = useState(0);
+  const [scheduleCount, setScheduleCount] = useState(0);
+  const [activityCount, setActivityCount] = useState(0);
 
   useEffect(() => {
     if (id) {
       fetchProjectData();
+      fetchTabCounts();
     }
   }, [id]);
 
@@ -55,6 +59,41 @@ const ProjectDetail = () => {
       toast.error('Failed to load project data');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchTabCounts = async () => {
+    try {
+      // Tasks count (project_todos where status NOT IN ('done'))
+      const { count: tasksCount } = await supabase
+        .from('project_todos')
+        .select('*', { count: 'exact', head: true })
+        .eq('project_id', id)
+        .not('status', 'eq', 'done');
+      
+      // Labor Schedule count (scheduled_shifts for this month)
+      const startOfMonthDate = format(new Date(), 'yyyy-MM-01');
+      const endOfMonthDate = format(new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0), 'yyyy-MM-dd');
+      const { count: schedulesCount } = await supabase
+        .from('scheduled_shifts')
+        .select('*', { count: 'exact', head: true })
+        .eq('project_id', id)
+        .gte('scheduled_date', startOfMonthDate)
+        .lte('scheduled_date', endOfMonthDate);
+      
+      // Activity & Logs count (daily_logs for last 30 days)
+      const thirtyDaysAgo = format(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd');
+      const { count: logsCount } = await supabase
+        .from('daily_logs')
+        .select('*', { count: 'exact', head: true })
+        .eq('project_id', id)
+        .gte('date', thirtyDaysAgo);
+
+      setTaskCount(tasksCount || 0);
+      setScheduleCount(schedulesCount || 0);
+      setActivityCount(logsCount || 0);
+    } catch (error) {
+      console.error('Error fetching tab counts:', error);
     }
   };
 
@@ -191,15 +230,36 @@ const ProjectDetail = () => {
         </div>
 
         {/* Tabs for different sections */}
-        <Tabs defaultValue="todos" className="w-full">
+        <Tabs defaultValue="tasks" className="w-full">
           <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="todos">To-Dos</TabsTrigger>
-            <TabsTrigger value="schedule">Schedule</TabsTrigger>
-            <TabsTrigger value="activity">Activity</TabsTrigger>
+            <TabsTrigger value="tasks" className="gap-2">
+              Tasks
+              {taskCount > 0 && (
+                <Badge variant="secondary" className="ml-1 h-5 min-w-5 rounded-full px-1.5 text-xs">
+                  {taskCount}
+                </Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="schedule" className="gap-2">
+              Labor Schedule
+              {scheduleCount > 0 && (
+                <Badge variant="secondary" className="ml-1 h-5 min-w-5 rounded-full px-1.5 text-xs">
+                  {scheduleCount}
+                </Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="activity" className="gap-2">
+              Activity & Logs
+              {activityCount > 0 && (
+                <Badge variant="secondary" className="ml-1 h-5 min-w-5 rounded-full px-1.5 text-xs">
+                  {activityCount}
+                </Badge>
+              )}
+            </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="todos" className="mt-6">
-            <ProjectTodos projectId={id!} />
+          <TabsContent value="tasks" className="mt-6">
+            <ProjectTodos projectId={id!} onUpdate={fetchTabCounts} />
           </TabsContent>
 
           <TabsContent value="schedule" className="mt-6">
