@@ -262,6 +262,7 @@ export type Database = {
       }
       estimate_items: {
         Row: {
+          area_name: string | null
           category: string | null
           cost_code_id: string | null
           created_at: string | null
@@ -272,11 +273,13 @@ export type Database = {
           line_total: number
           planned_hours: number | null
           quantity: number
+          scope_group: string | null
           trade_id: string | null
           unit: string | null
           unit_price: number
         }
         Insert: {
+          area_name?: string | null
           category?: string | null
           cost_code_id?: string | null
           created_at?: string | null
@@ -287,11 +290,13 @@ export type Database = {
           line_total?: number
           planned_hours?: number | null
           quantity?: number
+          scope_group?: string | null
           trade_id?: string | null
           unit?: string | null
           unit_price?: number
         }
         Update: {
+          area_name?: string | null
           category?: string | null
           cost_code_id?: string | null
           created_at?: string | null
@@ -302,6 +307,7 @@ export type Database = {
           line_total?: number
           planned_hours?: number | null
           quantity?: number
+          scope_group?: string | null
           trade_id?: string | null
           unit?: string | null
           unit_price?: number
@@ -855,6 +861,150 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      proposal_section_items: {
+        Row: {
+          created_at: string
+          display_description: string | null
+          display_quantity: number | null
+          display_unit: string | null
+          display_unit_price: number | null
+          estimate_item_id: string
+          id: string
+          proposal_section_id: string
+          show_line_item: boolean
+          sort_order: number
+        }
+        Insert: {
+          created_at?: string
+          display_description?: string | null
+          display_quantity?: number | null
+          display_unit?: string | null
+          display_unit_price?: number | null
+          estimate_item_id: string
+          id?: string
+          proposal_section_id: string
+          show_line_item?: boolean
+          sort_order?: number
+        }
+        Update: {
+          created_at?: string
+          display_description?: string | null
+          display_quantity?: number | null
+          display_unit?: string | null
+          display_unit_price?: number | null
+          estimate_item_id?: string
+          id?: string
+          proposal_section_id?: string
+          show_line_item?: boolean
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proposal_section_items_estimate_item_id_fkey"
+            columns: ["estimate_item_id"]
+            isOneToOne: false
+            referencedRelation: "estimate_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposal_section_items_proposal_section_id_fkey"
+            columns: ["proposal_section_id"]
+            isOneToOne: false
+            referencedRelation: "proposal_sections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      proposal_sections: {
+        Row: {
+          created_at: string
+          id: string
+          is_lump_sum: boolean
+          proposal_id: string
+          sort_order: number
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_lump_sum?: boolean
+          proposal_id: string
+          sort_order?: number
+          title: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_lump_sum?: boolean
+          proposal_id?: string
+          sort_order?: number
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proposal_sections_proposal_id_fkey"
+            columns: ["proposal_id"]
+            isOneToOne: false
+            referencedRelation: "proposals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      proposals: {
+        Row: {
+          created_at: string
+          id: string
+          notes_internal: string | null
+          project_id: string
+          status: string
+          title: string
+          updated_at: string
+          version_label: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          notes_internal?: string | null
+          project_id: string
+          status?: string
+          title: string
+          updated_at?: string
+          version_label?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          notes_internal?: string | null
+          project_id?: string
+          status?: string
+          title?: string
+          updated_at?: string
+          version_label?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proposals_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_costs_view"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "proposals_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_dashboard_view"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "proposals_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
         ]

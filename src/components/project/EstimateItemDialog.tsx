@@ -21,11 +21,13 @@ export interface EstimateItemFormData {
   category: string;
   cost_code_id: string | null;
   trade_id: string | null;
-  quantity: number;
+  quantity: string;
   unit: string;
-  unit_price: number;
-  planned_hours: number | null;
+  unit_price: string;
+  planned_hours: string;
   is_allowance: boolean;
+  area_name: string;
+  scope_group: string;
 }
 
 const CATEGORIES = ['Labor', 'Subs', 'Materials', 'Allowance', 'Other'];
@@ -37,11 +39,13 @@ export function EstimateItemDialog({ open, onOpenChange, onSave, estimateItem }:
     category: 'Labor',
     cost_code_id: null,
     trade_id: null,
-    quantity: 1,
+    quantity: '',
     unit: 'ea',
-    unit_price: 0,
-    planned_hours: null,
+    unit_price: '',
+    planned_hours: '',
     is_allowance: false,
+    area_name: '',
+    scope_group: '',
   });
 
   useEffect(() => {
@@ -51,11 +55,13 @@ export function EstimateItemDialog({ open, onOpenChange, onSave, estimateItem }:
         category: estimateItem.category || 'Labor',
         cost_code_id: estimateItem.cost_code_id || null,
         trade_id: estimateItem.trade_id || null,
-        quantity: estimateItem.quantity || 1,
+        quantity: estimateItem.quantity?.toString() || '',
         unit: estimateItem.unit || 'ea',
-        unit_price: estimateItem.unit_price || 0,
-        planned_hours: estimateItem.planned_hours || null,
+        unit_price: estimateItem.unit_price?.toString() || '',
+        planned_hours: estimateItem.planned_hours?.toString() || '',
         is_allowance: estimateItem.is_allowance || false,
+        area_name: estimateItem.area_name || '',
+        scope_group: estimateItem.scope_group || '',
       });
     }
   }, [estimateItem]);
@@ -81,7 +87,9 @@ export function EstimateItemDialog({ open, onOpenChange, onSave, estimateItem }:
     enabled: formData.category === 'Labor',
   });
 
-  const lineTotal = formData.quantity * formData.unit_price;
+  const qty = parseFloat(formData.quantity) || 0;
+  const price = parseFloat(formData.unit_price) || 0;
+  const lineTotal = qty * price;
   const showPlannedHours = formData.category === 'Labor';
 
   // Auto-set category when cost code is selected
@@ -99,17 +107,33 @@ export function EstimateItemDialog({ open, onOpenChange, onSave, estimateItem }:
   };
 
   const handleSave = () => {
+    // Validate numeric fields before saving
+    const qty = parseFloat(formData.quantity);
+    const price = parseFloat(formData.unit_price);
+    const hours = formData.planned_hours ? parseFloat(formData.planned_hours) : null;
+    
+    if (isNaN(qty) || qty <= 0) {
+      alert('Please enter a valid quantity');
+      return;
+    }
+    if (isNaN(price) || price < 0) {
+      alert('Please enter a valid unit price');
+      return;
+    }
+    
     onSave(formData);
     setFormData({
       description: '',
       category: 'Labor',
       cost_code_id: null,
       trade_id: null,
-      quantity: 1,
+      quantity: '',
       unit: 'ea',
-      unit_price: 0,
-      planned_hours: null,
+      unit_price: '',
+      planned_hours: '',
       is_allowance: false,
+      area_name: '',
+      scope_group: '',
     });
     onOpenChange(false);
   };
@@ -190,14 +214,35 @@ export function EstimateItemDialog({ open, onOpenChange, onSave, estimateItem }:
             />
           </div>
 
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label>Area (optional)</Label>
+              <Input 
+                value={formData.area_name}
+                onChange={(e) => setFormData({ ...formData, area_name: e.target.value })}
+                placeholder="e.g., Kitchen, Primary Bath"
+              />
+            </div>
+            <div>
+              <Label>Scope/Phase (optional)</Label>
+              <Input 
+                value={formData.scope_group}
+                onChange={(e) => setFormData({ ...formData, scope_group: e.target.value })}
+                placeholder="e.g., Demo, Rough, Finish"
+              />
+            </div>
+          </div>
+
           <div className="grid grid-cols-3 gap-4">
             <div>
-              <Label>Quantity</Label>
+              <Label>Quantity *</Label>
               <Input 
                 type="number"
                 step="0.01"
+                min="0"
                 value={formData.quantity}
-                onChange={(e) => setFormData({ ...formData, quantity: parseFloat(e.target.value) || 0 })}
+                onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
+                placeholder="Enter quantity"
               />
             </div>
             
@@ -216,12 +261,14 @@ export function EstimateItemDialog({ open, onOpenChange, onSave, estimateItem }:
             </div>
 
             <div>
-              <Label>Unit Price</Label>
+              <Label>Unit Price * ($)</Label>
               <Input 
                 type="number"
                 step="0.01"
+                min="0"
                 value={formData.unit_price}
-                onChange={(e) => setFormData({ ...formData, unit_price: parseFloat(e.target.value) || 0 })}
+                onChange={(e) => setFormData({ ...formData, unit_price: e.target.value })}
+                placeholder="Enter price"
               />
             </div>
           </div>
@@ -232,9 +279,10 @@ export function EstimateItemDialog({ open, onOpenChange, onSave, estimateItem }:
               <Input 
                 type="number"
                 step="0.5"
-                value={formData.planned_hours || ''}
-                onChange={(e) => setFormData({ ...formData, planned_hours: e.target.value ? parseFloat(e.target.value) : null })}
-                placeholder="Leave empty to auto-calculate from labor rate"
+                min="0"
+                value={formData.planned_hours}
+                onChange={(e) => setFormData({ ...formData, planned_hours: e.target.value })}
+                placeholder="Leave empty for pricing only"
               />
             </div>
           )}
@@ -251,7 +299,9 @@ export function EstimateItemDialog({ open, onOpenChange, onSave, estimateItem }:
           <div className="pt-4 border-t">
             <div className="flex justify-between items-center">
               <span className="font-semibold">Line Total:</span>
-              <span className="text-lg font-bold">${lineTotal.toFixed(2)}</span>
+              <span className="text-lg font-bold">
+                {lineTotal > 0 ? `$${lineTotal.toFixed(2)}` : '—'}
+              </span>
             </div>
           </div>
 
