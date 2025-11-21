@@ -2,9 +2,13 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
-import { Calendar, Clock, User } from 'lucide-react';
+import { Calendar, Clock, User, AlertCircle, ExternalLink } from 'lucide-react';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
+import { DayDetailDialog } from '@/components/scheduling/DayDetailDialog';
+import { useScheduleConflicts } from '@/hooks/useScheduleConflicts';
 
 interface ScheduleEntry {
   id: string;
@@ -16,13 +20,31 @@ interface ScheduleEntry {
   workers?: { name: string; trade: string } | null;
 }
 
+interface WorkerConflicts {
+  [workerId: string]: {
+    date: string;
+    hasConflicts: boolean;
+    scheduleCount: number;
+    projectNames: string[];
+  };
+}
+
 export const ProjectScheduleTab = ({ projectId }: { projectId: string }) => {
   const [schedules, setSchedules] = useState<ScheduleEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [dayDialogDate, setDayDialogDate] = useState<Date | null>(null);
+  const [highlightWorkerId, setHighlightWorkerId] = useState<string | null>(null);
+  const [workerConflicts, setWorkerConflicts] = useState<WorkerConflicts>({});
 
   useEffect(() => {
     fetchSchedules();
   }, [projectId]);
+
+  useEffect(() => {
+    if (schedules.length > 0) {
+      checkAllConflicts();
+    }
+  }, [schedules]);
 
   const fetchSchedules = async () => {
     try {
@@ -48,6 +70,41 @@ export const ProjectScheduleTab = ({ projectId }: { projectId: string }) => {
     }
   };
 
+  const checkAllConflicts = async () => {
+    const conflicts: WorkerConflicts = {};
+
+    for (const schedule of schedules) {
+      const key = schedule.worker_id;
+      if (conflicts[key]) continue;
+
+      const { data } = await supabase
+        .from("scheduled_shifts")
+        .select("id, project:projects(project_name)")
+        .eq("worker_id", schedule.worker_id)
+        .eq("scheduled_date", schedule.scheduled_date);
+
+      if (data && data.length > 1) {
+        const projectNames = data
+          .map(s => s.project?.project_name)
+          .filter((name): name is string => !!name);
+
+        conflicts[key] = {
+          date: schedule.scheduled_date,
+          hasConflicts: true,
+          scheduleCount: data.length,
+          projectNames
+        };
+      }
+    }
+
+    setWorkerConflicts(conflicts);
+  };
+
+  const openDayDialog = (date: string, workerId?: string) => {
+    setDayDialogDate(new Date(date));
+    setHighlightWorkerId(workerId || null);
+  };
+
   if (loading) {
     return (
       <div className="space-y-3">
@@ -59,51 +116,93 @@ export const ProjectScheduleTab = ({ projectId }: { projectId: string }) => {
   }
 
   return (
-    <div className="space-y-4">
-      <h3 className="text-lg font-semibold">Project Schedule (This Month)</h3>
-      {schedules.length === 0 ? (
-        <Card className="p-12">
-          <p className="text-center text-muted-foreground">
-            No scheduled shifts for this project this month
-          </p>
-        </Card>
-      ) : (
-        <div className="space-y-3">
-          {schedules.map((schedule) => (
-            <Card key={schedule.id} className="p-4">
-              <div className="flex items-center justify-between">
-                <div className="space-y-2 flex-1">
-                  <div className="flex items-center gap-3">
-                    <span className="flex items-center gap-1 text-sm font-medium">
-                      <User className="w-4 h-4" />
-                      {schedule.workers?.name || 'Unknown Worker'}
-                    </span>
-                    {schedule.workers?.trade && (
-                      <Badge variant="outline" className="text-xs">
-                        {schedule.workers.trade}
-                      </Badge>
+    <>
+      <div className="space-y-4">
+        <h3 className="text-lg font-semibold">Project Schedule (This Month)</h3>
+        {schedules.length === 0 ? (
+          <Card className="p-12">
+            <p className="text-center text-muted-foreground">
+              No scheduled shifts for this project this month
+            </p>
+          </Card>
+        ) : (
+          <div className="space-y-3">
+            {schedules.map((schedule) => {
+              const conflict = workerConflicts[schedule.worker_id];
+              const hasConflict = conflict && conflict.date === schedule.scheduled_date;
+
+              return (
+                <Card key={schedule.id} className="p-4">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-2 flex-1">
+                        <div className="flex items-center gap-3">
+                          <span className="flex items-center gap-1 text-sm font-medium">
+                            <User className="w-4 h-4" />
+                            {schedule.workers?.name || 'Unknown Worker'}
+                          </span>
+                          {schedule.workers?.trade && (
+                            <Badge variant="outline" className="text-xs">
+                              {schedule.workers.trade}
+                            </Badge>
+                          )}
+                          <Badge variant="outline" className="text-xs">{schedule.status}</Badge>
+                        </div>
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <Calendar className="w-3 h-3" />
+                            {format(new Date(schedule.scheduled_date), 'MMM d, yyyy')}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            {schedule.scheduled_hours}h
+                          </span>
+                        </div>
+                        {schedule.notes && (
+                          <p className="text-sm text-muted-foreground">{schedule.notes}</p>
+                        )}
+                      </div>
+                    </div>
+
+                    {hasConflict && (
+                      <Alert>
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertDescription className="flex items-center justify-between">
+                          <span className="text-sm">
+                            This worker has {conflict.scheduleCount} shifts on this date across: {conflict.projectNames.join(', ')}
+                          </span>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => openDayDialog(schedule.scheduled_date, schedule.worker_id)}
+                          >
+                            <ExternalLink className="h-3 w-3 mr-1" />
+                            View Full Day
+                          </Button>
+                        </AlertDescription>
+                      </Alert>
                     )}
-                    <Badge variant="outline" className="text-xs">{schedule.status}</Badge>
                   </div>
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                      <Calendar className="w-3 h-3" />
-                      {format(new Date(schedule.scheduled_date), 'MMM d, yyyy')}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Clock className="w-3 h-3" />
-                      {schedule.scheduled_hours}h
-                    </span>
-                  </div>
-                  {schedule.notes && (
-                    <p className="text-sm text-muted-foreground">{schedule.notes}</p>
-                  )}
-                </div>
-              </div>
-            </Card>
-          ))}
-        </div>
-      )}
-    </div>
+                </Card>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      <DayDetailDialog
+        open={!!dayDialogDate}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDayDialogDate(null);
+            setHighlightWorkerId(null);
+          }
+        }}
+        date={dayDialogDate}
+        onRefresh={fetchSchedules}
+        onAddSchedule={() => {}}
+        highlightWorkerId={highlightWorkerId}
+      />
+    </>
   );
 };
