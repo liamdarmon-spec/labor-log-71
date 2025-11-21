@@ -27,9 +27,10 @@ interface ScheduledShift {
 interface WeeklyScheduleViewProps {
   onScheduleClick: (date: Date) => void;
   refreshTrigger: number;
+  scheduleType: "workers" | "subs" | "meetings" | "all";
 }
 
-export function WeeklyScheduleView({ onScheduleClick, refreshTrigger }: WeeklyScheduleViewProps) {
+export function WeeklyScheduleView({ onScheduleClick, refreshTrigger, scheduleType }: WeeklyScheduleViewProps) {
   const { toast } = useToast();
   const [currentWeekStart, setCurrentWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 0 }));
   const [schedules, setSchedules] = useState<ScheduledShift[]>([]);
