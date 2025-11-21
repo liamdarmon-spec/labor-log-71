@@ -101,7 +101,9 @@ export const ProjectScheduleTab = ({ projectId }: { projectId: string }) => {
   };
 
   const openDayDialog = (date: string, workerId?: string) => {
-    setDayDialogDate(new Date(date));
+    // Parse date in local timezone to avoid timezone shift issues
+    const [year, month, day] = date.split('-').map(Number);
+    setDayDialogDate(new Date(year, month - 1, day));
     setHighlightWorkerId(workerId || null);
   };
 
