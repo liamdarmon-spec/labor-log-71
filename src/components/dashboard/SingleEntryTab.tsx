@@ -12,6 +12,7 @@ import { Calendar, Clock, FileText, Plus, Trash2 } from 'lucide-react';
 import { z } from 'zod';
 import { AddProjectDialog } from './AddProjectDialog';
 import { DatePickerWithPresets } from '@/components/ui/date-picker-with-presets';
+import { useCostCodes } from '@/hooks/useCostCodes';
 
 const jobEntrySchema = z.object({
   project_id: z.string().trim().nonempty({ message: 'Please select a project' }),
@@ -52,6 +53,7 @@ interface JobEntry {
   project_id: string;
   hours_worked: string;
   trade_id: string;
+  cost_code_id: string;
 }
 
 export const SingleEntryTab = () => {
@@ -63,7 +65,7 @@ export const SingleEntryTab = () => {
   const [isFullDay, setIsFullDay] = useState(true);
   const [isAddProjectDialogOpen, setIsAddProjectDialogOpen] = useState(false);
   const [jobEntries, setJobEntries] = useState<JobEntry[]>([
-    { id: '1', project_id: '', hours_worked: '', trade_id: '' }
+    { id: '1', project_id: '', hours_worked: '', trade_id: '', cost_code_id: '' }
   ]);
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -71,6 +73,7 @@ export const SingleEntryTab = () => {
     notes: '',
   });
   const { toast } = useToast();
+  const { data: laborCostCodes } = useCostCodes('labor');
 
   useEffect(() => {
     fetchWorkers();
@@ -151,7 +154,7 @@ export const SingleEntryTab = () => {
 
 
   const addJobEntry = () => {
-    setJobEntries([...jobEntries, { id: Date.now().toString(), project_id: '', hours_worked: '', trade_id: '' }]);
+    setJobEntries([...jobEntries, { id: Date.now().toString(), project_id: '', hours_worked: '', trade_id: '', cost_code_id: '' }]);
     setIsFullDay(false);
   };
 
@@ -161,7 +164,7 @@ export const SingleEntryTab = () => {
     }
   };
 
-  const updateJobEntry = (id: string, field: 'project_id' | 'hours_worked' | 'trade_id', value: string) => {
+  const updateJobEntry = (id: string, field: 'project_id' | 'hours_worked' | 'trade_id' | 'cost_code_id', value: string) => {
     setJobEntries(jobEntries.map(entry => {
       if (entry.id === id) {
         return { ...entry, [field]: value };
@@ -198,6 +201,7 @@ export const SingleEntryTab = () => {
             project_id: job.project_id,
             hours_worked: hours,
             trade_id: job.trade_id || null,
+            cost_code_id: job.cost_code_id || null,
             notes: formData.notes || null,
           };
 
@@ -244,7 +248,7 @@ export const SingleEntryTab = () => {
         worker_id: '',
         notes: '',
       });
-      setJobEntries([{ id: '1', project_id: '', hours_worked: '', trade_id: '' }]);
+      setJobEntries([{ id: '1', project_id: '', hours_worked: '', trade_id: '', cost_code_id: '' }]);
       setIsFullDay(true);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -329,7 +333,7 @@ export const SingleEntryTab = () => {
               onCheckedChange={(checked) => {
                 setIsFullDay(checked);
                 if (checked) {
-                  setJobEntries([{ id: '1', project_id: '', hours_worked: '', trade_id: '' }]);
+                  setJobEntries([{ id: '1', project_id: '', hours_worked: '', trade_id: '', cost_code_id: '' }]);
                 }
               }}
               disabled={loading}
@@ -403,6 +407,26 @@ export const SingleEntryTab = () => {
                         {projects.map((project) => (
                           <SelectItem key={project.id} value={project.id}>
                             {project.project_name} - {project.client_name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground">Cost Code</Label>
+                    <Select
+                      value={entry.cost_code_id}
+                      onValueChange={(value) => updateJobEntry(entry.id, 'cost_code_id', value)}
+                      disabled={loading}
+                    >
+                      <SelectTrigger className="h-10">
+                        <SelectValue placeholder="Select cost code (optional)" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-popover z-50">
+                        {laborCostCodes?.map((code) => (
+                          <SelectItem key={code.id} value={code.id}>
+                            {code.code} - {code.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
