@@ -14,11 +14,13 @@ interface LogEntry {
   date: string;
   hours_worked: number;
   notes: string | null;
+  cost_code_id: string | null;
   workers: { 
     name: string; 
     trades: { name: string } | null;
   };
   projects: { project_name: string; client_name: string };
+  cost_codes: { code: string; name: string } | null;
 }
 
 interface Worker {
@@ -71,7 +73,8 @@ export const ViewLogsTab = () => {
           name,
           trades (name)
         ),
-        projects (project_name, client_name)
+        projects (project_name, client_name),
+        cost_codes (code, name)
       `)
       .order('date', { ascending: false });
 
@@ -305,6 +308,7 @@ export const ViewLogsTab = () => {
                   <TableHead>Trade</TableHead>
                   <TableHead>Project</TableHead>
                   <TableHead>Client</TableHead>
+                  <TableHead>Cost Code</TableHead>
                   <TableHead className="text-right">Hours</TableHead>
                   <TableHead>Notes</TableHead>
                 </TableRow>
@@ -312,7 +316,7 @@ export const ViewLogsTab = () => {
               <TableBody>
                 {filteredLogs.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
                       No logs found matching the filters
                     </TableCell>
                   </TableRow>
@@ -327,6 +331,15 @@ export const ViewLogsTab = () => {
                       <TableCell>{log.projects.project_name}</TableCell>
                       <TableCell className="text-muted-foreground">
                         {log.projects.client_name}
+                      </TableCell>
+                      <TableCell>
+                        {log.cost_codes ? (
+                          <span className="text-xs font-mono">
+                            {log.cost_codes.code} – {log.cost_codes.name}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground text-xs">—</span>
+                        )}
                       </TableCell>
                       <TableCell className="text-right font-medium">
                         {parseFloat(log.hours_worked.toString()).toFixed(2)}

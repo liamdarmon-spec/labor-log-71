@@ -15,6 +15,7 @@ interface DailyLog {
   notes: string | null;
   workers: { name: string; trade: string };
   projects: { project_name: string; client_name: string };
+  cost_codes: { code: string; name: string } | null;
 }
 
 export const LogsTab = () => {
@@ -39,7 +40,8 @@ export const LogsTab = () => {
       .select(`
         *,
         workers (name, trade),
-        projects (project_name, client_name)
+        projects (project_name, client_name),
+        cost_codes (code, name)
       `)
       .order('date', { ascending: false });
 
@@ -153,6 +155,7 @@ export const LogsTab = () => {
                 <TableHead>Trade</TableHead>
                 <TableHead>Project</TableHead>
                 <TableHead>Client</TableHead>
+                <TableHead>Cost Code</TableHead>
                 <TableHead>Hours</TableHead>
                 <TableHead>Notes</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -166,6 +169,15 @@ export const LogsTab = () => {
                   <TableCell>{log.workers.trade}</TableCell>
                   <TableCell>{log.projects.project_name}</TableCell>
                   <TableCell>{log.projects.client_name}</TableCell>
+                  <TableCell>
+                    {log.cost_codes ? (
+                      <span className="text-xs font-mono">
+                        {log.cost_codes.code}
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground text-xs">—</span>
+                    )}
+                  </TableCell>
                   <TableCell>{log.hours_worked}h</TableCell>
                   <TableCell className="max-w-xs truncate">{log.notes || '-'}</TableCell>
                   <TableCell className="text-right">

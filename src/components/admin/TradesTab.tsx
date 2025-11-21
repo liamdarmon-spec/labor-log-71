@@ -8,8 +8,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Plus, Pencil, Trash2, Wrench } from 'lucide-react';
+import { Plus, Pencil, Trash2, Wrench, AlertTriangle } from 'lucide-react';
 import { z } from 'zod';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
+import { useCostCodes } from '@/hooks/useCostCodes';
 
 const tradeSchema = z.object({
   name: z.string().trim().nonempty({ message: 'Trade name is required' }).max(100),
@@ -21,6 +24,8 @@ interface Trade {
   name: string;
   description: string | null;
   created_at: string;
+  default_labor_cost_code_id: string | null;
+  default_material_cost_code_id: string | null;
 }
 
 export const TradesTab = () => {
@@ -30,8 +35,13 @@ export const TradesTab = () => {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
+    default_labor_cost_code_id: '',
+    default_material_cost_code_id: '',
   });
   const { toast } = useToast();
+  
+  const { data: laborCostCodes = [] } = useCostCodes('labor');
+  const { data: materialCostCodes = [] } = useCostCodes('materials');
 
   useEffect(() => {
     fetchTrades();
@@ -69,6 +79,8 @@ export const TradesTab = () => {
           .update({
             name: validatedData.name,
             description: validatedData.description || null,
+            default_labor_cost_code_id: formData.default_labor_cost_code_id || null,
+            default_material_cost_code_id: formData.default_material_cost_code_id || null,
           })
           .eq('id', editingTrade.id);
 
@@ -83,6 +95,8 @@ export const TradesTab = () => {
           {
             name: validatedData.name,
             description: validatedData.description || null,
+            default_labor_cost_code_id: formData.default_labor_cost_code_id || null,
+            default_material_cost_code_id: formData.default_material_cost_code_id || null,
           },
         ]);
 
@@ -139,6 +153,8 @@ export const TradesTab = () => {
     setFormData({
       name: trade.name,
       description: trade.description || '',
+      default_labor_cost_code_id: trade.default_labor_cost_code_id || '',
+      default_material_cost_code_id: trade.default_material_cost_code_id || '',
     });
     setIsDialogOpen(true);
   };
@@ -148,8 +164,14 @@ export const TradesTab = () => {
     setFormData({
       name: '',
       description: '',
+      default_labor_cost_code_id: '',
+      default_material_cost_code_id: '',
     });
   };
+
+  const tradesWithMissingCodes = trades.filter(
+    t => !t.default_labor_cost_code_id || !t.default_material_cost_code_id
+  );
 
   return (
     <Card className="shadow-medium">
@@ -158,7 +180,15 @@ export const TradesTab = () => {
           <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
             <Wrench className="w-5 h-5 text-primary" />
           </div>
-          <CardTitle className="text-xl">Trades Management</CardTitle>
+          <div>
+            <CardTitle className="text-xl">Trades Management</CardTitle>
+            {tradesWithMissingCodes.length > 0 && (
+              <div className="flex items-center gap-2 mt-1 text-sm text-orange-600">
+                <AlertTriangle className="w-4 h-4" />
+                <span>{tradesWithMissingCodes.length} trade(s) missing default cost codes</span>
+              </div>
+            )}
+          </div>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={(open) => {
           setIsDialogOpen(open);
@@ -197,6 +227,44 @@ export const TradesTab = () => {
                   rows={3}
                 />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="labor_cost_code">Default Labor Cost Code</Label>
+                <Select
+                  value={formData.default_labor_cost_code_id}
+                  onValueChange={(value) => setFormData({ ...formData, default_labor_cost_code_id: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select labor cost code" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">None</SelectItem>
+                    {laborCostCodes.map((cc) => (
+                      <SelectItem key={cc.id} value={cc.id}>
+                        {cc.code} – {cc.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="material_cost_code">Default Material Cost Code</Label>
+                <Select
+                  value={formData.default_material_cost_code_id}
+                  onValueChange={(value) => setFormData({ ...formData, default_material_cost_code_id: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select material cost code" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">None</SelectItem>
+                    {materialCostCodes.map((cc) => (
+                      <SelectItem key={cc.id} value={cc.id}>
+                        {cc.code} – {cc.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <Button type="submit" className="w-full">
                 {editingTrade ? 'Update Trade' : 'Add Trade'}
               </Button>
@@ -210,16 +278,46 @@ export const TradesTab = () => {
             <TableHeader>
               <TableRow className="bg-muted/50">
                 <TableHead className="font-semibold">Trade Name</TableHead>
+                <TableHead className="font-semibold">Labor Cost Code</TableHead>
+                <TableHead className="font-semibold">Material Cost Code</TableHead>
                 <TableHead className="font-semibold">Description</TableHead>
                 <TableHead className="text-right font-semibold">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {trades.map((trade) => (
-                <TableRow key={trade.id} className="hover:bg-muted/30 transition-colors">
-                  <TableCell className="font-medium">{trade.name}</TableCell>
-                  <TableCell className="text-muted-foreground">{trade.description || '-'}</TableCell>
-                  <TableCell className="text-right">
+              {trades.map((trade) => {
+                const laborCode = laborCostCodes.find(cc => cc.id === trade.default_labor_cost_code_id);
+                const materialCode = materialCostCodes.find(cc => cc.id === trade.default_material_cost_code_id);
+                
+                return (
+                  <TableRow key={trade.id} className="hover:bg-muted/30 transition-colors">
+                    <TableCell className="font-medium">{trade.name}</TableCell>
+                    <TableCell>
+                      {laborCode ? (
+                        <Badge variant="outline" className="text-xs">
+                          {laborCode.code}
+                        </Badge>
+                      ) : (
+                        <span className="text-orange-600 text-xs flex items-center gap-1">
+                          <AlertTriangle className="w-3 h-3" />
+                          Not set
+                        </span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {materialCode ? (
+                        <Badge variant="outline" className="text-xs">
+                          {materialCode.code}
+                        </Badge>
+                      ) : (
+                        <span className="text-orange-600 text-xs flex items-center gap-1">
+                          <AlertTriangle className="w-3 h-3" />
+                          Not set
+                        </span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">{trade.description || '-'}</TableCell>
+                    <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
                       <Button
                         variant="ghost"
@@ -240,7 +338,8 @@ export const TradesTab = () => {
                     </div>
                   </TableCell>
                 </TableRow>
-              ))}
+                );
+              })}
             </TableBody>
           </Table>
         </div>

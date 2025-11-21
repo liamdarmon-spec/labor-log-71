@@ -21,6 +21,7 @@ interface TimeLogCardProps {
     project_name: string;
     hours: number;
     notes?: string | null;
+    cost_code?: string | null;
   }>;
   paymentStatus?: 'paid' | 'unpaid';
   onEdit?: () => void;
@@ -66,11 +67,18 @@ export const TimeLogCard = ({
         {/* Projects and Hours */}
         <div className="space-y-2">
           {entries.map((entry) => (
-            <div key={entry.id} className="flex items-center justify-between text-sm">
-              <span className="text-foreground truncate flex-1">{entry.project_name}</span>
-              <Badge variant="outline" className="ml-2 shrink-0">
-                {entry.hours}h
-              </Badge>
+            <div key={entry.id} className="space-y-1">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-foreground truncate flex-1">{entry.project_name}</span>
+                <Badge variant="outline" className="ml-2 shrink-0">
+                  {entry.hours}h
+                </Badge>
+              </div>
+              {entry.cost_code && (
+                <div className="text-xs text-muted-foreground ml-1">
+                  Cost Code: {entry.cost_code}
+                </div>
+              )}
             </div>
           ))}
         </div>
