@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { HardHat, Settings, Eye, BarChart3, DollarSign, CalendarClock, Languages } from 'lucide-react';
+import { HardHat, Settings, Eye, BarChart3, DollarSign, CalendarClock, Languages, Building2 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { MobileNav } from '@/components/MobileNav';
 import { useTranslation } from 'react-i18next';
@@ -39,6 +39,15 @@ export const Layout = ({ children }: LayoutProps) => {
             </div>
           </div>
           <nav className="hidden lg:flex items-center gap-2">
+            <Button
+              variant={location.pathname === '/projects' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => navigate('/projects')}
+              className="gap-2 h-9"
+            >
+              <Building2 className="w-4 h-4" />
+              <span>Projects</span>
+            </Button>
             <Button
               variant={location.pathname === '/schedule' ? 'default' : 'ghost'}
               size="sm"
