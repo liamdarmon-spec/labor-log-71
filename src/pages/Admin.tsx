@@ -3,7 +3,7 @@ import { Layout } from '@/components/Layout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { WorkersTab } from '@/components/admin/WorkersTab';
 import { ProjectsTab } from '@/components/admin/ProjectsTab';
-import { TradesTab } from '@/components/admin/TradesTab';
+import { TradesWithCostCodesTab } from '@/components/admin/TradesWithCostCodesTab';
 import { CostCodesTab } from '@/components/admin/CostCodesTab';
 import { LogsTab } from '@/components/admin/LogsTab';
 import { ReportsTab } from '@/components/admin/ReportsTab';
@@ -74,7 +74,7 @@ const Admin = () => {
           </TabsContent>
 
           <TabsContent value="trades" className="mt-4 sm:mt-6">
-            <TradesTab />
+            <TradesWithCostCodesTab />
           </TabsContent>
 
           <TabsContent value="costcodes" className="mt-4 sm:mt-6">
