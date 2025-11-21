@@ -4,9 +4,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { DollarSign, TrendingUp, TrendingDown, Clock, Users, Calendar } from 'lucide-react';
+import { DollarSign, TrendingUp, TrendingDown, Clock, Users, Calendar, Edit } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 
@@ -69,6 +72,13 @@ export const ProjectCosts = ({ projectId }: ProjectCostsProps) => {
   const [loading, setLoading] = useState(true);
   const [selectedWorker, setSelectedWorker] = useState<string>('all');
   const [dateRange, setDateRange] = useState<string>('all');
+  const [isBudgetDialogOpen, setIsBudgetDialogOpen] = useState(false);
+  const [budgetForm, setBudgetForm] = useState({
+    labor_budget: '0',
+    subs_budget: '0',
+    materials_budget: '0',
+    other_budget: '0',
+  });
 
   useEffect(() => {
     fetchCostData();
@@ -79,8 +89,14 @@ export const ProjectCosts = ({ projectId }: ProjectCostsProps) => {
       fetchWorkerCosts();
       fetchPayments();
       fetchUnpaidLogs();
+      setBudgetForm({
+        labor_budget: costData.labor_budget.toString(),
+        subs_budget: costData.subs_budget.toString(),
+        materials_budget: costData.materials_budget.toString(),
+        other_budget: costData.other_budget.toString(),
+      });
     }
-  }, [projectId, dateRange, selectedWorker]);
+  }, [projectId, dateRange, selectedWorker, costData]);
 
   const fetchCostData = async () => {
     try {
@@ -277,6 +293,33 @@ export const ProjectCosts = ({ projectId }: ProjectCostsProps) => {
     }
   };
 
+  const handleBudgetSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    try {
+      const { error } = await supabase
+        .from('project_budgets')
+        .upsert({
+          project_id: projectId,
+          labor_budget: parseFloat(budgetForm.labor_budget),
+          subs_budget: parseFloat(budgetForm.subs_budget),
+          materials_budget: parseFloat(budgetForm.materials_budget),
+          other_budget: parseFloat(budgetForm.other_budget),
+        }, {
+          onConflict: 'project_id'
+        });
+
+      if (error) throw error;
+      
+      toast.success('Budget updated successfully');
+      setIsBudgetDialogOpen(false);
+      fetchCostData(); // Refresh data
+    } catch (error) {
+      console.error('Error updating budget:', error);
+      toast.error('Failed to update budget');
+    }
+  };
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -310,6 +353,76 @@ export const ProjectCosts = ({ projectId }: ProjectCostsProps) => {
 
   return (
     <div className="space-y-6">
+      {/* Header with Edit Budget button */}
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-semibold">Budget & Cost Analysis</h3>
+        <Dialog open={isBudgetDialogOpen} onOpenChange={setIsBudgetDialogOpen}>
+          <DialogTrigger asChild>
+            <Button variant="outline">
+              <Edit className="w-4 h-4 mr-2" />
+              Edit Budget
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Project Budget</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleBudgetSubmit} className="space-y-4">
+              <div>
+                <Label htmlFor="labor_budget">Labor Budget ($)</Label>
+                <Input
+                  id="labor_budget"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={budgetForm.labor_budget}
+                  onChange={(e) => setBudgetForm({ ...budgetForm, labor_budget: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label htmlFor="subs_budget">Subcontractors Budget ($)</Label>
+                <Input
+                  id="subs_budget"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={budgetForm.subs_budget}
+                  onChange={(e) => setBudgetForm({ ...budgetForm, subs_budget: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label htmlFor="materials_budget">Materials Budget ($)</Label>
+                <Input
+                  id="materials_budget"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={budgetForm.materials_budget}
+                  onChange={(e) => setBudgetForm({ ...budgetForm, materials_budget: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label htmlFor="other_budget">Other Budget ($)</Label>
+                <Input
+                  id="other_budget"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={budgetForm.other_budget}
+                  onChange={(e) => setBudgetForm({ ...budgetForm, other_budget: e.target.value })}
+                />
+              </div>
+              <div className="flex gap-2 justify-end">
+                <Button type="button" variant="outline" onClick={() => setIsBudgetDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit">Save Budget</Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </div>
+
       {/* Budget vs Actual Summary */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
