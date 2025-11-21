@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { Plus, Calendar, User, CheckSquare, Users, Package, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
+import { ProjectTasksCalendar } from './ProjectTasksCalendar';
 
 interface Todo {
   id: string;
@@ -36,6 +37,7 @@ export const ProjectTasks = ({ projectId, onUpdate }: { projectId: string; onUpd
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [filterAssignee, setFilterAssignee] = useState<string>('all');
   const [filterType, setFilterType] = useState<string>('all');
+  const [viewMode, setViewMode] = useState<'board' | 'calendar'>('board');
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -274,8 +276,32 @@ export const ProjectTasks = ({ projectId, onUpdate }: { projectId: string; onUpd
 
   return (
     <div className="space-y-4">
-      {/* Filters */}
-      <div className="flex flex-wrap gap-4 items-center justify-between">
+      {/* View Mode Toggle */}
+      <div className="flex items-center justify-between">
+        <div className="flex gap-2">
+          <Button
+            variant={viewMode === 'board' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setViewMode('board')}
+          >
+            Board
+          </Button>
+          <Button
+            variant={viewMode === 'calendar' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setViewMode('calendar')}
+          >
+            Calendar
+          </Button>
+        </div>
+      </div>
+
+      {viewMode === 'calendar' ? (
+        <ProjectTasksCalendar projectId={projectId} />
+      ) : (
+        <>
+          {/* Filters */}
+          <div className="flex flex-wrap gap-4 items-center justify-between">
         <div className="flex gap-2">
           <Select value={filterAssignee} onValueChange={setFilterAssignee}>
             <SelectTrigger className="w-[180px]">
@@ -487,6 +513,8 @@ export const ProjectTasks = ({ projectId, onUpdate }: { projectId: string; onUpd
             </div>
           </div>
         </div>
+      )}
+        </>
       )}
     </div>
   );

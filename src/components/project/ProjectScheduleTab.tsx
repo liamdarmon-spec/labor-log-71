@@ -9,6 +9,7 @@ import { Calendar, Clock, User, AlertCircle, ExternalLink } from 'lucide-react';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { DayDetailDialog } from '@/components/scheduling/DayDetailDialog';
 import { useScheduleConflicts } from '@/hooks/useScheduleConflicts';
+import { ProjectScheduleCalendar } from './ProjectScheduleCalendar';
 
 interface ScheduleEntry {
   id: string;
@@ -35,6 +36,7 @@ export const ProjectScheduleTab = ({ projectId }: { projectId: string }) => {
   const [dayDialogDate, setDayDialogDate] = useState<Date | null>(null);
   const [highlightWorkerId, setHighlightWorkerId] = useState<string | null>(null);
   const [workerConflicts, setWorkerConflicts] = useState<WorkerConflicts>({});
+  const [viewMode, setViewMode] = useState<'calendar' | 'list'>('calendar');
 
   useEffect(() => {
     fetchSchedules();
@@ -120,8 +122,28 @@ export const ProjectScheduleTab = ({ projectId }: { projectId: string }) => {
   return (
     <>
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold">Project Schedule (This Month)</h3>
-        {schedules.length === 0 ? (
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold">Labor Schedule</h3>
+          <div className="flex gap-2">
+            <Button
+              variant={viewMode === 'calendar' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setViewMode('calendar')}
+            >
+              Calendar
+            </Button>
+            <Button
+              variant={viewMode === 'list' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setViewMode('list')}
+            >
+              List
+            </Button>
+          </div>
+        </div>
+        {viewMode === 'calendar' ? (
+          <ProjectScheduleCalendar projectId={projectId} />
+        ) : schedules.length === 0 ? (
           <Card className="p-12">
             <p className="text-center text-muted-foreground">
               No scheduled shifts for this project this month
@@ -204,6 +226,7 @@ export const ProjectScheduleTab = ({ projectId }: { projectId: string }) => {
         onRefresh={fetchSchedules}
         onAddSchedule={() => {}}
         highlightWorkerId={highlightWorkerId}
+        projectContext={projectId}
       />
     </>
   );
