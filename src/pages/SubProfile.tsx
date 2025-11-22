@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ArrowLeft, Building2, Phone, Mail, Briefcase } from 'lucide-react';
+import { SubDocumentsSection } from '@/components/subs/SubDocumentsSection';
 
 export default function SubProfile() {
   const { id } = useParams();
@@ -190,6 +191,9 @@ export default function SubProfile() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Documents */}
+        <SubDocumentsSection subId={id!} />
 
         {/* Active Projects */}
         <Card>

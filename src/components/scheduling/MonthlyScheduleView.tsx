@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChevronLeft, ChevronRight, Clock, User, Calendar, Plus } from "lucide-react";
 import { startOfMonth, endOfMonth, eachDayOfInterval, format, isSameMonth, isSameDay, addMonths, startOfWeek, endOfWeek, isWeekend } from "date-fns";
-import { MasterScheduleModal } from "./MasterScheduleModal";
+import { UniversalDayDetailDialog } from "./UniversalDayDetailDialog";
 import { useSchedulerData } from "@/lib/scheduler/useSchedulerData";
 import type { SchedulerFilterMode } from "@/lib/scheduler/types";
 
@@ -189,11 +189,10 @@ export function MonthlyScheduleView({ onDayClick, refreshTrigger, scheduleType }
           </Card>
         )}
 
-        <MasterScheduleModal
+        <UniversalDayDetailDialog
           open={!!selectedDate}
           onOpenChange={(open) => !open && setSelectedDate(null)}
           date={selectedDate}
-          context="global"
           onRefresh={() => {}}
           onAddSchedule={() => {
             if (selectedDate) {
@@ -201,6 +200,7 @@ export function MonthlyScheduleView({ onDayClick, refreshTrigger, scheduleType }
               setSelectedDate(null);
             }
           }}
+          scheduleType={scheduleType === 'all' ? 'all' : scheduleType === 'workers' ? 'labor' : scheduleType === 'subs' ? 'sub' : 'all'}
         />
     </div>
   );
