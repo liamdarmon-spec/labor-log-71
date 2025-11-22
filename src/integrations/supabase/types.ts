@@ -59,6 +59,115 @@ export type Database = {
         }
         Relationships: []
       }
+      bid_invitations: {
+        Row: {
+          bid_package_id: string
+          id: string
+          invited_at: string
+          notes: string | null
+          responded_at: string | null
+          status: string | null
+          sub_id: string
+        }
+        Insert: {
+          bid_package_id: string
+          id?: string
+          invited_at?: string
+          notes?: string | null
+          responded_at?: string | null
+          status?: string | null
+          sub_id: string
+        }
+        Update: {
+          bid_package_id?: string
+          id?: string
+          invited_at?: string
+          notes?: string | null
+          responded_at?: string | null
+          status?: string | null
+          sub_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bid_invitations_bid_package_id_fkey"
+            columns: ["bid_package_id"]
+            isOneToOne: false
+            referencedRelation: "bid_packages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bid_invitations_sub_id_fkey"
+            columns: ["sub_id"]
+            isOneToOne: false
+            referencedRelation: "subs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bid_packages: {
+        Row: {
+          attachments: Json | null
+          bid_due_date: string | null
+          cost_code_ids: string[] | null
+          created_at: string
+          desired_start_date: string | null
+          id: string
+          project_id: string
+          scope_summary: string | null
+          status: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          attachments?: Json | null
+          bid_due_date?: string | null
+          cost_code_ids?: string[] | null
+          created_at?: string
+          desired_start_date?: string | null
+          id?: string
+          project_id: string
+          scope_summary?: string | null
+          status?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          attachments?: Json | null
+          bid_due_date?: string | null
+          cost_code_ids?: string[] | null
+          created_at?: string
+          desired_start_date?: string | null
+          id?: string
+          project_id?: string
+          scope_summary?: string | null
+          status?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bid_packages_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_costs_view"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "bid_packages_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_dashboard_view"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "bid_packages_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       companies: {
         Row: {
           created_at: string | null
@@ -262,10 +371,16 @@ export type Database = {
       }
       documents: {
         Row: {
+          ai_doc_type: string | null
+          ai_extracted_data: Json | null
+          ai_status: string | null
+          ai_summary: string | null
           amount: number | null
           auto_classified: boolean | null
           cost_code_id: string | null
           created_at: string | null
+          description: string | null
+          doc_type: string | null
           document_date: string | null
           document_type: string | null
           extracted_text: string | null
@@ -273,17 +388,32 @@ export type Database = {
           file_size: number | null
           file_url: string
           id: string
+          mime_type: string | null
+          owner_id: string | null
+          owner_type: string | null
           project_id: string | null
+          size_bytes: number | null
+          source: string | null
+          status: string | null
+          storage_path: string | null
           tags: string[] | null
+          title: string | null
           updated_at: string | null
+          uploaded_at: string | null
           uploaded_by: string | null
           vendor_name: string | null
         }
         Insert: {
+          ai_doc_type?: string | null
+          ai_extracted_data?: Json | null
+          ai_status?: string | null
+          ai_summary?: string | null
           amount?: number | null
           auto_classified?: boolean | null
           cost_code_id?: string | null
           created_at?: string | null
+          description?: string | null
+          doc_type?: string | null
           document_date?: string | null
           document_type?: string | null
           extracted_text?: string | null
@@ -291,17 +421,32 @@ export type Database = {
           file_size?: number | null
           file_url: string
           id?: string
+          mime_type?: string | null
+          owner_id?: string | null
+          owner_type?: string | null
           project_id?: string | null
+          size_bytes?: number | null
+          source?: string | null
+          status?: string | null
+          storage_path?: string | null
           tags?: string[] | null
+          title?: string | null
           updated_at?: string | null
+          uploaded_at?: string | null
           uploaded_by?: string | null
           vendor_name?: string | null
         }
         Update: {
+          ai_doc_type?: string | null
+          ai_extracted_data?: Json | null
+          ai_status?: string | null
+          ai_summary?: string | null
           amount?: number | null
           auto_classified?: boolean | null
           cost_code_id?: string | null
           created_at?: string | null
+          description?: string | null
+          doc_type?: string | null
           document_date?: string | null
           document_type?: string | null
           extracted_text?: string | null
@@ -309,9 +454,18 @@ export type Database = {
           file_size?: number | null
           file_url?: string
           id?: string
+          mime_type?: string | null
+          owner_id?: string | null
+          owner_type?: string | null
           project_id?: string | null
+          size_bytes?: number | null
+          source?: string | null
+          status?: string | null
+          storage_path?: string | null
           tags?: string[] | null
+          title?: string | null
           updated_at?: string | null
+          uploaded_at?: string | null
           uploaded_by?: string | null
           vendor_name?: string | null
         }
@@ -910,6 +1064,77 @@ export type Database = {
           },
         ]
       }
+      project_subcontracts: {
+        Row: {
+          approved_cos_amount: number | null
+          contract_amount: number
+          created_at: string
+          id: string
+          net_contract_value: number | null
+          notes: string | null
+          project_id: string
+          retention_percent: number | null
+          status: string | null
+          sub_id: string
+          updated_at: string
+        }
+        Insert: {
+          approved_cos_amount?: number | null
+          contract_amount?: number
+          created_at?: string
+          id?: string
+          net_contract_value?: number | null
+          notes?: string | null
+          project_id: string
+          retention_percent?: number | null
+          status?: string | null
+          sub_id: string
+          updated_at?: string
+        }
+        Update: {
+          approved_cos_amount?: number | null
+          contract_amount?: number
+          created_at?: string
+          id?: string
+          net_contract_value?: number | null
+          notes?: string | null
+          project_id?: string
+          retention_percent?: number | null
+          status?: string | null
+          sub_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_subcontracts_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_costs_view"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "project_subcontracts_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_dashboard_view"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "project_subcontracts_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_subcontracts_sub_id_fkey"
+            columns: ["sub_id"]
+            isOneToOne: false
+            referencedRelation: "subs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_todos: {
         Row: {
           assigned_worker_id: string | null
@@ -1312,6 +1537,111 @@ export type Database = {
             columns: ["worker_id"]
             isOneToOne: false
             referencedRelation: "workers_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sub_bids: {
+        Row: {
+          attachments: Json | null
+          bid_amount: number
+          bid_package_id: string
+          created_at: string
+          id: string
+          notes: string | null
+          sub_id: string
+          submitted_at: string
+        }
+        Insert: {
+          attachments?: Json | null
+          bid_amount: number
+          bid_package_id: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          sub_id: string
+          submitted_at?: string
+        }
+        Update: {
+          attachments?: Json | null
+          bid_amount?: number
+          bid_package_id?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          sub_id?: string
+          submitted_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sub_bids_bid_package_id_fkey"
+            columns: ["bid_package_id"]
+            isOneToOne: false
+            referencedRelation: "bid_packages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sub_bids_sub_id_fkey"
+            columns: ["sub_id"]
+            isOneToOne: false
+            referencedRelation: "subs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sub_compliance_documents: {
+        Row: {
+          created_at: string
+          doc_type: string
+          document_id: string | null
+          effective_date: string | null
+          expiry_date: string | null
+          file_url: string | null
+          id: string
+          notes: string | null
+          status: string | null
+          sub_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          doc_type: string
+          document_id?: string | null
+          effective_date?: string | null
+          expiry_date?: string | null
+          file_url?: string | null
+          id?: string
+          notes?: string | null
+          status?: string | null
+          sub_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          doc_type?: string
+          document_id?: string | null
+          effective_date?: string | null
+          expiry_date?: string | null
+          file_url?: string | null
+          id?: string
+          notes?: string | null
+          status?: string | null
+          sub_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sub_compliance_documents_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sub_compliance_documents_sub_id_fkey"
+            columns: ["sub_id"]
+            isOneToOne: false
+            referencedRelation: "subs"
             referencedColumns: ["id"]
           },
         ]

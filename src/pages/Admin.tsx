@@ -10,6 +10,7 @@ import { ReportsTab } from '@/components/admin/ReportsTab';
 import { UsersTab } from '@/components/admin/UsersTab';
 import { ArchivedLogsTab } from '@/components/admin/ArchivedLogsTab';
 import { SettingsTab } from '@/components/admin/SettingsTab';
+import { DocumentsTab } from '@/components/admin/DocumentsTab';
 import { SubcontractorsTab } from '@/components/admin/SubcontractorsTab';
 import { Users, Briefcase, Wrench, FileText, BarChart3, UserCog, Archive, Settings, Hash, Building2 } from 'lucide-react';
 
@@ -27,7 +28,7 @@ const Admin = () => {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-10 h-auto gap-1 p-1 bg-muted/50">
+          <TabsList className="grid w-full grid-cols-11 h-auto gap-1 p-1 bg-muted/50">
             <TabsTrigger value="users" className="gap-1 sm:gap-2 py-2 sm:py-3 text-xs sm:text-sm flex-col sm:flex-row">
               <UserCog className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               <span className="text-[10px] sm:text-sm">Users</span>
@@ -59,6 +60,10 @@ const Admin = () => {
             <TabsTrigger value="archived" className="gap-1 sm:gap-2 py-2 sm:py-3 text-xs sm:text-sm flex-col sm:flex-row">
               <Archive className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               <span className="text-[10px] sm:text-sm">Archive</span>
+            </TabsTrigger>
+            <TabsTrigger value="documents" className="gap-1 sm:gap-2 py-2 sm:py-3 text-xs sm:text-sm flex-col sm:flex-row">
+              <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span className="text-[10px] sm:text-sm">Docs</span>
             </TabsTrigger>
             <TabsTrigger value="reports" className="gap-1 sm:gap-2 py-2 sm:py-3 text-xs sm:text-sm flex-col sm:flex-row">
               <BarChart3 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
@@ -100,6 +105,10 @@ const Admin = () => {
 
           <TabsContent value="archived" className="mt-4 sm:mt-6">
             <ArchivedLogsTab />
+          </TabsContent>
+
+          <TabsContent value="documents" className="mt-4 sm:mt-6">
+            <DocumentsTab />
           </TabsContent>
 
           <TabsContent value="reports" className="mt-4 sm:mt-6">
