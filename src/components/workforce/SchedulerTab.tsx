@@ -131,7 +131,7 @@ export function SchedulerTab() {
     },
   });
 
-  // Fetch schedule details for selected worker
+  // Fetch schedule details for selected worker OR aggregate data
   const { data: workerWeekSchedule } = useQuery({
     queryKey: ['worker-week-schedule', selectedWorker?.id, format(weekStart, 'yyyy-MM-dd')],
     queryFn: async () => {
@@ -157,6 +157,44 @@ export function SchedulerTab() {
       return byDate;
     },
     enabled: !!selectedWorker,
+  });
+
+  // Fetch aggregate schedule data for all workers (when no worker selected)
+  const { data: aggregateSchedule } = useQuery({
+    queryKey: ['aggregate-schedule', format(weekStart, 'yyyy-MM-dd'), selectedCompany, selectedTrade],
+    queryFn: async () => {
+      let query = supabase
+        .from('scheduled_shifts')
+        .select('*, workers(id, name), projects(project_name, company_id)')
+        .gte('scheduled_date', format(weekStart, 'yyyy-MM-dd'))
+        .lte('scheduled_date', format(weekEnd, 'yyyy-MM-dd'));
+
+      if (selectedCompany !== 'all') {
+        query = query.eq('projects.company_id', selectedCompany);
+      }
+
+      if (selectedTrade !== 'all') {
+        query = query.eq('trade_id', selectedTrade);
+      }
+
+      const { data } = await query;
+
+      // Group by date
+      const byDate = new Map<string, { workers: Set<string>; hours: number; entries: any[] }>();
+      data?.forEach(shift => {
+        const dateKey = shift.scheduled_date;
+        if (!byDate.has(dateKey)) {
+          byDate.set(dateKey, { workers: new Set(), hours: 0, entries: [] });
+        }
+        const day = byDate.get(dateKey)!;
+        day.workers.add(shift.worker_id);
+        day.hours += shift.scheduled_hours;
+        day.entries.push(shift);
+      });
+
+      return byDate;
+    },
+    enabled: !selectedWorker,
   });
 
   if (isLoading) {
@@ -385,10 +423,51 @@ export function SchedulerTab() {
             </Card>
           ) : (
             <Card>
-              <CardContent className="p-12 text-center text-muted-foreground">
-                <Calendar className="h-16 w-16 mx-auto mb-4 opacity-50" />
-                <p className="text-lg font-medium">Select a worker to view their schedule</p>
-                <p className="text-sm mt-1">Click on a worker card to see their weekly schedule</p>
+              <CardHeader>
+                <CardTitle>Team Schedule</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-7 gap-2">
+                  {weekDays.map(day => {
+                    const dateKey = format(day, 'yyyy-MM-dd');
+                    const dayData = aggregateSchedule?.get(dateKey);
+                    const workerCount = dayData?.workers.size || 0;
+                    const totalHours = dayData?.hours || 0;
+                    const isToday = isSameDay(day, new Date());
+
+                    return (
+                      <button
+                        key={dateKey}
+                        onClick={() => {
+                          setSelectedDate(day);
+                        }}
+                        className={`p-3 rounded-lg border text-left hover:border-primary hover:bg-accent transition-all ${
+                          isToday ? 'bg-primary/5 border-primary' : ''
+                        }`}
+                      >
+                        <div className="text-xs font-medium text-muted-foreground mb-1">
+                          {format(day, 'EEE')}
+                        </div>
+                        <div className="text-lg font-bold mb-2">
+                          {format(day, 'd')}
+                        </div>
+                        {workerCount > 0 ? (
+                          <>
+                            <div className="flex items-center gap-1 text-sm font-semibold text-primary mb-1">
+                              <Users className="h-3 w-3" />
+                              {workerCount} workers
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {totalHours.toFixed(1)}h scheduled
+                            </div>
+                          </>
+                        ) : (
+                          <div className="text-xs text-muted-foreground">No schedule</div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
               </CardContent>
             </Card>
           )}

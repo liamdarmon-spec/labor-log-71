@@ -4,7 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { RosterTab } from '@/components/workforce/RosterTab';
 import { SchedulerTab } from '@/components/workforce/SchedulerTab';
 import { ActivityTab } from '@/components/workforce/ActivityTab';
-import { PayCenterTab } from '@/components/workforce/PayCenterTab';
+import { PayCenterTabV2 } from '@/components/workforce/PayCenterTabV2';
 import { AnalyticsTab } from '@/components/workforce/AnalyticsTab';
 import { SubsTab } from '@/components/workforce/SubsTab';
 import { useSearchParams } from 'react-router-dom';
@@ -58,7 +58,7 @@ const Workforce = () => {
           </TabsContent>
 
           <TabsContent value="pay-center">
-            <PayCenterTab />
+            <PayCenterTabV2 />
           </TabsContent>
 
           <TabsContent value="analytics">

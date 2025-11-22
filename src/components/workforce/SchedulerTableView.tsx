@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
 import { ExternalLink } from 'lucide-react';
+import { ScheduleRowDrawer } from './ScheduleRowDrawer';
 
 interface SchedulerTableViewProps {
   weekStart: Date;
@@ -31,6 +32,9 @@ export function SchedulerTableView({
 }: SchedulerTableViewProps) {
   const [projectFilter, setProjectFilter] = useState<string>('all');
   const [workerFilter, setWorkerFilter] = useState<string>('all');
+  const [selectedScheduleId, setSelectedScheduleId] = useState<string | null>(null);
+  const [selectedWorkerId, setSelectedWorkerId] = useState<string>('');
+  const [selectedDate, setSelectedDate] = useState<string>('');
 
   // Fetch projects for filter
   const { data: projects } = useQuery({
@@ -266,7 +270,15 @@ export function SchedulerTableView({
             </TableHeader>
             <TableBody>
               {schedules.map((schedule) => (
-                <TableRow key={schedule.id} className="cursor-pointer hover:bg-accent">
+                <TableRow 
+                  key={schedule.id} 
+                  className="cursor-pointer hover:bg-accent"
+                  onClick={() => {
+                    setSelectedScheduleId(schedule.id);
+                    setSelectedWorkerId(schedule.worker_id);
+                    setSelectedDate(schedule.scheduled_date);
+                  }}
+                >
                   <TableCell>{format(new Date(schedule.scheduled_date), 'MMM d, yyyy')}</TableCell>
                   <TableCell className="font-medium">{schedule.workers?.name}</TableCell>
                   <TableCell>
@@ -316,6 +328,28 @@ export function SchedulerTableView({
         )}
       </CardContent>
       </Card>
+
+      {/* Schedule Row Drawer */}
+      {selectedScheduleId && (
+        <ScheduleRowDrawer
+          open={!!selectedScheduleId}
+          onOpenChange={(open) => {
+            if (!open) {
+              setSelectedScheduleId(null);
+              setSelectedWorkerId('');
+              setSelectedDate('');
+            }
+          }}
+          scheduleId={selectedScheduleId}
+          workerId={selectedWorkerId}
+          date={selectedDate}
+          onRefresh={() => {
+            if (refreshTrigger !== undefined) {
+              // Parent will handle refresh via refreshTrigger prop
+            }
+          }}
+        />
+      )}
     </div>
   );
 }
