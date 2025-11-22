@@ -13,6 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { format } from 'date-fns';
 import { WorkerPaymentHistoryLink } from '@/components/workforce/WorkerPaymentHistoryLink';
 import { WorkerPaymentHistoryV2 } from '@/components/workforce/WorkerPaymentHistoryV2';
+import { WorkerScheduleView } from '@/components/workforce/WorkerScheduleView';
 
 const WorkerProfile = () => {
   const { workerId } = useParams<{ workerId: string }>();
@@ -165,7 +166,7 @@ const WorkerProfile = () => {
                     <WorkerPaymentHistoryLink workerId={workerId!} />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mt-3 sm:mt-4">
                   <div>
                     <p className="text-sm text-muted-foreground">Hourly Rate</p>
                     <p className="text-xl font-bold">${worker.hourly_rate}/hr</p>
@@ -189,17 +190,19 @@ const WorkerProfile = () => {
         </Card>
 
         {/* Tabs */}
-        <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 lg:grid-cols-5">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="schedule">Schedule</TabsTrigger>
-            <TabsTrigger value="logs">Time Logs</TabsTrigger>
-            <TabsTrigger value="payments">Pay History</TabsTrigger>
-            <TabsTrigger value="costs">Cost Summary</TabsTrigger>
-          </TabsList>
+        <Tabs defaultValue="overview" className="space-y-4 sm:space-y-6">
+          <div className="overflow-x-auto -mx-3 px-3 sm:mx-0 sm:px-0 pb-1">
+            <TabsList className="inline-flex w-auto min-w-full lg:grid lg:w-full lg:grid-cols-5">
+              <TabsTrigger value="overview" className="text-xs sm:text-sm px-3 sm:px-4 whitespace-nowrap">Overview</TabsTrigger>
+              <TabsTrigger value="schedule" className="text-xs sm:text-sm px-3 sm:px-4 whitespace-nowrap">Schedule</TabsTrigger>
+              <TabsTrigger value="logs" className="text-xs sm:text-sm px-3 sm:px-4 whitespace-nowrap">Time Logs</TabsTrigger>
+              <TabsTrigger value="payments" className="text-xs sm:text-sm px-3 sm:px-4 whitespace-nowrap">Pay History</TabsTrigger>
+              <TabsTrigger value="costs" className="text-xs sm:text-sm px-3 sm:px-4 whitespace-nowrap">Cost Summary</TabsTrigger>
+            </TabsList>
+          </div>
 
           <TabsContent value="overview">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -251,16 +254,7 @@ const WorkerProfile = () => {
           </TabsContent>
 
           <TabsContent value="schedule">
-            <Card>
-              <CardHeader>
-                <CardTitle>Worker Schedule</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground text-center py-12">
-                  Worker-specific schedule calendar coming soon
-                </p>
-              </CardContent>
-            </Card>
+            <WorkerScheduleView workerId={workerId!} />
           </TabsContent>
 
           <TabsContent value="logs">

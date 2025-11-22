@@ -128,8 +128,8 @@ export default function SubProfile() {
 
         {/* Contact & Trade Info */}
         <Card>
-          <CardContent className="pt-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <CardContent className="pt-4 sm:pt-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
               <div className="flex items-start gap-3">
                 <Briefcase className="h-5 w-5 text-muted-foreground mt-0.5" />
                 <div>
@@ -160,7 +160,7 @@ export default function SubProfile() {
         </Card>
 
         {/* Financial Summary */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 sm:gap-4">
           <Card>
             <CardContent className="pt-6">
               <div className="text-sm text-muted-foreground mb-1">Active Projects</div>

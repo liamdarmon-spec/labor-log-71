@@ -43,6 +43,7 @@ export default function Documents() {
   const [complianceFilter, setComplianceFilter] = useState<string>('all');
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
   const [detailDrawerOpen, setDetailDrawerOpen] = useState(false);
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
 
   const { data: documents, isLoading } = useQuery({
     queryKey: ['documents', typeFilter, projectFilter],
@@ -117,19 +118,20 @@ export default function Documents() {
   return (
     <Layout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div>
-            <h1 className="text-3xl font-bold">Documents</h1>
-            <p className="text-muted-foreground">AI-powered document management and organization</p>
+            <h1 className="text-2xl sm:text-3xl font-bold">Documents</h1>
+            <p className="text-sm sm:text-base text-muted-foreground">AI-powered document management and organization</p>
           </div>
-          <Button>
+          <Button className="w-full sm:w-auto" onClick={() => setUploadDialogOpen(true)}>
             <Upload className="h-4 w-4 mr-2" />
-            Upload Documents
+            <span className="hidden sm:inline">Upload Documents</span>
+            <span className="sm:hidden">Upload</span>
           </Button>
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
           <Card>
             <CardContent className="pt-6">
               <div className="text-2xl font-bold">{stats.total}</div>
@@ -158,8 +160,8 @@ export default function Documents() {
 
         {/* Filters */}
         <Card>
-          <CardContent className="pt-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <CardContent className="pt-4 sm:pt-6">
+            <div className="grid grid-cols-1 gap-3 sm:gap-4">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                 <Input
@@ -169,10 +171,11 @@ export default function Documents() {
                   className="pl-10"
                 />
               </div>
-              <Select value={typeFilter} onValueChange={setTypeFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All Types" />
-                </SelectTrigger>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Select value={typeFilter} onValueChange={setTypeFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Types" />
+                  </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Types</SelectItem>
                   <SelectItem value="plans">Plans</SelectItem>
@@ -186,19 +189,20 @@ export default function Documents() {
                   <SelectItem value="other">Other</SelectItem>
                 </SelectContent>
               </Select>
-              <Select value={projectFilter} onValueChange={setProjectFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All Projects" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Projects</SelectItem>
-                  {projects?.map(project => (
-                    <SelectItem key={project.id} value={project.id}>
-                      {project.project_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                <Select value={projectFilter} onValueChange={setProjectFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Projects" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Projects</SelectItem>
+                    {projects?.map(project => (
+                      <SelectItem key={project.id} value={project.id}>
+                        {project.project_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -284,6 +288,14 @@ export default function Documents() {
             )}
           </CardContent>
         </Card>
+
+        {selectedDocId && (
+          <DocumentDetailDrawer
+            documentId={selectedDocId}
+            open={detailDrawerOpen}
+            onOpenChange={setDetailDrawerOpen}
+          />
+        )}
       </div>
     </Layout>
   );

@@ -108,20 +108,23 @@ const ProjectDetail = () => {
           companyId={project.company_id}
         />
 
-        <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6 lg:grid-cols-11">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="estimates">Estimates</TabsTrigger>
-            <TabsTrigger value="proposals">Proposals</TabsTrigger>
-            <TabsTrigger value="budget">Budget</TabsTrigger>
-            <TabsTrigger value="billing">Billing</TabsTrigger>
-            <TabsTrigger value="financials">Financials</TabsTrigger>
-            <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
-            <TabsTrigger value="schedule">Schedule</TabsTrigger>
-            <TabsTrigger value="workforce">Workforce</TabsTrigger>
-            <TabsTrigger value="subs">Subs</TabsTrigger>
-            <TabsTrigger value="documents">Documents</TabsTrigger>
-          </TabsList>
+        <Tabs defaultValue="overview" className="space-y-4 sm:space-y-6">
+          {/* Mobile: Scrollable horizontal tabs */}
+          <div className="overflow-x-auto -mx-3 px-3 sm:mx-0 sm:px-0 pb-1">
+            <TabsList className="inline-flex w-auto min-w-full lg:grid lg:w-full lg:grid-cols-11 h-auto">
+              <TabsTrigger value="overview" className="text-xs sm:text-sm px-3 sm:px-4 whitespace-nowrap">Overview</TabsTrigger>
+              <TabsTrigger value="estimates" className="text-xs sm:text-sm px-3 sm:px-4 whitespace-nowrap">Estimates</TabsTrigger>
+              <TabsTrigger value="proposals" className="text-xs sm:text-sm px-3 sm:px-4 whitespace-nowrap">Proposals</TabsTrigger>
+              <TabsTrigger value="budget" className="text-xs sm:text-sm px-3 sm:px-4 whitespace-nowrap">Budget</TabsTrigger>
+              <TabsTrigger value="billing" className="text-xs sm:text-sm px-3 sm:px-4 whitespace-nowrap">Billing</TabsTrigger>
+              <TabsTrigger value="financials" className="text-xs sm:text-sm px-3 sm:px-4 whitespace-nowrap">Financials</TabsTrigger>
+              <TabsTrigger value="dashboard" className="text-xs sm:text-sm px-3 sm:px-4 whitespace-nowrap">Dashboard</TabsTrigger>
+              <TabsTrigger value="schedule" className="text-xs sm:text-sm px-3 sm:px-4 whitespace-nowrap">Schedule</TabsTrigger>
+              <TabsTrigger value="workforce" className="text-xs sm:text-sm px-3 sm:px-4 whitespace-nowrap">Workforce</TabsTrigger>
+              <TabsTrigger value="subs" className="text-xs sm:text-sm px-3 sm:px-4 whitespace-nowrap">Subs</TabsTrigger>
+              <TabsTrigger value="documents" className="text-xs sm:text-sm px-3 sm:px-4 whitespace-nowrap">Documents</TabsTrigger>
+            </TabsList>
+          </div>
 
           <TabsContent value="overview">
             <ProjectOverviewOS projectId={project.id} />
