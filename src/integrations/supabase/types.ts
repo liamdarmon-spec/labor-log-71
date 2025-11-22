@@ -205,6 +205,86 @@ export type Database = {
           },
         ]
       }
+      budget_revisions: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          id: string
+          new_budget: number
+          notes: string | null
+          previous_budget: number | null
+          project_id: string
+          revision_amount: number
+          revision_number: number
+          revision_type: string
+          status: string | null
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          new_budget: number
+          notes?: string | null
+          previous_budget?: number | null
+          project_id: string
+          revision_amount: number
+          revision_number: number
+          revision_type: string
+          status?: string | null
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          new_budget?: number
+          notes?: string | null
+          previous_budget?: number | null
+          project_id?: string
+          revision_amount?: number
+          revision_number?: number
+          revision_type?: string
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "budget_revisions_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_costs_view"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "budget_revisions_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_dashboard_view"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "budget_revisions_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_labor_summary"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "budget_revisions_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       companies: {
         Row: {
           created_at: string | null
@@ -270,6 +350,193 @@ export type Database = {
             columns: ["trade_id"]
             isOneToOne: false
             referencedRelation: "trades"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cost_entries: {
+        Row: {
+          cost_code_id: string | null
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          entry_date: string
+          entry_type: string
+          id: string
+          invoice_number: string | null
+          notes: string | null
+          project_id: string
+          quantity: number | null
+          source_id: string | null
+          source_type: string | null
+          total_cost: number
+          unit: string | null
+          unit_cost: number | null
+          updated_at: string | null
+          vendor_name: string | null
+        }
+        Insert: {
+          cost_code_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          entry_date: string
+          entry_type: string
+          id?: string
+          invoice_number?: string | null
+          notes?: string | null
+          project_id: string
+          quantity?: number | null
+          source_id?: string | null
+          source_type?: string | null
+          total_cost: number
+          unit?: string | null
+          unit_cost?: number | null
+          updated_at?: string | null
+          vendor_name?: string | null
+        }
+        Update: {
+          cost_code_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          entry_date?: string
+          entry_type?: string
+          id?: string
+          invoice_number?: string | null
+          notes?: string | null
+          project_id?: string
+          quantity?: number | null
+          source_id?: string | null
+          source_type?: string | null
+          total_cost?: number
+          unit?: string | null
+          unit_cost?: number | null
+          updated_at?: string | null
+          vendor_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cost_entries_cost_code_id_fkey"
+            columns: ["cost_code_id"]
+            isOneToOne: false
+            referencedRelation: "cost_code_actuals"
+            referencedColumns: ["cost_code_id"]
+          },
+          {
+            foreignKeyName: "cost_entries_cost_code_id_fkey"
+            columns: ["cost_code_id"]
+            isOneToOne: false
+            referencedRelation: "cost_codes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cost_entries_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_costs_view"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "cost_entries_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_dashboard_view"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "cost_entries_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_labor_summary"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "cost_entries_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customer_payments: {
+        Row: {
+          amount: number
+          applied_to_retention: number | null
+          created_at: string | null
+          created_by: string | null
+          id: string
+          invoice_id: string | null
+          notes: string | null
+          payment_date: string
+          payment_method: string | null
+          project_id: string
+          reference_number: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          amount: number
+          applied_to_retention?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          invoice_id?: string | null
+          notes?: string | null
+          payment_date?: string
+          payment_method?: string | null
+          project_id: string
+          reference_number?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          amount?: number
+          applied_to_retention?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          invoice_id?: string | null
+          notes?: string | null
+          payment_date?: string
+          payment_method?: string | null
+          project_id?: string
+          reference_number?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_payments_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_payments_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_costs_view"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "customer_payments_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_dashboard_view"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "customer_payments_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_labor_summary"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "customer_payments_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
         ]
@@ -1058,13 +1325,19 @@ export type Database = {
       }
       invoices: {
         Row: {
+          balance_to_finish: number | null
           created_at: string | null
           due_date: string | null
           id: string
           invoice_number: string
           issue_date: string
           notes: string | null
+          payment_terms: string | null
+          previously_invoiced: number | null
           project_id: string
+          retention_amount: number | null
+          retention_percent: number | null
+          sov_based: boolean | null
           status: string
           subtotal_amount: number | null
           tax_amount: number | null
@@ -1072,13 +1345,19 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          balance_to_finish?: number | null
           created_at?: string | null
           due_date?: string | null
           id?: string
           invoice_number: string
           issue_date?: string
           notes?: string | null
+          payment_terms?: string | null
+          previously_invoiced?: number | null
           project_id: string
+          retention_amount?: number | null
+          retention_percent?: number | null
+          sov_based?: boolean | null
           status?: string
           subtotal_amount?: number | null
           tax_amount?: number | null
@@ -1086,13 +1365,19 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          balance_to_finish?: number | null
           created_at?: string | null
           due_date?: string | null
           id?: string
           invoice_number?: string
           issue_date?: string
           notes?: string | null
+          payment_terms?: string | null
+          previously_invoiced?: number | null
           project_id?: string
+          retention_amount?: number | null
+          retention_percent?: number | null
+          sov_based?: boolean | null
           status?: string
           subtotal_amount?: number | null
           tax_amount?: number | null
@@ -1435,43 +1720,64 @@ export type Database = {
       }
       project_budget_lines: {
         Row: {
+          actual_cost: number | null
+          actual_hours: number | null
           budget_amount: number
           budget_hours: number | null
           category: string
           cost_code_id: string | null
           created_at: string | null
           description: string | null
+          estimated_cost: number | null
+          estimated_hours: number | null
+          forecast_at_completion: number | null
           id: string
           is_allowance: boolean | null
+          percent_complete: number | null
           project_id: string
           source_estimate_id: string | null
           updated_at: string | null
+          variance: number | null
         }
         Insert: {
+          actual_cost?: number | null
+          actual_hours?: number | null
           budget_amount?: number
           budget_hours?: number | null
           category: string
           cost_code_id?: string | null
           created_at?: string | null
           description?: string | null
+          estimated_cost?: number | null
+          estimated_hours?: number | null
+          forecast_at_completion?: number | null
           id?: string
           is_allowance?: boolean | null
+          percent_complete?: number | null
           project_id: string
           source_estimate_id?: string | null
           updated_at?: string | null
+          variance?: number | null
         }
         Update: {
+          actual_cost?: number | null
+          actual_hours?: number | null
           budget_amount?: number
           budget_hours?: number | null
           category?: string
           cost_code_id?: string | null
           created_at?: string | null
           description?: string | null
+          estimated_cost?: number | null
+          estimated_hours?: number | null
+          forecast_at_completion?: number | null
           id?: string
           is_allowance?: boolean | null
+          percent_complete?: number | null
           project_id?: string
           source_estimate_id?: string | null
           updated_at?: string | null
+          variance?: number | null
         }
         Relationships: [
           {
@@ -1590,6 +1896,110 @@ export type Database = {
           },
           {
             foreignKeyName: "project_budgets_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: true
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_financials_snapshot: {
+        Row: {
+          actual_cost_labor: number | null
+          actual_cost_materials: number | null
+          actual_cost_other: number | null
+          actual_cost_subs: number | null
+          actual_cost_total: number | null
+          baseline_budget: number | null
+          billed_to_date: number | null
+          contract_amount: number | null
+          created_at: string | null
+          forecast_at_completion: number | null
+          id: string
+          last_calculated_at: string | null
+          open_ap_labor: number | null
+          open_ap_subs: number | null
+          open_ar: number | null
+          paid_to_date: number | null
+          profit_amount: number | null
+          profit_percent: number | null
+          project_id: string
+          retention_held: number | null
+          revised_budget: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          actual_cost_labor?: number | null
+          actual_cost_materials?: number | null
+          actual_cost_other?: number | null
+          actual_cost_subs?: number | null
+          actual_cost_total?: number | null
+          baseline_budget?: number | null
+          billed_to_date?: number | null
+          contract_amount?: number | null
+          created_at?: string | null
+          forecast_at_completion?: number | null
+          id?: string
+          last_calculated_at?: string | null
+          open_ap_labor?: number | null
+          open_ap_subs?: number | null
+          open_ar?: number | null
+          paid_to_date?: number | null
+          profit_amount?: number | null
+          profit_percent?: number | null
+          project_id: string
+          retention_held?: number | null
+          revised_budget?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          actual_cost_labor?: number | null
+          actual_cost_materials?: number | null
+          actual_cost_other?: number | null
+          actual_cost_subs?: number | null
+          actual_cost_total?: number | null
+          baseline_budget?: number | null
+          billed_to_date?: number | null
+          contract_amount?: number | null
+          created_at?: string | null
+          forecast_at_completion?: number | null
+          id?: string
+          last_calculated_at?: string | null
+          open_ap_labor?: number | null
+          open_ap_subs?: number | null
+          open_ar?: number | null
+          paid_to_date?: number | null
+          profit_amount?: number | null
+          profit_percent?: number | null
+          project_id?: string
+          retention_held?: number | null
+          revised_budget?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_financials_snapshot_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: true
+            referencedRelation: "project_costs_view"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "project_financials_snapshot_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: true
+            referencedRelation: "project_dashboard_view"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "project_financials_snapshot_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: true
+            referencedRelation: "project_labor_summary"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "project_financials_snapshot_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: true
             referencedRelation: "projects"
@@ -2302,6 +2712,109 @@ export type Database = {
           original_schedule_id?: string
         }
         Relationships: []
+      }
+      schedule_of_values: {
+        Row: {
+          balance_to_finish: number | null
+          cost_code_id: string | null
+          created_at: string | null
+          description: string
+          id: string
+          is_active: boolean | null
+          item_number: string | null
+          materials_stored: number | null
+          percent_complete: number | null
+          previously_completed: number | null
+          project_id: string
+          retention_percent: number | null
+          scheduled_value: number
+          sort_order: number | null
+          this_period_completed: number | null
+          total_completed: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          balance_to_finish?: number | null
+          cost_code_id?: string | null
+          created_at?: string | null
+          description: string
+          id?: string
+          is_active?: boolean | null
+          item_number?: string | null
+          materials_stored?: number | null
+          percent_complete?: number | null
+          previously_completed?: number | null
+          project_id: string
+          retention_percent?: number | null
+          scheduled_value?: number
+          sort_order?: number | null
+          this_period_completed?: number | null
+          total_completed?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          balance_to_finish?: number | null
+          cost_code_id?: string | null
+          created_at?: string | null
+          description?: string
+          id?: string
+          is_active?: boolean | null
+          item_number?: string | null
+          materials_stored?: number | null
+          percent_complete?: number | null
+          previously_completed?: number | null
+          project_id?: string
+          retention_percent?: number | null
+          scheduled_value?: number
+          sort_order?: number | null
+          this_period_completed?: number | null
+          total_completed?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "schedule_of_values_cost_code_id_fkey"
+            columns: ["cost_code_id"]
+            isOneToOne: false
+            referencedRelation: "cost_code_actuals"
+            referencedColumns: ["cost_code_id"]
+          },
+          {
+            foreignKeyName: "schedule_of_values_cost_code_id_fkey"
+            columns: ["cost_code_id"]
+            isOneToOne: false
+            referencedRelation: "cost_codes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "schedule_of_values_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_costs_view"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "schedule_of_values_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_dashboard_view"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "schedule_of_values_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_labor_summary"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "schedule_of_values_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       scheduled_shifts: {
         Row: {

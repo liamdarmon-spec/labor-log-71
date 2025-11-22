@@ -12,7 +12,9 @@ import { ProjectEstimatesV3 } from '@/components/project/ProjectEstimatesV3';
 import { ProjectProposalsTabV3 } from '@/components/project/ProjectProposalsTabV3';
 import { ProjectScheduleTabV2 } from '@/components/project/ProjectScheduleTabV2';
 import { ProjectWorkforceTab } from '@/components/project/ProjectWorkforceTab';
-import { ProjectFinancialsTab } from '@/components/project/ProjectFinancialsTab';
+import { ProjectBudgetTabV2 } from '@/components/project/ProjectBudgetTabV2';
+import { ProjectBillingTab } from '@/components/project/ProjectBillingTab';
+import { ProjectFinancialDashboard } from '@/components/project/ProjectFinancialDashboard';
 import { ProjectSubsTabV3 } from '@/components/project/ProjectSubsTabV3';
 import { ProjectDocumentsTab } from '@/components/project/ProjectDocumentsTab';
 
@@ -106,11 +108,13 @@ const ProjectDetail = () => {
         />
 
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 lg:grid-cols-8">
+          <TabsList className="grid w-full grid-cols-5 lg:grid-cols-10">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="estimates">Estimates</TabsTrigger>
             <TabsTrigger value="proposals">Proposals</TabsTrigger>
-            <TabsTrigger value="budget">Budget & Costs</TabsTrigger>
+            <TabsTrigger value="budget">Budget</TabsTrigger>
+            <TabsTrigger value="billing">Billing</TabsTrigger>
+            <TabsTrigger value="financials">Dashboard</TabsTrigger>
             <TabsTrigger value="schedule">Schedule</TabsTrigger>
             <TabsTrigger value="workforce">Workforce</TabsTrigger>
             <TabsTrigger value="subs">Subs</TabsTrigger>
@@ -130,7 +134,15 @@ const ProjectDetail = () => {
           </TabsContent>
 
           <TabsContent value="budget">
-            <ProjectFinancialsTab projectId={project.id} />
+            <ProjectBudgetTabV2 projectId={project.id} />
+          </TabsContent>
+
+          <TabsContent value="billing">
+            <ProjectBillingTab projectId={project.id} />
+          </TabsContent>
+
+          <TabsContent value="financials">
+            <ProjectFinancialDashboard projectId={project.id} />
           </TabsContent>
 
           <TabsContent value="schedule">
