@@ -2,10 +2,16 @@ import { Layout } from '@/components/Layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
-import { DollarSign, FileText, Receipt, Users, Package, BarChart3, TrendingUp, CreditCard } from 'lucide-react';
+import { DollarSign, FileText, Receipt, Users, Package, BarChart3, TrendingUp, CreditCard, AlertTriangle, Building2 } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useFinancialSummary } from '@/hooks/useFinancialSummary';
+import { FinancialKPICard } from '@/components/financials/FinancialKPICard';
+import { UnifiedPaymentsPanel } from '@/components/financials/UnifiedPaymentsPanel';
+import { FinancialSearchBar } from '@/components/financials/FinancialSearchBar';
 
 const Financials = () => {
   const navigate = useNavigate();
+  const { data: summary, isLoading } = useFinancialSummary();
 
   const financialModules = [
     {
@@ -55,54 +61,91 @@ const Financials = () => {
   return (
     <Layout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold mb-2">Financials</h1>
-          <p className="text-muted-foreground">
-            Centralized financial management and reporting
-          </p>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold mb-2">Financial OS</h1>
+            <p className="text-muted-foreground">
+              Unified financial management across labor, subs, and materials
+            </p>
+          </div>
+          <FinancialSearchBar />
         </div>
 
-        {/* Overview Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="p-2 rounded-lg bg-primary/10">
-                  <DollarSign className="h-5 w-5 text-primary" />
-                </div>
-                <p className="text-sm text-muted-foreground">Total Revenue</p>
-              </div>
-              <p className="text-3xl font-bold">$1.2M</p>
-              <p className="text-xs text-muted-foreground mt-1">Across all projects</p>
-            </CardContent>
-          </Card>
+        {/* Overview KPI Cards */}
+        {isLoading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+              <Skeleton key={i} className="h-32" />
+            ))}
+          </div>
+        ) : summary && (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <FinancialKPICard
+                title="Total Revenue"
+                value={`$${(summary.revenue / 1000).toFixed(0)}K`}
+                subtitle="From accepted estimates"
+                icon={TrendingUp}
+                variant="success"
+              />
+              <FinancialKPICard
+                title="Total Profit"
+                value={`$${(summary.profit / 1000).toFixed(0)}K`}
+                subtitle={`${summary.revenue > 0 ? ((summary.profit / summary.revenue) * 100).toFixed(1) : 0}% margin`}
+                icon={DollarSign}
+                variant={summary.profit > 0 ? 'success' : 'danger'}
+              />
+              <FinancialKPICard
+                title="Outstanding Payables"
+                value={`$${(summary.totalOutstanding / 1000).toFixed(1)}K`}
+                subtitle="All unpaid costs"
+                icon={AlertTriangle}
+                variant="warning"
+              />
+              <FinancialKPICard
+                title="Retention Held"
+                value={`$${(summary.retentionHeld / 1000).toFixed(1)}K`}
+                subtitle="Sub retention"
+                icon={Building2}
+                variant="default"
+              />
+            </div>
 
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="p-2 rounded-lg bg-green-50">
-                  <TrendingUp className="h-5 w-5 text-green-600" />
-                </div>
-                <p className="text-sm text-muted-foreground">Total Profit</p>
-              </div>
-              <p className="text-3xl font-bold text-green-600">$320K</p>
-              <p className="text-xs text-muted-foreground mt-1">26.7% margin</p>
-            </CardContent>
-          </Card>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <FinancialKPICard
+                title="Labor (Actual)"
+                value={`$${(summary.laborActual / 1000).toFixed(1)}K`}
+                subtitle={`Unpaid: $${(summary.laborUnpaid / 1000).toFixed(1)}K`}
+                icon={Users}
+                onClick={() => navigate('/payments')}
+              />
+              <FinancialKPICard
+                title="Subs (Actual)"
+                value={`$${(summary.subsActual / 1000).toFixed(1)}K`}
+                subtitle={`Unpaid: $${(summary.subsUnpaid / 1000).toFixed(1)}K`}
+                icon={Users}
+                onClick={() => navigate('/subs')}
+              />
+              <FinancialKPICard
+                title="Materials (Actual)"
+                value={`$${(summary.materialsActual / 1000).toFixed(1)}K`}
+                subtitle="All material receipts"
+                icon={Package}
+                onClick={() => navigate('/materials')}
+              />
+              <FinancialKPICard
+                title="Total Costs"
+                value={`$${((summary.laborActual + summary.subsActual + summary.materialsActual) / 1000).toFixed(1)}K`}
+                subtitle="Labor + Subs + Materials"
+                icon={BarChart3}
+              />
+            </div>
+          </>
+        )}
 
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="p-2 rounded-lg bg-orange-50">
-                  <CreditCard className="h-5 w-5 text-orange-600" />
-                </div>
-                <p className="text-sm text-muted-foreground">Outstanding Payables</p>
-              </div>
-              <p className="text-3xl font-bold text-orange-600">$45K</p>
-              <p className="text-xs text-muted-foreground mt-1">Labor + Subs</p>
-            </CardContent>
-          </Card>
-        </div>
+        {/* Unified Payments Panel */}
+        <UnifiedPaymentsPanel />
+
 
         {/* Financial Modules Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
