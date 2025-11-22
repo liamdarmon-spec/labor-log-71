@@ -43,18 +43,11 @@ const Schedule = () => {
         <div className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold">Schedule</h1>
+              <h1 className="text-2xl sm:text-3xl font-bold">Calendar View</h1>
               <p className="text-muted-foreground mt-1 text-sm sm:text-base">
-                Plan worker assignments
+                Visual overview of all schedules (read-only)
               </p>
             </div>
-            <Button onClick={() => setIsScheduleDialogOpen(true)} size="sm" className="md:hidden">
-              <Plus className="h-4 w-4" />
-            </Button>
-            <Button onClick={() => setIsScheduleDialogOpen(true)} className="hidden md:flex">
-              <Plus className="h-4 w-4 mr-2" />
-              Add to Schedule
-            </Button>
           </div>
         </div>
 

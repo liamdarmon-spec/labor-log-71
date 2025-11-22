@@ -5,14 +5,12 @@ import { RosterTab } from '@/components/workforce/RosterTab';
 import { SchedulerTab } from '@/components/workforce/SchedulerTab';
 import { ActivityTab } from '@/components/workforce/ActivityTab';
 import { PayCenterTabV2 } from '@/components/workforce/PayCenterTabV2';
-import { AnalyticsTab } from '@/components/workforce/AnalyticsTab';
-import { SubsTab } from '@/components/workforce/SubsTab';
 import { useSearchParams } from 'react-router-dom';
 
 const Workforce = () => {
   const [searchParams] = useSearchParams();
   const tabParam = searchParams.get('tab');
-  const [activeTab, setActiveTab] = useState(tabParam || 'labor');
+  const [activeTab, setActiveTab] = useState(tabParam || 'scheduler');
 
   // Update active tab when URL param changes
   useEffect(() => {
@@ -32,21 +30,19 @@ const Workforce = () => {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3 lg:grid-cols-5">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="scheduler">Scheduler</TabsTrigger>
             <TabsTrigger value="labor">Roster</TabsTrigger>
-            <TabsTrigger value="scheduler">Schedule</TabsTrigger>
             <TabsTrigger value="activity">Activity</TabsTrigger>
             <TabsTrigger value="pay-center">Pay Center</TabsTrigger>
-            <TabsTrigger value="analytics">Analytics</TabsTrigger>
           </TabsList>
-
-          <TabsContent value="labor">
-            <RosterTab />
-          </TabsContent>
-
 
           <TabsContent value="scheduler">
             <SchedulerTab />
+          </TabsContent>
+
+          <TabsContent value="labor">
+            <RosterTab />
           </TabsContent>
 
           <TabsContent value="activity">
@@ -55,10 +51,6 @@ const Workforce = () => {
 
           <TabsContent value="pay-center">
             <PayCenterTabV2 />
-          </TabsContent>
-
-          <TabsContent value="analytics">
-            <AnalyticsTab />
           </TabsContent>
         </Tabs>
       </div>
