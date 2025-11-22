@@ -13,7 +13,7 @@ export const MobileNav = () => {
 
   const navItems = [
     { path: '/projects', icon: Building2, label: 'Projects' },
-    { path: '/workforce?tab=scheduler', icon: CalendarClock, label: 'Crew Scheduler' },
+    { path: '/schedule', icon: CalendarClock, label: 'Schedule' },
     { path: '/workforce', icon: Users, label: 'Workforce' },
     { path: '/financials', icon: BarChart3, label: 'Costs' },
     { path: '/payments', icon: DollarSign, label: 'Payments' },
