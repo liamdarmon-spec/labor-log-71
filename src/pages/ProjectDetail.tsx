@@ -15,6 +15,7 @@ import { ProjectWorkforceTab } from '@/components/project/ProjectWorkforceTab';
 import { ProjectBudgetTabV2 } from '@/components/project/ProjectBudgetTabV2';
 import { ProjectBillingTab } from '@/components/project/ProjectBillingTab';
 import { ProjectFinancialDashboard } from '@/components/project/ProjectFinancialDashboard';
+import { ProjectFinancialsTabV2 } from '@/components/project/ProjectFinancialsTabV2';
 import { ProjectSubsTabV3 } from '@/components/project/ProjectSubsTabV3';
 import { ProjectDocumentsTab } from '@/components/project/ProjectDocumentsTab';
 
@@ -108,13 +109,14 @@ const ProjectDetail = () => {
         />
 
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5 lg:grid-cols-10">
+          <TabsList className="grid w-full grid-cols-6 lg:grid-cols-11">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="estimates">Estimates</TabsTrigger>
             <TabsTrigger value="proposals">Proposals</TabsTrigger>
             <TabsTrigger value="budget">Budget</TabsTrigger>
             <TabsTrigger value="billing">Billing</TabsTrigger>
-            <TabsTrigger value="financials">Dashboard</TabsTrigger>
+            <TabsTrigger value="financials">Financials</TabsTrigger>
+            <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
             <TabsTrigger value="schedule">Schedule</TabsTrigger>
             <TabsTrigger value="workforce">Workforce</TabsTrigger>
             <TabsTrigger value="subs">Subs</TabsTrigger>
@@ -142,6 +144,10 @@ const ProjectDetail = () => {
           </TabsContent>
 
           <TabsContent value="financials">
+            <ProjectFinancialsTabV2 projectId={project.id} />
+          </TabsContent>
+
+          <TabsContent value="dashboard">
             <ProjectFinancialDashboard projectId={project.id} />
           </TabsContent>
 
