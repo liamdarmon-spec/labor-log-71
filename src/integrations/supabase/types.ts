@@ -1323,6 +1323,7 @@ export type Database = {
           contract_value: number
           created_at: string | null
           created_by: string | null
+          description: string | null
           end_date: string | null
           id: string
           linked_document_id: string | null
@@ -1341,6 +1342,7 @@ export type Database = {
           contract_value?: number
           created_at?: string | null
           created_by?: string | null
+          description?: string | null
           end_date?: string | null
           id?: string
           linked_document_id?: string | null
@@ -1359,6 +1361,7 @@ export type Database = {
           contract_value?: number
           created_at?: string | null
           created_by?: string | null
+          description?: string | null
           end_date?: string | null
           id?: string
           linked_document_id?: string | null
@@ -1478,6 +1481,13 @@ export type Database = {
             foreignKeyName: "sub_invoices_contract_id_fkey"
             columns: ["contract_id"]
             isOneToOne: false
+            referencedRelation: "sub_contract_summary"
+            referencedColumns: ["contract_id"]
+          },
+          {
+            foreignKeyName: "sub_invoices_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
             referencedRelation: "sub_contracts"
             referencedColumns: ["id"]
           },
@@ -1590,6 +1600,81 @@ export type Database = {
           },
         ]
       }
+      sub_payments: {
+        Row: {
+          amount_paid: number
+          created_at: string | null
+          created_by: string | null
+          id: string
+          notes: string | null
+          payment_batch_id: string | null
+          payment_date: string
+          project_subcontract_id: string | null
+          retention_released: number | null
+          sub_invoice_id: string | null
+        }
+        Insert: {
+          amount_paid?: number
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          payment_batch_id?: string | null
+          payment_date?: string
+          project_subcontract_id?: string | null
+          retention_released?: number | null
+          sub_invoice_id?: string | null
+        }
+        Update: {
+          amount_paid?: number
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          payment_batch_id?: string | null
+          payment_date?: string
+          project_subcontract_id?: string | null
+          retention_released?: number | null
+          sub_invoice_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sub_payments_payment_batch_id_fkey"
+            columns: ["payment_batch_id"]
+            isOneToOne: false
+            referencedRelation: "payment_labor_summary"
+            referencedColumns: ["payment_id"]
+          },
+          {
+            foreignKeyName: "sub_payments_payment_batch_id_fkey"
+            columns: ["payment_batch_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sub_payments_project_subcontract_id_fkey"
+            columns: ["project_subcontract_id"]
+            isOneToOne: false
+            referencedRelation: "sub_contract_summary"
+            referencedColumns: ["contract_id"]
+          },
+          {
+            foreignKeyName: "sub_payments_project_subcontract_id_fkey"
+            columns: ["project_subcontract_id"]
+            isOneToOne: false
+            referencedRelation: "sub_contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sub_payments_sub_invoice_id_fkey"
+            columns: ["sub_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "sub_invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sub_scheduled_shifts: {
         Row: {
           cost_code_id: string | null
@@ -1674,6 +1759,7 @@ export type Database = {
           email: string | null
           id: string
           name: string
+          notes: string | null
           phone: string | null
           trade: string | null
           trade_id: string | null
@@ -1687,6 +1773,7 @@ export type Database = {
           email?: string | null
           id?: string
           name: string
+          notes?: string | null
           phone?: string | null
           trade?: string | null
           trade_id?: string | null
@@ -1700,6 +1787,7 @@ export type Database = {
           email?: string | null
           id?: string
           name?: string
+          notes?: string | null
           phone?: string | null
           trade?: string | null
           trade_id?: string | null
@@ -2130,6 +2218,55 @@ export type Database = {
             columns: ["worker_id"]
             isOneToOne: false
             referencedRelation: "workers_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sub_contract_summary: {
+        Row: {
+          company_name: string | null
+          contract_id: string | null
+          contract_value: number | null
+          outstanding_balance: number | null
+          project_id: string | null
+          remaining_to_bill: number | null
+          retention_percentage: number | null
+          status: string | null
+          sub_id: string | null
+          sub_name: string | null
+          total_billed: number | null
+          total_paid: number | null
+          total_retention_held: number | null
+          total_retention_released: number | null
+          trade: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sub_contracts_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_costs_view"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "sub_contracts_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_dashboard_view"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "sub_contracts_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sub_contracts_sub_id_fkey"
+            columns: ["sub_id"]
+            isOneToOne: false
+            referencedRelation: "subs"
             referencedColumns: ["id"]
           },
         ]

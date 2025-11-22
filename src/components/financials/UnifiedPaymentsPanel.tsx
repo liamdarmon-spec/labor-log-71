@@ -4,6 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { DollarSign, Users, Package } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { SubPaymentsTab } from './SubPaymentsTab';
 
 export function UnifiedPaymentsPanel() {
   const navigate = useNavigate();
@@ -40,20 +41,7 @@ export function UnifiedPaymentsPanel() {
           </TabsContent>
 
           <TabsContent value="subs" className="space-y-4">
-            <div className="flex items-center gap-3 p-4 border rounded-lg">
-              <div className="p-3 rounded-lg bg-emerald-100 dark:bg-emerald-900">
-                <Users className="w-5 h-5 text-emerald-700 dark:text-emerald-300" />
-              </div>
-              <div className="flex-1">
-                <h4 className="font-semibold">Sub Invoice Payment</h4>
-                <p className="text-sm text-muted-foreground">
-                  Pay approved sub invoices and manage retention
-                </p>
-              </div>
-              <Button onClick={() => navigate('/subs')}>
-                View
-              </Button>
-            </div>
+            <SubPaymentsTab />
           </TabsContent>
 
           <TabsContent value="materials" className="space-y-4">
