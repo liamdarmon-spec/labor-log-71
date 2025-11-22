@@ -32,10 +32,9 @@ const Workforce = () => {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3 lg:grid-cols-6">
-            <TabsTrigger value="labor">Labor</TabsTrigger>
-            <TabsTrigger value="subs">Subs</TabsTrigger>
-            <TabsTrigger value="scheduler">Scheduler</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-3 lg:grid-cols-5">
+            <TabsTrigger value="labor">Roster</TabsTrigger>
+            <TabsTrigger value="scheduler">Schedule</TabsTrigger>
             <TabsTrigger value="activity">Activity</TabsTrigger>
             <TabsTrigger value="pay-center">Pay Center</TabsTrigger>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
@@ -45,9 +44,6 @@ const Workforce = () => {
             <RosterTab />
           </TabsContent>
 
-          <TabsContent value="subs">
-            <SubsTab />
-          </TabsContent>
 
           <TabsContent value="scheduler">
             <SchedulerTab />
