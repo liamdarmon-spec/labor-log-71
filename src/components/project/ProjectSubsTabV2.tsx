@@ -1,343 +1,251 @@
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Hammer, Plus, DollarSign, TrendingUp, AlertCircle } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Building2, Plus, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { AddSubToProjectDialog } from '@/components/subs/AddSubToProjectDialog';
-import { AddSubInvoiceDialog } from '@/components/subs/AddSubInvoiceDialog';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ChevronDown } from 'lucide-react';
+import { SubDetailDrawer } from '@/components/subs/SubDetailDrawer';
 
 interface ProjectSubsTabV2Props {
   projectId: string;
 }
 
 export function ProjectSubsTabV2({ projectId }: ProjectSubsTabV2Props) {
-  const [addSubDialogOpen, setAddSubDialogOpen] = useState(false);
-  const [addInvoiceDialogOpen, setAddInvoiceDialogOpen] = useState(false);
-  const [selectedContract, setSelectedContract] = useState<any>(null);
-  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const [addSubOpen, setAddSubOpen] = useState(false);
+  const [selectedSubId, setSelectedSubId] = useState<string | null>(null);
+  const [selectedContractId, setSelectedContractId] = useState<string | null>(null);
 
-  // Fetch contract summaries
-  const { data: contracts, isLoading } = useQuery({
-    queryKey: ['sub-contract-summary', projectId],
+  // Fetch project subs with contract summary
+  const { data: projectSubs, isLoading } = useQuery({
+    queryKey: ['project-subs-v2', projectId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('sub_contract_summary')
-        .select('*')
+      const { data: contracts } = await supabase
+        .from('sub_contracts')
+        .select(`
+          *,
+          subs(id, name, company_name, trade_id, trades(name))
+        `)
         .eq('project_id', projectId);
-      if (error) throw error;
-      return data;
+
+      if (!contracts) return [];
+
+      // For each contract, fetch invoices and payments
+      const enriched = await Promise.all(
+        contracts.map(async (contract: any) => {
+          const [invoices, payments] = await Promise.all([
+            supabase
+              .from('sub_invoices')
+              .select('total, payment_status')
+              .eq('contract_id', contract.id),
+            supabase
+              .from('sub_payments')
+              .select('amount_paid, retention_released')
+              .eq('project_subcontract_id', contract.id)
+          ]);
+
+          const totalInvoiced = invoices.data?.reduce((sum, inv) => sum + Number(inv.total), 0) || 0;
+          const unpaidInvoices = invoices.data?.filter(inv => inv.payment_status !== 'paid').length || 0;
+          const totalPaid = payments.data?.reduce((sum, pay) => sum + Number(pay.amount_paid), 0) || 0;
+          const retentionReleased = payments.data?.reduce((sum, pay) => sum + Number(pay.retention_released || 0), 0) || 0;
+
+          const balanceToFinish = Number(contract.contract_value) - totalInvoiced;
+          const retentionHeld = Number(contract.retention_held || 0);
+          
+          let status: 'good' | 'overbilled' | 'underbilled' = 'good';
+          if (totalInvoiced > Number(contract.contract_value)) {
+            status = 'overbilled';
+          } else if (totalInvoiced > 0 && totalInvoiced < Number(contract.contract_value) * 0.5) {
+            status = 'underbilled';
+          }
+
+          return {
+            ...contract,
+            sub: contract.subs,
+            totalInvoiced,
+            unpaidInvoices,
+            totalPaid,
+            retentionHeld,
+            retentionReleased,
+            balanceToFinish,
+            status,
+            invoiceCount: invoices.data?.length || 0,
+          };
+        })
+      );
+
+      return enriched;
     },
   });
 
-  // Fetch invoices for expanded rows
-  const { data: allInvoices } = useQuery({
-    queryKey: ['sub-invoices', projectId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('sub_invoices')
-        .select('*')
-        .eq('project_id', projectId)
-        .order('invoice_date', { ascending: false });
-      if (error) throw error;
-      return data;
-    },
-    enabled: expandedRows.size > 0,
-  });
-
-  // Fetch payments
-  const { data: allPayments } = useQuery({
-    queryKey: ['sub-payments', projectId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('sub_payments')
-        .select('*, sub_invoices(invoice_number)')
-        .order('payment_date', { ascending: false });
-      if (error) throw error;
-      return data;
-    },
-    enabled: expandedRows.size > 0,
-  });
-
-  const toggleRow = (contractId: string) => {
-    setExpandedRows(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(contractId)) {
-        newSet.delete(contractId);
-      } else {
-        newSet.add(contractId);
-      }
-      return newSet;
-    });
-  };
-
-  const handleAddInvoice = (contract: any) => {
-    setSelectedContract(contract);
-    setAddInvoiceDialogOpen(true);
-  };
-
-  if (isLoading) {
-    return (
-      <div className="space-y-6">
-        <Skeleton className="h-32" />
-        <Skeleton className="h-64" />
-      </div>
-    );
-  }
-
-  const totalContractValue = contracts?.reduce((sum, c) => sum + (c.contract_value || 0), 0) || 0;
-  const totalPaid = contracts?.reduce((sum, c) => sum + (c.total_paid || 0), 0) || 0;
-  const totalRetention = contracts?.reduce((sum, c) => sum + (c.total_retention_held || 0), 0) || 0;
-  const totalOutstanding = contracts?.reduce((sum, c) => sum + (c.outstanding_balance || 0), 0) || 0;
+  // Calculate summary totals
+  const totalContracted = projectSubs?.reduce((sum, s) => sum + Number(s.contract_value), 0) || 0;
+  const totalInvoiced = projectSubs?.reduce((sum, s) => sum + s.totalInvoiced, 0) || 0;
+  const totalPaid = projectSubs?.reduce((sum, s) => sum + s.totalPaid, 0) || 0;
+  const totalRetention = projectSubs?.reduce((sum, s) => sum + s.retentionHeld, 0) || 0;
   return (
-    <div className="space-y-6">
-      {/* Summary Strip */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Hammer className="w-4 h-4 text-primary" />
-              <p className="text-sm text-muted-foreground">Subs on Project</p>
-            </div>
-            <p className="text-2xl font-bold">{contracts?.length || 0}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <DollarSign className="w-4 h-4 text-blue-600" />
-              <p className="text-sm text-muted-foreground">Contract Value</p>
-            </div>
-            <p className="text-2xl font-bold">${totalContractValue.toLocaleString()}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <TrendingUp className="w-4 h-4 text-emerald-600" />
-              <p className="text-sm text-muted-foreground">Paid to Subs</p>
-            </div>
-            <p className="text-2xl font-bold">${totalPaid.toLocaleString()}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <AlertCircle className="w-4 h-4 text-amber-600" />
-              <p className="text-sm text-muted-foreground">Retention Held</p>
-            </div>
-            <p className="text-2xl font-bold">${totalRetention.toLocaleString()}</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Subs Table */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <Hammer className="h-5 w-5" />
-              Subcontractors
-            </CardTitle>
-            <Button onClick={() => setAddSubDialogOpen(true)} className="gap-2">
-              <Plus className="w-4 h-4" />
-              Add Subcontractor
-            </Button>
+    <>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold">Subcontractors</h2>
+            <p className="text-muted-foreground">Manage subcontract agreements and payments</p>
           </div>
-        </CardHeader>
-        <CardContent>
-          {!contracts || contracts.length === 0 ? (
-            <div className="text-center py-12">
-              <Hammer className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground mb-2">No subcontractors added yet</p>
-              <p className="text-sm text-muted-foreground mb-4">
-                Add subcontractors to track contracts, invoices, and payments
-              </p>
-              <Button onClick={() => setAddSubDialogOpen(true)} className="gap-2">
-                <Plus className="w-4 h-4" />
-                Add First Subcontractor
-              </Button>
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead></TableHead>
-                  <TableHead>Subcontractor</TableHead>
-                  <TableHead>Trade</TableHead>
-                  <TableHead className="text-right">Contract Value</TableHead>
-                  <TableHead className="text-right">Billed</TableHead>
-                  <TableHead className="text-right">Paid</TableHead>
-                  <TableHead className="text-right">Retention</TableHead>
-                  <TableHead className="text-right">Balance</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {contracts.map((contract) => {
-                  const isExpanded = expandedRows.has(contract.contract_id);
-                  const contractInvoices = allInvoices?.filter(inv => inv.contract_id === contract.contract_id) || [];
-                  const contractPayments = allPayments?.filter(pay => pay.project_subcontract_id === contract.contract_id) || [];
+          <Button onClick={() => setAddSubOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Subcontractor
+          </Button>
+        </div>
 
-                  return (
-                    <>
-                      <TableRow key={contract.contract_id} className="cursor-pointer hover:bg-muted/50">
-                        <TableCell>
-                          <CollapsibleTrigger asChild onClick={() => toggleRow(contract.contract_id)}>
-                            <Button variant="ghost" size="sm">
-                              <ChevronDown
-                                className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
-                              />
-                            </Button>
-                          </CollapsibleTrigger>
-                        </TableCell>
-                        <TableCell className="font-medium">
+        {/* Summary Cards */}
+        <div className="grid grid-cols-4 gap-4">
+          <Card>
+            <CardContent className="pt-6">
+              <div className="text-sm text-muted-foreground mb-1">Total Contracted</div>
+              <div className="text-2xl font-bold">${totalContracted.toLocaleString()}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="text-sm text-muted-foreground mb-1">Total Invoiced</div>
+              <div className="text-2xl font-bold text-blue-600">${totalInvoiced.toLocaleString()}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="text-sm text-muted-foreground mb-1">Total Paid</div>
+              <div className="text-2xl font-bold text-green-600">${totalPaid.toLocaleString()}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="text-sm text-muted-foreground mb-1">Retention Held</div>
+              <div className="text-2xl font-bold text-orange-600">${totalRetention.toLocaleString()}</div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Subcontract Ledger */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Subcontract Ledger</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {projectSubs && projectSubs.length > 0 ? (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Subcontractor</TableHead>
+                    <TableHead>Trade</TableHead>
+                    <TableHead className="text-right">Contract</TableHead>
+                    <TableHead className="text-right">Invoiced</TableHead>
+                    <TableHead className="text-right">Paid</TableHead>
+                    <TableHead className="text-right">Retention</TableHead>
+                    <TableHead className="text-right">Balance</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {projectSubs.map((sub: any) => (
+                    <TableRow 
+                      key={sub.id} 
+                      className="cursor-pointer hover:bg-accent"
+                      onClick={() => {
+                        setSelectedSubId(sub.sub.id);
+                        setSelectedContractId(sub.id);
+                      }}
+                    >
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Building2 className="h-4 w-4 text-purple-600" />
                           <div>
-                            {contract.sub_name}
-                            {contract.company_name && (
-                              <div className="text-xs text-muted-foreground">{contract.company_name}</div>
+                            <div className="font-medium">{sub.sub.name}</div>
+                            {sub.sub.company_name && (
+                              <div className="text-xs text-muted-foreground">{sub.sub.company_name}</div>
                             )}
                           </div>
-                        </TableCell>
-                        <TableCell>{contract.trade || '-'}</TableCell>
-                        <TableCell className="text-right">${contract.contract_value?.toLocaleString() || 0}</TableCell>
-                        <TableCell className="text-right">${contract.total_billed?.toLocaleString() || 0}</TableCell>
-                        <TableCell className="text-right">${contract.total_paid?.toLocaleString() || 0}</TableCell>
-                        <TableCell className="text-right text-amber-600">
-                          ${(contract.total_retention_held - contract.total_retention_released)?.toLocaleString() || 0}
-                        </TableCell>
-                        <TableCell className="text-right font-semibold">
-                          ${contract.outstanding_balance?.toLocaleString() || 0}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={contract.status === 'active' ? 'default' : 'secondary'}>
-                            {contract.status}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{sub.sub.trades?.name}</Badge>
+                      </TableCell>
+                      <TableCell className="text-right font-medium">
+                        ${Number(sub.contract_value).toLocaleString()}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div>
+                          <div className="font-medium">${sub.totalInvoiced.toLocaleString()}</div>
+                          {sub.invoiceCount > 0 && (
+                            <div className="text-xs text-muted-foreground">{sub.invoiceCount} invoice(s)</div>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right font-medium text-green-600">
+                        ${sub.totalPaid.toLocaleString()}
+                      </TableCell>
+                      <TableCell className="text-right text-orange-600">
+                        ${sub.retentionHeld.toLocaleString()}
+                      </TableCell>
+                      <TableCell className="text-right font-semibold">
+                        ${sub.balanceToFinish.toLocaleString()}
+                      </TableCell>
+                      <TableCell>
+                        {sub.status === 'good' ? (
+                          <Badge className="bg-green-100 text-green-700 hover:bg-green-100">
+                            <TrendingUp className="h-3 w-3 mr-1" />
+                            Good
                           </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleAddInvoice(contract);
-                            }}
-                          >
-                            Add Invoice
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-
-                      {isExpanded && (
-                        <TableRow>
-                          <TableCell colSpan={10} className="bg-muted/30">
-                            <div className="p-4 space-y-4">
-                              {/* Invoices Section */}
-                              <div>
-                                <h4 className="font-semibold mb-2">Invoices</h4>
-                                {contractInvoices.length === 0 ? (
-                                  <p className="text-sm text-muted-foreground">No invoices yet</p>
-                                ) : (
-                                  <Table>
-                                    <TableHeader>
-                                      <TableRow>
-                                        <TableHead>Invoice #</TableHead>
-                                        <TableHead>Date</TableHead>
-                                        <TableHead className="text-right">Amount</TableHead>
-                                        <TableHead className="text-right">Retention</TableHead>
-                                        <TableHead className="text-right">Payable</TableHead>
-                                        <TableHead>Status</TableHead>
-                                      </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                      {contractInvoices.map((invoice) => (
-                                        <TableRow key={invoice.id}>
-                                          <TableCell>{invoice.invoice_number || '-'}</TableCell>
-                                          <TableCell>{new Date(invoice.invoice_date).toLocaleDateString()}</TableCell>
-                                          <TableCell className="text-right">${invoice.total?.toLocaleString()}</TableCell>
-                                          <TableCell className="text-right text-amber-600">
-                                            ${invoice.retention_amount?.toLocaleString() || 0}
-                                          </TableCell>
-                                          <TableCell className="text-right">
-                                            ${(invoice.total - (invoice.retention_amount || 0))?.toLocaleString()}
-                                          </TableCell>
-                                          <TableCell>
-                                            <Badge variant={invoice.payment_status === 'paid' ? 'default' : 'secondary'}>
-                                              {invoice.payment_status}
-                                            </Badge>
-                                          </TableCell>
-                                        </TableRow>
-                                      ))}
-                                    </TableBody>
-                                  </Table>
-                                )}
-                              </div>
-
-                              {/* Payments Section */}
-                              <div>
-                                <h4 className="font-semibold mb-2">Payments</h4>
-                                {contractPayments.length === 0 ? (
-                                  <p className="text-sm text-muted-foreground">No payments yet</p>
-                                ) : (
-                                  <Table>
-                                    <TableHeader>
-                                      <TableRow>
-                                        <TableHead>Date</TableHead>
-                                        <TableHead>Invoice</TableHead>
-                                        <TableHead className="text-right">Amount Paid</TableHead>
-                                        <TableHead className="text-right">Retention Released</TableHead>
-                                      </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                      {contractPayments.map((payment) => (
-                                        <TableRow key={payment.id}>
-                                          <TableCell>{new Date(payment.payment_date).toLocaleDateString()}</TableCell>
-                                          <TableCell>{(payment as any).sub_invoices?.invoice_number || '-'}</TableCell>
-                                          <TableCell className="text-right">${payment.amount_paid?.toLocaleString()}</TableCell>
-                                          <TableCell className="text-right">
-                                            ${payment.retention_released?.toLocaleString() || 0}
-                                          </TableCell>
-                                        </TableRow>
-                                      ))}
-                                    </TableBody>
-                                  </Table>
-                                )}
-                              </div>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+                        ) : sub.status === 'overbilled' ? (
+                          <Badge className="bg-red-100 text-red-700 hover:bg-red-100">
+                            <TrendingDown className="h-3 w-3 mr-1" />
+                            Over
+                          </Badge>
+                        ) : (
+                          <Badge className="bg-yellow-100 text-yellow-700 hover:bg-yellow-100">
+                            <Minus className="h-3 w-3 mr-1" />
+                            Under
+                          </Badge>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            ) : (
+              <div className="text-center py-12 text-muted-foreground">
+                <Building2 className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p className="text-lg font-medium mb-2">No subcontractors on this project</p>
+                <p className="text-sm">Add a subcontractor to get started</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
       <AddSubToProjectDialog
-        open={addSubDialogOpen}
-        onOpenChange={setAddSubDialogOpen}
+        open={addSubOpen}
+        onOpenChange={setAddSubOpen}
         projectId={projectId}
       />
 
-      {selectedContract && (
-        <AddSubInvoiceDialog
-          open={addInvoiceDialogOpen}
-          onOpenChange={setAddInvoiceDialogOpen}
-          contractId={selectedContract.contract_id}
+      {selectedSubId && (
+        <SubDetailDrawer
+          open={!!selectedSubId}
+          onOpenChange={(open) => {
+            if (!open) {
+              setSelectedSubId(null);
+              setSelectedContractId(null);
+            }
+          }}
+          subId={selectedSubId}
           projectId={projectId}
-          subId={selectedContract.sub_id}
-          retentionPercentage={selectedContract.retention_percentage || 0}
+          contractId={selectedContractId || undefined}
         />
       )}
-    </div>
+    </>
   );
 }

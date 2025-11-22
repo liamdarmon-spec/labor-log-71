@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { ChevronLeft, ChevronRight, Calendar, Users } from 'lucide-react';
 import { startOfWeek, endOfWeek, addWeeks, format, addDays, isSameDay } from 'date-fns';
-import { SchedulerTableView } from './SchedulerTableView';
+import { UnifiedSchedulerTableView } from './UnifiedSchedulerTableView';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useNavigate } from 'react-router-dom';
 import { UniversalDayDetailDialog } from '@/components/scheduling/UniversalDayDetailDialog';
@@ -476,7 +476,7 @@ export function SchedulerTab() {
         </TabsContent>
 
         <TabsContent value="table" className="m-0">
-          <SchedulerTableView
+          <UnifiedSchedulerTableView
             weekStart={weekStart}
             weekEnd={weekEnd}
             selectedCompany={selectedCompany}
