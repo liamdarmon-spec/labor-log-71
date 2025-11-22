@@ -9,6 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Building2, Plus, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { AddSubToProjectDialog } from '@/components/subs/AddSubToProjectDialog';
 import { SubDetailDrawer } from '@/components/subs/SubDetailDrawer';
+import { BidPackagesSection } from './BidPackagesSection';
 
 interface ProjectSubsTabV2Props {
   projectId: string;
@@ -224,6 +225,9 @@ export function ProjectSubsTabV2({ projectId }: ProjectSubsTabV2Props) {
             )}
           </CardContent>
         </Card>
+
+        {/* Bid Packages Section */}
+        <BidPackagesSection projectId={projectId} />
       </div>
 
       <AddSubToProjectDialog
