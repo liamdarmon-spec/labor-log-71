@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Plus, User, Briefcase, Clock, Calendar as CalendarIcon, Loader2 } from "lucide-react";
 import { startOfWeek, endOfWeek, addWeeks, format, addDays, isSameDay } from "date-fns";
-import { UniversalDayDetailDialog } from "./UniversalDayDetailDialog";
+import { MasterScheduleModal } from "./MasterScheduleModal";
 import { useSchedulerData } from "@/lib/scheduler/useSchedulerData";
 import type { SchedulerFilterMode } from "@/lib/scheduler/types";
 import { Badge } from "@/components/ui/badge";
@@ -238,17 +238,19 @@ export function WeeklyScheduleView({ onScheduleClick, refreshTrigger, scheduleTy
         })}
       </div>
 
-      <UniversalDayDetailDialog
+      <MasterScheduleModal
         open={!!selectedDate}
         onOpenChange={(open) => !open && setSelectedDate(null)}
         date={selectedDate}
+        projectId={projectId}
+        context={projectId ? 'project' : 'global'}
         onRefresh={() => {}}
         onAddSchedule={() => {
           if (selectedDate) {
             onScheduleClick(selectedDate);
+            setSelectedDate(null);
           }
         }}
-        projectContext={projectId}
       />
 
       <Dialog open={!!selectedMeetingId} onOpenChange={(open) => !open && setSelectedMeetingId(null)}>
