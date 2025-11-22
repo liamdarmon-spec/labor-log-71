@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { DocumentDetailDrawer } from '@/components/documents/DocumentDetailDrawer';
 import {
   FileText,
   Download,
@@ -14,6 +15,10 @@ import {
   Trash2,
   Search,
   ExternalLink,
+  Sparkles,
+  CheckCircle,
+  XCircle,
+  Clock,
 } from 'lucide-react';
 
 interface Document {
@@ -29,6 +34,8 @@ interface Document {
   storage_path: string | null;
   ai_doc_type: string | null;
   ai_summary: string | null;
+  ai_last_run_status: string | null;
+  ai_last_run_at: string | null;
 }
 
 interface DocumentsTableProps {
@@ -42,6 +49,8 @@ export function DocumentsTable({ ownerType, ownerId, onRefresh }: DocumentsTable
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
+  const [detailDrawerOpen, setDetailDrawerOpen] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -113,13 +122,49 @@ export function DocumentsTable({ ownerType, ownerId, onRefresh }: DocumentsTable
     link.click();
   };
 
+  const getAIBadge = (doc: Document) => {
+    if (!doc.ai_last_run_status) {
+      return (
+        <Badge variant="outline" className="gap-1 text-xs">
+          <Sparkles className="h-3 w-3" />
+          Not Analyzed
+        </Badge>
+      );
+    }
+
+    const status = doc.ai_last_run_status.split(':')[0];
+    if (status === 'success') {
+      return (
+        <Badge variant="default" className="gap-1 text-xs bg-green-600">
+          <CheckCircle className="h-3 w-3" />
+          AI
+        </Badge>
+      );
+    } else if (status === 'pending') {
+      return (
+        <Badge variant="secondary" className="gap-1 text-xs">
+          <Clock className="h-3 w-3" />
+          Processing
+        </Badge>
+      );
+    } else {
+      return (
+        <Badge variant="destructive" className="gap-1 text-xs">
+          <XCircle className="h-3 w-3" />
+          Error
+        </Badge>
+      );
+    }
+  };
+
   const filteredDocs = documents.filter((doc) => {
     const matchesSearch =
       doc.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       doc.file_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      doc.tags?.some((tag) => tag.toLowerCase().includes(searchTerm.toLowerCase()));
+      doc.tags?.some((tag) => tag.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      doc.ai_summary?.toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchesType = typeFilter === 'all' || doc.doc_type === typeFilter;
+    const matchesType = typeFilter === 'all' || doc.doc_type === typeFilter || doc.ai_doc_type === typeFilter;
 
     return matchesSearch && matchesType;
   });
@@ -183,7 +228,14 @@ export function DocumentsTable({ ownerType, ownerId, onRefresh }: DocumentsTable
             </TableHeader>
             <TableBody>
               {filteredDocs.map((doc) => (
-                <TableRow key={doc.id}>
+                <TableRow 
+                  key={doc.id}
+                  className="cursor-pointer hover:bg-muted/50"
+                  onClick={() => {
+                    setSelectedDocId(doc.id);
+                    setDetailDrawerOpen(true);
+                  }}
+                >
                   <TableCell>
                     <div>
                       <p className="font-medium">{doc.title || doc.file_name}</p>
@@ -193,9 +245,12 @@ export function DocumentsTable({ ownerType, ownerId, onRefresh }: DocumentsTable
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline">
-                      {doc.doc_type || doc.ai_doc_type || 'Unknown'}
-                    </Badge>
+                    <div className="flex items-center gap-1">
+                      <Badge variant="outline">
+                        {doc.doc_type || doc.ai_doc_type || 'Unknown'}
+                      </Badge>
+                      {getAIBadge(doc)}
+                    </div>
                   </TableCell>
                   <TableCell>
                     {doc.tags && doc.tags.length > 0 ? (
@@ -223,7 +278,7 @@ export function DocumentsTable({ ownerType, ownerId, onRefresh }: DocumentsTable
                       {doc.source || 'manual'}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                     <div className="flex justify-end gap-2">
                       <Button
                         variant="ghost"
@@ -254,6 +309,19 @@ export function DocumentsTable({ ownerType, ownerId, onRefresh }: DocumentsTable
           </Table>
         )}
       </CardContent>
+
+      <DocumentDetailDrawer
+        documentId={selectedDocId}
+        open={detailDrawerOpen}
+        onOpenChange={(open) => {
+          setDetailDrawerOpen(open);
+          if (!open) {
+            setSelectedDocId(null);
+            // Refresh documents after closing detail drawer
+            fetchDocuments();
+          }
+        }}
+      />
     </Card>
   );
 }

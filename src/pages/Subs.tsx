@@ -52,6 +52,21 @@ export default function Subs() {
     return { totalContracted, totalPaid, outstanding, activeProjects };
   };
 
+  const getComplianceBadge = (sub: any) => {
+    const now = new Date();
+    const coiExpired = sub.compliance_coi_expiration && new Date(sub.compliance_coi_expiration) < now;
+    const licenseExpired = sub.compliance_license_expiration && new Date(sub.compliance_license_expiration) < now;
+    const w9Missing = !sub.compliance_w9_received;
+    
+    if (coiExpired || licenseExpired) {
+      return { variant: 'destructive' as const, label: '⚠ Non-Compliant' };
+    } else if (w9Missing || !sub.compliance_coi_expiration || !sub.compliance_license_expiration) {
+      return { variant: 'outline' as const, label: 'Incomplete' };
+    } else {
+      return { variant: 'default' as const, label: '✓ Compliant' };
+    }
+  };
+
   const filteredSubs = subs?.filter(sub =>
     sub.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     sub.company_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -94,6 +109,7 @@ export default function Subs() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredSubs.map((sub: any) => {
               const summary = getSubSummary(sub.id);
+              const compliance = getComplianceBadge(sub);
               return (
                 <Card
                   key={sub.id}
@@ -118,8 +134,15 @@ export default function Subs() {
                         {sub.active ? 'Active' : 'Inactive'}
                       </Badge>
                     </div>
+                    
+                    {/* Compliance Badge */}
+                    <div className="mt-2">
+                      <Badge variant={compliance.variant} className="text-xs">
+                        {compliance.label}
+                      </Badge>
+                    </div>
 
-                    <div className="space-y-2 text-sm">
+                    <div className="space-y-2 text-sm">\
                       {sub.phone && (
                         <div className="flex items-center gap-2 text-muted-foreground">
                           <Phone className="h-4 w-4" />

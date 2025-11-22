@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ArrowLeft, Building2, Phone, Mail, Briefcase } from 'lucide-react';
+import { SubComplianceCard } from '@/components/subs/SubComplianceCard';
 import { SubDocumentsSection } from '@/components/subs/SubDocumentsSection';
 
 export default function SubProfile() {
@@ -191,6 +192,11 @@ export default function SubProfile() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Compliance Status */}
+        {sub && (
+          <SubComplianceCard sub={sub} />
+        )}
 
         {/* Documents */}
         <SubDocumentsSection subId={id!} />

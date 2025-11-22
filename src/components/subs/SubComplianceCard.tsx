@@ -1,162 +1,145 @@
-import { useEffect, useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { useToast } from '@/hooks/use-toast';
-import { CheckCircle2, XCircle, AlertTriangle, Upload } from 'lucide-react';
-
-interface ComplianceDocument {
-  id: string;
-  doc_type: string;
-  status: string;
-  expiry_date: string | null;
-  file_url: string | null;
-}
+import { Shield, AlertTriangle, CheckCircle, XCircle, Calendar } from 'lucide-react';
+import { format, differenceInDays } from 'date-fns';
 
 interface SubComplianceCardProps {
-  subId: string;
+  sub: {
+    compliance_coi_expiration: string | null;
+    compliance_w9_received: boolean | null;
+    compliance_license_expiration: string | null;
+    compliance_notes: string | null;
+  };
 }
 
-export function SubComplianceCard({ subId }: SubComplianceCardProps) {
-  const [docs, setDocs] = useState<ComplianceDocument[]>([]);
-  const [loading, setLoading] = useState(true);
-  const { toast } = useToast();
+export function SubComplianceCard({ sub }: SubComplianceCardProps) {
+  const getComplianceStatus = () => {
+    const now = new Date();
+    const issues: string[] = [];
+    
+    // Check COI
+    if (!sub.compliance_coi_expiration) {
+      issues.push('Missing COI');
+    } else if (new Date(sub.compliance_coi_expiration) < now) {
+      issues.push('COI Expired');
+    } else if (differenceInDays(new Date(sub.compliance_coi_expiration), now) < 30) {
+      issues.push('COI Expiring Soon');
+    }
 
-  useEffect(() => {
-    fetchCompliance();
-  }, [subId]);
+    // Check W-9
+    if (!sub.compliance_w9_received) {
+      issues.push('Missing W-9');
+    }
 
-  const fetchCompliance = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('sub_compliance_documents')
-        .select('*')
-        .eq('sub_id', subId);
+    // Check License
+    if (!sub.compliance_license_expiration) {
+      issues.push('Missing License');
+    } else if (new Date(sub.compliance_license_expiration) < now) {
+      issues.push('License Expired');
+    } else if (differenceInDays(new Date(sub.compliance_license_expiration), now) < 30) {
+      issues.push('License Expiring Soon');
+    }
 
-      if (error) throw error;
-      setDocs(data || []);
-    } catch (error) {
-      console.error('Error fetching compliance:', error);
-    } finally {
-      setLoading(false);
+    if (issues.length === 0) {
+      return { status: 'compliant', label: 'Compliant', variant: 'default' as const, icon: CheckCircle };
+    } else if (issues.some(i => i.includes('Expired'))) {
+      return { status: 'expired', label: 'Non-Compliant', variant: 'destructive' as const, icon: XCircle };
+    } else if (issues.some(i => i.includes('Expiring'))) {
+      return { status: 'expiring', label: 'Expiring Soon', variant: 'secondary' as const, icon: AlertTriangle };
+    } else {
+      return { status: 'incomplete', label: 'Incomplete', variant: 'outline' as const, icon: AlertTriangle };
     }
   };
 
-  const getComplianceStatus = (docType: string) => {
-    const doc = docs.find((d) => d.doc_type === docType);
-    if (!doc || !doc.file_url) return 'missing';
+  const compliance = getComplianceStatus();
+  const StatusIcon = compliance.icon;
 
-    if (doc.expiry_date) {
-      const daysUntilExpiry = Math.floor(
-        (new Date(doc.expiry_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
-      );
-
-      if (daysUntilExpiry < 0) return 'expired';
-      if (daysUntilExpiry < 30) return 'expiring';
+  const getDateStatus = (date: string | null, label: string) => {
+    if (!date) {
+      return { variant: 'outline' as const, label: 'Missing', color: 'text-muted-foreground' };
     }
 
-    return 'valid';
-  };
+    const now = new Date();
+    const expirationDate = new Date(date);
+    const daysUntil = differenceInDays(expirationDate, now);
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'valid':
-        return <CheckCircle2 className="h-5 w-5 text-green-500" />;
-      case 'expiring':
-        return <AlertTriangle className="h-5 w-5 text-yellow-500" />;
-      case 'expired':
-        return <XCircle className="h-5 w-5 text-red-500" />;
-      case 'missing':
-        return <XCircle className="h-5 w-5 text-muted-foreground" />;
-      default:
-        return null;
+    if (expirationDate < now) {
+      return { variant: 'destructive' as const, label: 'Expired', color: 'text-destructive' };
+    } else if (daysUntil < 30) {
+      return { variant: 'secondary' as const, label: `${daysUntil} days left`, color: 'text-orange-600' };
+    } else if (daysUntil < 60) {
+      return { variant: 'secondary' as const, label: `${daysUntil} days left`, color: 'text-yellow-600' };
+    } else {
+      return { variant: 'default' as const, label: 'Active', color: 'text-green-600' };
     }
   };
 
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case 'valid':
-        return 'Valid';
-      case 'expiring':
-        return 'Expiring Soon';
-      case 'expired':
-        return 'Expired';
-      case 'missing':
-        return 'Missing';
-      default:
-        return 'Unknown';
-    }
-  };
-
-  const complianceItems = [
-    { type: 'w9', label: 'W-9' },
-    { type: 'insurance', label: 'Insurance (COI)' },
-    { type: 'license', label: 'License' },
-    { type: 'master_agreement', label: 'Master Agreement' },
-  ];
-
-  const overallStatus = complianceItems.every((item) => getComplianceStatus(item.type) === 'valid')
-    ? 'compliant'
-    : complianceItems.some((item) =>
-        ['expired', 'expiring'].includes(getComplianceStatus(item.type))
-      )
-    ? 'warning'
-    : 'not_compliant';
-
-  if (loading) {
-    return <div>Loading compliance...</div>;
-  }
+  const coiStatus = getDateStatus(sub.compliance_coi_expiration, 'COI');
+  const licenseStatus = getDateStatus(sub.compliance_license_expiration, 'License');
 
   return (
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle>Compliance Status</CardTitle>
-          <Badge
-            variant={
-              overallStatus === 'compliant'
-                ? 'default'
-                : overallStatus === 'warning'
-                ? 'secondary'
-                : 'destructive'
-            }
-          >
-            {overallStatus === 'compliant'
-              ? '✓ Compliant'
-              : overallStatus === 'warning'
-              ? '⚠ Warning'
-              : '✗ Not Compliant'}
+          <div className="flex items-center gap-2">
+            <Shield className="h-5 w-5" />
+            <div>
+              <CardTitle>Compliance Status</CardTitle>
+              <CardDescription>Insurance, licensing, and tax documents</CardDescription>
+            </div>
+          </div>
+          <Badge variant={compliance.variant} className="gap-1">
+            <StatusIcon className="h-3 w-3" />
+            {compliance.label}
           </Badge>
         </div>
       </CardHeader>
-      <CardContent>
-        <div className="space-y-3">
-          {complianceItems.map((item) => {
-            const status = getComplianceStatus(item.type);
-            const doc = docs.find((d) => d.doc_type === item.type);
-
-            return (
-              <div key={item.type} className="flex items-center justify-between p-3 border rounded-lg">
-                <div className="flex items-center gap-3">
-                  {getStatusIcon(status)}
-                  <div>
-                    <p className="font-medium">{item.label}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {status === 'valid' && doc?.expiry_date
-                        ? `Expires ${new Date(doc.expiry_date).toLocaleDateString()}`
-                        : getStatusLabel(status)}
-                    </p>
-                  </div>
-                </div>
-                <Button variant="outline" size="sm">
-                  <Upload className="h-4 w-4 mr-2" />
-                  {doc ? 'Update' : 'Upload'}
-                </Button>
-              </div>
-            );
-          })}
+      <CardContent className="space-y-4">
+        {/* COI */}
+        <div className="flex items-center justify-between p-3 rounded-md bg-muted/50">
+          <div>
+            <p className="font-medium text-sm">Certificate of Insurance (COI)</p>
+            {sub.compliance_coi_expiration && (
+              <p className="text-xs text-muted-foreground">
+                <Calendar className="h-3 w-3 inline mr-1" />
+                Expires: {format(new Date(sub.compliance_coi_expiration), 'PP')}
+              </p>
+            )}
+          </div>
+          <Badge variant={coiStatus.variant}>{coiStatus.label}</Badge>
         </div>
+
+        {/* W-9 */}
+        <div className="flex items-center justify-between p-3 rounded-md bg-muted/50">
+          <div>
+            <p className="font-medium text-sm">W-9 Form</p>
+            <p className="text-xs text-muted-foreground">Tax information</p>
+          </div>
+          <Badge variant={sub.compliance_w9_received ? 'default' : 'outline'}>
+            {sub.compliance_w9_received ? 'Received' : 'Missing'}
+          </Badge>
+        </div>
+
+        {/* License */}
+        <div className="flex items-center justify-between p-3 rounded-md bg-muted/50">
+          <div>
+            <p className="font-medium text-sm">Trade License</p>
+            {sub.compliance_license_expiration && (
+              <p className="text-xs text-muted-foreground">
+                <Calendar className="h-3 w-3 inline mr-1" />
+                Expires: {format(new Date(sub.compliance_license_expiration), 'PP')}
+              </p>
+            )}
+          </div>
+          <Badge variant={licenseStatus.variant}>{licenseStatus.label}</Badge>
+        </div>
+
+        {sub.compliance_notes && (
+          <div className="pt-2 border-t">
+            <p className="text-sm text-muted-foreground mb-1">Notes</p>
+            <p className="text-sm">{sub.compliance_notes}</p>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

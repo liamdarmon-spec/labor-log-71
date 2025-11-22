@@ -7,9 +7,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Upload, Search, FileText, Image, FileCheck, FileSignature, Building2, Shield, Camera, FileWarning } from 'lucide-react';
+import { Upload, Search, FileText, Image, FileCheck, FileSignature, Building2, Shield, Camera, FileWarning, Sparkles } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { format } from 'date-fns';
+import { format, differenceInDays } from 'date-fns';
+import { DocumentDetailDrawer } from '@/components/documents/DocumentDetailDrawer';
 
 const documentTypeIcons = {
   plans: Building2,
@@ -39,6 +40,9 @@ export default function Documents() {
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [projectFilter, setProjectFilter] = useState<string>('all');
+  const [complianceFilter, setComplianceFilter] = useState<string>('all');
+  const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
+  const [detailDrawerOpen, setDetailDrawerOpen] = useState(false);
 
   const { data: documents, isLoading } = useQuery({
     queryKey: ['documents', typeFilter, projectFilter],
@@ -78,16 +82,36 @@ export default function Documents() {
     },
   });
 
-  const filteredDocuments = documents?.filter(doc =>
-    doc.file_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    doc.extracted_text?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredDocuments = documents?.filter(doc => {
+    // Text search across multiple AI fields
+    const matchesSearch = 
+      doc.file_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      doc.extracted_text?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      doc.ai_summary?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      doc.ai_title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      doc.ai_counterparty_name?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    // Compliance filter
+    if (complianceFilter !== 'all') {
+      const now = new Date();
+      if (complianceFilter === 'expiring') {
+        if (!doc.ai_expiration_date) return false;
+        const daysUntil = differenceInDays(new Date(doc.ai_expiration_date), now);
+        return daysUntil >= 0 && daysUntil <= 90;
+      } else if (complianceFilter === 'expired') {
+        if (!doc.ai_expiration_date) return false;
+        return new Date(doc.ai_expiration_date) < now;
+      }
+    }
+
+    return matchesSearch;
+  });
 
   const stats = {
     total: documents?.length || 0,
-    aiClassified: documents?.filter(d => d.auto_classified).length || 0,
-    receipts: documents?.filter(d => d.document_type === 'receipts').length || 0,
-    invoices: documents?.filter(d => d.document_type === 'invoices').length || 0,
+    aiClassified: documents?.filter(d => d.ai_last_run_status === 'success').length || 0,
+    receipts: documents?.filter(d => d.document_type === 'receipts' || d.ai_doc_type === 'receipt').length || 0,
+    invoices: documents?.filter(d => d.document_type === 'invoices' || d.ai_doc_type === 'invoice').length || 0,
   };
 
   return (
@@ -204,7 +228,14 @@ export default function Documents() {
                   {filteredDocuments.map((doc: any) => {
                     const Icon = documentTypeIcons[doc.document_type as keyof typeof documentTypeIcons] || FileText;
                     return (
-                      <TableRow key={doc.id} className="cursor-pointer hover:bg-muted/50">
+                      <TableRow 
+                        key={doc.id} 
+                        className="cursor-pointer hover:bg-muted/50"
+                        onClick={() => {
+                          setSelectedDocId(doc.id);
+                          setDetailDrawerOpen(true);
+                        }}
+                      >
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <div className={`p-2 rounded ${documentTypeColors[doc.document_type as keyof typeof documentTypeColors]}`}>
