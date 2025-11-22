@@ -9,7 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ProjectHeader } from '@/components/project/ProjectHeader';
 import { ProjectOverviewOS } from '@/components/project/ProjectOverviewOS';
 import { ProjectEstimatesV3 } from '@/components/project/ProjectEstimatesV3';
-import { ProjectProposalsTab } from '@/components/project/ProjectProposalsTab';
+import { ProjectProposalsTabV2 } from '@/components/project/ProjectProposalsTabV2';
 import { ProjectScheduleTabV2 } from '@/components/project/ProjectScheduleTabV2';
 import { ProjectWorkforceTab } from '@/components/project/ProjectWorkforceTab';
 import { ProjectFinancialsTab } from '@/components/project/ProjectFinancialsTab';
@@ -126,7 +126,7 @@ const ProjectDetail = () => {
           </TabsContent>
 
           <TabsContent value="proposals">
-            <ProjectProposalsTab projectId={project.id} />
+            <ProjectProposalsTabV2 projectId={project.id} />
           </TabsContent>
 
           <TabsContent value="financials">
