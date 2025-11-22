@@ -229,6 +229,17 @@ export function RosterTab() {
 
               <div className="pt-3 mt-3 border-t flex gap-2">
                 <Button
+                  variant="default"
+                  size="sm"
+                  className="flex-1"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate(`/workforce?tab=scheduler&view=table&worker=${worker.id}`);
+                  }}
+                >
+                  Open in Scheduler
+                </Button>
+                <Button
                   variant="outline"
                   size="sm"
                   className="flex-1"
@@ -238,7 +249,7 @@ export function RosterTab() {
                   }}
                 >
                   <Clock className="h-3 w-3 mr-1" />
-                  View Time Logs
+                  Time Logs
                 </Button>
               </div>
 
