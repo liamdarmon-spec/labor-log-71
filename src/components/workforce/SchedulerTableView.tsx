@@ -15,7 +15,9 @@ interface SchedulerTableViewProps {
   weekEnd: Date;
   selectedCompany: string;
   selectedTrade: string;
+  onViewDay: (date: Date, workerId: string) => void;
   onViewTimeLog: (workerId: string, date: string, projectId: string) => void;
+  refreshTrigger?: number;
 }
 
 export function SchedulerTableView({ 
@@ -23,7 +25,9 @@ export function SchedulerTableView({
   weekEnd, 
   selectedCompany,
   selectedTrade,
-  onViewTimeLog
+  onViewDay,
+  onViewTimeLog,
+  refreshTrigger
 }: SchedulerTableViewProps) {
   const [projectFilter, setProjectFilter] = useState<string>('all');
   const [workerFilter, setWorkerFilter] = useState<string>('all');
@@ -56,7 +60,7 @@ export function SchedulerTableView({
 
   // Fetch scheduled shifts with logged hours
   const { data: schedules, isLoading } = useQuery({
-    queryKey: ['scheduler-table', format(weekStart, 'yyyy-MM-dd'), format(weekEnd, 'yyyy-MM-dd'), selectedCompany, selectedTrade, projectFilter, workerFilter],
+    queryKey: ['scheduler-table', format(weekStart, 'yyyy-MM-dd'), format(weekEnd, 'yyyy-MM-dd'), selectedCompany, selectedTrade, projectFilter, workerFilter, refreshTrigger],
     queryFn: async () => {
       let query = supabase
         .from('scheduled_shifts')
@@ -90,10 +94,21 @@ export function SchedulerTableView({
         );
 
         const loggedHours = matchingLog?.hours_worked || 0;
-        let status: 'Scheduled' | 'Partially Logged' | 'Fully Logged' = 'Scheduled';
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const scheduleDate = new Date(shift.scheduled_date);
+        const isPast = scheduleDate < today;
         
-        if (loggedHours > 0) {
-          status = loggedHours >= shift.scheduled_hours ? 'Fully Logged' : 'Partially Logged';
+        let status: 'Scheduled' | 'Partially Logged' | 'Fully Logged' | 'No Log' = 'Scheduled';
+        
+        if (isPast) {
+          if (loggedHours === 0) {
+            status = 'No Log';
+          } else if (loggedHours >= shift.scheduled_hours) {
+            status = 'Fully Logged';
+          } else {
+            status = 'Partially Logged';
+          }
         }
 
         return {
@@ -130,9 +145,11 @@ export function SchedulerTableView({
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'Fully Logged':
-        return <Badge className="bg-green-100 text-green-700 hover:bg-green-100">Fully Logged</Badge>;
+        return <Badge className="bg-green-100 text-green-700 hover:bg-green-100 dark:bg-green-950 dark:text-green-300">Fully Logged</Badge>;
       case 'Partially Logged':
-        return <Badge className="bg-yellow-100 text-yellow-700 hover:bg-yellow-100">Partially Logged</Badge>;
+        return <Badge className="bg-yellow-100 text-yellow-700 hover:bg-yellow-100 dark:bg-yellow-950 dark:text-yellow-300">Partially Logged</Badge>;
+      case 'No Log':
+        return <Badge className="bg-red-100 text-red-700 hover:bg-red-100 dark:bg-red-950 dark:text-red-300">No Log</Badge>;
       default:
         return <Badge variant="outline">Scheduled</Badge>;
     }
@@ -141,23 +158,68 @@ export function SchedulerTableView({
   const getPaymentStatusBadge = (status: string) => {
     switch (status) {
       case 'paid':
-        return <Badge className="bg-green-100 text-green-700 hover:bg-green-100">Paid</Badge>;
+        return <Badge className="bg-green-100 text-green-700 hover:bg-green-100 dark:bg-green-950 dark:text-green-300">Paid</Badge>;
       case 'unpaid':
-        return <Badge className="bg-orange-100 text-orange-700 hover:bg-orange-100">Unpaid</Badge>;
+        return <Badge className="bg-orange-100 text-orange-700 hover:bg-orange-100 dark:bg-orange-950 dark:text-orange-300">Unpaid</Badge>;
       default:
-        return <Badge variant="outline">N/A</Badge>;
+        return <Badge variant="outline" className="text-muted-foreground">N/A</Badge>;
     }
   };
+
+  // Calculate summary stats
+  const totalScheduledHours = schedules?.reduce((sum, s) => sum + s.scheduled_hours, 0) || 0;
+  const totalLoggedHours = schedules?.reduce((sum, s) => sum + (s.loggedHours || 0), 0) || 0;
+  const uniqueWorkers = new Set(schedules?.map(s => s.worker_id)).size;
+  const workersWithLogs = new Set(schedules?.filter(s => s.loggedHours > 0).map(s => s.worker_id)).size;
 
   if (isLoading) {
     return <Skeleton className="h-96" />;
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle>Scheduled Shifts</CardTitle>
+    <div className="space-y-4">
+      {/* Summary Cards */}
+      <div className="grid grid-cols-4 gap-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <p className="text-sm text-muted-foreground">Scheduled Hours</p>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{totalScheduledHours.toFixed(1)}h</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <p className="text-sm text-muted-foreground">Logged Hours</p>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold text-green-600 dark:text-green-400">{totalLoggedHours.toFixed(1)}h</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <p className="text-sm text-muted-foreground">Difference</p>
+          </CardHeader>
+          <CardContent>
+            <p className={`text-2xl font-bold ${totalLoggedHours - totalScheduledHours >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+              {(totalLoggedHours - totalScheduledHours).toFixed(1)}h
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <p className="text-sm text-muted-foreground">Workers</p>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold">{workersWithLogs}/{uniqueWorkers} logged</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle>Schedule & Time Log Details</CardTitle>
           <div className="flex gap-2">
             <Select value={projectFilter} onValueChange={setProjectFilter}>
               <SelectTrigger className="w-[180px]">
@@ -232,7 +294,16 @@ export function SchedulerTableView({
                   <TableCell>{getStatusBadge(schedule.status)}</TableCell>
                   <TableCell>{getPaymentStatusBadge(schedule.paymentStatus)}</TableCell>
                   <TableCell>
-                    <Button variant="ghost" size="sm">View</Button>
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onViewDay(new Date(schedule.scheduled_date), schedule.worker_id);
+                      }}
+                    >
+                      View Day
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))}
@@ -244,6 +315,7 @@ export function SchedulerTableView({
           </div>
         )}
       </CardContent>
-    </Card>
+      </Card>
+    </div>
   );
 }
