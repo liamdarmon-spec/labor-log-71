@@ -16,7 +16,7 @@ export default function Subs() {
   const navigate = useNavigate();
 
   const { data: subs, isLoading } = useQuery({
-    queryKey: ['subs-global'],
+    queryKey: ['subs'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('subs')
@@ -31,7 +31,7 @@ export default function Subs() {
   });
 
   const { data: contracts } = useQuery({
-    queryKey: ['sub-contracts-all'],
+    queryKey: ['sub-contracts'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('sub_contracts')
