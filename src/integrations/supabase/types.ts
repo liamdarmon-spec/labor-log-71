@@ -894,10 +894,19 @@ export type Database = {
       }
       documents: {
         Row: {
+          ai_counterparty_name: string | null
+          ai_currency: string | null
           ai_doc_type: string | null
+          ai_effective_date: string | null
+          ai_expiration_date: string | null
           ai_extracted_data: Json | null
+          ai_last_run_at: string | null
+          ai_last_run_status: string | null
           ai_status: string | null
           ai_summary: string | null
+          ai_tags: string[] | null
+          ai_title: string | null
+          ai_total_amount: number | null
           amount: number | null
           auto_classified: boolean | null
           cost_code_id: string | null
@@ -927,10 +936,19 @@ export type Database = {
           vendor_name: string | null
         }
         Insert: {
+          ai_counterparty_name?: string | null
+          ai_currency?: string | null
           ai_doc_type?: string | null
+          ai_effective_date?: string | null
+          ai_expiration_date?: string | null
           ai_extracted_data?: Json | null
+          ai_last_run_at?: string | null
+          ai_last_run_status?: string | null
           ai_status?: string | null
           ai_summary?: string | null
+          ai_tags?: string[] | null
+          ai_title?: string | null
+          ai_total_amount?: number | null
           amount?: number | null
           auto_classified?: boolean | null
           cost_code_id?: string | null
@@ -960,10 +978,19 @@ export type Database = {
           vendor_name?: string | null
         }
         Update: {
+          ai_counterparty_name?: string | null
+          ai_currency?: string | null
           ai_doc_type?: string | null
+          ai_effective_date?: string | null
+          ai_expiration_date?: string | null
           ai_extracted_data?: Json | null
+          ai_last_run_at?: string | null
+          ai_last_run_status?: string | null
           ai_status?: string | null
           ai_summary?: string | null
+          ai_tags?: string[] | null
+          ai_title?: string | null
+          ai_total_amount?: number | null
           amount?: number | null
           auto_classified?: boolean | null
           cost_code_id?: string | null
@@ -3651,6 +3678,10 @@ export type Database = {
         Row: {
           active: boolean | null
           company_name: string | null
+          compliance_coi_expiration: string | null
+          compliance_license_expiration: string | null
+          compliance_notes: string | null
+          compliance_w9_received: boolean | null
           created_at: string | null
           default_rate: number | null
           email: string | null
@@ -3665,6 +3696,10 @@ export type Database = {
         Insert: {
           active?: boolean | null
           company_name?: string | null
+          compliance_coi_expiration?: string | null
+          compliance_license_expiration?: string | null
+          compliance_notes?: string | null
+          compliance_w9_received?: boolean | null
           created_at?: string | null
           default_rate?: number | null
           email?: string | null
@@ -3679,6 +3714,10 @@ export type Database = {
         Update: {
           active?: boolean | null
           company_name?: string | null
+          compliance_coi_expiration?: string | null
+          compliance_license_expiration?: string | null
+          compliance_notes?: string | null
+          compliance_w9_received?: boolean | null
           created_at?: string | null
           default_rate?: number | null
           email?: string | null
