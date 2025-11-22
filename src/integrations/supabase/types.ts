@@ -1617,6 +1617,117 @@ export type Database = {
           },
         ]
       }
+      proposal_line_groups: {
+        Row: {
+          created_at: string
+          display_name: string
+          estimate_group_id: string | null
+          estimate_id: string | null
+          id: string
+          markup_mode: string
+          override_total_amount: number | null
+          proposal_id: string
+          show_group_total: boolean
+          show_line_items: boolean
+          sort_order: number
+        }
+        Insert: {
+          created_at?: string
+          display_name: string
+          estimate_group_id?: string | null
+          estimate_id?: string | null
+          id?: string
+          markup_mode?: string
+          override_total_amount?: number | null
+          proposal_id: string
+          show_group_total?: boolean
+          show_line_items?: boolean
+          sort_order?: number
+        }
+        Update: {
+          created_at?: string
+          display_name?: string
+          estimate_group_id?: string | null
+          estimate_id?: string | null
+          id?: string
+          markup_mode?: string
+          override_total_amount?: number | null
+          proposal_id?: string
+          show_group_total?: boolean
+          show_line_items?: boolean
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proposal_line_groups_estimate_id_fkey"
+            columns: ["estimate_id"]
+            isOneToOne: false
+            referencedRelation: "estimates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposal_line_groups_proposal_id_fkey"
+            columns: ["proposal_id"]
+            isOneToOne: false
+            referencedRelation: "proposals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      proposal_line_overrides: {
+        Row: {
+          created_at: string
+          custom_description: string | null
+          custom_label: string | null
+          custom_quantity: number | null
+          custom_unit: string | null
+          custom_unit_price: number | null
+          estimate_line_id: string
+          id: string
+          proposal_id: string
+          show_to_client: boolean
+        }
+        Insert: {
+          created_at?: string
+          custom_description?: string | null
+          custom_label?: string | null
+          custom_quantity?: number | null
+          custom_unit?: string | null
+          custom_unit_price?: number | null
+          estimate_line_id: string
+          id?: string
+          proposal_id: string
+          show_to_client?: boolean
+        }
+        Update: {
+          created_at?: string
+          custom_description?: string | null
+          custom_label?: string | null
+          custom_quantity?: number | null
+          custom_unit?: string | null
+          custom_unit_price?: number | null
+          estimate_line_id?: string
+          id?: string
+          proposal_id?: string
+          show_to_client?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proposal_line_overrides_estimate_line_id_fkey"
+            columns: ["estimate_line_id"]
+            isOneToOne: false
+            referencedRelation: "estimate_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposal_line_overrides_proposal_id_fkey"
+            columns: ["proposal_id"]
+            isOneToOne: false
+            referencedRelation: "proposals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       proposal_section_items: {
         Row: {
           created_at: string
@@ -1673,28 +1784,37 @@ export type Database = {
       }
       proposal_sections: {
         Row: {
+          config: Json | null
+          content_richtext: string | null
           created_at: string
           id: string
           is_lump_sum: boolean
           proposal_id: string
           sort_order: number
           title: string
+          type: string | null
         }
         Insert: {
+          config?: Json | null
+          content_richtext?: string | null
           created_at?: string
           id?: string
           is_lump_sum?: boolean
           proposal_id: string
           sort_order?: number
           title: string
+          type?: string | null
         }
         Update: {
+          config?: Json | null
+          content_richtext?: string | null
           created_at?: string
           id?: string
           is_lump_sum?: boolean
           proposal_id?: string
           sort_order?: number
           title?: string
+          type?: string | null
         }
         Relationships: [
           {
@@ -1708,36 +1828,85 @@ export type Database = {
       }
       proposals: {
         Row: {
+          acceptance_method: string | null
+          accepted_at: string | null
+          client_email: string | null
+          client_name: string | null
           created_at: string
           id: string
+          metadata: Json | null
           notes_internal: string | null
+          primary_estimate_id: string | null
           project_id: string
+          proposal_date: string
+          rejected_at: string | null
+          sent_at: string | null
           status: string
+          subtotal_amount: number
+          tax_amount: number
           title: string
+          total_amount: number
           updated_at: string
+          validity_days: number
           version_label: string | null
+          viewed_at: string | null
         }
         Insert: {
+          acceptance_method?: string | null
+          accepted_at?: string | null
+          client_email?: string | null
+          client_name?: string | null
           created_at?: string
           id?: string
+          metadata?: Json | null
           notes_internal?: string | null
+          primary_estimate_id?: string | null
           project_id: string
+          proposal_date?: string
+          rejected_at?: string | null
+          sent_at?: string | null
           status?: string
+          subtotal_amount?: number
+          tax_amount?: number
           title: string
+          total_amount?: number
           updated_at?: string
+          validity_days?: number
           version_label?: string | null
+          viewed_at?: string | null
         }
         Update: {
+          acceptance_method?: string | null
+          accepted_at?: string | null
+          client_email?: string | null
+          client_name?: string | null
           created_at?: string
           id?: string
+          metadata?: Json | null
           notes_internal?: string | null
+          primary_estimate_id?: string | null
           project_id?: string
+          proposal_date?: string
+          rejected_at?: string | null
+          sent_at?: string | null
           status?: string
+          subtotal_amount?: number
+          tax_amount?: number
           title?: string
+          total_amount?: number
           updated_at?: string
+          validity_days?: number
           version_label?: string | null
+          viewed_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "proposals_primary_estimate_id_fkey"
+            columns: ["primary_estimate_id"]
+            isOneToOne: false
+            referencedRelation: "estimates"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "proposals_project_id_fkey"
             columns: ["project_id"]
