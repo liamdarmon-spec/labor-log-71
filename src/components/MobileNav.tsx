@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { Menu, PlusCircle, Eye, DollarSign, BarChart3, Settings, LogOut, CalendarClock, Building2 } from 'lucide-react';
+import { Menu, DollarSign, BarChart3, Settings, LogOut, CalendarClock, Building2, Users } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -12,11 +12,11 @@ export const MobileNav = () => {
   const { signOut } = useAuth();
 
   const navItems = [
-    { path: '/projects', icon: Building2, label: 'Projects' },
-    { path: '/schedule', icon: CalendarClock, label: 'Schedule' },
-    { path: '/view-logs', icon: Eye, label: 'Labor' },
-    { path: '/payments', icon: DollarSign, label: 'Costs' },
     { path: '/dashboard', icon: BarChart3, label: 'Dashboard' },
+    { path: '/projects', icon: Building2, label: 'Projects' },
+    { path: '/workforce', icon: Users, label: 'Workforce' },
+    { path: '/schedule', icon: CalendarClock, label: 'Schedule' },
+    { path: '/financials', icon: DollarSign, label: 'Financials' },
     { path: '/admin', icon: Settings, label: 'Admin' },
   ];
 
