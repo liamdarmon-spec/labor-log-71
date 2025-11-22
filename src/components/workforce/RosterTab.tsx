@@ -7,8 +7,9 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Search, Filter, DollarSign, Clock, Building2 } from 'lucide-react';
+import { Search, Filter, DollarSign, Clock, Building2, ExternalLink } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { WorkerPaymentHistoryLink } from './WorkerPaymentHistoryLink';
 import {
   Select,
   SelectContent,
@@ -224,19 +225,34 @@ export function RosterTab() {
                   </span>
                   <span className="font-medium">{worker.weekHours}h</span>
                 </div>
-
-                {worker.unpaidAmount > 0 && (
-                  <div className="flex items-center justify-between text-sm pt-3 border-t">
-                    <span className="text-orange-600 flex items-center gap-1">
-                      <DollarSign className="h-3 w-3" />
-                      Unpaid
-                    </span>
-                    <span className="font-bold text-orange-600">
-                      ${worker.unpaidAmount.toLocaleString()}
-                    </span>
-                  </div>
-                )}
               </div>
+
+              <div className="pt-3 mt-3 border-t flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate(`/workforce?tab=activity&view=time-logs&worker=${worker.id}`);
+                  }}
+                >
+                  <Clock className="h-3 w-3 mr-1" />
+                  View Time Logs
+                </Button>
+              </div>
+
+              {worker.unpaidAmount > 0 && (
+                <div className="flex items-center justify-between text-sm pt-3 border-t">
+                  <span className="text-orange-600 flex items-center gap-1">
+                    <DollarSign className="h-3 w-3" />
+                    Unpaid
+                  </span>
+                  <span className="font-bold text-orange-600">
+                    ${worker.unpaidAmount.toLocaleString()}
+                  </span>
+                </div>
+              )}
             </CardContent>
           </Card>
         ))}
