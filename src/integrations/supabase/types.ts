@@ -770,6 +770,42 @@ export type Database = {
           },
         ]
       }
+      entity_change_log: {
+        Row: {
+          change_summary: string | null
+          change_type: string
+          changed_by: string | null
+          changes: Json | null
+          created_at: string | null
+          entity_id: string
+          entity_type: string
+          id: string
+          version: number
+        }
+        Insert: {
+          change_summary?: string | null
+          change_type: string
+          changed_by?: string | null
+          changes?: Json | null
+          created_at?: string | null
+          entity_id: string
+          entity_type: string
+          id?: string
+          version: number
+        }
+        Update: {
+          change_summary?: string | null
+          change_type?: string
+          changed_by?: string | null
+          changes?: Json | null
+          created_at?: string | null
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          version?: number
+        }
+        Relationships: []
+      }
       estimate_items: {
         Row: {
           area_name: string | null
@@ -855,42 +891,70 @@ export type Database = {
       }
       estimates: {
         Row: {
+          approved_at: string | null
+          approved_by: string | null
+          change_log: Json | null
           created_at: string | null
           id: string
           is_budget_source: boolean | null
+          margin_percent: number | null
+          parent_estimate_id: string | null
           project_id: string
+          settings: Json | null
           status: string
           subtotal_amount: number | null
           tax_amount: number | null
           title: string
           total_amount: number | null
           updated_at: string | null
+          version: number | null
         }
         Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          change_log?: Json | null
           created_at?: string | null
           id?: string
           is_budget_source?: boolean | null
+          margin_percent?: number | null
+          parent_estimate_id?: string | null
           project_id: string
+          settings?: Json | null
           status?: string
           subtotal_amount?: number | null
           tax_amount?: number | null
           title: string
           total_amount?: number | null
           updated_at?: string | null
+          version?: number | null
         }
         Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          change_log?: Json | null
           created_at?: string | null
           id?: string
           is_budget_source?: boolean | null
+          margin_percent?: number | null
+          parent_estimate_id?: string | null
           project_id?: string
+          settings?: Json | null
           status?: string
           subtotal_amount?: number | null
           tax_amount?: number | null
           title?: string
           total_amount?: number | null
           updated_at?: string | null
+          version?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "estimates_parent_estimate_id_fkey"
+            columns: ["parent_estimate_id"]
+            isOneToOne: false
+            referencedRelation: "estimates"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "estimates_project_id_fkey"
             columns: ["project_id"]
@@ -1753,6 +1817,75 @@ export type Database = {
           },
         ]
       }
+      proposal_estimate_settings: {
+        Row: {
+          ai_enabled: boolean | null
+          ai_settings: Json | null
+          branding_colors: Json | null
+          branding_logo_url: string | null
+          company_id: string | null
+          created_at: string | null
+          default_margin_percent: number | null
+          default_markup_labor: number | null
+          default_markup_materials: number | null
+          default_markup_subs: number | null
+          default_terms: string | null
+          id: string
+          setting_type: string
+          template_config: Json | null
+          updated_at: string | null
+        }
+        Insert: {
+          ai_enabled?: boolean | null
+          ai_settings?: Json | null
+          branding_colors?: Json | null
+          branding_logo_url?: string | null
+          company_id?: string | null
+          created_at?: string | null
+          default_margin_percent?: number | null
+          default_markup_labor?: number | null
+          default_markup_materials?: number | null
+          default_markup_subs?: number | null
+          default_terms?: string | null
+          id?: string
+          setting_type: string
+          template_config?: Json | null
+          updated_at?: string | null
+        }
+        Update: {
+          ai_enabled?: boolean | null
+          ai_settings?: Json | null
+          branding_colors?: Json | null
+          branding_logo_url?: string | null
+          company_id?: string | null
+          created_at?: string | null
+          default_margin_percent?: number | null
+          default_markup_labor?: number | null
+          default_markup_materials?: number | null
+          default_markup_subs?: number | null
+          default_terms?: string | null
+          id?: string
+          setting_type?: string
+          template_config?: Json | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proposal_estimate_settings_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposal_estimate_settings_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_payroll_summary"
+            referencedColumns: ["company_id"]
+          },
+        ]
+      }
       proposal_line_groups: {
         Row: {
           created_at: string
@@ -1999,13 +2132,17 @@ export type Database = {
         Row: {
           acceptance_method: string | null
           accepted_at: string | null
+          branding: Json | null
+          change_log: Json | null
           client_email: string | null
           client_name: string | null
+          cover_image_url: string | null
           created_at: string
           created_by: string | null
           id: string
           metadata: Json | null
           notes_internal: string | null
+          parent_proposal_id: string | null
           presentation_mode: string | null
           primary_estimate_id: string | null
           project_id: string
@@ -2015,23 +2152,29 @@ export type Database = {
           status: string
           subtotal_amount: number
           tax_amount: number
+          template_settings: Json | null
           title: string
           total_amount: number
           updated_at: string
           validity_days: number
+          version: number | null
           version_label: string | null
           viewed_at: string | null
         }
         Insert: {
           acceptance_method?: string | null
           accepted_at?: string | null
+          branding?: Json | null
+          change_log?: Json | null
           client_email?: string | null
           client_name?: string | null
+          cover_image_url?: string | null
           created_at?: string
           created_by?: string | null
           id?: string
           metadata?: Json | null
           notes_internal?: string | null
+          parent_proposal_id?: string | null
           presentation_mode?: string | null
           primary_estimate_id?: string | null
           project_id: string
@@ -2041,23 +2184,29 @@ export type Database = {
           status?: string
           subtotal_amount?: number
           tax_amount?: number
+          template_settings?: Json | null
           title: string
           total_amount?: number
           updated_at?: string
           validity_days?: number
+          version?: number | null
           version_label?: string | null
           viewed_at?: string | null
         }
         Update: {
           acceptance_method?: string | null
           accepted_at?: string | null
+          branding?: Json | null
+          change_log?: Json | null
           client_email?: string | null
           client_name?: string | null
+          cover_image_url?: string | null
           created_at?: string
           created_by?: string | null
           id?: string
           metadata?: Json | null
           notes_internal?: string | null
+          parent_proposal_id?: string | null
           presentation_mode?: string | null
           primary_estimate_id?: string | null
           project_id?: string
@@ -2067,14 +2216,23 @@ export type Database = {
           status?: string
           subtotal_amount?: number
           tax_amount?: number
+          template_settings?: Json | null
           title?: string
           total_amount?: number
           updated_at?: string
           validity_days?: number
+          version?: number | null
           version_label?: string | null
           viewed_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "proposals_parent_proposal_id_fkey"
+            columns: ["parent_proposal_id"]
+            isOneToOne: false
+            referencedRelation: "proposals"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "proposals_primary_estimate_id_fkey"
             columns: ["primary_estimate_id"]
@@ -2256,6 +2414,141 @@ export type Database = {
             columns: ["worker_id"]
             isOneToOne: false
             referencedRelation: "workers_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      scope_block_cost_items: {
+        Row: {
+          category: string
+          cost_code_id: string | null
+          created_at: string | null
+          description: string
+          id: string
+          line_total: number
+          margin_percent: number | null
+          markup_percent: number | null
+          notes: string | null
+          quantity: number
+          scope_block_id: string
+          sort_order: number
+          unit: string | null
+          unit_price: number
+          updated_at: string | null
+        }
+        Insert: {
+          category: string
+          cost_code_id?: string | null
+          created_at?: string | null
+          description: string
+          id?: string
+          line_total?: number
+          margin_percent?: number | null
+          markup_percent?: number | null
+          notes?: string | null
+          quantity?: number
+          scope_block_id: string
+          sort_order?: number
+          unit?: string | null
+          unit_price?: number
+          updated_at?: string | null
+        }
+        Update: {
+          category?: string
+          cost_code_id?: string | null
+          created_at?: string | null
+          description?: string
+          id?: string
+          line_total?: number
+          margin_percent?: number | null
+          markup_percent?: number | null
+          notes?: string | null
+          quantity?: number
+          scope_block_id?: string
+          sort_order?: number
+          unit?: string | null
+          unit_price?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scope_block_cost_items_cost_code_id_fkey"
+            columns: ["cost_code_id"]
+            isOneToOne: false
+            referencedRelation: "cost_code_actuals"
+            referencedColumns: ["cost_code_id"]
+          },
+          {
+            foreignKeyName: "scope_block_cost_items_cost_code_id_fkey"
+            columns: ["cost_code_id"]
+            isOneToOne: false
+            referencedRelation: "cost_codes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scope_block_cost_items_scope_block_id_fkey"
+            columns: ["scope_block_id"]
+            isOneToOne: false
+            referencedRelation: "scope_blocks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      scope_blocks: {
+        Row: {
+          block_type: string
+          content_richtext: string | null
+          created_at: string | null
+          description: string | null
+          entity_id: string
+          entity_type: string
+          id: string
+          image_url: string | null
+          is_visible: boolean | null
+          parent_id: string | null
+          settings: Json | null
+          sort_order: number
+          title: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          block_type: string
+          content_richtext?: string | null
+          created_at?: string | null
+          description?: string | null
+          entity_id: string
+          entity_type: string
+          id?: string
+          image_url?: string | null
+          is_visible?: boolean | null
+          parent_id?: string | null
+          settings?: Json | null
+          sort_order?: number
+          title?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          block_type?: string
+          content_richtext?: string | null
+          created_at?: string | null
+          description?: string | null
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          image_url?: string | null
+          is_visible?: boolean | null
+          parent_id?: string | null
+          settings?: Json | null
+          sort_order?: number
+          title?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scope_blocks_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "scope_blocks"
             referencedColumns: ["id"]
           },
         ]
