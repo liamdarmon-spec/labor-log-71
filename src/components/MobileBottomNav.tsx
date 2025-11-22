@@ -23,7 +23,7 @@ export function MobileBottomNav() {
           to="/workforce"
           className={({ isActive }) =>
             `flex flex-col items-center justify-center px-3 py-2 rounded-lg transition-colors ${
-              isActive ? 'text-primary bg-primary/10' : 'text-muted-foreground'
+              isActive || window.location.pathname.startsWith('/workforce') ? 'text-primary bg-primary/10' : 'text-muted-foreground'
             }`
           }
         >

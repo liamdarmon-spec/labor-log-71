@@ -12,6 +12,7 @@ import Payments from "./pages/Payments";
 import Projects from "./pages/Projects";
 import ProjectDetail from "./pages/ProjectDetail";
 import Workforce from "./pages/Workforce";
+import WorkerProfile from "./pages/WorkerProfile";
 import Financials from "./pages/Financials";
 import NotFound from "./pages/NotFound";
 import "./i18n/config";
@@ -33,6 +34,7 @@ const App = () => (
           <Route path="/projects" element={<Projects />} />
           <Route path="/projects/:id" element={<ProjectDetail />} />
             <Route path="/workforce" element={<Workforce />} />
+            <Route path="/workforce/worker/:workerId" element={<WorkerProfile />} />
             <Route path="/financials" element={<Financials />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="*" element={<NotFound />} />
