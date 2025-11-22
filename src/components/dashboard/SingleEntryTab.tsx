@@ -233,7 +233,7 @@ export const SingleEntryTab = () => {
 
       setLoading(true);
 
-      const { error } = await supabase.from('daily_logs').insert(logsToInsert);
+      const { error } = await supabase.from('time_logs').insert(logsToInsert);
 
       if (error) throw error;
 

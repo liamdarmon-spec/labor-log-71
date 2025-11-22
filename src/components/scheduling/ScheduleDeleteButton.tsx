@@ -37,9 +37,9 @@ export function ScheduleDeleteButton({ scheduleId, scheduleDate, onSuccess }: Sc
 
   const checkForTimeLog = async () => {
     const { data, error } = await supabase
-      .from("daily_logs")
+      .from("time_logs")
       .select("id")
-      .eq("schedule_id", scheduleId);
+      .eq("source_schedule_id", scheduleId);
 
     if (error) {
       console.error("Error checking for time log:", error);
@@ -57,7 +57,7 @@ export function ScheduleDeleteButton({ scheduleId, scheduleDate, onSuccess }: Sc
   const handleSimpleDelete = async () => {
     setLoading(true);
     const { error } = await supabase
-      .from("scheduled_shifts")
+      .from("work_schedules")
       .delete()
       .eq("id", scheduleId);
 
@@ -83,11 +83,11 @@ export function ScheduleDeleteButton({ scheduleId, scheduleDate, onSuccess }: Sc
   const handleKeepTimeLog = async () => {
     setLoading(true);
 
-    // Set schedule_id to NULL on all related time logs
+    // Set source_schedule_id to NULL on all related time logs
     if (timeLogIds.length > 0) {
       const { error: updateError } = await supabase
-        .from("daily_logs")
-        .update({ schedule_id: null })
+        .from("time_logs")
+        .update({ source_schedule_id: null })
         .in("id", timeLogIds);
 
       if (updateError) {
@@ -103,7 +103,7 @@ export function ScheduleDeleteButton({ scheduleId, scheduleDate, onSuccess }: Sc
 
     // Delete the schedule
     const { error: deleteError } = await supabase
-      .from("scheduled_shifts")
+      .from("work_schedules")
       .delete()
       .eq("id", scheduleId);
 
@@ -132,7 +132,7 @@ export function ScheduleDeleteButton({ scheduleId, scheduleDate, onSuccess }: Sc
     // Delete time logs first
     if (timeLogIds.length > 0) {
       const { error: logError } = await supabase
-        .from("daily_logs")
+        .from("time_logs")
         .delete()
         .in("id", timeLogIds);
 
@@ -149,7 +149,7 @@ export function ScheduleDeleteButton({ scheduleId, scheduleDate, onSuccess }: Sc
 
     // Delete the schedule
     const { error: scheduleError } = await supabase
-      .from("scheduled_shifts")
+      .from("work_schedules")
       .delete()
       .eq("id", scheduleId);
 
