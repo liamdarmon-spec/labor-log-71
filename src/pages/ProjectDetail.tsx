@@ -9,6 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ProjectHeader } from '@/components/project/ProjectHeader';
 import { ProjectOverviewOS } from '@/components/project/ProjectOverviewOS';
 import { ProjectEstimatesV3 } from '@/components/project/ProjectEstimatesV3';
+import { ProjectProposalsTabV3 } from '@/components/project/ProjectProposalsTabV3';
 import { ProjectScheduleTabV2 } from '@/components/project/ProjectScheduleTabV2';
 import { ProjectWorkforceTab } from '@/components/project/ProjectWorkforceTab';
 import { ProjectFinancialsTab } from '@/components/project/ProjectFinancialsTab';
@@ -105,9 +106,10 @@ const ProjectDetail = () => {
         />
 
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 lg:grid-cols-7">
+          <TabsList className="grid w-full grid-cols-4 lg:grid-cols-8">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="estimates">Estimates</TabsTrigger>
+            <TabsTrigger value="proposals">Proposals</TabsTrigger>
             <TabsTrigger value="budget">Budget & Costs</TabsTrigger>
             <TabsTrigger value="schedule">Schedule</TabsTrigger>
             <TabsTrigger value="workforce">Workforce</TabsTrigger>
@@ -121,6 +123,10 @@ const ProjectDetail = () => {
 
           <TabsContent value="estimates">
             <ProjectEstimatesV3 projectId={project.id} />
+          </TabsContent>
+
+          <TabsContent value="proposals">
+            <ProjectProposalsTabV3 projectId={project.id} />
           </TabsContent>
 
           <TabsContent value="budget">

@@ -1868,38 +1868,59 @@ export type Database = {
         Row: {
           created_at: string
           display_description: string | null
+          display_label: string | null
+          display_notes: string | null
           display_quantity: number | null
           display_unit: string | null
           display_unit_price: number | null
           estimate_item_id: string
           id: string
+          is_visible: boolean
+          override_line_total: number | null
+          override_quantity: number | null
+          override_unit_price: number | null
           proposal_section_id: string
           show_line_item: boolean
           sort_order: number
+          updated_at: string
         }
         Insert: {
           created_at?: string
           display_description?: string | null
+          display_label?: string | null
+          display_notes?: string | null
           display_quantity?: number | null
           display_unit?: string | null
           display_unit_price?: number | null
           estimate_item_id: string
           id?: string
+          is_visible?: boolean
+          override_line_total?: number | null
+          override_quantity?: number | null
+          override_unit_price?: number | null
           proposal_section_id: string
           show_line_item?: boolean
           sort_order?: number
+          updated_at?: string
         }
         Update: {
           created_at?: string
           display_description?: string | null
+          display_label?: string | null
+          display_notes?: string | null
           display_quantity?: number | null
           display_unit?: string | null
           display_unit_price?: number | null
           estimate_item_id?: string
           id?: string
+          is_visible?: boolean
+          override_line_total?: number | null
+          override_quantity?: number | null
+          override_unit_price?: number | null
           proposal_section_id?: string
           show_line_item?: boolean
           sort_order?: number
+          updated_at?: string
         }
         Relationships: [
           {
@@ -1923,34 +1944,46 @@ export type Database = {
           config: Json | null
           content_richtext: string | null
           created_at: string
+          group_type: string | null
           id: string
           is_lump_sum: boolean
+          is_visible: boolean
           proposal_id: string
+          show_section_total: boolean
           sort_order: number
           title: string
           type: string | null
+          updated_at: string
         }
         Insert: {
           config?: Json | null
           content_richtext?: string | null
           created_at?: string
+          group_type?: string | null
           id?: string
           is_lump_sum?: boolean
+          is_visible?: boolean
           proposal_id: string
+          show_section_total?: boolean
           sort_order?: number
           title: string
           type?: string | null
+          updated_at?: string
         }
         Update: {
           config?: Json | null
           content_richtext?: string | null
           created_at?: string
+          group_type?: string | null
           id?: string
           is_lump_sum?: boolean
+          is_visible?: boolean
           proposal_id?: string
+          show_section_total?: boolean
           sort_order?: number
           title?: string
           type?: string | null
+          updated_at?: string
         }
         Relationships: [
           {
@@ -1969,9 +2002,11 @@ export type Database = {
           client_email: string | null
           client_name: string | null
           created_at: string
+          created_by: string | null
           id: string
           metadata: Json | null
           notes_internal: string | null
+          presentation_mode: string | null
           primary_estimate_id: string | null
           project_id: string
           proposal_date: string
@@ -1993,9 +2028,11 @@ export type Database = {
           client_email?: string | null
           client_name?: string | null
           created_at?: string
+          created_by?: string | null
           id?: string
           metadata?: Json | null
           notes_internal?: string | null
+          presentation_mode?: string | null
           primary_estimate_id?: string | null
           project_id: string
           proposal_date?: string
@@ -2017,9 +2054,11 @@ export type Database = {
           client_email?: string | null
           client_name?: string | null
           created_at?: string
+          created_by?: string | null
           id?: string
           metadata?: Json | null
           notes_internal?: string | null
+          presentation_mode?: string | null
           primary_estimate_id?: string | null
           project_id?: string
           proposal_date?: string
