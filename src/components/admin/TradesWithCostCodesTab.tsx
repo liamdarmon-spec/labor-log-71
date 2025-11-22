@@ -276,7 +276,7 @@ export const TradesWithCostCodesTab = () => {
                 {editingTrade ? 'Edit Trade' : 'Add New Trade'}
               </DialogTitle>
               <p className="text-sm text-muted-foreground">
-                {!editingTrade && 'This will automatically create 3 cost codes: Labor, Materials, and Sub-Contractor'}
+                {!editingTrade && 'This will automatically create 3 standard cost codes: {TRADE}-L (Labor), {TRADE}-M (Materials), {TRADE}-S (Subs)'}
               </p>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
