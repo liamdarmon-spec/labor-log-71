@@ -12,6 +12,7 @@ import { ArrowLeft, Clock, DollarSign, Briefcase, Calendar } from 'lucide-react'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { format } from 'date-fns';
 import { WorkerPaymentHistoryLink } from '@/components/workforce/WorkerPaymentHistoryLink';
+import { WorkerPaymentHistoryV2 } from '@/components/workforce/WorkerPaymentHistoryV2';
 
 const WorkerProfile = () => {
   const { workerId } = useParams<{ workerId: string }>();
@@ -305,47 +306,7 @@ const WorkerProfile = () => {
           </TabsContent>
 
           <TabsContent value="payments">
-            <Card>
-              <CardHeader>
-                <CardTitle>Payment History</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {payments && payments.length > 0 ? (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Payment Date</TableHead>
-                        <TableHead>Paid By</TableHead>
-                        <TableHead>Period</TableHead>
-                        <TableHead className="text-right">Amount</TableHead>
-                        <TableHead>Status</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {payments.map(payment => (
-                        <TableRow key={payment.id}>
-                          <TableCell>{format(new Date(payment.payment_date), 'MMM d, yyyy')}</TableCell>
-                          <TableCell>{payment.paid_by}</TableCell>
-                          <TableCell className="text-sm text-muted-foreground">
-                            {format(new Date(payment.start_date), 'MMM d')} - {format(new Date(payment.end_date), 'MMM d')}
-                          </TableCell>
-                          <TableCell className="text-right font-semibold">
-                            ${payment.amount.toLocaleString()}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={payment.reimbursement_status === 'reimbursed' ? 'default' : 'secondary'}>
-                              {payment.reimbursement_status || 'standard'}
-                            </Badge>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                ) : (
-                  <p className="text-muted-foreground text-center py-12">No payment history yet</p>
-                )}
-              </CardContent>
-            </Card>
+            <WorkerPaymentHistoryV2 workerId={workerId!} />
           </TabsContent>
 
           <TabsContent value="costs">

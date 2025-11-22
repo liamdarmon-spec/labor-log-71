@@ -17,7 +17,7 @@ import ProposalSettings from "./pages/ProposalSettings";
 import FinancialsOS from "./pages/FinancialsOS";
 import Workforce from "./pages/Workforce";
 import WorkerProfile from "./pages/WorkerProfile";
-import Financials from "./pages/Financials";
+import FinancialsV2 from "./pages/FinancialsV2";
 import FinancialPayments from "./pages/FinancialPayments";
 import FinancialEstimates from "./pages/FinancialEstimates";
 import FinancialMaterials from "./pages/FinancialMaterials";
@@ -50,7 +50,7 @@ const App = () => (
           <Route path="/settings/proposals" element={<ProposalSettings />} />
             <Route path="/workforce" element={<Workforce />} />
             <Route path="/workforce/worker/:workerId" element={<WorkerProfile />} />
-            <Route path="/financials" element={<Financials />} />
+            <Route path="/financials" element={<FinancialsV2 />} />
             <Route path="/financials/payments" element={<FinancialPayments />} />
             <Route path="/financials/estimates" element={<FinancialEstimates />} />
             <Route path="/financials/materials" element={<FinancialMaterials />} />
