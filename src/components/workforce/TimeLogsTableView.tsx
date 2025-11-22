@@ -92,7 +92,7 @@ export function TimeLogsTableView({ initialWorkerId, initialDate, initialProject
     queryKey: ['time-logs-table', format(start, 'yyyy-MM-dd'), format(end, 'yyyy-MM-dd'), companyFilter, workerFilter, projectFilter, tradeFilter, paymentFilter, showUnpaidOnly],
     queryFn: async () => {
       let query = supabase
-        .from('daily_logs')
+        .from('time_logs')
         .select(`
           *,
           workers(id, name, trade, hourly_rate),
@@ -187,7 +187,7 @@ export function TimeLogsTableView({ initialWorkerId, initialDate, initialProject
       // Update each log individually with its calculated paid amount
       const updates = selectedLogsData?.map(log => 
         supabase
-          .from('daily_logs')
+          .from('time_logs')
           .update({ 
             payment_status: 'paid', 
             paid_amount: log.hours_worked * (log.workers?.hourly_rate || 0) 

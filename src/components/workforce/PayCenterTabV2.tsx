@@ -38,7 +38,7 @@ export function PayCenterTabV2() {
       today.setHours(0, 0, 0, 0);
 
       let query = supabase
-        .from('scheduled_shifts')
+        .from('work_schedules')
         .select(`
           *,
           workers(name, trade, hourly_rate),
@@ -46,21 +46,29 @@ export function PayCenterTabV2() {
           trades(name)
         `)
         .lt('scheduled_date', today.toISOString().split('T')[0])
-        .is('converted_to_timelog', false);
+        .eq('converted_to_timelog', false);
 
       if (selectedCompany !== 'all') {
-        query = query.eq('projects.company_id', selectedCompany);
+        // Filter by company through projects relation
+        const { data: projectIds } = await supabase
+          .from('projects')
+          .select('id')
+          .eq('company_id', selectedCompany);
+        
+        if (projectIds && projectIds.length > 0) {
+          query = query.in('project_id', projectIds.map(p => p.id));
+        }
       }
 
       const { data: schedules } = await query.order('scheduled_date', { ascending: false });
       
-      // Filter out those that have time logs via schedule_id
+      // Filter out those that have time logs via source_schedule_id
       const schedulesWithLogs = await Promise.all(
         (schedules || []).map(async (schedule) => {
           const { data: log } = await supabase
-            .from('daily_logs')
+            .from('time_logs')
             .select('id')
-            .eq('schedule_id', schedule.id)
+            .eq('source_schedule_id', schedule.id)
             .maybeSingle();
           
           return log ? null : schedule;
@@ -77,7 +85,7 @@ export function PayCenterTabV2() {
     queryKey: ['unpaid-logs', selectedCompany],
     queryFn: async () => {
       let query = supabase
-        .from('daily_logs')
+        .from('time_logs')
         .select(`
           *,
           workers(name, trade, hourly_rate),
@@ -87,7 +95,15 @@ export function PayCenterTabV2() {
         .eq('payment_status', 'unpaid');
 
       if (selectedCompany !== 'all') {
-        query = query.eq('projects.company_id', selectedCompany);
+        // Filter by company through projects relation
+        const { data: projectIds } = await supabase
+          .from('projects')
+          .select('id')
+          .eq('company_id', selectedCompany);
+        
+        if (projectIds && projectIds.length > 0) {
+          query = query.in('project_id', projectIds.map(p => p.id));
+        }
       }
 
       const { data } = await query.order('date', { ascending: false });
@@ -115,7 +131,7 @@ export function PayCenterTabV2() {
       const enriched = await Promise.all(
         (payments || []).map(async (payment) => {
           const { data: logs } = await supabase
-            .from('daily_logs')
+            .from('time_logs')
             .select('worker_id')
             .eq('payment_id', payment.id);
 
@@ -133,7 +149,7 @@ export function PayCenterTabV2() {
   const handleConvertSelected = async () => {
     try {
       const { error } = await supabase
-        .from('scheduled_shifts')
+        .from('work_schedules')
         .update({ converted_to_timelog: true })
         .in('id', selectedSchedules);
 
