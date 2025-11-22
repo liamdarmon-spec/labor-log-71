@@ -7,8 +7,24 @@
 
 export type DayCardStatus = 'scheduled' | 'logged' | 'approved' | 'paid';
 export type PayStatus = 'unpaid' | 'pending' | 'paid';
+export type LifecycleStatus = 'scheduled' | 'in_progress' | 'logged' | 'paid' | 'archived';
 
 export interface DayCardJob {
+  id: string;
+  day_card_id: string;
+  project_id: string;
+  project_name?: string;
+  trade_id: string | null;
+  trade_name?: string;
+  cost_code_id: string | null;
+  cost_code?: string;
+  hours: number;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TimeLogAllocation {
   id: string;
   day_card_id: string;
   project_id: string;
@@ -33,6 +49,7 @@ export interface DayCard {
   scheduled_hours: number;
   logged_hours: number;
   status: DayCardStatus;
+  lifecycle_status: LifecycleStatus;
   pay_rate: number | null;
   pay_status: PayStatus;
   company_id: string | null;
@@ -42,7 +59,12 @@ export interface DayCard {
   updated_at: string;
   created_by: string | null;
   locked: boolean;
+  approved_at: string | null;
+  approved_by: string | null;
+  paid_at: string | null;
+  archived_at: string | null;
   jobs?: DayCardJob[];
+  allocations?: TimeLogAllocation[];
 }
 
 export interface DayCardWithDetails extends DayCard {
@@ -50,6 +72,9 @@ export interface DayCardWithDetails extends DayCard {
   worker_default_rate: number;
   trade_name: string | null;
   jobs: DayCardJob[];
+  allocations: TimeLogAllocation[];
+  total_cost: number;
+  unpaid_amount: number;
 }
 
 export interface CreateDayCardInput {
