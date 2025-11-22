@@ -52,7 +52,7 @@ export function UniversalTimeLogDrawer({
   const isPaid = timeLog.payment_status === 'paid';
 
   const handleEditInDailyLog = () => {
-    navigate(`/daily-log?date=${timeLog.date}&worker_id=${timeLog.worker_id}`);
+    navigate(`/view-logs?date=${timeLog.date}&worker_id=${timeLog.worker_id}`);
     onOpenChange(false);
   };
 
@@ -195,7 +195,7 @@ export function UniversalTimeLogDrawer({
               onClick={handleEditInDailyLog}
             >
               <Edit2 className="h-4 w-4 mr-2" />
-              Edit in Daily Log
+              View in Time Logs
             </Button>
           </div>
         </div>
