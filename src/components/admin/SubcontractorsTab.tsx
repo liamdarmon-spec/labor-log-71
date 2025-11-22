@@ -33,89 +33,23 @@ export function SubcontractorsTab() {
     },
   });
 
-  // Fetch cost codes to check what's auto-generated
+  // Fetch all cost codes for display purposes
   const { data: costCodes } = useQuery({
-    queryKey: ['sub-cost-codes'],
+    queryKey: ['trade-cost-codes'],
     queryFn: async () => {
       const { data } = await supabase
         .from('cost_codes')
         .select('*')
-        .in('category', ['subs', 'sub']);
+        .eq('is_active', true)
+        .not('trade_id', 'is', null);
       return data || [];
     },
   });
 
-  // Auto-generate cost codes for subs
-  const handleGenerateCostCodes = async () => {
-    try {
-      const codesToGenerate: any[] = [];
-
-      subs?.forEach(sub => {
-        if (!sub.trades?.name) return;
-        
-        const tradePrefix = sub.trades.name.substring(0, 3).toUpperCase();
-        
-        // Check if codes already exist
-        const laborCodeExists = costCodes?.some(cc => cc.code === `${tradePrefix}-S`);
-        const materialCodeExists = costCodes?.some(cc => cc.code === `${tradePrefix}-SM`);
-        const contractCodeExists = costCodes?.some(cc => cc.code === `${tradePrefix}-C`);
-
-        if (!laborCodeExists) {
-          codesToGenerate.push({
-            code: `${tradePrefix}-S`,
-            name: `${sub.trades.name} Subcontract Labor`,
-            category: 'subs',
-            trade_id: sub.trade_id,
-            is_active: true,
-          });
-        }
-
-        if (!materialCodeExists) {
-          codesToGenerate.push({
-            code: `${tradePrefix}-SM`,
-            name: `${sub.trades.name} Subcontract Materials`,
-            category: 'subs',
-            trade_id: sub.trade_id,
-            is_active: true,
-          });
-        }
-
-        if (!contractCodeExists) {
-          codesToGenerate.push({
-            code: `${tradePrefix}-C`,
-            name: `${sub.trades.name} Contract / Lump Sum`,
-            category: 'subs',
-            trade_id: sub.trade_id,
-            is_active: true,
-          });
-        }
-      });
-
-      if (codesToGenerate.length === 0) {
-        toast.success('All cost codes already exist');
-        return;
-      }
-
-      const { error } = await supabase
-        .from('cost_codes')
-        .insert(codesToGenerate);
-
-      if (error) throw error;
-
-      toast.success(`Generated ${codesToGenerate.length} cost code(s)`);
-      queryClient.invalidateQueries({ queryKey: ['sub-cost-codes'] });
-    } catch (error) {
-      console.error('Error generating cost codes:', error);
-      toast.error('Failed to generate cost codes');
-    }
-  };
-
-  const getSubCostCodes = (sub: any) => {
+  const getSubTradeCodes = (sub: any) => {
     if (!sub.trades?.name) return [];
     const tradePrefix = sub.trades.name.substring(0, 3).toUpperCase();
-    return costCodes?.filter(cc => 
-      cc.code.startsWith(tradePrefix) && cc.category === 'subs'
-    ) || [];
+    return costCodes?.filter(cc => cc.code.startsWith(tradePrefix)) || [];
   };
 
   const filteredSubs = subs?.filter(sub =>
@@ -135,12 +69,12 @@ export function SubcontractorsTab() {
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-2xl font-bold">Subcontractors</h2>
-            <p className="text-muted-foreground">Master subcontractor database with auto-generated cost codes</p>
+            <p className="text-muted-foreground">Manage subcontractors and link them to trades</p>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => setShowCostCodes(!showCostCodes)}>
               <Code className="h-4 w-4 mr-2" />
-              {showCostCodes ? 'Hide' : 'Show'} Cost Codes
+              {showCostCodes ? 'Hide' : 'Show'} Trade Codes
             </Button>
             <Button onClick={() => setAddDialogOpen(true)}>
               <Plus className="h-4 w-4 mr-2" />
@@ -149,16 +83,21 @@ export function SubcontractorsTab() {
           </div>
         </div>
 
-        {/* Cost Code Auto-Generation Alert */}
+        {/* Trade-Based Cost Code Info */}
         <Alert>
           <AlertCircle className="h-4 w-4" />
-          <AlertDescription className="flex items-center justify-between">
-            <span>
-              Each subcontractor automatically generates 3 cost codes: {'{TRADE}'}-S (Labor), {'{TRADE}'}-SM (Materials), {'{TRADE}'}-C (Contract)
-            </span>
-            <Button size="sm" variant="outline" onClick={handleGenerateCostCodes}>
-              Generate Missing Codes
-            </Button>
+          <AlertDescription>
+            <div className="space-y-2">
+              <p className="font-medium">Trade-Based Cost Code System</p>
+              <p className="text-sm">
+                Each <strong>trade</strong> has 3 standard cost codes: <code className="px-1.5 py-0.5 bg-muted rounded text-xs">{'{TRADE}'}-L</code> (Labor), 
+                <code className="px-1.5 py-0.5 bg-muted rounded text-xs ml-1">{'{TRADE}'}-M</code> (Materials), 
+                <code className="px-1.5 py-0.5 bg-muted rounded text-xs ml-1">{'{TRADE}'}-S</code> (Subs/Contract).
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Subcontractors are linked to trades and use the trade's Sub code for costs. We still track which subcontractor was used via the subcontractor ID.
+              </p>
+            </div>
           </AlertDescription>
         </Alert>
 
@@ -191,13 +130,13 @@ export function SubcontractorsTab() {
                     <TableHead>Trade</TableHead>
                     <TableHead>Company</TableHead>
                     <TableHead>Default Rate</TableHead>
-                    {showCostCodes && <TableHead>Auto Cost Codes</TableHead>}
+                    {showCostCodes && <TableHead>Trade Cost Codes</TableHead>}
                     <TableHead>Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredSubs.map((sub: any) => {
-                    const subCostCodes = getSubCostCodes(sub);
+                {filteredSubs.map((sub: any) => {
+                    const tradeCodes = getSubTradeCodes(sub);
                     return (
                       <TableRow key={sub.id}>
                         <TableCell className="font-medium">{sub.name}</TableCell>
@@ -210,15 +149,15 @@ export function SubcontractorsTab() {
                         </TableCell>
                         {showCostCodes && (
                           <TableCell>
-                            <div className="flex gap-1">
-                              {subCostCodes.length > 0 ? (
-                                subCostCodes.map(cc => (
+                            <div className="flex gap-1 flex-wrap">
+                              {tradeCodes.length > 0 ? (
+                                tradeCodes.map(cc => (
                                   <Badge key={cc.id} variant="secondary" className="text-xs">
                                     {cc.code}
                                   </Badge>
                                 ))
                               ) : (
-                                <span className="text-xs text-muted-foreground">None</span>
+                                <span className="text-xs text-muted-foreground">No trade</span>
                               )}
                             </div>
                           </TableCell>
@@ -241,65 +180,75 @@ export function SubcontractorsTab() {
           </CardContent>
         </Card>
 
-        {/* Cost Code Mapping Preview */}
+        {/* Trade Cost Code Reference */}
         {showCostCodes && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Code className="h-5 w-5" />
-                Cost Code Mapping Preview
+                Trade Cost Code Reference
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Sub Name</TableHead>
-                    <TableHead>Trade</TableHead>
-                    <TableHead>Generated Codes</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {subs?.map(sub => {
-                    const subCostCodes = getSubCostCodes(sub);
-                    const hasAllCodes = subCostCodes.length === 3;
-                    return (
-                      <TableRow key={sub.id}>
-                        <TableCell>{sub.name}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline">{sub.trades?.name || 'N/A'}</Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex flex-wrap gap-1">
-                            {subCostCodes.map(cc => (
-                              <Badge key={cc.id} variant="secondary" className="text-xs">
-                                {cc.code}: {cc.name}
+              <div className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  All subcontractors use their trade's standard cost codes. Below is a reference showing each trade's codes.
+                </p>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Trade</TableHead>
+                      <TableHead>Labor Code</TableHead>
+                      <TableHead>Materials Code</TableHead>
+                      <TableHead>Sub Code</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {Array.from(new Set(subs?.map(s => s.trade_id).filter(Boolean))).map(tradeId => {
+                      const sub = subs?.find(s => s.trade_id === tradeId);
+                      if (!sub?.trades?.name) return null;
+                      
+                      const tradeCodes = getSubTradeCodes(sub);
+                      const laborCode = tradeCodes.find(c => c.category === 'labor');
+                      const materialCode = tradeCodes.find(c => c.category === 'materials');
+                      const subCode = tradeCodes.find(c => c.category === 'subs');
+                      
+                      return (
+                        <TableRow key={tradeId}>
+                          <TableCell className="font-medium">{sub.trades.name}</TableCell>
+                          <TableCell>
+                            {laborCode ? (
+                              <Badge variant="secondary" className="text-xs font-mono">
+                                {laborCode.code}
                               </Badge>
-                            ))}
-                            {subCostCodes.length === 0 && (
-                              <span className="text-xs text-muted-foreground">No codes generated</span>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">—</span>
                             )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {hasAllCodes ? (
-                            <div className="flex items-center gap-1 text-green-600">
-                              <CheckCircle className="h-4 w-4" />
-                              <span className="text-sm">Complete</span>
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-1 text-orange-600">
-                              <AlertCircle className="h-4 w-4" />
-                              <span className="text-sm">Missing {3 - subCostCodes.length}</span>
-                            </div>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+                          </TableCell>
+                          <TableCell>
+                            {materialCode ? (
+                              <Badge variant="secondary" className="text-xs font-mono">
+                                {materialCode.code}
+                              </Badge>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">—</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {subCode ? (
+                              <Badge variant="secondary" className="text-xs font-mono">
+                                {subCode.code}
+                              </Badge>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">—</span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
             </CardContent>
           </Card>
         )}

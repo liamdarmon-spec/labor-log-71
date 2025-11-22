@@ -6,6 +6,7 @@ export interface CostCode {
   code: string;
   name: string;
   category: 'labor' | 'subs' | 'materials' | 'equipment' | 'misc';
+  trade_id: string | null;
   default_trade_id: string | null;
   is_active: boolean;
 }
