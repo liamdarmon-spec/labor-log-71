@@ -8,9 +8,10 @@ import { ArrowLeft } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ProjectHeader } from '@/components/project/ProjectHeader';
 import { ProjectOverviewTab } from '@/components/project/ProjectOverviewTab';
+import { ProjectEstimatesV3 } from '@/components/project/ProjectEstimatesV3';
 import { ProjectScheduleTabV2 } from '@/components/project/ProjectScheduleTabV2';
 import { ProjectWorkforceTab } from '@/components/project/ProjectWorkforceTab';
-import { ProjectCostsTab } from '@/components/project/ProjectCostsTab';
+import { ProjectBudgetCostsTabV2 } from '@/components/project/ProjectBudgetCostsTabV2';
 import { ProjectSubsTabV2 } from '@/components/project/ProjectSubsTabV2';
 import { ProjectDocumentsTab } from '@/components/project/ProjectDocumentsTab';
 
@@ -43,7 +44,7 @@ const ProjectDetail = () => {
         .from('projects')
         .select('*')
         .eq('id', projectId)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
       if (data) {
@@ -104,11 +105,12 @@ const ProjectDetail = () => {
         />
 
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3 lg:grid-cols-6">
+          <TabsList className="grid w-full grid-cols-3 lg:grid-cols-7">
             <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="estimates">Estimates</TabsTrigger>
+            <TabsTrigger value="budget">Budget</TabsTrigger>
             <TabsTrigger value="schedule">Schedule</TabsTrigger>
             <TabsTrigger value="workforce">Workforce</TabsTrigger>
-            <TabsTrigger value="costs">Costs</TabsTrigger>
             <TabsTrigger value="subs">Subs</TabsTrigger>
             <TabsTrigger value="documents">Documents</TabsTrigger>
           </TabsList>
@@ -117,16 +119,20 @@ const ProjectDetail = () => {
             <ProjectOverviewTab projectId={project.id} />
           </TabsContent>
 
+          <TabsContent value="estimates">
+            <ProjectEstimatesV3 projectId={project.id} />
+          </TabsContent>
+
+          <TabsContent value="budget">
+            <ProjectBudgetCostsTabV2 projectId={project.id} />
+          </TabsContent>
+
           <TabsContent value="schedule">
             <ProjectScheduleTabV2 projectId={project.id} />
           </TabsContent>
 
           <TabsContent value="workforce">
             <ProjectWorkforceTab projectId={project.id} />
-          </TabsContent>
-
-          <TabsContent value="costs">
-            <ProjectCostsTab projectId={project.id} />
           </TabsContent>
 
           <TabsContent value="subs">
