@@ -1,7 +1,8 @@
 import { Button } from '@/components/ui/button';
-import { HardHat, Settings, Eye, BarChart3, DollarSign, CalendarClock, Languages, Building2 } from 'lucide-react';
+import { HardHat, Settings, Eye, BarChart3, DollarSign, CalendarClock, Languages, Building2, Users, CreditCard } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { MobileNav } from '@/components/MobileNav';
+import { MobileBottomNav } from '@/components/MobileBottomNav';
 import { useTranslation } from 'react-i18next';
 import {
   DropdownMenu,
@@ -40,13 +41,31 @@ export const Layout = ({ children }: LayoutProps) => {
           </div>
           <nav className="hidden lg:flex items-center gap-2">
             <Button
-              variant={location.pathname === '/projects' ? 'default' : 'ghost'}
+              variant={location.pathname === '/dashboard' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => navigate('/dashboard')}
+              className={`gap-2 h-9 ${location.pathname === '/dashboard' ? 'font-semibold' : ''}`}
+            >
+              <BarChart3 className="w-4 h-4" />
+              <span>Dashboard</span>
+            </Button>
+            <Button
+              variant={location.pathname === '/projects' || location.pathname.startsWith('/projects/') ? 'default' : 'ghost'}
               size="sm"
               onClick={() => navigate('/projects')}
-              className={`gap-2 h-9 ${location.pathname === '/projects' ? 'font-semibold' : ''}`}
+              className={`gap-2 h-9 ${location.pathname === '/projects' || location.pathname.startsWith('/projects/') ? 'font-semibold' : ''}`}
             >
               <Building2 className="w-4 h-4" />
               <span>Projects</span>
+            </Button>
+            <Button
+              variant={location.pathname === '/view-logs' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => navigate('/view-logs')}
+              className={`gap-2 h-9 ${location.pathname === '/view-logs' ? 'font-semibold' : ''}`}
+            >
+              <Users className="w-4 h-4" />
+              <span>Workforce</span>
             </Button>
             <Button
               variant={location.pathname === '/schedule' ? 'default' : 'ghost'}
@@ -64,7 +83,7 @@ export const Layout = ({ children }: LayoutProps) => {
               className={`gap-2 h-9 ${location.pathname === '/view-logs' ? 'font-semibold' : ''}`}
             >
               <Eye className="w-4 h-4" />
-              <span>Labor</span>
+              <span>Costs</span>
             </Button>
             <Button
               variant={location.pathname === '/payments' ? 'default' : 'ghost'}
@@ -72,17 +91,8 @@ export const Layout = ({ children }: LayoutProps) => {
               onClick={() => navigate('/payments')}
               className={`gap-2 h-9 ${location.pathname === '/payments' ? 'font-semibold' : ''}`}
             >
-              <DollarSign className="w-4 h-4" />
-              <span>Costs</span>
-            </Button>
-            <Button
-              variant={location.pathname === '/dashboard' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => navigate('/dashboard')}
-              className={`gap-2 h-9 ${location.pathname === '/dashboard' ? 'font-semibold' : ''}`}
-            >
-              <BarChart3 className="w-4 h-4" />
-              <span>Dashboard</span>
+              <CreditCard className="w-4 h-4" />
+              <span>Payments</span>
             </Button>
             <Button
               variant={location.pathname === '/admin' ? 'default' : 'ghost'}
@@ -113,9 +123,10 @@ export const Layout = ({ children }: LayoutProps) => {
           </nav>
         </div>
       </header>
-      <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-8">
+      <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-8 mb-20 md:mb-0">
         {children}
       </main>
+      <MobileBottomNav />
     </div>
   );
 };

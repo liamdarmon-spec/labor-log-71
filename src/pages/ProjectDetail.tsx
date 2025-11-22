@@ -2,52 +2,147 @@ import { Layout } from '@/components/Layout';
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Clock, DollarSign, User, Calendar } from 'lucide-react';
-import { toast } from 'sonner';
-import { format } from 'date-fns';
-import { ProjectOverviewEnhanced } from '@/components/project/ProjectOverviewEnhanced';
-import { ProjectEstimatesEnhanced } from '@/components/project/ProjectEstimatesEnhanced';
-import { ProjectProposals } from '@/components/project/ProjectProposals';
-import { ProjectBudgetCosts } from '@/components/project/ProjectBudgetCosts';
-import { ProjectSubs } from '@/components/project/ProjectSubs';
-import { ProjectInvoices } from '@/components/project/ProjectInvoices';
-import { ProjectTasks } from '@/components/project/ProjectTasks';
-import { ProjectScheduleTab } from '@/components/project/ProjectScheduleTab';
+import { ArrowLeft } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { ProjectHeader } from '@/components/project/ProjectHeader';
+import { ProjectOverviewTab } from '@/components/project/ProjectOverviewTab';
+import { ProjectScheduleTabV2 } from '@/components/project/ProjectScheduleTabV2';
+import { ProjectWorkforceTab } from '@/components/project/ProjectWorkforceTab';
+import { ProjectCostsTab } from '@/components/project/ProjectCostsTab';
+import { ProjectSubsTabV2 } from '@/components/project/ProjectSubsTabV2';
+import { ProjectDocumentsTab } from '@/components/project/ProjectDocumentsTab';
 
-interface ProjectDashboard {
-  project_id: string;
+interface Project {
+  id: string;
   project_name: string;
   client_name: string;
-  company_id: string | null;
   status: string;
   address: string | null;
   project_manager: string | null;
-  total_hours: number;
-  total_cost: number;
-  worker_count: number;
-  last_activity: string | null;
+  company_id: string | null;
 }
 
 const ProjectDetail = () => {
-  const { id } = useParams();
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [project, setProject] = useState<ProjectDashboard | null>(null);
+  const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (id) {
-      fetchProjectData();
+      fetchProjectData(id);
     }
   }, [id]);
 
-  const fetchProjectData = async () => {
+  const fetchProjectData = async (projectId: string) => {
     try {
       setLoading(true);
       const { data, error } = await supabase
+        .from('projects')
+        .select('*')
+        .eq('id', projectId)
+        .single();
+
+      if (error) throw error;
+      if (data) {
+        setProject(data);
+      }
+    } catch (error) {
+      console.error('Error fetching project data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <Layout>
+        <div className="space-y-6">
+          <Button variant="ghost" onClick={() => navigate('/projects')}>
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Projects
+          </Button>
+          <Skeleton className="h-96" />
+        </div>
+      </Layout>
+    );
+  }
+
+  if (!project) {
+    return (
+      <Layout>
+        <div className="space-y-6">
+          <Button variant="ghost" onClick={() => navigate('/projects')}>
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Projects
+          </Button>
+          <div className="text-center py-12">
+            <p className="text-muted-foreground">Project not found</p>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
+  return (
+    <Layout>
+      <div className="space-y-6">
+        <Button variant="ghost" onClick={() => navigate('/projects')}>
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back to Projects
+        </Button>
+
+        <ProjectHeader
+          projectId={project.id}
+          projectName={project.project_name}
+          clientName={project.client_name}
+          address={project.address}
+          status={project.status}
+          companyId={project.company_id}
+        />
+
+        <Tabs defaultValue="overview" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-3 lg:grid-cols-6">
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="schedule">Schedule</TabsTrigger>
+            <TabsTrigger value="workforce">Workforce</TabsTrigger>
+            <TabsTrigger value="costs">Costs</TabsTrigger>
+            <TabsTrigger value="subs">Subs</TabsTrigger>
+            <TabsTrigger value="documents">Documents</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="overview">
+            <ProjectOverviewTab projectId={project.id} />
+          </TabsContent>
+
+          <TabsContent value="schedule">
+            <ProjectScheduleTabV2 projectId={project.id} />
+          </TabsContent>
+
+          <TabsContent value="workforce">
+            <ProjectWorkforceTab projectId={project.id} />
+          </TabsContent>
+
+          <TabsContent value="costs">
+            <ProjectCostsTab projectId={project.id} />
+          </TabsContent>
+
+          <TabsContent value="subs">
+            <ProjectSubsTabV2 projectId={project.id} />
+          </TabsContent>
+
+          <TabsContent value="documents">
+            <ProjectDocumentsTab projectId={project.id} />
+          </TabsContent>
+        </Tabs>
+      </div>
+    </Layout>
+  );
+};
+
+export default ProjectDetail;
         .from('project_dashboard_view')
         .select('*')
         .eq('project_id', id)
