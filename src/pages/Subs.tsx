@@ -5,11 +5,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Building2, Phone, Mail, DollarSign, Search } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Building2, Phone, Mail, DollarSign, Search, Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { AddSubcontractorDialog } from '@/components/subs/AddSubcontractorDialog';
 
 export default function Subs() {
   const [searchTerm, setSearchTerm] = useState('');
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
   const navigate = useNavigate();
 
   const { data: subs, isLoading } = useQuery({
@@ -58,9 +61,15 @@ export default function Subs() {
   return (
     <Layout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold">Subcontractors</h1>
-          <p className="text-muted-foreground">All subcontractor relationships and contracts</p>
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">Subcontractors</h1>
+            <p className="text-muted-foreground">All subcontractor relationships and contracts</p>
+          </div>
+          <Button onClick={() => setAddDialogOpen(true)} className="gap-2">
+            <Plus className="w-4 h-4" />
+            Add Subcontractor
+          </Button>
         </div>
 
         {/* Search */}
@@ -153,6 +162,8 @@ export default function Subs() {
           </div>
         )}
       </div>
+
+      <AddSubcontractorDialog open={addDialogOpen} onOpenChange={setAddDialogOpen} />
     </Layout>
   );
 }

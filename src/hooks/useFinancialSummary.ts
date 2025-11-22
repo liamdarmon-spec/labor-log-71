@@ -33,18 +33,39 @@ export function useFinancialSummary() {
         .reduce((sum, log: any) => sum + (log.hours_worked * (log.workers?.hourly_rate || 0)), 0);
 
       // Sub calculations
-      const { data: subInvoices } = await supabase
+      const { data: subPayments } = await supabase
+        .from('sub_payments')
+        .select('amount_paid, retention_released');
+
+      const subsActual = (subPayments || []).reduce((sum, pay: any) => sum + pay.amount_paid, 0);
+
+      const { data: unpaidSubInvoices } = await supabase
         .from('sub_invoices')
-        .select('total, payment_status, retention_amount');
+        .select('total, retention_amount')
+        .eq('payment_status', 'unpaid');
 
-      const subsActual = (subInvoices || []).reduce((sum, inv: any) => sum + inv.total, 0);
-      const subsUnpaid = (subInvoices || [])
-        .filter((inv: any) => inv.payment_status === 'unpaid')
-        .reduce((sum, inv: any) => sum + inv.total, 0);
+      const subsUnpaid = (unpaidSubInvoices || []).reduce((sum, inv: any) => {
+        const payable = inv.total - (inv.retention_amount || 0);
+        return sum + payable;
+      }, 0);
 
-      const retentionHeld = (subInvoices || []).reduce((sum, inv: any) => 
+      const { data: allSubInvoices } = await supabase
+        .from('sub_invoices')
+        .select('retention_amount');
+
+      const { data: retentionReleased } = await supabase
+        .from('sub_payments')
+        .select('retention_released');
+
+      const totalRetentionHeld = (allSubInvoices || []).reduce((sum, inv: any) => 
         sum + (inv.retention_amount || 0), 0
       );
+
+      const totalRetentionReleased = (retentionReleased || []).reduce((sum, pay: any) => 
+        sum + (pay.retention_released || 0), 0
+      );
+
+      const retentionHeld = totalRetentionHeld - totalRetentionReleased;
 
       // Material calculations
       const { data: materials } = await supabase
