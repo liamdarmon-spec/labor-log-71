@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { HardHat, Settings, Eye, BarChart3, DollarSign, CalendarClock, Languages, Building2, Users, CreditCard, FileText, Package } from 'lucide-react';
+import { HardHat, Settings, BarChart3, DollarSign, CalendarClock, Languages, Building2, Users } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { MobileNav } from '@/components/MobileNav';
 import { MobileBottomNav } from '@/components/MobileBottomNav';
@@ -77,40 +77,13 @@ export const Layout = ({ children }: LayoutProps) => {
               <span>Schedule</span>
             </Button>
             <Button
-              variant={location.pathname === '/financials' ? 'default' : 'ghost'}
+              variant={location.pathname.startsWith('/financials') ? 'default' : 'ghost'}
               size="sm"
               onClick={() => navigate('/financials')}
-              className={`gap-2 h-9 ${location.pathname === '/financials' ? 'font-semibold' : ''}`}
+              className={`gap-2 h-9 ${location.pathname.startsWith('/financials') ? 'font-semibold' : ''}`}
             >
               <DollarSign className="w-4 h-4" />
               <span>Financials</span>
-            </Button>
-            <Button
-              variant={location.pathname === '/payments' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => navigate('/payments')}
-              className={`gap-2 h-9 ${location.pathname === '/payments' ? 'font-semibold' : ''}`}
-            >
-              <CreditCard className="w-4 h-4" />
-              <span>Payments</span>
-            </Button>
-            <Button
-              variant={location.pathname === '/documents' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => navigate('/documents')}
-              className={`gap-2 h-9 ${location.pathname === '/documents' ? 'font-semibold' : ''}`}
-            >
-              <FileText className="w-4 h-4" />
-              <span>Documents</span>
-            </Button>
-            <Button
-              variant={location.pathname === '/materials' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => navigate('/materials')}
-              className={`gap-2 h-9 ${location.pathname === '/materials' ? 'font-semibold' : ''}`}
-            >
-              <Package className="w-4 h-4" />
-              <span>Materials</span>
             </Button>
             <Button
               variant={location.pathname === '/admin' ? 'default' : 'ghost'}
