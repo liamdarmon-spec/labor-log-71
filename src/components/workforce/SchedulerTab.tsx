@@ -9,10 +9,11 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { ChevronLeft, ChevronRight, Calendar, Users } from 'lucide-react';
 import { startOfWeek, endOfWeek, addWeeks, format, addDays, isSameDay } from 'date-fns';
-import { WorkerScheduleDrawer } from './WorkerScheduleDrawer';
 import { SchedulerTableView } from './SchedulerTableView';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useNavigate } from 'react-router-dom';
+import { UniversalDayDetailDialog } from '@/components/scheduling/UniversalDayDetailDialog';
+import { AddToScheduleDialog } from '@/components/scheduling/AddToScheduleDialog';
 
 interface Worker {
   id: string;
@@ -31,6 +32,9 @@ export function SchedulerTab() {
   const [showOnlyScheduled, setShowOnlyScheduled] = useState(false);
   const [selectedWorker, setSelectedWorker] = useState<Worker | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [isAddScheduleOpen, setIsAddScheduleOpen] = useState(false);
+  const [scheduleDefaultDate, setScheduleDefaultDate] = useState<Date>();
+  const [scheduleRefresh, setScheduleRefresh] = useState(0);
 
   const weekStart = startOfWeek(currentWeek);
   const weekEnd = endOfWeek(currentWeek);
@@ -343,7 +347,9 @@ export function SchedulerTab() {
                     return (
                       <button
                         key={dateKey}
-                        onClick={() => setSelectedDate(day)}
+                        onClick={() => {
+                          setSelectedDate(day);
+                        }}
                         className={`p-3 rounded-lg border text-left hover:border-primary hover:bg-accent transition-all ${
                           isToday ? 'bg-primary/5 border-primary' : ''
                         }`}
@@ -396,22 +402,45 @@ export function SchedulerTab() {
             weekEnd={weekEnd}
             selectedCompany={selectedCompany}
             selectedTrade={selectedTrade}
+            onViewDay={(date, workerId) => {
+              setSelectedDate(date);
+              setSelectedWorker(workersData?.find(w => w.id === workerId) || null);
+            }}
             onViewTimeLog={(workerId, date, projectId) => {
               navigate(`/workforce?tab=activity&view=time-logs&worker=${workerId}&date=${date}&project=${projectId}`);
             }}
+            refreshTrigger={scheduleRefresh}
           />
         </TabsContent>
       </Tabs>
 
-      {/* Day Detail Drawer */}
-      {selectedWorker && selectedDate && (
-        <WorkerScheduleDrawer
-          worker={selectedWorker}
-          date={selectedDate}
-          open={!!selectedDate}
-          onOpenChange={(open) => !open && setSelectedDate(null)}
-        />
-      )}
+      {/* Unified Schedule Day Drawer */}
+      <UniversalDayDetailDialog
+        open={!!selectedDate}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSelectedDate(null);
+            setSelectedWorker(null);
+          }
+        }}
+        date={selectedDate}
+        onRefresh={() => setScheduleRefresh(prev => prev + 1)}
+        onAddSchedule={() => {
+          if (selectedDate) {
+            setScheduleDefaultDate(selectedDate);
+          }
+          setIsAddScheduleOpen(true);
+        }}
+        highlightWorkerId={selectedWorker?.id}
+      />
+
+      {/* Add Schedule Dialog */}
+      <AddToScheduleDialog
+        open={isAddScheduleOpen}
+        onOpenChange={setIsAddScheduleOpen}
+        onScheduleCreated={() => setScheduleRefresh(prev => prev + 1)}
+        defaultDate={scheduleDefaultDate}
+      />
     </div>
   );
 }
