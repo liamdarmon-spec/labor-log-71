@@ -115,9 +115,7 @@ export function UniversalDayDetailDialog({
     if (companyId && companyId !== 'all') {
       query = query.eq("company_id", companyId);
     }
-    if (scheduleType && scheduleType !== 'all') {
-      query = query.eq("schedule_type", scheduleType);
-    }
+    // Note: scheduleType filtering handled by calendar views
 
     const { data, error } = await query;
 

@@ -1,10 +1,7 @@
 import { useState } from "react";
 import { Layout } from "@/components/Layout";
-import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AddToScheduleDialog } from "@/components/scheduling/AddToScheduleDialog";
-import { MasterScheduleModal } from "@/components/scheduling/MasterScheduleModal";
 import { WeeklyScheduleView } from "@/components/scheduling/WeeklyScheduleView";
 import { DailyScheduleView } from "@/components/scheduling/DailyScheduleView";
 import { MonthlyScheduleView } from "@/components/scheduling/MonthlyScheduleView";
@@ -14,9 +11,7 @@ type ScheduleType = "workers" | "subs" | "meetings" | "all";
 
 const Schedule = () => {
   const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false);
-  const [isMasterModalOpen, setIsMasterModalOpen] = useState(false);
   const [scheduleDefaultDate, setScheduleDefaultDate] = useState<Date>();
-  const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [scheduleRefresh, setScheduleRefresh] = useState(0);
   const [viewMode, setViewMode] = useState<ViewMode>("weekly");
   const [scheduleType, setScheduleType] = useState<ScheduleType>("all");
@@ -26,11 +21,6 @@ const Schedule = () => {
       setScheduleDefaultDate(date);
     }
     setIsScheduleDialogOpen(true);
-  };
-
-  const handleDayClick = (date: Date) => {
-    setSelectedDay(date);
-    setIsMasterModalOpen(true);
   };
 
   const handleScheduleCreated = () => {
@@ -45,7 +35,7 @@ const Schedule = () => {
             <div>
               <h1 className="text-2xl sm:text-3xl font-bold">Calendar View</h1>
               <p className="text-muted-foreground mt-1 text-sm sm:text-base">
-                Visual overview of all schedules (read-only)
+                Visual overview of all schedules
               </p>
             </div>
           </div>
@@ -90,7 +80,7 @@ const Schedule = () => {
 
         <div className={viewMode === "monthly" ? "block" : "hidden"}>
           <MonthlyScheduleView
-            onDayClick={handleDayClick}
+            onDayClick={(date) => handleScheduleClick(date)}
             refreshTrigger={scheduleRefresh}
             scheduleType={scheduleType}
           />
@@ -102,9 +92,6 @@ const Schedule = () => {
           onScheduleCreated={handleScheduleCreated}
           defaultDate={scheduleDefaultDate}
         />
-
-        {/* MasterScheduleModal is now replaced by UniversalDayDetailDialog */}
-        {/* This ensures all schedule views use the same unified planner */}
       </div>
     </Layout>
   );

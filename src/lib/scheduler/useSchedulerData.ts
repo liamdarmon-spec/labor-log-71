@@ -94,7 +94,7 @@ async function fetchWorkerSchedules(
   assignmentsMap: Map<string, SchedulerAssignmentPreview[]>
 ) {
   let query = supabase
-    .from('scheduled_shifts')
+    .from('work_schedules')
     .select(`
       id,
       worker_id,
@@ -280,7 +280,7 @@ async function detectConflicts(
 ) {
   // Detect conflicts: same worker scheduled on multiple projects on same day
   let query = supabase
-    .from('scheduled_shifts')
+    .from('work_schedules')
     .select('worker_id, scheduled_date, id')
     .gte('scheduled_date', startDate)
     .lte('scheduled_date', endDate);
