@@ -3,6 +3,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { DollarSign, Clock, TrendingUp, AlertCircle } from 'lucide-react';
 import { useProjectStats } from '@/hooks/useProjectStats';
 import { Skeleton } from '@/components/ui/skeleton';
+import { FinancialOSLink } from './FinancialOSLink';
 
 interface ProjectHeaderProps {
   projectId: string;
@@ -34,9 +35,12 @@ export function ProjectHeader({ projectId, projectName, clientName, address, sta
   return (
     <div className="space-y-4">
       <div className="flex flex-col space-y-2">
-        <div className="flex items-center gap-3">
-          <h1 className="text-3xl font-bold">{projectName}</h1>
-          <Badge className={getStatusColor(status)}>{status}</Badge>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <h1 className="text-3xl font-bold">{projectName}</h1>
+            <Badge className={getStatusColor(status)}>{status}</Badge>
+          </div>
+          <FinancialOSLink projectId={projectId} />
         </div>
         <div className="flex flex-col text-sm text-muted-foreground">
           <span className="font-medium">{clientName}</span>

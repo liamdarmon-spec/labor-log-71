@@ -1,12 +1,11 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { DollarSign } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
-interface LaborPayRunsPanelProps {
-  onStartPayRun: () => void;
-}
+export const LaborPayRunsPanel = () => {
+  const navigate = useNavigate();
 
-export const LaborPayRunsPanel = ({ onStartPayRun }: LaborPayRunsPanelProps) => {
   return (
     <Card className="border-primary/20 bg-gradient-to-br from-card to-primary/5">
       <CardHeader>
@@ -19,10 +18,10 @@ export const LaborPayRunsPanel = ({ onStartPayRun }: LaborPayRunsPanelProps) => 
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <Button onClick={onStartPayRun} size="lg" className="gap-2">
-          <DollarSign className="w-4 h-4" />
-          Start Labor Pay Run
-        </Button>
+            <Button onClick={() => navigate('/financials/payments')} size="lg" className="gap-2">
+              <DollarSign className="w-4 h-4" />
+              Start Labor Pay Run
+            </Button>
       </CardContent>
     </Card>
   );
