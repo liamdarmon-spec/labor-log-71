@@ -20,27 +20,27 @@ export function MobileBottomNav() {
         </NavLink>
 
         <NavLink
-          to="/workforce"
-          className={({ isActive }) =>
+          to="/workforce?tab=scheduler"
+          className={() =>
             `flex flex-col items-center justify-center px-2 py-2 rounded-lg transition-colors ${
-              isActive || window.location.pathname.startsWith('/workforce') ? 'text-primary bg-primary/10' : 'text-muted-foreground'
-            }`
-          }
-        >
-          <Users className="h-5 w-5 mb-0.5" />
-          <span className="text-[10px] font-medium">Workforce</span>
-        </NavLink>
-
-        <NavLink
-          to="/schedule"
-          className={({ isActive }) =>
-            `flex flex-col items-center justify-center px-2 py-2 rounded-lg transition-colors ${
-              isActive ? 'text-primary bg-primary/10' : 'text-muted-foreground'
+              window.location.pathname.startsWith('/workforce') && window.location.search.includes('scheduler') ? 'text-primary bg-primary/10' : 'text-muted-foreground'
             }`
           }
         >
           <Calendar className="h-5 w-5 mb-0.5" />
-          <span className="text-[10px] font-medium">Schedule</span>
+          <span className="text-[10px] font-medium">Scheduler</span>
+        </NavLink>
+
+        <NavLink
+          to="/workforce"
+          className={() =>
+            `flex flex-col items-center justify-center px-2 py-2 rounded-lg transition-colors ${
+              window.location.pathname.startsWith('/workforce') && !window.location.search.includes('scheduler') ? 'text-primary bg-primary/10' : 'text-muted-foreground'
+            }`
+          }
+        >
+          <Users className="h-5 w-5 mb-0.5" />
+          <span className="text-[10px] font-medium">Workers</span>
         </NavLink>
 
         <NavLink
@@ -52,7 +52,7 @@ export function MobileBottomNav() {
           }
         >
           <MoreHorizontal className="h-5 w-5 mb-0.5" />
-          <span className="text-[10px] font-medium">Costs</span>
+          <span className="text-[10px] font-medium">Pay</span>
         </NavLink>
 
         <Sheet>

@@ -5,9 +5,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { LeoSchedulerWeekView } from './scheduler/LeoSchedulerWeekView';
-import { LeoSchedulerHistoryView } from './scheduler/LeoSchedulerHistoryView';
-import { LeoSchedulerPaymentsView } from './scheduler/LeoSchedulerPaymentsView';
+import { CrewSchedulerWeekView } from './scheduler/CrewSchedulerWeekView';
+import { CrewSchedulerHistoryView } from './scheduler/CrewSchedulerHistoryView';
+import { CrewSchedulerPaymentsView } from './scheduler/CrewSchedulerPaymentsView';
 
 export function SchedulerTab() {
   const [activeTab, setActiveTab] = useState<'week' | 'history' | 'payments'>('week');
@@ -59,9 +59,9 @@ export function SchedulerTab() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h3 className="text-2xl font-bold mb-2">Leo Scheduler</h3>
+        <h3 className="text-2xl font-bold mb-2">Crew Scheduler</h3>
         <p className="text-muted-foreground">
-          One place to plan crews, see history, and manage payments
+          Plan, track, and pay your crew in one place
         </p>
       </div>
 
@@ -117,7 +117,7 @@ export function SchedulerTab() {
         </TabsList>
 
         <TabsContent value="week" className="mt-6">
-          <LeoSchedulerWeekView
+          <CrewSchedulerWeekView
             companyFilter={selectedCompany}
             tradeFilter={selectedTrade}
             projectFilter={selectedProject}
@@ -125,14 +125,14 @@ export function SchedulerTab() {
         </TabsContent>
 
         <TabsContent value="history" className="mt-6">
-          <LeoSchedulerHistoryView
+          <CrewSchedulerHistoryView
             companyFilter={selectedCompany}
             projectFilter={selectedProject}
           />
         </TabsContent>
 
         <TabsContent value="payments" className="mt-6">
-          <LeoSchedulerPaymentsView
+          <CrewSchedulerPaymentsView
             companyFilter={selectedCompany}
           />
         </TabsContent>

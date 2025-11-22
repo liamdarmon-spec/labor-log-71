@@ -5,24 +5,25 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Edit2 } from 'lucide-react';
 import { startOfWeek, endOfWeek, addWeeks, format, addDays, isSameDay, isPast } from 'date-fns';
 import { AddToScheduleDialog } from '@/components/scheduling/AddToScheduleDialog';
-import { MasterScheduleModal } from '@/components/scheduling/MasterScheduleModal';
+import { UniversalDayDetailDialog } from '@/components/scheduling/UniversalDayDetailDialog';
 import { cn } from '@/lib/utils';
 
-interface LeoSchedulerWeekViewProps {
+interface CrewSchedulerWeekViewProps {
   companyFilter: string;
   tradeFilter: string;
   projectFilter: string;
 }
 
-export function LeoSchedulerWeekView({ companyFilter, tradeFilter, projectFilter }: LeoSchedulerWeekViewProps) {
+export function CrewSchedulerWeekView({ companyFilter, tradeFilter, projectFilter }: CrewSchedulerWeekViewProps) {
   const [currentWeek, setCurrentWeek] = useState(new Date());
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [selectedWorker, setSelectedWorker] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [addDialogDate, setAddDialogDate] = useState<Date | undefined>(undefined);
+  const [addDialogWorker, setAddDialogWorker] = useState<string | undefined>(undefined);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const weekStart = startOfWeek(currentWeek);
@@ -31,11 +32,11 @@ export function LeoSchedulerWeekView({ companyFilter, tradeFilter, projectFilter
 
   // Fetch all active workers
   const { data: workers, isLoading: workersLoading } = useQuery({
-    queryKey: ['leo-scheduler-workers', tradeFilter],
+    queryKey: ['crew-scheduler-workers', tradeFilter],
     queryFn: async () => {
       let query = supabase
         .from('workers')
-        .select('id, name, trade, trade_id, hourly_rate, companies(name)')
+        .select('id, name, trade, trade_id, hourly_rate')
         .eq('active', true);
 
       if (tradeFilter !== 'all') {
@@ -49,7 +50,7 @@ export function LeoSchedulerWeekView({ companyFilter, tradeFilter, projectFilter
 
   // Fetch all schedules for the week
   const { data: schedules, isLoading: schedulesLoading } = useQuery({
-    queryKey: ['leo-scheduler-schedules', format(weekStart, 'yyyy-MM-dd'), companyFilter, projectFilter, refreshTrigger],
+    queryKey: ['crew-scheduler-schedules', format(weekStart, 'yyyy-MM-dd'), companyFilter, projectFilter, refreshTrigger],
     queryFn: async () => {
       let query = supabase
         .from('scheduled_shifts')
@@ -81,7 +82,7 @@ export function LeoSchedulerWeekView({ companyFilter, tradeFilter, projectFilter
 
   // Fetch time logs for past days (to show paid/unpaid status)
   const { data: logs } = useQuery({
-    queryKey: ['leo-scheduler-logs', format(weekStart, 'yyyy-MM-dd')],
+    queryKey: ['crew-scheduler-logs', format(weekStart, 'yyyy-MM-dd')],
     queryFn: async () => {
       const { data } = await supabase
         .from('daily_logs')
@@ -127,12 +128,13 @@ export function LeoSchedulerWeekView({ companyFilter, tradeFilter, projectFilter
     const daySchedules = schedulesByWorkerDate.get(workerId)?.get(dateKey) || [];
 
     if (daySchedules.length > 0) {
-      // Open schedule modal
+      // Open day detail modal
       setSelectedWorker(workerId);
       setSelectedDate(date);
     } else {
-      // Open add dialog
+      // Open add dialog with pre-filled worker
       setAddDialogDate(date);
+      setAddDialogWorker(workerId);
       setIsAddDialogOpen(true);
     }
   };
@@ -146,7 +148,7 @@ export function LeoSchedulerWeekView({ companyFilter, tradeFilter, projectFilter
       {/* Week Navigation */}
       <Card>
         <CardContent className="p-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-4">
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
@@ -230,13 +232,25 @@ export function LeoSchedulerWeekView({ companyFilter, tradeFilter, projectFilter
                           <td
                             key={dateKey}
                             className={cn(
-                              "p-2 text-center cursor-pointer hover:bg-accent transition-colors",
+                              "p-2 text-center cursor-pointer hover:bg-accent transition-colors relative group",
                               isSameDay(day, new Date()) && "bg-primary/5"
                             )}
                             onClick={() => handleCellClick(worker.id, day)}
                           >
                             {daySchedules.length > 0 ? (
-                              <div className="space-y-1">
+                              <div className="space-y-1 relative">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="absolute top-0 right-0 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedWorker(worker.id);
+                                    setSelectedDate(day);
+                                  }}
+                                >
+                                  <Edit2 className="h-3 w-3" />
+                                </Button>
                                 <div className="font-semibold text-sm text-primary">
                                   {totalHours}h
                                 </div>
@@ -247,11 +261,11 @@ export function LeoSchedulerWeekView({ companyFilter, tradeFilter, projectFilter
                                 ))}
                                 {projects.length > 2 && (
                                   <div className="text-xs text-muted-foreground">
-                                    +{projects.length - 2} more
+                                    +{projects.length - 2}
                                   </div>
                                 )}
                                 {companies[0] && (
-                                  <Badge variant="outline" className="text-xs">
+                                  <Badge variant="outline" className="text-xs mt-1">
                                     {companies[0]}
                                   </Badge>
                                 )}
@@ -271,7 +285,7 @@ export function LeoSchedulerWeekView({ companyFilter, tradeFilter, projectFilter
                                 )}
                               </div>
                             ) : (
-                              <div className="text-xs text-muted-foreground hover:text-foreground flex items-center justify-center">
+                              <div className="text-xs text-muted-foreground hover:text-foreground flex items-center justify-center h-20 opacity-0 group-hover:opacity-100 transition-opacity">
                                 <Plus className="h-4 w-4" />
                               </div>
                             )}
@@ -295,9 +309,9 @@ export function LeoSchedulerWeekView({ companyFilter, tradeFilter, projectFilter
         defaultDate={addDialogDate}
       />
 
-      {/* Master Schedule Modal */}
+      {/* Day Detail Dialog */}
       {selectedWorker && selectedDate && (
-        <MasterScheduleModal
+        <UniversalDayDetailDialog
           open={true}
           onOpenChange={(open) => {
             if (!open) {
@@ -305,8 +319,8 @@ export function LeoSchedulerWeekView({ companyFilter, tradeFilter, projectFilter
               setSelectedDate(null);
             }
           }}
-          workerId={selectedWorker}
           date={selectedDate}
+          highlightWorkerId={selectedWorker}
           onRefresh={() => setRefreshTrigger(prev => prev + 1)}
         />
       )}

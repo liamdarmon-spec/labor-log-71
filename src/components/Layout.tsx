@@ -41,15 +41,6 @@ export const Layout = ({ children }: LayoutProps) => {
           </div>
           <nav className="hidden lg:flex items-center gap-2">
             <Button
-              variant={location.pathname === '/dashboard' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => navigate('/dashboard')}
-              className={`gap-2 h-9 ${location.pathname === '/dashboard' ? 'font-semibold' : ''}`}
-            >
-              <BarChart3 className="w-4 h-4" />
-              <span>Dashboard</span>
-            </Button>
-            <Button
               variant={location.pathname === '/projects' || location.pathname.startsWith('/projects/') ? 'default' : 'ghost'}
               size="sm"
               onClick={() => navigate('/projects')}
@@ -59,22 +50,31 @@ export const Layout = ({ children }: LayoutProps) => {
               <span>Projects</span>
             </Button>
             <Button
-              variant={location.pathname.startsWith('/workforce') ? 'default' : 'ghost'}
+              variant={location.pathname.startsWith('/workforce') && location.pathname.includes('scheduler') ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => navigate('/workforce?tab=scheduler')}
+              className={`gap-2 h-9 ${location.pathname.startsWith('/workforce') && location.pathname.includes('scheduler') ? 'font-semibold' : ''}`}
+            >
+              <CalendarClock className="w-4 h-4" />
+              <span>Crew Scheduler</span>
+            </Button>
+            <Button
+              variant={location.pathname.startsWith('/workforce') && !location.pathname.includes('scheduler') ? 'default' : 'ghost'}
               size="sm"
               onClick={() => navigate('/workforce')}
-              className={`gap-2 h-9 ${location.pathname.startsWith('/workforce') ? 'font-semibold' : ''}`}
+              className={`gap-2 h-9 ${location.pathname.startsWith('/workforce') && !location.pathname.includes('scheduler') ? 'font-semibold' : ''}`}
             >
               <Users className="w-4 h-4" />
               <span>Workforce</span>
             </Button>
             <Button
-              variant={location.pathname === '/schedule' ? 'default' : 'ghost'}
+              variant={location.pathname.startsWith('/financials') || location.pathname === '/dashboard' ? 'default' : 'ghost'}
               size="sm"
-              onClick={() => navigate('/schedule')}
-              className={`gap-2 h-9 ${location.pathname === '/schedule' ? 'font-semibold' : ''}`}
+              onClick={() => navigate('/financials')}
+              className={`gap-2 h-9 ${location.pathname.startsWith('/financials') || location.pathname === '/dashboard' ? 'font-semibold' : ''}`}
             >
-              <CalendarClock className="w-4 h-4" />
-              <span>Schedule</span>
+              <BarChart3 className="w-4 h-4" />
+              <span>Costs</span>
             </Button>
             <Button
               variant={location.pathname.startsWith('/payments') ? 'default' : 'ghost'}
