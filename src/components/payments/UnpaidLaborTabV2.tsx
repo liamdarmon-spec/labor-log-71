@@ -84,22 +84,22 @@ export function UnpaidLaborTabV2() {
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div className="min-w-0 flex-1">
             <CardTitle>Unpaid Labor</CardTitle>
-            <p className="text-sm text-muted-foreground mt-1">
+            <p className="text-xs sm:text-sm text-muted-foreground mt-1">
               {unpaidLogs.length} unpaid time logs
             </p>
           </div>
           {selectedLogs.size > 0 && (
-            <div className="flex items-center gap-4">
-              <div className="text-right">
-                <p className="text-sm text-muted-foreground">Selected Amount</p>
-                <p className="text-2xl font-bold text-primary">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4 w-full sm:w-auto">
+              <div className="text-left sm:text-right">
+                <p className="text-xs sm:text-sm text-muted-foreground">Selected Amount</p>
+                <p className="text-xl sm:text-2xl font-bold text-primary">
                   ${totalSelected.toLocaleString()}
                 </p>
               </div>
-              <Button onClick={() => navigate('/payments')}>
+              <Button onClick={() => navigate('/payments')} className="w-full sm:w-auto">
                 <DollarSign className="h-4 w-4 mr-2" />
                 Create Pay Run
               </Button>

@@ -61,14 +61,16 @@ const FinancialsV2 = () => {
   return (
     <Layout>
       <div className="space-y-6">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold mb-2">Financial OS</h1>
-            <p className="text-muted-foreground">
+        <div className="flex flex-col sm:flex-row items-start justify-between gap-3 sm:gap-4">
+          <div className="min-w-0">
+            <h1 className="text-2xl sm:text-3xl font-bold mb-2">Financial OS</h1>
+            <p className="text-sm sm:text-base text-muted-foreground">
               Real-time job costing & billing across all projects
             </p>
           </div>
-          <FinancialSearchBar />
+          <div className="w-full sm:w-auto">
+            <FinancialSearchBar />
+          </div>
         </div>
 
         {/* Overview KPI Cards */}

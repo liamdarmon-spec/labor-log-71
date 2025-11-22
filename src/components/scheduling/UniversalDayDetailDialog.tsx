@@ -196,11 +196,11 @@ export function UniversalDayDetailDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center justify-between">
-            <div>
-              <div>{date ? format(date, "EEEE, MMMM d, yyyy") : ""}</div>
+          <DialogTitle className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="text-base sm:text-lg truncate">{date ? format(date, "EEEE, MMMM d, yyyy") : ""}</div>
               {projectContext && (
-                <p className="text-sm text-muted-foreground font-normal mt-1">
+                <p className="text-xs sm:text-sm text-muted-foreground font-normal mt-1">
                   {scheduleType === 'sub' ? 'Subs Schedule' : scheduleType === 'labor' ? 'Labor Schedule' : 'Day Schedule'}
                   {projectId && ' – Project View'}
                 </p>
@@ -208,6 +208,7 @@ export function UniversalDayDetailDialog({
             </div>
             <Button
               size="sm"
+              className="w-full sm:w-auto flex-shrink-0"
               onClick={() => {
                 if (onAddSchedule) {
                   onAddSchedule();
@@ -216,44 +217,45 @@ export function UniversalDayDetailDialog({
               }}
             >
               <Plus className="h-4 w-4 mr-1" />
-              Add to Schedule
+              <span className="hidden sm:inline">Add to Schedule</span>
+              <span className="sm:hidden">Add</span>
             </Button>
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* Top Summary Cards */}
-          <div className="grid grid-cols-4 gap-3">
-            <Card className="p-3 bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
-              <div className="flex items-center gap-2 mb-1">
-                <User className="h-4 w-4 text-primary" />
-                <p className="text-xs font-medium text-muted-foreground">Workers</p>
+          {/* Top Summary Cards - Responsive: 2 cols on mobile, 4 on desktop */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3">
+            <Card className="p-2 md:p-3 bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
+              <div className="flex items-center gap-1 md:gap-2 mb-1">
+                <User className="h-3 w-3 md:h-4 md:w-4 text-primary" />
+                <p className="text-[10px] md:text-xs font-medium text-muted-foreground">Workers</p>
               </div>
-              <p className="text-2xl font-bold text-primary">{uniqueWorkerCount}</p>
+              <p className="text-xl md:text-2xl font-bold text-primary">{uniqueWorkerCount}</p>
             </Card>
 
-            <Card className="p-3 bg-gradient-to-br from-blue-500/5 to-blue-500/10 border-blue-500/20">
-              <div className="flex items-center gap-2 mb-1">
-                <Clock className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                <p className="text-xs font-medium text-muted-foreground">Total Hours</p>
+            <Card className="p-2 md:p-3 bg-gradient-to-br from-blue-500/5 to-blue-500/10 border-blue-500/20">
+              <div className="flex items-center gap-1 md:gap-2 mb-1">
+                <Clock className="h-3 w-3 md:h-4 md:w-4 text-blue-600 dark:text-blue-400" />
+                <p className="text-[10px] md:text-xs font-medium text-muted-foreground">Hours</p>
               </div>
-              <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{totalHours}h</p>
+              <p className="text-xl md:text-2xl font-bold text-blue-600 dark:text-blue-400">{totalHours}h</p>
             </Card>
 
-            <Card className="p-3 bg-gradient-to-br from-green-500/5 to-green-500/10 border-green-500/20">
-              <div className="flex items-center gap-2 mb-1">
-                <Briefcase className="h-4 w-4 text-green-600 dark:text-green-400" />
-                <p className="text-xs font-medium text-muted-foreground">Entries</p>
+            <Card className="p-2 md:p-3 bg-gradient-to-br from-green-500/5 to-green-500/10 border-green-500/20">
+              <div className="flex items-center gap-1 md:gap-2 mb-1">
+                <Briefcase className="h-3 w-3 md:h-4 md:w-4 text-green-600 dark:text-green-400" />
+                <p className="text-[10px] md:text-xs font-medium text-muted-foreground">Entries</p>
               </div>
-              <p className="text-2xl font-bold text-green-600 dark:text-green-400">{totalEntries}</p>
+              <p className="text-xl md:text-2xl font-bold text-green-600 dark:text-green-400">{totalEntries}</p>
             </Card>
 
-            <Card className="p-3 bg-gradient-to-br from-purple-500/5 to-purple-500/10 border-purple-500/20">
-              <div className="flex items-center gap-2 mb-1">
-                <Briefcase className="h-4 w-4 text-purple-600 dark:text-purple-400" />
-                <p className="text-xs font-medium text-muted-foreground">Projects</p>
+            <Card className="p-2 md:p-3 bg-gradient-to-br from-purple-500/5 to-purple-500/10 border-purple-500/20">
+              <div className="flex items-center gap-1 md:gap-2 mb-1">
+                <Briefcase className="h-3 w-3 md:h-4 md:w-4 text-purple-600 dark:text-purple-400" />
+                <p className="text-[10px] md:text-xs font-medium text-muted-foreground">Projects</p>
               </div>
-              <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+              <p className="text-xl md:text-2xl font-bold text-purple-600 dark:text-purple-400">
                 {new Set(schedules.map(s => s.project_id)).size}
               </p>
             </Card>
@@ -278,20 +280,22 @@ export function UniversalDayDetailDialog({
             </div>
           ) : (
             <>
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-sm text-muted-foreground">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-3">
+                <p className="text-xs sm:text-sm text-muted-foreground">
                   {schedules.length} schedule{schedules.length !== 1 ? 's' : ''} across {uniqueWorkerCount} worker{uniqueWorkerCount !== 1 ? 's' : ''}
                 </p>
                 <Button
                   variant="outline"
                   size="sm"
+                  className="w-full sm:w-auto"
                   onClick={() => {
                     setSelectedSchedules(schedules);
                     setConvertDialogOpen(true);
                   }}
                 >
                   <ClipboardCheck className="h-4 w-4 mr-2" />
-                  Convert to Time Logs
+                  <span className="hidden sm:inline">Convert to Time Logs</span>
+                  <span className="sm:hidden">Convert to Logs</span>
                 </Button>
               </div>
 

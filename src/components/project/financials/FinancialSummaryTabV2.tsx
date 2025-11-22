@@ -27,8 +27,8 @@ export function FinancialSummaryTabV2({ projectId }: FinancialSummaryTabV2Props)
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold mb-2">Financial Overview</h2>
-        <p className="text-muted-foreground">
+        <h2 className="text-xl sm:text-2xl font-bold mb-2">Financial Overview</h2>
+        <p className="text-sm sm:text-base text-muted-foreground">
           Real-time project costs vs. budget
         </p>
       </div>

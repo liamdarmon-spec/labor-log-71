@@ -40,7 +40,9 @@ export function CostByCategoryTabV2({ projectId, onViewDetails }: CostByCategory
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Cost by Category</CardTitle>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <CardTitle>Cost by Category</CardTitle>
+        </div>
       </CardHeader>
       <CardContent>
         <Table>

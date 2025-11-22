@@ -64,9 +64,9 @@ export function LaborPayRunsTabV2() {
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <CardTitle>Labor Pay Runs</CardTitle>
-          <Button onClick={() => navigate('/payments')}>
+          <Button onClick={() => navigate('/payments')} size="sm" className="w-full sm:w-auto">
             Create Pay Run
           </Button>
         </div>
