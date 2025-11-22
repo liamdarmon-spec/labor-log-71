@@ -71,21 +71,23 @@ export function WeeklyScheduleView({ onScheduleClick, refreshTrigger, scheduleTy
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        <div className="flex items-center justify-center gap-2">
           <Button
             variant="outline"
             size="icon"
+            className="h-9 w-9 sm:h-10 sm:w-10"
             onClick={() => setCurrentWeekStart(addWeeks(currentWeekStart, -1))}
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <h3 className="text-lg font-semibold">
+          <h3 className="text-sm sm:text-lg font-semibold min-w-[180px] sm:min-w-[220px] text-center">
             Week of {format(currentWeekStart, "MMM d, yyyy")}
           </h3>
           <Button
             variant="outline"
             size="icon"
+            className="h-9 w-9 sm:h-10 sm:w-10"
             onClick={() => setCurrentWeekStart(addWeeks(currentWeekStart, 1))}
           >
             <ChevronRight className="h-4 w-4" />
@@ -95,6 +97,7 @@ export function WeeklyScheduleView({ onScheduleClick, refreshTrigger, scheduleTy
           variant="outline"
           size="sm"
           onClick={() => setCurrentWeekStart(startOfWeek(new Date(), { weekStartsOn: 0 }))}
+          className="w-full sm:w-auto"
         >
           This Week
         </Button>

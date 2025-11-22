@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Filter, X } from 'lucide-react';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { ViewLogsTabMobile } from './ViewLogsTabMobile';
 
 interface LogEntry {
   id: string;
@@ -39,6 +41,7 @@ interface Trade {
 }
 
 export const ViewLogsTab = () => {
+  const isMobile = useIsMobile();
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [filteredLogs, setFilteredLogs] = useState<LogEntry[]>([]);
   const [workers, setWorkers] = useState<Worker[]>([]);
@@ -186,35 +189,35 @@ export const ViewLogsTab = () => {
   const totalHours = filteredLogs.reduce((sum, log) => sum + parseFloat(log.hours_worked.toString()), 0);
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-bold text-foreground">View Time Logs</h2>
-          <p className="text-muted-foreground mt-1">
+          <h2 className="text-xl sm:text-2xl font-bold text-foreground">View Time Logs</h2>
+          <p className="text-muted-foreground mt-1 text-sm">
             Filter and view all time entries
           </p>
         </div>
-        <div className="text-right">
-          <p className="text-sm text-muted-foreground">Total Hours</p>
-          <p className="text-2xl font-bold text-primary">{totalHours.toFixed(2)}h</p>
+        <div className="text-left sm:text-right">
+          <p className="text-xs sm:text-sm text-muted-foreground">Total Hours</p>
+          <p className="text-xl sm:text-2xl font-bold text-primary">{totalHours.toFixed(2)}h</p>
         </div>
       </div>
 
       <Card>
-        <CardHeader className="border-b">
+        <CardHeader className="border-b p-4 sm:p-6">
           <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <Filter className="w-5 h-5" />
-              Filters & Sort
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <Filter className="w-4 h-4 sm:w-5 sm:h-5" />
+              Filters
             </CardTitle>
             <Button variant="outline" size="sm" onClick={clearFilters}>
-              <X className="w-4 h-4 mr-2" />
-              Clear Filters
+              <X className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-2" />
+              <span className="hidden sm:inline">Clear</span>
             </Button>
           </div>
         </CardHeader>
-        <CardContent className="pt-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <CardContent className="pt-4 sm:pt-6 p-4 sm:p-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4">
             <div className="space-y-2">
               <Label htmlFor="startDate" className="text-sm">Start Date</Label>
               <Input
@@ -295,64 +298,68 @@ export const ViewLogsTab = () => {
       </Card>
 
       <Card>
-        <CardHeader>
-          <CardTitle>Time Entries ({filteredLogs.length})</CardTitle>
+        <CardHeader className="p-4 sm:p-6">
+          <CardTitle className="text-base sm:text-lg">Time Entries ({filteredLogs.length})</CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="border rounded-lg overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Worker</TableHead>
-                  <TableHead>Trade</TableHead>
-                  <TableHead>Project</TableHead>
-                  <TableHead>Client</TableHead>
-                  <TableHead>Cost Code</TableHead>
-                  <TableHead className="text-right">Hours</TableHead>
-                  <TableHead>Notes</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredLogs.length === 0 ? (
+        <CardContent className="p-4 sm:p-6 pt-0">
+          {isMobile ? (
+            <ViewLogsTabMobile logs={filteredLogs} />
+          ) : (
+            <div className="border rounded-lg overflow-hidden">
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
-                      No logs found matching the filters
-                    </TableCell>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Worker</TableHead>
+                    <TableHead>Trade</TableHead>
+                    <TableHead>Project</TableHead>
+                    <TableHead>Client</TableHead>
+                    <TableHead>Cost Code</TableHead>
+                    <TableHead className="text-right">Hours</TableHead>
+                    <TableHead>Notes</TableHead>
                   </TableRow>
-                ) : (
-                  filteredLogs.map((log) => (
-                    <TableRow key={log.id}>
-                      <TableCell>{new Date(log.date).toLocaleDateString()}</TableCell>
-                      <TableCell className="font-medium">{log.workers.name}</TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {log.workers.trades?.name || 'N/A'}
-                      </TableCell>
-                      <TableCell>{log.projects.project_name}</TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {log.projects.client_name}
-                      </TableCell>
-                      <TableCell>
-                        {log.cost_codes ? (
-                          <span className="text-xs font-mono">
-                            {log.cost_codes.code} – {log.cost_codes.name}
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground text-xs">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right font-medium">
-                        {parseFloat(log.hours_worked.toString()).toFixed(2)}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground max-w-xs truncate">
-                        {log.notes || '-'}
+                </TableHeader>
+                <TableBody>
+                  {filteredLogs.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                        No logs found matching the filters
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
+                  ) : (
+                    filteredLogs.map((log) => (
+                      <TableRow key={log.id}>
+                        <TableCell>{new Date(log.date).toLocaleDateString()}</TableCell>
+                        <TableCell className="font-medium">{log.workers.name}</TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {log.workers.trades?.name || 'N/A'}
+                        </TableCell>
+                        <TableCell>{log.projects.project_name}</TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {log.projects.client_name}
+                        </TableCell>
+                        <TableCell>
+                          {log.cost_codes ? (
+                            <span className="text-xs font-mono">
+                              {log.cost_codes.code} – {log.cost_codes.name}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground text-xs">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right font-medium">
+                          {parseFloat(log.hours_worked.toString()).toFixed(2)}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground max-w-xs truncate">
+                          {log.notes || '-'}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
