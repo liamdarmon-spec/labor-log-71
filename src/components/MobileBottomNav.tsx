@@ -62,6 +62,12 @@ export function MobileBottomNav() {
                 <span className="text-sm font-medium">Dashboard</span>
               </NavLink>
               <NavLink
+                to="/financials"
+                className="flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-muted transition-colors"
+              >
+                <span className="text-sm font-medium">Financials</span>
+              </NavLink>
+              <NavLink
                 to="/view-logs"
                 className="flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-muted transition-colors"
               >
