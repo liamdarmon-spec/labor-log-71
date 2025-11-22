@@ -100,9 +100,9 @@ export function EditScheduleDialog({ open, onOpenChange, schedule, onSuccess }: 
 
     // Check if there's a related time log
     const { data, error } = await supabase
-      .from("daily_logs")
+      .from("time_logs")
       .select("id")
-      .eq("schedule_id", scheduleId)
+      .eq("source_schedule_id", scheduleId)
       .maybeSingle();
 
     if (error) {
@@ -150,7 +150,7 @@ export function EditScheduleDialog({ open, onOpenChange, schedule, onSuccess }: 
     setLoading(true);
 
     const { error } = await supabase
-      .from("scheduled_shifts")
+      .from("work_schedules")
       .update({
         worker_id: formData.worker_id,
         project_id: formData.project_id,

@@ -207,7 +207,7 @@ export function AddToScheduleDialog({
     // Check for existing bookings on selected date
     if (selectedDate) {
       const { data } = await supabase
-        .from('scheduled_shifts')
+        .from('work_schedules')
         .select('id')
         .eq('worker_id', workerId)
         .eq('scheduled_date', format(selectedDate, 'yyyy-MM-dd'))
@@ -279,7 +279,7 @@ export function AddToScheduleDialog({
 
     const { data: userData } = await supabase.auth.getUser();
 
-    const { error } = await supabase.from("scheduled_shifts").insert({
+    const { error } = await supabase.from("work_schedules").insert({
       worker_id: selectedWorker,
       project_id: selectedProject,
       trade_id: selectedTrade || null,
@@ -371,7 +371,7 @@ export function AddToScheduleDialog({
       created_by: userData.user?.id
     }));
 
-    const { error } = await supabase.from("scheduled_shifts").insert(schedules);
+    const { error } = await supabase.from("work_schedules").insert(schedules);
 
     setLoading(false);
 
