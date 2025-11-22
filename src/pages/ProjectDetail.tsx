@@ -27,16 +27,16 @@ interface Project {
 }
 
 const ProjectDetail = () => {
-  const { id } = useParams<{ id: string }>();
+  const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (id) {
-      fetchProjectData(id);
+    if (projectId) {
+      fetchProjectData(projectId);
     }
-  }, [id]);
+  }, [projectId]);
 
   const fetchProjectData = async (projectId: string) => {
     try {
