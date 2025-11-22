@@ -78,6 +78,7 @@ export function ProjectScheduleTabV2({ projectId }: ProjectScheduleTabV2Props) {
             handleRefresh();
           }
         }}
+        onScheduleCreated={handleRefresh}
       />
     </>
   );
