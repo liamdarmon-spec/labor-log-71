@@ -50,7 +50,7 @@ export const WeeklyCompanyReport = () => {
       
       // Fetch all logs for the week with company info
       const { data: logs, error } = await supabase
-        .from('daily_logs')
+        .from('time_logs')
         .select(`
           *,
           workers (name),

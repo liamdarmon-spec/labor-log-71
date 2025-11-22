@@ -368,7 +368,7 @@ export const BulkEntryTab = ({ onSuccess }: { onSuccess?: () => void }) => {
         return;
       }
 
-      const { error } = await supabase.from('daily_logs').insert(validEntries);
+      const { error } = await supabase.from('time_logs').insert(validEntries);
 
       if (error) throw error;
 

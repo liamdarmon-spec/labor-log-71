@@ -69,7 +69,7 @@ export const ViewLogsTab = () => {
 
   const fetchData = async () => {
     const { data: logsData, error: logsError } = await supabase
-      .from('daily_logs')
+      .from('time_logs')
       .select(`
         *,
         workers (
@@ -124,7 +124,7 @@ export const ViewLogsTab = () => {
 
     if (filters.workerId && filters.workerId !== 'all') {
       const { data: workerLogs } = await supabase
-        .from('daily_logs')
+        .from('time_logs')
         .select('id')
         .eq('worker_id', filters.workerId);
       const workerLogIds = new Set(workerLogs?.map(l => l.id) || []);
@@ -133,7 +133,7 @@ export const ViewLogsTab = () => {
 
     if (filters.projectId && filters.projectId !== 'all') {
       const { data: projectLogs } = await supabase
-        .from('daily_logs')
+        .from('time_logs')
         .select('id')
         .eq('project_id', filters.projectId);
       const projectLogIds = new Set(projectLogs?.map(l => l.id) || []);
@@ -147,7 +147,7 @@ export const ViewLogsTab = () => {
         .eq('trade_id', filters.tradeId);
       const tradeWorkerIds = new Set(workerIds?.map(w => w.id) || []);
       const { data: tradeLogs } = await supabase
-        .from('daily_logs')
+        .from('time_logs')
         .select('id, worker_id');
       const tradeLogIds = new Set(
         tradeLogs?.filter(l => tradeWorkerIds.has(l.worker_id))?.map(l => l.id) || []

@@ -88,7 +88,7 @@ export function UniversalDayDetailDialog({
 
     setLoading(true);
     const { data, error } = await supabase
-      .from("scheduled_shifts")
+      .from("work_schedules")
       .select(`
         *,
         worker:workers(name, trade),
@@ -111,39 +111,20 @@ export function UniversalDayDetailDialog({
   const handleConvertToTimeLogs = async () => {
     if (!date) return;
 
-    const { data: userData } = await supabase.auth.getUser();
-    
-    const timeLogEntries = selectedSchedules.map(schedule => ({
-      worker_id: schedule.worker_id,
-      project_id: schedule.project_id,
-      trade_id: schedule.trade_id,
-      date: format(date, "yyyy-MM-dd"),
-      hours_worked: schedule.scheduled_hours,
-      notes: schedule.notes,
-      created_by: userData.user?.id
-    }));
+    // Mark schedules as converted - triggers will create time_logs
+    const scheduleIds = selectedSchedules.map(s => s.id);
+    const { error: updateError } = await supabase
+      .from("work_schedules")
+      .update({ converted_to_timelog: true })
+      .in("id", scheduleIds);
 
-    const { error: insertError } = await supabase
-      .from("daily_logs")
-      .insert(timeLogEntries);
-
-    if (insertError) {
+    if (updateError) {
       toast({
         title: "Error",
-        description: "Failed to create time logs",
+        description: "Failed to convert schedules to time logs",
         variant: "destructive"
       });
       return;
-    }
-
-    const scheduleIds = selectedSchedules.map(s => s.id);
-    const { error: deleteError } = await supabase
-      .from("scheduled_shifts")
-      .delete()
-      .in("id", scheduleIds);
-
-    if (deleteError) {
-      console.error("Error deleting schedules:", deleteError);
     }
 
     toast({

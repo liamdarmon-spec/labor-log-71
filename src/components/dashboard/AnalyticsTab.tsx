@@ -68,7 +68,7 @@ export const AnalyticsTab = () => {
   const generateReport = async () => {
     try {
       let query = supabase
-        .from('daily_logs')
+        .from('time_logs')
         .select(`
           *,
           workers (name, hourly_rate, trades(name)),
