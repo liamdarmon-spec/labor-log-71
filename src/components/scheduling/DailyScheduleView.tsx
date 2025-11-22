@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Plus, User, Clock, ExternalLink } from "lucide-react";
 import { format, addDays } from "date-fns";
 import { Badge } from "@/components/ui/badge";
-import { UniversalDayDetailDialog } from "./UniversalDayDetailDialog";
+import { MasterScheduleModal } from "./MasterScheduleModal";
 import { useSchedulerData } from "@/lib/scheduler/useSchedulerData";
 import type { SchedulerFilterMode } from "@/lib/scheduler/types";
 
@@ -233,12 +233,16 @@ export function DailyScheduleView({ onScheduleClick, refreshTrigger, scheduleTyp
         )}
       </Card>
 
-      <UniversalDayDetailDialog
+      <MasterScheduleModal
         open={showFullDayDialog}
         onOpenChange={setShowFullDayDialog}
         date={currentDate}
+        context="global"
         onRefresh={() => {}}
-        onAddSchedule={() => onScheduleClick(currentDate)}
+        onAddSchedule={() => {
+          setShowFullDayDialog(false);
+          onScheduleClick(currentDate);
+        }}
       />
     </div>
   );

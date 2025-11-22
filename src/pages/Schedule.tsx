@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AddToScheduleDialog } from "@/components/scheduling/AddToScheduleDialog";
-import { UniversalDayDetailDialog } from "@/components/scheduling/UniversalDayDetailDialog";
+import { MasterScheduleModal } from "@/components/scheduling/MasterScheduleModal";
 import { WeeklyScheduleView } from "@/components/scheduling/WeeklyScheduleView";
 import { DailyScheduleView } from "@/components/scheduling/DailyScheduleView";
 import { MonthlyScheduleView } from "@/components/scheduling/MonthlyScheduleView";
@@ -14,7 +14,7 @@ type ScheduleType = "workers" | "subs" | "meetings" | "all";
 
 const Schedule = () => {
   const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false);
-  const [isDayDetailDialogOpen, setIsDayDetailDialogOpen] = useState(false);
+  const [isMasterModalOpen, setIsMasterModalOpen] = useState(false);
   const [scheduleDefaultDate, setScheduleDefaultDate] = useState<Date>();
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [scheduleRefresh, setScheduleRefresh] = useState(0);
@@ -30,7 +30,7 @@ const Schedule = () => {
 
   const handleDayClick = (date: Date) => {
     setSelectedDay(date);
-    setIsDayDetailDialogOpen(true);
+    setIsMasterModalOpen(true);
   };
 
   const handleScheduleCreated = () => {
@@ -110,12 +110,16 @@ const Schedule = () => {
           defaultDate={scheduleDefaultDate}
         />
 
-        <UniversalDayDetailDialog
-          open={isDayDetailDialogOpen}
-          onOpenChange={setIsDayDetailDialogOpen}
+        <MasterScheduleModal
+          open={isMasterModalOpen}
+          onOpenChange={setIsMasterModalOpen}
           date={selectedDay}
+          context="global"
           onRefresh={handleScheduleCreated}
-          onAddSchedule={handleScheduleClick}
+          onAddSchedule={() => {
+            setIsMasterModalOpen(false);
+            handleScheduleClick(selectedDay || undefined);
+          }}
         />
       </div>
     </Layout>
