@@ -2221,6 +2221,23 @@ export type Database = {
           },
         ]
       }
+      workforce_activity_feed: {
+        Row: {
+          amount: number | null
+          company_id: string | null
+          company_name: string | null
+          event_at: string | null
+          event_type: string | null
+          hours: number | null
+          id: string | null
+          meta: Json | null
+          project_id: string | null
+          project_name: string | null
+          worker_id: string | null
+          worker_name: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       delete_old_archived_logs: { Args: never; Returns: undefined }
