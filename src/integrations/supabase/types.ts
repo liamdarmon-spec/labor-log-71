@@ -369,6 +369,168 @@ export type Database = {
           },
         ]
       }
+      day_card_jobs: {
+        Row: {
+          cost_code_id: string | null
+          created_at: string | null
+          day_card_id: string
+          hours: number
+          id: string
+          notes: string | null
+          project_id: string
+          trade_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          cost_code_id?: string | null
+          created_at?: string | null
+          day_card_id: string
+          hours?: number
+          id?: string
+          notes?: string | null
+          project_id: string
+          trade_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          cost_code_id?: string | null
+          created_at?: string | null
+          day_card_id?: string
+          hours?: number
+          id?: string
+          notes?: string | null
+          project_id?: string
+          trade_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "day_card_jobs_cost_code_id_fkey"
+            columns: ["cost_code_id"]
+            isOneToOne: false
+            referencedRelation: "cost_codes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "day_card_jobs_day_card_id_fkey"
+            columns: ["day_card_id"]
+            isOneToOne: false
+            referencedRelation: "day_cards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "day_card_jobs_day_card_id_fkey"
+            columns: ["day_card_id"]
+            isOneToOne: false
+            referencedRelation: "day_cards_with_details"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "day_card_jobs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_costs_view"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "day_card_jobs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_dashboard_view"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "day_card_jobs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "day_card_jobs_trade_id_fkey"
+            columns: ["trade_id"]
+            isOneToOne: false
+            referencedRelation: "trades"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      day_cards: {
+        Row: {
+          company_id: string | null
+          created_at: string | null
+          created_by: string | null
+          date: string
+          id: string
+          locked: boolean | null
+          logged_hours: number | null
+          metadata: Json | null
+          notes: string | null
+          pay_rate: number | null
+          pay_status: string | null
+          scheduled_hours: number | null
+          status: string
+          updated_at: string | null
+          worker_id: string
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          date: string
+          id?: string
+          locked?: boolean | null
+          logged_hours?: number | null
+          metadata?: Json | null
+          notes?: string | null
+          pay_rate?: number | null
+          pay_status?: string | null
+          scheduled_hours?: number | null
+          status?: string
+          updated_at?: string | null
+          worker_id: string
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          date?: string
+          id?: string
+          locked?: boolean | null
+          logged_hours?: number | null
+          metadata?: Json | null
+          notes?: string | null
+          pay_rate?: number | null
+          pay_status?: string | null
+          scheduled_hours?: number | null
+          status?: string
+          updated_at?: string | null
+          worker_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "day_cards_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "day_cards_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "workers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "day_cards_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "workers_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       documents: {
         Row: {
           ai_doc_type: string | null
@@ -2252,6 +2414,52 @@ export type Database = {
       }
     }
     Views: {
+      day_cards_with_details: {
+        Row: {
+          company_id: string | null
+          created_at: string | null
+          created_by: string | null
+          date: string | null
+          id: string | null
+          jobs: Json[] | null
+          locked: boolean | null
+          logged_hours: number | null
+          metadata: Json | null
+          notes: string | null
+          pay_rate: number | null
+          pay_status: string | null
+          scheduled_hours: number | null
+          status: string | null
+          trade_name: string | null
+          updated_at: string | null
+          worker_default_rate: number | null
+          worker_id: string | null
+          worker_name: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "day_cards_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "day_cards_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "workers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "day_cards_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "workers_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       labor_actuals_by_cost_code: {
         Row: {
           actual_cost: number | null
@@ -2715,6 +2923,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      migrate_to_day_cards: { Args: never; Returns: undefined }
       split_schedule_for_multi_project: {
         Args: { p_original_schedule_id: string; p_time_log_entries: Json }
         Returns: {
