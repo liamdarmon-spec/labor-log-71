@@ -12,11 +12,10 @@ export const MobileNav = () => {
   const { signOut } = useAuth();
 
   const navItems = [
+    { path: '/', icon: BarChart3, label: 'Dashboard' },
     { path: '/projects', icon: Building2, label: 'Projects' },
-    { path: '/schedule', icon: CalendarClock, label: 'Schedule' },
     { path: '/workforce', icon: Users, label: 'Workforce' },
-    { path: '/financials', icon: BarChart3, label: 'Costs' },
-    { path: '/payments', icon: DollarSign, label: 'Payments' },
+    { path: '/financials', icon: DollarSign, label: 'Financials' },
     { path: '/admin', icon: Settings, label: 'Admin' },
   ];
 
