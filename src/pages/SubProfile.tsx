@@ -1,336 +1,267 @@
 import { Layout } from '@/components/Layout';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ArrowLeft, Building2, DollarSign, FileText, Calendar, TrendingUp, Clock } from 'lucide-react';
-import { format } from 'date-fns';
-import { useNavigate } from 'react-router-dom';
+import { ArrowLeft, Building2, Phone, Mail, Briefcase } from 'lucide-react';
 
 export default function SubProfile() {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  const { data: sub } = useQuery({
-    queryKey: ['sub', id],
+  // Fetch sub details
+  const { data: sub, isLoading } = useQuery({
+    queryKey: ['sub-profile', id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('subs')
-        .select(`
-          *,
-          trades (name)
-        `)
-        .eq('id', id)
+        .select('*, trades(id, name)')
+        .eq('id', id!)
         .single();
       if (error) throw error;
       return data;
     },
   });
 
+  // Fetch all contracts for this sub
   const { data: contracts } = useQuery({
-    queryKey: ['sub-contracts', id],
+    queryKey: ['sub-all-contracts', id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('sub_contracts')
         .select(`
           *,
-          projects (project_name)
+          projects(id, project_name, status)
         `)
-        .eq('sub_id', id)
+        .eq('sub_id', id!)
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data;
     },
   });
 
-  const { data: invoices } = useQuery({
-    queryKey: ['sub-invoices', id],
+  // Fetch summary via sub_contract_summary view
+  const { data: summary } = useQuery({
+    queryKey: ['sub-summary', id],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('sub_invoices')
-        .select(`
-          *,
-          projects (project_name)
-        `)
-        .eq('sub_id', id)
-        .order('invoice_date', { ascending: false });
+        .from('sub_contract_summary')
+        .select('*')
+        .eq('sub_id', id!);
       if (error) throw error;
-      return data;
+
+      // Aggregate across all projects
+      const totals = data.reduce(
+        (acc, row) => ({
+          totalContracted: acc.totalContracted + Number(row.contract_value),
+          totalBilled: acc.totalBilled + Number(row.total_billed),
+          totalPaid: acc.totalPaid + Number(row.total_paid),
+          retentionHeld: acc.retentionHeld + Number(row.total_retention_held),
+          outstanding: acc.outstanding + Number(row.outstanding_balance),
+        }),
+        { totalContracted: 0, totalBilled: 0, totalPaid: 0, retentionHeld: 0, outstanding: 0 }
+      );
+
+      return totals;
     },
   });
 
-  const { data: schedule } = useQuery({
-    queryKey: ['sub-schedule', id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('sub_scheduled_shifts')
-        .select(`
-          *,
-          projects (project_name)
-        `)
-        .eq('sub_id', id)
-        .gte('scheduled_date', new Date().toISOString().split('T')[0])
-        .order('scheduled_date');
-      if (error) throw error;
-      return data;
-    },
-  });
+  if (isLoading) {
+    return (
+      <Layout>
+        <div className="space-y-6">
+          <Skeleton className="h-12 w-64" />
+          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-64 w-full" />
+        </div>
+      </Layout>
+    );
+  }
 
-  const totalContracted = contracts?.reduce((sum, c) => sum + Number(c.contract_value), 0) || 0;
-  const totalBilled = contracts?.reduce((sum, c) => sum + Number(c.amount_billed), 0) || 0;
-  const totalPaid = contracts?.reduce((sum, c) => sum + Number(c.amount_paid), 0) || 0;
-  const retentionHeld = contracts?.reduce((sum, c) => sum + Number(c.retention_held), 0) || 0;
-  const outstandingBalance = totalBilled - totalPaid;
+  if (!sub) {
+    return (
+      <Layout>
+        <div className="text-center py-12">
+          <p className="text-muted-foreground">Subcontractor not found</p>
+          <Button onClick={() => navigate('/subs')} className="mt-4">
+            Back to Subs
+          </Button>
+        </div>
+      </Layout>
+    );
+  }
+
+  const activeProjects = contracts?.filter(c => c.projects?.status === 'Active').length || 0;
 
   return (
     <Layout>
       <div className="space-y-6">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div className="flex-1">
-            <h1 className="text-3xl font-bold">{sub?.name}</h1>
-            <div className="flex items-center gap-4 mt-2">
-              <Badge variant="outline">{sub?.trades?.name}</Badge>
-              <Badge variant={sub?.active ? 'default' : 'secondary'}>
-                {sub?.active ? 'Active' : 'Inactive'}
-              </Badge>
-              {sub?.company_name && (
-                <span className="text-sm text-muted-foreground flex items-center gap-1">
-                  <Building2 className="h-4 w-4" />
-                  {sub.company_name}
-                </span>
+        {/* Header */}
+        <div className="flex items-start justify-between">
+          <div className="flex items-start gap-4">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate('/subs')}
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <div>
+              <div className="flex items-center gap-3">
+                <h1 className="text-3xl font-bold">{sub.name}</h1>
+                <Badge variant={sub.active ? 'default' : 'secondary'}>
+                  {sub.active ? 'Active' : 'Inactive'}
+                </Badge>
+              </div>
+              {sub.company_name && (
+                <p className="text-muted-foreground mt-1">{sub.company_name}</p>
               )}
             </div>
           </div>
         </div>
 
-        {/* Financial Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        {/* Contact & Trade Info */}
+        <Card>
+          <CardContent className="pt-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="flex items-start gap-3">
+                <Briefcase className="h-5 w-5 text-muted-foreground mt-0.5" />
+                <div>
+                  <div className="text-sm text-muted-foreground">Trade</div>
+                  <div className="font-medium">{sub.trades?.name || 'N/A'}</div>
+                </div>
+              </div>
+              {sub.phone && (
+                <div className="flex items-start gap-3">
+                  <Phone className="h-5 w-5 text-muted-foreground mt-0.5" />
+                  <div>
+                    <div className="text-sm text-muted-foreground">Phone</div>
+                    <div className="font-medium">{sub.phone}</div>
+                  </div>
+                </div>
+              )}
+              {sub.email && (
+                <div className="flex items-start gap-3">
+                  <Mail className="h-5 w-5 text-muted-foreground mt-0.5" />
+                  <div>
+                    <div className="text-sm text-muted-foreground">Email</div>
+                    <div className="font-medium">{sub.email}</div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Financial Summary */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           <Card>
             <CardContent className="pt-6">
-              <div className="flex items-center gap-2 mb-2">
-                <FileText className="h-5 w-5 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">Contracted</span>
-              </div>
-              <div className="text-2xl font-bold">${totalContracted.toLocaleString()}</div>
+              <div className="text-sm text-muted-foreground mb-1">Active Projects</div>
+              <div className="text-2xl font-bold">{activeProjects}</div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-6">
-              <div className="flex items-center gap-2 mb-2">
-                <TrendingUp className="h-5 w-5 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">Billed</span>
-              </div>
-              <div className="text-2xl font-bold">${totalBilled.toLocaleString()}</div>
+              <div className="text-sm text-muted-foreground mb-1">Total Contracted</div>
+              <div className="text-2xl font-bold">${(summary?.totalContracted || 0).toLocaleString()}</div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-6">
-              <div className="flex items-center gap-2 mb-2">
-                <DollarSign className="h-5 w-5 text-green-500" />
-                <span className="text-sm text-muted-foreground">Paid</span>
-              </div>
-              <div className="text-2xl font-bold text-green-600">${totalPaid.toLocaleString()}</div>
+              <div className="text-sm text-muted-foreground mb-1">Total Billed</div>
+              <div className="text-2xl font-bold text-blue-600">${(summary?.totalBilled || 0).toLocaleString()}</div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-6">
-              <div className="flex items-center gap-2 mb-2">
-                <Clock className="h-5 w-5 text-orange-500" />
-                <span className="text-sm text-muted-foreground">Outstanding</span>
-              </div>
-              <div className="text-2xl font-bold text-orange-600">${outstandingBalance.toLocaleString()}</div>
+              <div className="text-sm text-muted-foreground mb-1">Total Paid</div>
+              <div className="text-2xl font-bold text-green-600">${(summary?.totalPaid || 0).toLocaleString()}</div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-6">
-              <div className="flex items-center gap-2 mb-2">
-                <DollarSign className="h-5 w-5 text-blue-500" />
-                <span className="text-sm text-muted-foreground">Retention</span>
-              </div>
-              <div className="text-2xl font-bold text-blue-600">${retentionHeld.toLocaleString()}</div>
+              <div className="text-sm text-muted-foreground mb-1">Outstanding</div>
+              <div className="text-2xl font-bold text-orange-600">${(summary?.outstanding || 0).toLocaleString()}</div>
             </CardContent>
           </Card>
         </div>
 
-        <Tabs defaultValue="contracts" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="contracts">Contracts</TabsTrigger>
-            <TabsTrigger value="invoices">Invoices</TabsTrigger>
-            <TabsTrigger value="schedule">Schedule</TabsTrigger>
-            <TabsTrigger value="payments">Payments</TabsTrigger>
-          </TabsList>
+        {/* Active Projects */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Projects</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {contracts && contracts.length > 0 ? (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Project</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Contract Value</TableHead>
+                    <TableHead className="text-right">Billed</TableHead>
+                    <TableHead className="text-right">Paid</TableHead>
+                    <TableHead className="text-right">Outstanding</TableHead>
+                    <TableHead></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {contracts.map((contract: any) => {
+                    const billed = Number(contract.amount_billed || 0);
+                    const paid = Number(contract.amount_paid || 0);
+                    const outstanding = billed - paid;
 
-          <TabsContent value="contracts" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle>Contracts</CardTitle>
-                  <Button>Add Contract</Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {contracts && contracts.length > 0 ? (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Project</TableHead>
-                        <TableHead>Value</TableHead>
-                        <TableHead>Billed</TableHead>
-                        <TableHead>Paid</TableHead>
-                        <TableHead>Retention</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Dates</TableHead>
+                    return (
+                      <TableRow key={contract.id}>
+                        <TableCell className="font-medium">
+                          {contract.projects?.project_name || 'Unknown Project'}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={contract.projects?.status === 'Active' ? 'default' : 'secondary'}>
+                            {contract.projects?.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right font-medium">
+                          ${Number(contract.contract_value).toLocaleString()}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          ${billed.toLocaleString()}
+                        </TableCell>
+                        <TableCell className="text-right text-green-600 font-medium">
+                          ${paid.toLocaleString()}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <span className={outstanding > 0 ? 'text-orange-600 font-medium' : ''}>
+                            ${outstanding.toLocaleString()}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => navigate(`/projects/${contract.projects?.id}?tab=subs`)}
+                          >
+                            View
+                          </Button>
+                        </TableCell>
                       </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {contracts.map((contract: any) => (
-                        <TableRow key={contract.id}>
-                          <TableCell className="font-medium">{contract.projects?.project_name}</TableCell>
-                          <TableCell>${Number(contract.contract_value).toLocaleString()}</TableCell>
-                          <TableCell>${Number(contract.amount_billed).toLocaleString()}</TableCell>
-                          <TableCell>${Number(contract.amount_paid).toLocaleString()}</TableCell>
-                          <TableCell>${Number(contract.retention_held).toLocaleString()}</TableCell>
-                          <TableCell>
-                            <Badge variant={contract.status === 'active' ? 'default' : 'secondary'}>
-                              {contract.status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            {contract.start_date && format(new Date(contract.start_date), 'MMM d, yyyy')}
-                            {contract.end_date && ` - ${format(new Date(contract.end_date), 'MMM d, yyyy')}`}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground">
-                    No contracts found
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="invoices" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle>Invoices</CardTitle>
-                  <Button>Add Invoice</Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {invoices && invoices.length > 0 ? (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Invoice #</TableHead>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Project</TableHead>
-                        <TableHead>Amount</TableHead>
-                        <TableHead>Retention</TableHead>
-                        <TableHead>Paid</TableHead>
-                        <TableHead>Status</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {invoices.map((invoice: any) => (
-                        <TableRow key={invoice.id}>
-                          <TableCell className="font-medium">{invoice.invoice_number || '-'}</TableCell>
-                          <TableCell>{format(new Date(invoice.invoice_date), 'MMM d, yyyy')}</TableCell>
-                          <TableCell>{invoice.projects?.project_name}</TableCell>
-                          <TableCell>${Number(invoice.total).toLocaleString()}</TableCell>
-                          <TableCell>${Number(invoice.retention_amount).toLocaleString()}</TableCell>
-                          <TableCell>${Number(invoice.amount_paid).toLocaleString()}</TableCell>
-                          <TableCell>
-                            <Badge
-                              variant={
-                                invoice.payment_status === 'paid'
-                                  ? 'default'
-                                  : invoice.payment_status === 'partial'
-                                  ? 'secondary'
-                                  : 'destructive'
-                              }
-                            >
-                              {invoice.payment_status}
-                            </Badge>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground">
-                    No invoices found
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="schedule" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Upcoming Schedule</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {schedule && schedule.length > 0 ? (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Project</TableHead>
-                        <TableHead>Hours</TableHead>
-                        <TableHead>Notes</TableHead>
-                        <TableHead>Status</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {schedule.map((shift: any) => (
-                        <TableRow key={shift.id}>
-                          <TableCell className="font-medium">
-                            {format(new Date(shift.scheduled_date), 'MMM d, yyyy')}
-                          </TableCell>
-                          <TableCell>{shift.projects?.project_name}</TableCell>
-                          <TableCell>{shift.scheduled_hours || 8} hrs</TableCell>
-                          <TableCell>{shift.notes || '-'}</TableCell>
-                          <TableCell>
-                            <Badge variant="outline">{shift.status || 'planned'}</Badge>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground">
-                    No upcoming schedule found
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="payments" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Payment History</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-8 text-muted-foreground">
-                  Payment tracking coming soon
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            ) : (
+              <div className="text-center py-12 text-muted-foreground">
+                <Building2 className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>No projects yet</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </Layout>
   );
