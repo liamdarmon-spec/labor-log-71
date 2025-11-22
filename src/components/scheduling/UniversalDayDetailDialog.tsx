@@ -45,6 +45,10 @@ interface UniversalDayDetailDialogProps {
   onAddSchedule?: () => void;
   highlightWorkerId?: string | null;
   projectContext?: string;
+  // Optional filters to scope the planner
+  projectId?: string;
+  companyId?: string;
+  scheduleType?: 'labor' | 'sub' | 'meeting' | 'all';
 }
 
 export function UniversalDayDetailDialog({ 
@@ -54,7 +58,10 @@ export function UniversalDayDetailDialog({
   onRefresh, 
   onAddSchedule,
   highlightWorkerId,
-  projectContext 
+  projectContext,
+  projectId,
+  companyId,
+  scheduleType = 'all'
 }: UniversalDayDetailDialogProps) {
   const { toast } = useToast();
   const [schedules, setSchedules] = useState<ScheduledShift[]>([]);
@@ -87,7 +94,10 @@ export function UniversalDayDetailDialog({
     if (!date) return;
 
     setLoading(true);
-    const { data, error } = await supabase
+    
+    const dateStr = format(date, "yyyy-MM-dd");
+    
+    let query: any = supabase
       .from("work_schedules")
       .select(`
         *,
@@ -95,8 +105,21 @@ export function UniversalDayDetailDialog({
         project:projects(project_name, client_name),
         trade:trades(name)
       `)
-      .eq("scheduled_date", format(date, "yyyy-MM-dd"))
+      .eq("scheduled_date", dateStr)
       .order("worker_id");
+
+    // Apply optional filters
+    if (projectId) {
+      query = query.eq("project_id", projectId);
+    }
+    if (companyId && companyId !== 'all') {
+      query = query.eq("company_id", companyId);
+    }
+    if (scheduleType && scheduleType !== 'all') {
+      query = query.eq("schedule_type", scheduleType);
+    }
+
+    const { data, error } = await query;
 
     setLoading(false);
 
@@ -176,7 +199,15 @@ export function UniversalDayDetailDialog({
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between">
-            <span>{date ? format(date, "EEEE, MMMM d, yyyy") : ""}</span>
+            <div>
+              <div>{date ? format(date, "EEEE, MMMM d, yyyy") : ""}</div>
+              {projectContext && (
+                <p className="text-sm text-muted-foreground font-normal mt-1">
+                  {scheduleType === 'sub' ? 'Subs Schedule' : scheduleType === 'labor' ? 'Labor Schedule' : 'Day Schedule'}
+                  {projectId && ' – Project View'}
+                </p>
+              )}
+            </div>
             <Button
               size="sm"
               onClick={() => {
