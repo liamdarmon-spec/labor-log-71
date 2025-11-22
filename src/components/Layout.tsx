@@ -41,6 +41,15 @@ export const Layout = ({ children }: LayoutProps) => {
           </div>
           <nav className="hidden lg:flex items-center gap-2">
             <Button
+              variant={location.pathname === '/' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => navigate('/')}
+              className={`gap-2 h-9 ${location.pathname === '/' ? 'font-semibold' : ''}`}
+            >
+              <BarChart3 className="w-4 h-4" />
+              <span>Dashboard</span>
+            </Button>
+            <Button
               variant={location.pathname === '/projects' || location.pathname.startsWith('/projects/') ? 'default' : 'ghost'}
               size="sm"
               onClick={() => navigate('/projects')}
@@ -50,40 +59,22 @@ export const Layout = ({ children }: LayoutProps) => {
               <span>Projects</span>
             </Button>
             <Button
-              variant={location.pathname === '/schedule' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => navigate('/schedule')}
-              className={`gap-2 h-9 ${location.pathname === '/schedule' ? 'font-semibold' : ''}`}
-            >
-              <CalendarClock className="w-4 h-4" />
-              <span>Schedule</span>
-            </Button>
-            <Button
-              variant={location.pathname.startsWith('/workforce') && !location.pathname.includes('scheduler') ? 'default' : 'ghost'}
+              variant={location.pathname.startsWith('/workforce') ? 'default' : 'ghost'}
               size="sm"
               onClick={() => navigate('/workforce')}
-              className={`gap-2 h-9 ${location.pathname.startsWith('/workforce') && !location.pathname.includes('scheduler') ? 'font-semibold' : ''}`}
+              className={`gap-2 h-9 ${location.pathname.startsWith('/workforce') ? 'font-semibold' : ''}`}
             >
               <Users className="w-4 h-4" />
               <span>Workforce</span>
             </Button>
             <Button
-              variant={location.pathname.startsWith('/financials') || location.pathname === '/dashboard' ? 'default' : 'ghost'}
+              variant={location.pathname.startsWith('/financials') ? 'default' : 'ghost'}
               size="sm"
               onClick={() => navigate('/financials')}
-              className={`gap-2 h-9 ${location.pathname.startsWith('/financials') || location.pathname === '/dashboard' ? 'font-semibold' : ''}`}
-            >
-              <BarChart3 className="w-4 h-4" />
-              <span>Costs</span>
-            </Button>
-            <Button
-              variant={location.pathname.startsWith('/payments') ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => navigate('/payments')}
-              className={`gap-2 h-9 ${location.pathname.startsWith('/payments') ? 'font-semibold' : ''}`}
+              className={`gap-2 h-9 ${location.pathname.startsWith('/financials') ? 'font-semibold' : ''}`}
             >
               <DollarSign className="w-4 h-4" />
-              <span>Payments</span>
+              <span>Financials</span>
             </Button>
             <Button
               variant={location.pathname === '/admin' ? 'default' : 'ghost'}
