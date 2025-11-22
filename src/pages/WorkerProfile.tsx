@@ -11,6 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowLeft, Clock, DollarSign, Briefcase, Calendar } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { format } from 'date-fns';
+import { WorkerPaymentHistoryLink } from '@/components/workforce/WorkerPaymentHistoryLink';
 
 const WorkerProfile = () => {
   const { workerId } = useParams<{ workerId: string }>();
@@ -156,9 +157,12 @@ const WorkerProfile = () => {
                     <h1 className="text-3xl font-bold">{worker.name}</h1>
                     <p className="text-lg text-muted-foreground">{worker.trades?.name || worker.trade}</p>
                   </div>
-                  <Badge variant={worker.active ? 'default' : 'secondary'}>
-                    {worker.active ? 'Active' : 'Inactive'}
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    <Badge variant={worker.active ? 'default' : 'secondary'}>
+                      {worker.active ? 'Active' : 'Inactive'}
+                    </Badge>
+                    <WorkerPaymentHistoryLink workerId={workerId!} />
+                  </div>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
                   <div>

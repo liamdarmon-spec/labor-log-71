@@ -14,6 +14,10 @@ import ProjectDetail from "./pages/ProjectDetail";
 import Workforce from "./pages/Workforce";
 import WorkerProfile from "./pages/WorkerProfile";
 import Financials from "./pages/Financials";
+import FinancialPayments from "./pages/FinancialPayments";
+import FinancialEstimates from "./pages/FinancialEstimates";
+import FinancialMaterials from "./pages/FinancialMaterials";
+import FinancialReports from "./pages/FinancialReports";
 import Documents from "./pages/Documents";
 import Materials from "./pages/Materials";
 import SubProfile from "./pages/SubProfile";
@@ -40,6 +44,12 @@ const App = () => (
             <Route path="/workforce" element={<Workforce />} />
             <Route path="/workforce/worker/:workerId" element={<WorkerProfile />} />
             <Route path="/financials" element={<Financials />} />
+            <Route path="/financials/payments" element={<FinancialPayments />} />
+            <Route path="/financials/estimates" element={<FinancialEstimates />} />
+            <Route path="/financials/materials" element={<FinancialMaterials />} />
+            <Route path="/financials/subcontractors" element={<Subs />} />
+            <Route path="/financials/documents" element={<Documents />} />
+            <Route path="/financials/reports" element={<FinancialReports />} />
             <Route path="/documents" element={<Documents />} />
             <Route path="/materials" element={<Materials />} />
             <Route path="/subs" element={<Subs />} />

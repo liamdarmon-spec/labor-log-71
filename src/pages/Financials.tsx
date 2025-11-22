@@ -18,42 +18,42 @@ const Financials = () => {
       title: 'Payments',
       description: 'Labor payroll, payment runs, and reimbursements',
       icon: CreditCard,
-      path: '/payments',
+      path: '/financials/payments',
       color: 'bg-blue-50 text-blue-600',
     },
     {
       title: 'Estimates',
       description: 'Global view of all project estimates',
       icon: FileText,
-      path: '/projects',
+      path: '/financials/estimates',
       color: 'bg-purple-50 text-purple-600',
     },
     {
       title: 'Subcontractors',
       description: 'Sub contracts, invoices, and payments',
       icon: Users,
-      path: '/subs',
+      path: '/financials/subcontractors',
       color: 'bg-green-50 text-green-600',
     },
     {
       title: 'Materials',
       description: 'Material receipts and vendor tracking',
       icon: Package,
-      path: '/materials',
+      path: '/financials/materials',
       color: 'bg-orange-50 text-orange-600',
     },
     {
       title: 'Documents',
       description: 'Invoices, receipts, contracts, and permits',
       icon: Receipt,
-      path: '/documents',
+      path: '/financials/documents',
       color: 'bg-indigo-50 text-indigo-600',
     },
     {
       title: 'Reports & Analytics',
-      description: 'Financial reports and insights (coming soon)',
+      description: 'Financial reports and insights',
       icon: BarChart3,
-      path: '/dashboard',
+      path: '/financials/reports',
       color: 'bg-pink-50 text-pink-600',
     },
   ];
@@ -87,6 +87,7 @@ const Financials = () => {
                 subtitle="From accepted estimates"
                 icon={TrendingUp}
                 variant="success"
+                onClick={() => navigate('/financials/estimates?status=accepted')}
               />
               <FinancialKPICard
                 title="Total Profit"
@@ -94,6 +95,7 @@ const Financials = () => {
                 subtitle={`${summary.revenue > 0 ? ((summary.profit / summary.revenue) * 100).toFixed(1) : 0}% margin`}
                 icon={DollarSign}
                 variant={summary.profit > 0 ? 'success' : 'danger'}
+                onClick={() => navigate('/financials/reports')}
               />
               <FinancialKPICard
                 title="Outstanding Payables"
@@ -101,6 +103,7 @@ const Financials = () => {
                 subtitle="All unpaid costs"
                 icon={AlertTriangle}
                 variant="warning"
+                onClick={() => navigate('/financials/payments?type=unpaid')}
               />
               <FinancialKPICard
                 title="Retention Held"
@@ -117,21 +120,21 @@ const Financials = () => {
                 value={`$${(summary.laborActual / 1000).toFixed(1)}K`}
                 subtitle={`Unpaid: $${(summary.laborUnpaid / 1000).toFixed(1)}K`}
                 icon={Users}
-                onClick={() => navigate('/payments')}
+                onClick={() => navigate('/financials/payments?type=Labor')}
               />
               <FinancialKPICard
                 title="Subs (Actual)"
                 value={`$${(summary.subsActual / 1000).toFixed(1)}K`}
                 subtitle={`Unpaid: $${(summary.subsUnpaid / 1000).toFixed(1)}K`}
                 icon={Users}
-                onClick={() => navigate('/subs')}
+                onClick={() => navigate('/financials/payments?type=Sub')}
               />
               <FinancialKPICard
                 title="Materials (Actual)"
                 value={`$${(summary.materialsActual / 1000).toFixed(1)}K`}
                 subtitle="All material receipts"
                 icon={Package}
-                onClick={() => navigate('/materials')}
+                onClick={() => navigate('/financials/materials')}
               />
               <FinancialKPICard
                 title="Total Costs"
@@ -179,16 +182,16 @@ const Financials = () => {
             <CardDescription>Common financial tasks</CardDescription>
           </CardHeader>
           <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <Button variant="outline" onClick={() => navigate('/payments')}>
+            <Button variant="outline" onClick={() => navigate('/financials/payments')}>
               Create Payment Run
             </Button>
-            <Button variant="outline" onClick={() => navigate('/subs')}>
+            <Button variant="outline" onClick={() => navigate('/financials/subcontractors')}>
               Add Sub Invoice
             </Button>
-            <Button variant="outline" onClick={() => navigate('/materials')}>
+            <Button variant="outline" onClick={() => navigate('/financials/materials')}>
               Add Material Receipt
             </Button>
-            <Button variant="outline" onClick={() => navigate('/documents')}>
+            <Button variant="outline" onClick={() => navigate('/financials/documents')}>
               Upload Document
             </Button>
           </CardContent>

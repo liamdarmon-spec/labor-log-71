@@ -36,19 +36,18 @@ export function useUnifiedCosts(projectId?: string) {
         sum + (log.hours_worked * (log.workers?.hourly_rate || 0)), 0
       );
 
-      // Sub Actuals
-      let subsQuery = supabase
-        .from('sub_invoices')
-        .select('total, payment_status');
+      // Sub Actuals from sub_payments
+      let subsPaymentsQuery = supabase
+        .from('sub_payments')
+        .select('amount_paid');
       
       if (projectId) {
-        subsQuery = subsQuery.eq('project_id', projectId);
+        subsPaymentsQuery = subsPaymentsQuery
+          .eq('sub_invoices.project_id', projectId);
       }
 
-      const { data: subInvoices } = await subsQuery;
-      const subsActual = (subInvoices || [])
-        .filter((inv: any) => inv.payment_status !== 'rejected')
-        .reduce((sum, inv: any) => sum + inv.total, 0);
+      const { data: subPayments } = await subsPaymentsQuery;
+      const subsActual = (subPayments || []).reduce((sum, pay: any) => sum + (pay.amount_paid || 0), 0);
 
       // Materials Actuals
       let materialsQuery = supabase
