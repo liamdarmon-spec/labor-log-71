@@ -1,135 +1,204 @@
+import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Clock, Calendar, DollarSign, UserPlus, Edit, Split, AlertCircle } from 'lucide-react';
-import { format } from 'date-fns';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Clock, Calendar, DollarSign, Search, ChevronRight } from 'lucide-react';
+import { format, parseISO, startOfDay, endOfDay, subDays, isToday, isYesterday } from 'date-fns';
+import { useNavigate } from 'react-router-dom';
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from '@/components/ui/select';
+import { useDebounce } from '@/hooks/use-debounce';
 
 type ActivityEvent = {
   id: string;
-  type: 'schedule' | 'log' | 'payment' | 'edit' | 'split';
-  timestamp: string;
-  description: string;
-  workerName?: string;
-  projectName?: string;
+  event_type: string;
+  event_at: string;
+  worker_id?: string;
+  worker_name?: string;
+  company_id?: string;
+  company_name?: string;
+  project_id?: string;
+  project_name?: string;
+  hours?: number;
   amount?: number;
-  metadata?: any;
+  meta: any;
 };
 
 export function ActivityTab() {
-  const { data: events, isLoading } = useQuery({
-    queryKey: ['workforce-activity'],
+  const navigate = useNavigate();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedEventType, setSelectedEventType] = useState('all');
+  const [selectedCompany, setSelectedCompany] = useState('all');
+  const [dateRange, setDateRange] = useState('7'); // days
+  
+  const debouncedSearch = useDebounce(searchTerm, 300);
+
+  // Fetch companies for filter
+  const { data: companies } = useQuery({
+    queryKey: ['companies'],
     queryFn: async () => {
-      const activities: ActivityEvent[] = [];
-
-      // Fetch recent schedule events
-      const { data: schedules } = await supabase
-        .from('scheduled_shifts')
-        .select('*, workers(name), projects(project_name)')
-        .order('created_at', { ascending: false })
-        .limit(20);
-
-      schedules?.forEach(schedule => {
-        activities.push({
-          id: schedule.id,
-          type: 'schedule',
-          timestamp: schedule.created_at,
-          description: `Worker scheduled`,
-          workerName: schedule.workers?.name,
-          projectName: schedule.projects?.project_name,
-          metadata: schedule,
-        });
-      });
-
-      // Fetch recent time log events
-      const { data: logs } = await supabase
-        .from('daily_logs')
-        .select('*, workers(name), projects(project_name)')
-        .order('created_at', { ascending: false })
-        .limit(20);
-
-      logs?.forEach(log => {
-        activities.push({
-          id: log.id,
-          type: 'log',
-          timestamp: log.created_at,
-          description: `Time log created`,
-          workerName: log.workers?.name,
-          projectName: log.projects?.project_name,
-          metadata: log,
-        });
-      });
-
-      // Fetch recent payment events
-      const { data: payments } = await supabase
-        .from('payments')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(10);
-
-      payments?.forEach(payment => {
-        activities.push({
-          id: payment.id,
-          type: 'payment',
-          timestamp: payment.created_at,
-          description: `Payment batch created`,
-          amount: payment.amount,
-          metadata: payment,
-        });
-      });
-
-      // Sort all activities by timestamp
-      return activities.sort((a, b) => 
-        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-      ).slice(0, 50);
+      const { data } = await supabase
+        .from('companies')
+        .select('id, name')
+        .order('name');
+      return data || [];
     },
   });
 
-  if (isLoading) {
-    return (
-      <Card>
-        <CardHeader>
-          <Skeleton className="h-8 w-48" />
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {[1, 2, 3, 4, 5].map(i => (
-              <Skeleton key={i} className="h-20" />
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
+  // Fetch activity feed with filters
+  const { data: events, isLoading } = useQuery({
+    queryKey: ['workforce-activity-feed', selectedEventType, selectedCompany, dateRange, debouncedSearch],
+    queryFn: async () => {
+      let query = supabase
+        .from('workforce_activity_feed')
+        .select('*')
+        .gte('event_at', subDays(new Date(), parseInt(dateRange)).toISOString())
+        .order('event_at', { ascending: false });
 
-  const getEventIcon = (type: ActivityEvent['type']) => {
-    switch (type) {
-      case 'schedule':
-        return <Calendar className="h-5 w-5 text-blue-600" />;
-      case 'log':
-        return <Clock className="h-5 w-5 text-green-600" />;
-      case 'payment':
-        return <DollarSign className="h-5 w-5 text-purple-600" />;
-      case 'edit':
-        return <Edit className="h-5 w-5 text-orange-600" />;
-      case 'split':
-        return <Split className="h-5 w-5 text-pink-600" />;
-      default:
-        return <AlertCircle className="h-5 w-5" />;
+      // Filter by event type
+      if (selectedEventType !== 'all') {
+        const types = {
+          'scheduled': ['schedule_created', 'schedule_updated'],
+          'logs': ['time_log_created', 'time_log_updated'],
+          'payments': ['payment_created', 'payment_updated'],
+        };
+        query = query.in('event_type', types[selectedEventType as keyof typeof types]);
+      }
+
+      // Filter by company
+      if (selectedCompany !== 'all') {
+        query = query.eq('company_id', selectedCompany);
+      }
+
+      // Search filter
+      if (debouncedSearch) {
+        query = query.or(`worker_name.ilike.%${debouncedSearch}%,project_name.ilike.%${debouncedSearch}%,company_name.ilike.%${debouncedSearch}%`);
+      }
+
+      const { data, error } = await query.limit(100);
+      
+      if (error) throw error;
+      return data as ActivityEvent[];
+    },
+  });
+
+  // Group events by day
+  const groupedEvents = useMemo(() => {
+    if (!events) return {};
+    
+    return events.reduce((groups, event) => {
+      const date = startOfDay(parseISO(event.event_at)).toISOString();
+      if (!groups[date]) {
+        groups[date] = [];
+      }
+      groups[date].push(event);
+      return groups;
+    }, {} as Record<string, ActivityEvent[]>);
+  }, [events]);
+
+  const getEventIcon = (eventType: string) => {
+    if (eventType.includes('schedule')) {
+      return <Calendar className="h-5 w-5 text-blue-600" />;
+    } else if (eventType.includes('time_log')) {
+      return <Clock className="h-5 w-5 text-green-600" />;
+    } else if (eventType.includes('payment')) {
+      return <DollarSign className="h-5 w-5 text-orange-600" />;
+    }
+    return <Calendar className="h-5 w-5" />;
+  };
+
+  const getEventBadge = (eventType: string) => {
+    if (eventType.includes('schedule')) {
+      return { label: 'Scheduled', className: 'bg-blue-100 text-blue-700 hover:bg-blue-100' };
+    } else if (eventType.includes('time_log')) {
+      return { label: 'Time Log', className: 'bg-green-100 text-green-700 hover:bg-green-100' };
+    } else if (eventType.includes('payment')) {
+      return { label: 'Payment', className: 'bg-orange-100 text-orange-700 hover:bg-orange-100' };
+    }
+    return { label: 'Event', className: '' };
+  };
+
+  const getEventTitle = (event: ActivityEvent) => {
+    if (event.event_type.includes('schedule')) {
+      return event.event_type === 'schedule_created' ? 'Worker scheduled' : 'Schedule updated';
+    } else if (event.event_type.includes('time_log')) {
+      return event.event_type === 'time_log_created' ? 'Time log created' : 'Time log updated';
+    } else if (event.event_type.includes('payment')) {
+      return event.event_type === 'payment_created' ? 'Payment batch created' : 'Payment updated';
+    }
+    return 'Event';
+  };
+
+  const getEventSubtitle = (event: ActivityEvent) => {
+    if (event.event_type.includes('schedule') || event.event_type.includes('time_log')) {
+      const parts = [];
+      if (event.worker_name) parts.push(event.worker_name);
+      if (event.project_name) parts.push(event.project_name);
+      return parts.join(' → ');
+    } else if (event.event_type.includes('payment')) {
+      const meta = event.meta || {};
+      const parts = [];
+      if (event.company_name) parts.push(event.company_name);
+      if (meta.start_date && meta.end_date) {
+        parts.push(`${format(parseISO(meta.start_date), 'MMM d')}–${format(parseISO(meta.end_date), 'd')}`);
+      }
+      return parts.join(' – ');
+    }
+    return '';
+  };
+
+  const handleEventClick = (event: ActivityEvent) => {
+    if (event.event_type.includes('schedule')) {
+      const date = event.meta?.date;
+      navigate(`/schedule?date=${date}&worker_id=${event.worker_id}`);
+    } else if (event.event_type.includes('time_log')) {
+      const date = event.meta?.date;
+      navigate(`/view-logs?worker_id=${event.worker_id}&date=${date}`);
+    } else if (event.event_type.includes('payment')) {
+      navigate(`/workforce?tab=pay-center&payment_id=${event.meta?.payment_id}`);
     }
   };
 
-  const getEventBadge = (type: ActivityEvent['type']) => {
-    const badges = {
-      schedule: { label: 'Scheduled', variant: 'default' as const },
-      log: { label: 'Time Log', variant: 'default' as const },
-      payment: { label: 'Payment', variant: 'secondary' as const },
-      edit: { label: 'Edit', variant: 'outline' as const },
-      split: { label: 'Split', variant: 'outline' as const },
-    };
-    return badges[type];
+  const getTooltipText = (event: ActivityEvent) => {
+    if (event.event_type.includes('schedule')) return 'View in schedule';
+    if (event.event_type.includes('time_log')) return 'View time logs';
+    if (event.event_type.includes('payment')) return 'View payment batch';
+    return 'View details';
   };
+
+  const formatDayHeading = (dateString: string) => {
+    const date = parseISO(dateString);
+    if (isToday(date)) return `Today – ${format(date, 'EEE, MMM d, yyyy')}`;
+    if (isYesterday(date)) return `Yesterday – ${format(date, 'EEE, MMM d, yyyy')}`;
+    return format(date, 'EEE, MMM d, yyyy');
+  };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h3 className="text-2xl font-bold mb-2">Activity Feed</h3>
+          <p className="text-muted-foreground">
+            Real-time feed of all workforce-related events
+          </p>
+        </div>
+        <div className="space-y-4">
+          {[1, 2, 3, 4, 5].map(i => (
+            <Skeleton key={i} className="h-20" />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -140,62 +209,164 @@ export function ActivityTab() {
         </p>
       </div>
 
+      {/* Filters */}
       <Card>
-        <CardHeader>
-          <CardTitle>Recent Activity</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {events && events.length > 0 ? (
-            <div className="space-y-1">
-              {events.map((event) => {
-                const badge = getEventBadge(event.type);
-                return (
-                  <div 
-                    key={event.id}
-                    className="flex items-start gap-4 p-4 rounded-lg hover:bg-muted/50 transition-colors border border-transparent hover:border-border"
-                  >
-                    <div className="mt-1 p-2 rounded-lg bg-muted">
-                      {getEventIcon(event.type)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-4 mb-1">
-                        <div className="flex items-center gap-2">
-                          <Badge variant={badge.variant}>{badge.label}</Badge>
-                          <span className="text-xs text-muted-foreground">
-                            {format(new Date(event.timestamp), 'MMM d, h:mm a')}
-                          </span>
-                        </div>
-                        {event.amount !== undefined && (
-                          <span className="text-lg font-bold text-primary">
-                            ${event.amount.toLocaleString()}
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-sm font-medium mb-1">
-                        {event.description}
-                      </p>
-                      {(event.workerName || event.projectName) && (
-                        <p className="text-sm text-muted-foreground">
-                          {event.workerName && <span>{event.workerName}</span>}
-                          {event.workerName && event.projectName && <span> → </span>}
-                          {event.projectName && <span>{event.projectName}</span>}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
+        <CardContent className="pt-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            {/* Event Type Filter */}
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant={selectedEventType === 'all' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setSelectedEventType('all')}
+              >
+                All
+              </Button>
+              <Button
+                variant={selectedEventType === 'scheduled' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setSelectedEventType('scheduled')}
+              >
+                Scheduled
+              </Button>
+              <Button
+                variant={selectedEventType === 'logs' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setSelectedEventType('logs')}
+              >
+                Time Logs
+              </Button>
+              <Button
+                variant={selectedEventType === 'payments' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setSelectedEventType('payments')}
+              >
+                Payments
+              </Button>
             </div>
-          ) : (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground mb-2">No activity yet</p>
-              <p className="text-sm text-muted-foreground">
-                Workforce events will appear here as they occur
-              </p>
+
+            {/* Company Filter */}
+            <Select value={selectedCompany} onValueChange={setSelectedCompany}>
+              <SelectTrigger>
+                <SelectValue placeholder="All companies" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All companies</SelectItem>
+                {companies?.map(company => (
+                  <SelectItem key={company.id} value={company.id}>
+                    {company.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {/* Date Range */}
+            <Select value={dateRange} onValueChange={setDateRange}>
+              <SelectTrigger>
+                <SelectValue placeholder="Date range" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="1">Today</SelectItem>
+                <SelectItem value="7">Last 7 days</SelectItem>
+                <SelectItem value="30">Last 30 days</SelectItem>
+                <SelectItem value="90">Last 90 days</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* Search */}
+            <div className="lg:col-span-2">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by worker, project, company..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
             </div>
-          )}
+          </div>
         </CardContent>
       </Card>
+
+      {/* Activity Feed */}
+      {events && events.length > 0 ? (
+        <div className="space-y-6">
+          {Object.entries(groupedEvents).map(([dateString, dayEvents]) => (
+            <div key={dateString}>
+              <div className="sticky top-0 z-10 bg-muted/50 backdrop-blur-sm px-4 py-2 rounded-lg mb-3">
+                <h4 className="font-semibold text-sm">{formatDayHeading(dateString)}</h4>
+              </div>
+              <div className="space-y-2">
+                {dayEvents.map((event) => {
+                  const badge = getEventBadge(event.event_type);
+                  return (
+                    <Card 
+                      key={event.id}
+                      className="cursor-pointer hover:shadow-md transition-all hover:border-primary/50"
+                      onClick={() => handleEventClick(event)}
+                      title={getTooltipText(event)}
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex items-start gap-4">
+                          <div className="mt-1 p-2 rounded-lg bg-muted flex-shrink-0">
+                            {getEventIcon(event.event_type)}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between gap-4 mb-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <Badge className={badge.className}>{badge.label}</Badge>
+                                <span className="text-xs text-muted-foreground">
+                                  {format(parseISO(event.event_at), 'h:mm a')}
+                                </span>
+                              </div>
+                              {event.amount !== undefined && event.amount > 0 && (
+                                <span className="text-lg font-bold text-orange-600 flex-shrink-0">
+                                  ${event.amount.toLocaleString()}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-sm font-medium mb-1">
+                              {getEventTitle(event)}
+                            </p>
+                            {getEventSubtitle(event) && (
+                              <p className="text-sm text-muted-foreground mb-2">
+                                {getEventSubtitle(event)}
+                              </p>
+                            )}
+                            {event.hours && (
+                              <p className="text-xs text-muted-foreground">
+                                {event.hours}h {event.event_type.includes('schedule') ? 'scheduled' : 'logged'}
+                              </p>
+                            )}
+                            {event.event_type.includes('payment') && event.meta?.log_count && (
+                              <p className="text-xs text-muted-foreground">
+                                Covers {event.meta.log_count} time logs
+                              </p>
+                            )}
+                          </div>
+                          <ChevronRight className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-1" />
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <Card>
+          <CardContent className="py-12">
+            <div className="text-center">
+              <p className="text-lg font-medium text-muted-foreground mb-2">No activity yet</p>
+              <p className="text-sm text-muted-foreground">
+                Try changing the filters or expanding the date range
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
