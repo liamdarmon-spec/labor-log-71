@@ -20,15 +20,15 @@ export function MobileBottomNav() {
         </NavLink>
 
         <NavLink
-          to="/workforce?tab=scheduler"
-          className={() =>
+          to="/schedule"
+          className={({ isActive }) =>
             `flex flex-col items-center justify-center px-2 py-2 rounded-lg transition-colors ${
-              window.location.pathname.startsWith('/workforce') && window.location.search.includes('scheduler') ? 'text-primary bg-primary/10' : 'text-muted-foreground'
+              isActive ? 'text-primary bg-primary/10' : 'text-muted-foreground'
             }`
           }
         >
           <Calendar className="h-5 w-5 mb-0.5" />
-          <span className="text-[10px] font-medium">Scheduler</span>
+          <span className="text-[10px] font-medium">Schedule</span>
         </NavLink>
 
         <NavLink

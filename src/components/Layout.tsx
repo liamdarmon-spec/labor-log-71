@@ -50,13 +50,13 @@ export const Layout = ({ children }: LayoutProps) => {
               <span>Projects</span>
             </Button>
             <Button
-              variant={location.pathname.startsWith('/workforce') && location.pathname.includes('scheduler') ? 'default' : 'ghost'}
+              variant={location.pathname === '/schedule' ? 'default' : 'ghost'}
               size="sm"
-              onClick={() => navigate('/workforce?tab=scheduler')}
-              className={`gap-2 h-9 ${location.pathname.startsWith('/workforce') && location.pathname.includes('scheduler') ? 'font-semibold' : ''}`}
+              onClick={() => navigate('/schedule')}
+              className={`gap-2 h-9 ${location.pathname === '/schedule' ? 'font-semibold' : ''}`}
             >
               <CalendarClock className="w-4 h-4" />
-              <span>Crew Scheduler</span>
+              <span>Schedule</span>
             </Button>
             <Button
               variant={location.pathname.startsWith('/workforce') && !location.pathname.includes('scheduler') ? 'default' : 'ghost'}
