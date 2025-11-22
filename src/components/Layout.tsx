@@ -77,13 +77,13 @@ export const Layout = ({ children }: LayoutProps) => {
               <span>Schedule</span>
             </Button>
             <Button
-              variant={location.pathname === '/view-logs' ? 'default' : 'ghost'}
+              variant={location.pathname === '/financials' ? 'default' : 'ghost'}
               size="sm"
-              onClick={() => navigate('/view-logs')}
-              className={`gap-2 h-9 ${location.pathname === '/view-logs' ? 'font-semibold' : ''}`}
+              onClick={() => navigate('/financials')}
+              className={`gap-2 h-9 ${location.pathname === '/financials' ? 'font-semibold' : ''}`}
             >
-              <Eye className="w-4 h-4" />
-              <span>Costs</span>
+              <DollarSign className="w-4 h-4" />
+              <span>Financials</span>
             </Button>
             <Button
               variant={location.pathname === '/payments' ? 'default' : 'ghost'}
