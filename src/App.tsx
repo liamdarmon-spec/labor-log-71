@@ -17,6 +17,7 @@ import Financials from "./pages/Financials";
 import Documents from "./pages/Documents";
 import Materials from "./pages/Materials";
 import SubProfile from "./pages/SubProfile";
+import Subs from "./pages/Subs";
 import NotFound from "./pages/NotFound";
 import "./i18n/config";
 
@@ -41,6 +42,7 @@ const App = () => (
             <Route path="/financials" element={<Financials />} />
             <Route path="/documents" element={<Documents />} />
             <Route path="/materials" element={<Materials />} />
+            <Route path="/subs" element={<Subs />} />
             <Route path="/subs/:id" element={<SubProfile />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="*" element={<NotFound />} />

@@ -6,9 +6,10 @@ import { SchedulerTab } from '@/components/workforce/SchedulerTab';
 import { ActivityTab } from '@/components/workforce/ActivityTab';
 import { PayCenterTab } from '@/components/workforce/PayCenterTab';
 import { AnalyticsTab } from '@/components/workforce/AnalyticsTab';
+import { SubsTab } from '@/components/workforce/SubsTab';
 
 const Workforce = () => {
-  const [activeTab, setActiveTab] = useState('roster');
+  const [activeTab, setActiveTab] = useState('labor');
 
   return (
     <Layout>
@@ -21,16 +22,21 @@ const Workforce = () => {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 lg:grid-cols-5">
-            <TabsTrigger value="roster">Roster</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-3 lg:grid-cols-6">
+            <TabsTrigger value="labor">Labor</TabsTrigger>
+            <TabsTrigger value="subs">Subs</TabsTrigger>
             <TabsTrigger value="scheduler">Scheduler</TabsTrigger>
             <TabsTrigger value="activity">Activity</TabsTrigger>
             <TabsTrigger value="pay-center">Pay Center</TabsTrigger>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="roster">
+          <TabsContent value="labor">
             <RosterTab />
+          </TabsContent>
+
+          <TabsContent value="subs">
+            <SubsTab />
           </TabsContent>
 
           <TabsContent value="scheduler">

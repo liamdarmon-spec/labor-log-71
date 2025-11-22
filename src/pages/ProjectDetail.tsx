@@ -12,7 +12,7 @@ import { ProjectEstimatesV3 } from '@/components/project/ProjectEstimatesV3';
 import { ProjectScheduleTabV2 } from '@/components/project/ProjectScheduleTabV2';
 import { ProjectWorkforceTab } from '@/components/project/ProjectWorkforceTab';
 import { ProjectFinancialsTab } from '@/components/project/ProjectFinancialsTab';
-import { ProjectSubsTabV2 } from '@/components/project/ProjectSubsTabV2';
+import { ProjectSubsTab } from '@/components/project/ProjectSubsTab';
 import { ProjectDocumentsTab } from '@/components/project/ProjectDocumentsTab';
 
 interface Project {
@@ -136,7 +136,7 @@ const ProjectDetail = () => {
           </TabsContent>
 
           <TabsContent value="subs">
-            <ProjectSubsTabV2 projectId={project.id} />
+            <ProjectSubsTab projectId={project.id} />
           </TabsContent>
 
           <TabsContent value="documents">
