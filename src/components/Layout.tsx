@@ -59,10 +59,10 @@ export const Layout = ({ children }: LayoutProps) => {
               <span>Projects</span>
             </Button>
             <Button
-              variant={location.pathname === '/view-logs' ? 'default' : 'ghost'}
+              variant={location.pathname.startsWith('/workforce') ? 'default' : 'ghost'}
               size="sm"
-              onClick={() => navigate('/view-logs')}
-              className={`gap-2 h-9 ${location.pathname === '/view-logs' ? 'font-semibold' : ''}`}
+              onClick={() => navigate('/workforce')}
+              className={`gap-2 h-9 ${location.pathname.startsWith('/workforce') ? 'font-semibold' : ''}`}
             >
               <Users className="w-4 h-4" />
               <span>Workforce</span>
