@@ -12,6 +12,8 @@ import Payments from "./pages/Payments";
 import Projects from "./pages/Projects";
 import ProjectDetail from "./pages/ProjectDetail";
 import ProposalEditor from "./pages/ProposalEditor";
+import EstimateBuilderV2 from "./pages/EstimateBuilderV2";
+import ProposalSettings from "./pages/ProposalSettings";
 import Workforce from "./pages/Workforce";
 import WorkerProfile from "./pages/WorkerProfile";
 import Financials from "./pages/Financials";
@@ -43,6 +45,8 @@ const App = () => (
           <Route path="/projects" element={<Projects />} />
           <Route path="/projects/:projectId" element={<ProjectDetail />} />
           <Route path="/projects/:projectId/proposals/:proposalId" element={<ProposalEditor />} />
+          <Route path="/estimates/:estimateId" element={<EstimateBuilderV2 />} />
+          <Route path="/settings/proposals" element={<ProposalSettings />} />
             <Route path="/workforce" element={<Workforce />} />
             <Route path="/workforce/worker/:workerId" element={<WorkerProfile />} />
             <Route path="/financials" element={<Financials />} />
