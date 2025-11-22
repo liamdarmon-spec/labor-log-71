@@ -29,7 +29,7 @@ export function CrewSchedulerPaymentsView({ companyFilter }: CrewSchedulerPaymen
     ],
     queryFn: async () => {
       let query = supabase
-        .from('daily_logs')
+        .from('time_logs')
         .select(`
           *,
           workers(id, name, trade, hourly_rate),

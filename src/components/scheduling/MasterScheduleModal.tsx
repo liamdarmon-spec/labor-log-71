@@ -106,7 +106,7 @@ export function MasterScheduleModal({
     try {
       // Fetch schedules
       let query = supabase
-        .from("scheduled_shifts")
+        .from("work_schedules")
         .select(`
           *,
           worker:workers(name, trade, hourly_rate),
@@ -132,7 +132,7 @@ export function MasterScheduleModal({
       // Fetch time logs if past date
       if (isPastDate) {
         let logQuery = supabase
-          .from("daily_logs")
+          .from("time_logs")
           .select(`
             hours_worked,
             projects(project_name),

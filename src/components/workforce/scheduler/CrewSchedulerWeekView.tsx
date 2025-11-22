@@ -53,7 +53,7 @@ export function CrewSchedulerWeekView({ companyFilter, tradeFilter, projectFilte
     queryKey: ['crew-scheduler-schedules', format(weekStart, 'yyyy-MM-dd'), companyFilter, projectFilter, refreshTrigger],
     queryFn: async () => {
       let query = supabase
-        .from('scheduled_shifts')
+        .from('work_schedules')
         .select(`
           *,
           worker_id,
@@ -85,7 +85,7 @@ export function CrewSchedulerWeekView({ companyFilter, tradeFilter, projectFilte
     queryKey: ['crew-scheduler-logs', format(weekStart, 'yyyy-MM-dd')],
     queryFn: async () => {
       const { data } = await supabase
-        .from('daily_logs')
+        .from('time_logs')
         .select('worker_id, date, project_id, hours_worked, payment_status')
         .gte('date', format(weekStart, 'yyyy-MM-dd'))
         .lte('date', format(weekEnd, 'yyyy-MM-dd'));

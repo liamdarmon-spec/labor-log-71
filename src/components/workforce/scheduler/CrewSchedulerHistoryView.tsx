@@ -64,13 +64,12 @@ export function CrewSchedulerHistoryView({ companyFilter, projectFilter }: CrewS
     ],
     queryFn: async () => {
       let query = supabase
-        .from('daily_logs')
+        .from('time_logs')
         .select(`
           *,
           workers(name, trade, hourly_rate),
           projects(project_name, company_id, companies(name)),
-          cost_codes(code, name),
-          payments(id, paid_by, payment_date)
+          cost_codes(code, name)
         `)
         .gte('date', format(startDate, 'yyyy-MM-dd'))
         .lte('date', format(endDate, 'yyyy-MM-dd'))
@@ -136,7 +135,6 @@ export function CrewSchedulerHistoryView({ companyFilter, projectFilter }: CrewS
           costCode: log.cost_codes ? `${log.cost_codes.code} - ${log.cost_codes.name}` : undefined,
           notes: log.notes || undefined,
           paymentStatus: log.payment_status || 'unpaid',
-          payment: log.payments,
         });
 
         if (log.payment_status === 'unpaid') entry.hasUnpaid = true;

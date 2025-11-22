@@ -78,7 +78,7 @@ export function DayDetailDialog({ open, onOpenChange, date, onRefresh, onAddSche
 
     setLoading(true);
     const { data, error } = await supabase
-      .from("scheduled_shifts")
+      .from("work_schedules")
       .select(`
         *,
         worker:workers(name, trade),
@@ -104,39 +104,21 @@ export function DayDetailDialog({ open, onOpenChange, date, onRefresh, onAddSche
 
     const { data: userData } = await supabase.auth.getUser();
     
-    // Create time log entries from schedules
-    const timeLogEntries = selectedSchedules.map(schedule => ({
-      worker_id: schedule.worker_id,
-      project_id: schedule.project_id,
-      trade_id: schedule.trade_id,
-      date: format(date, "yyyy-MM-dd"),
-      hours_worked: schedule.scheduled_hours,
-      notes: schedule.notes,
-      created_by: userData.user?.id
-    }));
+    // Mark schedules as converted (the triggers will create time logs automatically)
+    const scheduleIds = selectedSchedules.map(s => s.id);
+    
+    const { error } = await supabase
+      .from("work_schedules")
+      .update({ converted_to_timelog: true })
+      .in("id", scheduleIds);
 
-    const { error: insertError } = await supabase
-      .from("daily_logs")
-      .insert(timeLogEntries);
-
-    if (insertError) {
+    if (error) {
       toast({
         title: "Error",
-        description: "Failed to create time logs",
+        description: "Failed to convert schedules",
         variant: "destructive"
       });
       return;
-    }
-
-    // Delete the converted schedules
-    const scheduleIds = selectedSchedules.map(s => s.id);
-    const { error: deleteError } = await supabase
-      .from("scheduled_shifts")
-      .delete()
-      .in("id", scheduleIds);
-
-    if (deleteError) {
-      console.error("Error deleting schedules:", deleteError);
     }
 
     toast({
