@@ -6,72 +6,78 @@ import { Button } from '@/components/ui/button';
 export function MobileBottomNav() {
   return (
     <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-background border-t border-border z-50">
-      <div className="flex items-center justify-around h-16 px-2">
+      <div className="flex items-center justify-around h-16 px-1">
         <NavLink
           to="/projects"
           className={({ isActive }) =>
-            `flex flex-col items-center justify-center px-3 py-2 rounded-lg transition-colors ${
+            `flex flex-col items-center justify-center px-2 py-2 rounded-lg transition-colors ${
               isActive ? 'text-primary bg-primary/10' : 'text-muted-foreground'
             }`
           }
         >
-          <Briefcase className="h-5 w-5 mb-1" />
-          <span className="text-xs font-medium">Projects</span>
+          <Briefcase className="h-5 w-5 mb-0.5" />
+          <span className="text-[10px] font-medium">Projects</span>
         </NavLink>
 
         <NavLink
           to="/workforce"
           className={({ isActive }) =>
-            `flex flex-col items-center justify-center px-3 py-2 rounded-lg transition-colors ${
+            `flex flex-col items-center justify-center px-2 py-2 rounded-lg transition-colors ${
               isActive || window.location.pathname.startsWith('/workforce') ? 'text-primary bg-primary/10' : 'text-muted-foreground'
             }`
           }
         >
-          <Users className="h-5 w-5 mb-1" />
-          <span className="text-xs font-medium">Workforce</span>
+          <Users className="h-5 w-5 mb-0.5" />
+          <span className="text-[10px] font-medium">Workforce</span>
         </NavLink>
 
         <NavLink
           to="/schedule"
           className={({ isActive }) =>
-            `flex flex-col items-center justify-center px-3 py-2 rounded-lg transition-colors ${
+            `flex flex-col items-center justify-center px-2 py-2 rounded-lg transition-colors ${
               isActive ? 'text-primary bg-primary/10' : 'text-muted-foreground'
             }`
           }
         >
-          <Calendar className="h-5 w-5 mb-1" />
-          <span className="text-xs font-medium">Schedule</span>
+          <Calendar className="h-5 w-5 mb-0.5" />
+          <span className="text-[10px] font-medium">Schedule</span>
+        </NavLink>
+
+        <NavLink
+          to="/payments"
+          className={({ isActive }) =>
+            `flex flex-col items-center justify-center px-2 py-2 rounded-lg transition-colors ${
+              isActive || window.location.pathname.startsWith('/payments') ? 'text-primary bg-primary/10' : 'text-muted-foreground'
+            }`
+          }
+        >
+          <MoreHorizontal className="h-5 w-5 mb-0.5" />
+          <span className="text-[10px] font-medium">Costs</span>
         </NavLink>
 
         <Sheet>
           <SheetTrigger asChild>
             <Button
               variant="ghost"
-              className="flex flex-col items-center justify-center px-3 py-2 text-muted-foreground"
+              className="flex flex-col items-center justify-center px-2 py-2 text-muted-foreground h-auto"
             >
-              <MoreHorizontal className="h-5 w-5 mb-1" />
-              <span className="text-xs font-medium">More</span>
+              <MoreHorizontal className="h-5 w-5 mb-0.5" />
+              <span className="text-[10px] font-medium">More</span>
             </Button>
           </SheetTrigger>
-          <SheetContent side="bottom" className="h-auto">
-            <div className="flex flex-col space-y-2 pt-4">
+          <SheetContent side="bottom" className="h-auto rounded-t-3xl">
+            <div className="flex flex-col space-y-1 pt-6 pb-4">
               <NavLink
                 to="/dashboard"
-                className="flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-muted transition-colors"
+                className="flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-muted transition-colors text-base font-medium"
               >
-                <span className="text-sm font-medium">Dashboard</span>
-              </NavLink>
-              <NavLink
-                to="/payments"
-                className="flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-muted transition-colors"
-              >
-                <span className="text-sm font-medium">Payments</span>
+                <span>Dashboard</span>
               </NavLink>
               <NavLink
                 to="/admin"
-                className="flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-muted transition-colors"
+                className="flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-muted transition-colors text-base font-medium"
               >
-                <span className="text-sm font-medium">Admin</span>
+                <span>Admin</span>
               </NavLink>
             </div>
           </SheetContent>

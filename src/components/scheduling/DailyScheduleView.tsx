@@ -42,31 +42,36 @@ export function DailyScheduleView({ onScheduleClick, refreshTrigger, scheduleTyp
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center justify-center gap-2">
           <Button
             variant="outline"
             size="icon"
+            className="h-9 w-9 md:h-10 md:w-10"
             onClick={() => setCurrentDate(addDays(currentDate, -1))}
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <h3 className="text-lg font-semibold min-w-[200px] text-center">
-            {format(currentDate, "EEEE, MMM d, yyyy")}
-          </h3>
+          <div className="flex-1 min-w-0 text-center">
+            <h3 className="text-sm sm:text-lg font-semibold truncate">
+              {format(currentDate, "EEEE, MMM d, yyyy")}
+            </h3>
+          </div>
           <Button
             variant="outline"
             size="icon"
+            className="h-9 w-9 md:h-10 md:w-10"
             onClick={() => setCurrentDate(addDays(currentDate, 1))}
           >
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between gap-2">
           <Button
             variant="outline"
             size="sm"
             onClick={() => setCurrentDate(new Date())}
+            className="flex-1 sm:flex-none"
           >
             Today
           </Button>
@@ -74,62 +79,64 @@ export function DailyScheduleView({ onScheduleClick, refreshTrigger, scheduleTyp
             variant="outline"
             size="sm"
             onClick={() => setShowFullDayDialog(true)}
-            className="gap-2"
+            className="gap-1 flex-1 sm:flex-none hidden sm:flex"
           >
             <ExternalLink className="h-4 w-4" />
-            Open Full Day
+            <span className="hidden sm:inline">Open Full Day</span>
           </Button>
           <Button
             size="sm"
             onClick={() => onScheduleClick(currentDate)}
+            className="flex-1 sm:flex-none"
           >
-            <Plus className="h-4 w-4 mr-2" />
-            Add to Schedule
+            <Plus className="h-4 w-4 mr-1 sm:mr-2" />
+            <span className="hidden sm:inline">Add to Schedule</span>
+            <span className="sm:hidden">Add</span>
           </Button>
         </div>
       </div>
 
-      <Card className="p-6">
+      <Card className="p-3 sm:p-6">
         {loading ? (
           <>
-            <div className="grid grid-cols-4 gap-4 mb-6 pb-4 border-b">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6 pb-4 border-b">
               <div>
-                <p className="text-sm text-muted-foreground">Workers</p>
-                <div className="h-8 w-12 bg-muted animate-pulse rounded mt-1"></div>
+                <p className="text-xs sm:text-sm text-muted-foreground">Workers</p>
+                <div className="h-6 sm:h-8 w-8 sm:w-12 bg-muted animate-pulse rounded mt-1"></div>
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Subs</p>
-                <div className="h-8 w-12 bg-muted animate-pulse rounded mt-1"></div>
+                <p className="text-xs sm:text-sm text-muted-foreground">Subs</p>
+                <div className="h-6 sm:h-8 w-8 sm:w-12 bg-muted animate-pulse rounded mt-1"></div>
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Meetings</p>
-                <div className="h-8 w-12 bg-muted animate-pulse rounded mt-1"></div>
+                <p className="text-xs sm:text-sm text-muted-foreground">Meetings</p>
+                <div className="h-6 sm:h-8 w-8 sm:w-12 bg-muted animate-pulse rounded mt-1"></div>
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Total Hours</p>
-                <div className="h-8 w-16 bg-muted animate-pulse rounded mt-1"></div>
+                <p className="text-xs sm:text-sm text-muted-foreground">Total Hours</p>
+                <div className="h-6 sm:h-8 w-12 sm:w-16 bg-muted animate-pulse rounded mt-1"></div>
               </div>
             </div>
-            <p className="text-center text-muted-foreground py-8">Loading schedules...</p>
+            <p className="text-center text-muted-foreground py-8 text-sm">Loading schedules...</p>
           </>
         ) : (
           <>
-            <div className="grid grid-cols-4 gap-4 mb-6 pb-4 border-b">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6 pb-4 border-b">
               <div>
-                <p className="text-sm text-muted-foreground">Workers</p>
-                <p className="text-2xl font-bold">{totalWorkers}</p>
+                <p className="text-xs sm:text-sm text-muted-foreground">Workers</p>
+                <p className="text-xl sm:text-2xl font-bold">{totalWorkers}</p>
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Subs</p>
-                <p className="text-2xl font-bold">{totalSubs}</p>
+                <p className="text-xs sm:text-sm text-muted-foreground">Subs</p>
+                <p className="text-xl sm:text-2xl font-bold">{totalSubs}</p>
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Meetings</p>
-                <p className="text-2xl font-bold">{totalMeetings}</p>
+                <p className="text-xs sm:text-sm text-muted-foreground">Meetings</p>
+                <p className="text-xl sm:text-2xl font-bold">{totalMeetings}</p>
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Total Hours</p>
-                <p className="text-2xl font-bold">{totalHours}h</p>
+                <p className="text-xs sm:text-sm text-muted-foreground">Total Hours</p>
+                <p className="text-xl sm:text-2xl font-bold">{totalHours}h</p>
               </div>
             </div>
             {assignments.length === 0 ? (

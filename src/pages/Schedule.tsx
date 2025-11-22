@@ -39,39 +39,44 @@ const Schedule = () => {
 
   return (
     <Layout>
-      <div className="p-6 space-y-6">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold">Schedule</h1>
-            <p className="text-muted-foreground mt-1">
-              Plan worker assignments for upcoming projects
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button onClick={() => setIsScheduleDialogOpen(true)}>
+      <div className="p-3 sm:p-6 space-y-4 sm:space-y-6">
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold">Schedule</h1>
+              <p className="text-muted-foreground mt-1 text-sm sm:text-base">
+                Plan worker assignments
+              </p>
+            </div>
+            <Button onClick={() => setIsScheduleDialogOpen(true)} size="sm" className="md:hidden">
+              <Plus className="h-4 w-4" />
+            </Button>
+            <Button onClick={() => setIsScheduleDialogOpen(true)} className="hidden md:flex">
               <Plus className="h-4 w-4 mr-2" />
               Add to Schedule
             </Button>
           </div>
         </div>
 
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-3">
           <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as ViewMode)} className="w-full">
-            <TabsList className="grid w-full max-w-md grid-cols-3">
-              <TabsTrigger value="daily">Daily</TabsTrigger>
-              <TabsTrigger value="weekly">Weekly</TabsTrigger>
-              <TabsTrigger value="monthly">Monthly</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="daily" className="text-xs sm:text-sm">Daily</TabsTrigger>
+              <TabsTrigger value="weekly" className="text-xs sm:text-sm">Weekly</TabsTrigger>
+              <TabsTrigger value="monthly" className="text-xs sm:text-sm">Monthly</TabsTrigger>
             </TabsList>
           </Tabs>
 
-          <Tabs value={scheduleType} onValueChange={(v) => setScheduleType(v as ScheduleType)} className="w-full">
-            <TabsList className="grid w-full max-w-md grid-cols-4">
-              <TabsTrigger value="workers">Workers</TabsTrigger>
-              <TabsTrigger value="subs">Subs</TabsTrigger>
-              <TabsTrigger value="meetings">Meetings</TabsTrigger>
-              <TabsTrigger value="all">All</TabsTrigger>
-            </TabsList>
-          </Tabs>
+          <div className="overflow-x-auto -mx-3 px-3 sm:mx-0 sm:px-0">
+            <Tabs value={scheduleType} onValueChange={(v) => setScheduleType(v as ScheduleType)} className="w-full">
+              <TabsList className="inline-flex w-auto min-w-full sm:grid sm:w-full sm:max-w-md sm:grid-cols-4">
+                <TabsTrigger value="workers" className="text-xs sm:text-sm whitespace-nowrap">Workers</TabsTrigger>
+                <TabsTrigger value="subs" className="text-xs sm:text-sm whitespace-nowrap">Subs</TabsTrigger>
+                <TabsTrigger value="meetings" className="text-xs sm:text-sm whitespace-nowrap">Meetings</TabsTrigger>
+                <TabsTrigger value="all" className="text-xs sm:text-sm whitespace-nowrap">All</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
         </div>
 
         <div className={viewMode === "daily" ? "block" : "hidden"}>
