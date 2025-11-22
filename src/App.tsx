@@ -14,6 +14,7 @@ import ProjectDetail from "./pages/ProjectDetail";
 import ProposalEditor from "./pages/ProposalEditor";
 import EstimateBuilderV2 from "./pages/EstimateBuilderV2";
 import ProposalSettings from "./pages/ProposalSettings";
+import FinancialsOS from "./pages/FinancialsOS";
 import Workforce from "./pages/Workforce";
 import WorkerProfile from "./pages/WorkerProfile";
 import Financials from "./pages/Financials";
@@ -55,7 +56,8 @@ const App = () => (
             <Route path="/financials/materials" element={<FinancialMaterials />} />
             <Route path="/financials/subcontractors" element={<Subs />} />
             <Route path="/financials/documents" element={<Documents />} />
-            <Route path="/financials/reports" element={<FinancialReports />} />
+          <Route path="/financials/reports" element={<FinancialReports />} />
+          <Route path="/financials/os" element={<FinancialsOS />} />
             <Route path="/documents" element={<Documents />} />
             <Route path="/materials" element={<Materials />} />
             <Route path="/subs" element={<Subs />} />
