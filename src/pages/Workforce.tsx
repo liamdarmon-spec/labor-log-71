@@ -23,18 +23,18 @@ const Workforce = () => {
     <Layout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold mb-2">Workforce OS</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl sm:text-3xl font-bold mb-2">Workforce OS</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">
             Unified labor planning, tracking, payments, and intelligence
           </p>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="scheduler">Scheduler</TabsTrigger>
-            <TabsTrigger value="labor">Roster</TabsTrigger>
-            <TabsTrigger value="activity">Activity</TabsTrigger>
-            <TabsTrigger value="pay-center">Pay Center</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 gap-1">
+            <TabsTrigger value="scheduler" className="text-xs sm:text-sm">Scheduler</TabsTrigger>
+            <TabsTrigger value="labor" className="text-xs sm:text-sm">Roster</TabsTrigger>
+            <TabsTrigger value="activity" className="text-xs sm:text-sm">Activity</TabsTrigger>
+            <TabsTrigger value="pay-center" className="text-xs sm:text-sm">Pay</TabsTrigger>
           </TabsList>
 
           <TabsContent value="scheduler">
