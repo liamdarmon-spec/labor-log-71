@@ -242,7 +242,7 @@ export function EstimateItemDialog({ open, onOpenChange, onSave, estimateItem }:
                 min="0"
                 value={formData.quantity}
                 onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
-                placeholder="Enter quantity"
+                placeholder="0"
               />
             </div>
             
@@ -268,7 +268,7 @@ export function EstimateItemDialog({ open, onOpenChange, onSave, estimateItem }:
                 min="0"
                 value={formData.unit_price}
                 onChange={(e) => setFormData({ ...formData, unit_price: e.target.value })}
-                placeholder="Enter price"
+                placeholder="0.00"
               />
             </div>
           </div>
@@ -282,7 +282,7 @@ export function EstimateItemDialog({ open, onOpenChange, onSave, estimateItem }:
                 min="0"
                 value={formData.planned_hours}
                 onChange={(e) => setFormData({ ...formData, planned_hours: e.target.value })}
-                placeholder="Leave empty for pricing only"
+                placeholder="0"
               />
             </div>
           )}
