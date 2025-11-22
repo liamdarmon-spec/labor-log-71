@@ -103,17 +103,8 @@ const Schedule = () => {
           defaultDate={scheduleDefaultDate}
         />
 
-        <MasterScheduleModal
-          open={isMasterModalOpen}
-          onOpenChange={setIsMasterModalOpen}
-          date={selectedDay}
-          context="global"
-          onRefresh={handleScheduleCreated}
-          onAddSchedule={() => {
-            setIsMasterModalOpen(false);
-            handleScheduleClick(selectedDay || undefined);
-          }}
-        />
+        {/* MasterScheduleModal is now replaced by UniversalDayDetailDialog */}
+        {/* This ensures all schedule views use the same unified planner */}
       </div>
     </Layout>
   );

@@ -5,15 +5,18 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
 import { CrewSchedulerWeekView } from './scheduler/CrewSchedulerWeekView';
 import { CrewSchedulerHistoryView } from './scheduler/CrewSchedulerHistoryView';
 import { CrewSchedulerPaymentsView } from './scheduler/CrewSchedulerPaymentsView';
+import { AddToScheduleDialog } from '@/components/scheduling/AddToScheduleDialog';
 
 export function SchedulerTab() {
   const [activeTab, setActiveTab] = useState<'week' | 'history' | 'payments'>('week');
   const [selectedCompany, setSelectedCompany] = useState<string>('all');
   const [selectedTrade, setSelectedTrade] = useState<string>('all');
   const [selectedProject, setSelectedProject] = useState<string>('all');
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
 
   // Fetch companies
   const { data: companies, isLoading: companiesLoading } = useQuery({
@@ -58,11 +61,16 @@ export function SchedulerTab() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h3 className="text-2xl font-bold mb-2">Crew Scheduler</h3>
-        <p className="text-muted-foreground">
-          Plan, track, and pay your crew in one place
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-2xl font-bold mb-2">Crew Scheduler</h3>
+          <p className="text-muted-foreground">
+            Plan, track, and pay your crew in one place
+          </p>
+        </div>
+        <Button onClick={() => setAddDialogOpen(true)}>
+          Add to Schedule
+        </Button>
       </div>
 
       {/* Filters */}
@@ -137,6 +145,12 @@ export function SchedulerTab() {
           />
         </TabsContent>
       </Tabs>
+
+      <AddToScheduleDialog
+        open={addDialogOpen}
+        onOpenChange={setAddDialogOpen}
+        onScheduleCreated={() => {}}
+      />
     </div>
   );
 }
