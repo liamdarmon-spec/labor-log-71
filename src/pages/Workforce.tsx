@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Layout } from '@/components/Layout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { RosterTab } from '@/components/workforce/RosterTab';
@@ -7,9 +7,19 @@ import { ActivityTab } from '@/components/workforce/ActivityTab';
 import { PayCenterTab } from '@/components/workforce/PayCenterTab';
 import { AnalyticsTab } from '@/components/workforce/AnalyticsTab';
 import { SubsTab } from '@/components/workforce/SubsTab';
+import { useSearchParams } from 'react-router-dom';
 
 const Workforce = () => {
-  const [activeTab, setActiveTab] = useState('labor');
+  const [searchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab');
+  const [activeTab, setActiveTab] = useState(tabParam || 'labor');
+
+  // Update active tab when URL param changes
+  useEffect(() => {
+    if (tabParam) {
+      setActiveTab(tabParam);
+    }
+  }, [tabParam]);
 
   return (
     <Layout>

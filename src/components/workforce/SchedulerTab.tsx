@@ -10,6 +10,9 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { ChevronLeft, ChevronRight, Calendar, Users } from 'lucide-react';
 import { startOfWeek, endOfWeek, addWeeks, format, addDays, isSameDay } from 'date-fns';
 import { WorkerScheduleDrawer } from './WorkerScheduleDrawer';
+import { SchedulerTableView } from './SchedulerTableView';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useNavigate } from 'react-router-dom';
 
 interface Worker {
   id: string;
@@ -20,6 +23,8 @@ interface Worker {
 }
 
 export function SchedulerTab() {
+  const navigate = useNavigate();
+  const [viewMode, setViewMode] = useState<'calendar' | 'table'>('calendar');
   const [currentWeek, setCurrentWeek] = useState(new Date());
   const [selectedCompany, setSelectedCompany] = useState<string>('all');
   const [selectedTrade, setSelectedTrade] = useState<string>('all');
@@ -240,8 +245,18 @@ export function SchedulerTab() {
         </CardContent>
       </Card>
 
-      {/* Main Content */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* View Toggle */}
+      <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'calendar' | 'table')} className="w-full">
+        <div className="flex justify-end mb-4">
+          <TabsList>
+            <TabsTrigger value="calendar">Calendar View</TabsTrigger>
+            <TabsTrigger value="table">Table View</TabsTrigger>
+          </TabsList>
+        </div>
+
+        <TabsContent value="calendar" className="m-0">
+          {/* Main Content */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Worker List */}
         <div className="lg:col-span-1 space-y-3 max-h-[600px] overflow-y-auto">
           {workersData?.length === 0 ? (
@@ -372,7 +387,21 @@ export function SchedulerTab() {
             </Card>
           )}
         </div>
-      </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="table" className="m-0">
+          <SchedulerTableView
+            weekStart={weekStart}
+            weekEnd={weekEnd}
+            selectedCompany={selectedCompany}
+            selectedTrade={selectedTrade}
+            onViewTimeLog={(workerId, date, projectId) => {
+              navigate(`/workforce?tab=activity&view=time-logs&worker=${workerId}&date=${date}&project=${projectId}`);
+            }}
+          />
+        </TabsContent>
+      </Tabs>
 
       {/* Day Detail Drawer */}
       {selectedWorker && selectedDate && (

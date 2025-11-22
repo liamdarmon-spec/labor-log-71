@@ -17,6 +17,10 @@ import {
   SelectValue 
 } from '@/components/ui/select';
 import { useDebounce } from '@/hooks/use-debounce';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { TimeLogsTableView } from './TimeLogsTableView';
+import { useSearchParams } from 'react-router-dom';
+import { useEffect } from 'react';
 
 type ActivityEvent = {
   id: string;
@@ -35,12 +39,26 @@ type ActivityEvent = {
 
 export function ActivityTab() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const viewParam = searchParams.get('view');
+  const workerParam = searchParams.get('worker');
+  const dateParam = searchParams.get('date');
+  const projectParam = searchParams.get('project');
+  
+  const [activeView, setActiveView] = useState(viewParam || 'feed');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedEventType, setSelectedEventType] = useState('all');
   const [selectedCompany, setSelectedCompany] = useState('all');
   const [dateRange, setDateRange] = useState('7'); // days
   
   const debouncedSearch = useDebounce(searchTerm, 300);
+
+  // Update active view when URL param changes
+  useEffect(() => {
+    if (viewParam === 'time-logs') {
+      setActiveView('time-logs');
+    }
+  }, [viewParam]);
 
   // Fetch companies for filter
   const { data: companies } = useQuery({
@@ -203,13 +221,21 @@ export function ActivityTab() {
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-2xl font-bold mb-2">Activity Feed</h3>
+        <h3 className="text-2xl font-bold mb-2">Activity</h3>
         <p className="text-muted-foreground">
-          Real-time feed of all workforce-related events
+          Track workforce events, time logs, and payments
         </p>
       </div>
 
-      {/* Filters */}
+      <Tabs value={activeView} onValueChange={setActiveView}>
+        <TabsList>
+          <TabsTrigger value="feed">Feed</TabsTrigger>
+          <TabsTrigger value="time-logs">Time Logs Table</TabsTrigger>
+          <TabsTrigger value="payments">Payments</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="feed" className="space-y-4 mt-6">
+          {/* Filters */}
       <Card>
         <CardContent className="pt-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -367,6 +393,28 @@ export function ActivityTab() {
           </CardContent>
         </Card>
       )}
+        </TabsContent>
+
+        <TabsContent value="time-logs" className="mt-6">
+          <TimeLogsTableView 
+            initialWorkerId={workerParam || undefined}
+            initialDate={dateParam || undefined}
+            initialProjectId={projectParam || undefined}
+          />
+        </TabsContent>
+
+        <TabsContent value="payments" className="mt-6">
+          <Card>
+            <CardContent className="py-12">
+              <div className="text-center text-muted-foreground">
+                <DollarSign className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p className="text-lg font-medium mb-2">Payment History</p>
+                <p className="text-sm">View payments in the Pay Center tab</p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
