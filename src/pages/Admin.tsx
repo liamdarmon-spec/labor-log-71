@@ -10,7 +10,8 @@ import { ReportsTab } from '@/components/admin/ReportsTab';
 import { UsersTab } from '@/components/admin/UsersTab';
 import { ArchivedLogsTab } from '@/components/admin/ArchivedLogsTab';
 import { SettingsTab } from '@/components/admin/SettingsTab';
-import { Users, Briefcase, Wrench, FileText, BarChart3, UserCog, Archive, Settings, Hash } from 'lucide-react';
+import { SubcontractorsTab } from '@/components/admin/SubcontractorsTab';
+import { Users, Briefcase, Wrench, FileText, BarChart3, UserCog, Archive, Settings, Hash, Building2 } from 'lucide-react';
 
 const Admin = () => {
   const [activeTab, setActiveTab] = useState('workers');
@@ -26,7 +27,7 @@ const Admin = () => {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-9 h-auto gap-1 p-1 bg-muted/50">
+          <TabsList className="grid w-full grid-cols-10 h-auto gap-1 p-1 bg-muted/50">
             <TabsTrigger value="users" className="gap-1 sm:gap-2 py-2 sm:py-3 text-xs sm:text-sm flex-col sm:flex-row">
               <UserCog className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               <span className="text-[10px] sm:text-sm">Users</span>
@@ -34,6 +35,10 @@ const Admin = () => {
             <TabsTrigger value="workers" className="gap-1 sm:gap-2 py-2 sm:py-3 text-xs sm:text-sm flex-col sm:flex-row">
               <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               <span className="text-[10px] sm:text-sm">Workers</span>
+            </TabsTrigger>
+            <TabsTrigger value="subs" className="gap-1 sm:gap-2 py-2 sm:py-3 text-xs sm:text-sm flex-col sm:flex-row">
+              <Building2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span className="text-[10px] sm:text-sm">Subs</span>
             </TabsTrigger>
             <TabsTrigger value="trades" className="gap-1 sm:gap-2 py-2 sm:py-3 text-xs sm:text-sm flex-col sm:flex-row">
               <Wrench className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
@@ -71,6 +76,10 @@ const Admin = () => {
 
           <TabsContent value="workers" className="mt-4 sm:mt-6">
             <WorkersTab />
+          </TabsContent>
+
+          <TabsContent value="subs" className="mt-4 sm:mt-6">
+            <SubcontractorsTab />
           </TabsContent>
 
           <TabsContent value="trades" className="mt-4 sm:mt-6">
