@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { HardHat, Settings, Eye, BarChart3, DollarSign, CalendarClock, Languages, Building2, Users, CreditCard } from 'lucide-react';
+import { HardHat, Settings, Eye, BarChart3, DollarSign, CalendarClock, Languages, Building2, Users, CreditCard, FileText, Package } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { MobileNav } from '@/components/MobileNav';
 import { MobileBottomNav } from '@/components/MobileBottomNav';
@@ -93,6 +93,24 @@ export const Layout = ({ children }: LayoutProps) => {
             >
               <CreditCard className="w-4 h-4" />
               <span>Payments</span>
+            </Button>
+            <Button
+              variant={location.pathname === '/documents' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => navigate('/documents')}
+              className={`gap-2 h-9 ${location.pathname === '/documents' ? 'font-semibold' : ''}`}
+            >
+              <FileText className="w-4 h-4" />
+              <span>Documents</span>
+            </Button>
+            <Button
+              variant={location.pathname === '/materials' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => navigate('/materials')}
+              className={`gap-2 h-9 ${location.pathname === '/materials' ? 'font-semibold' : ''}`}
+            >
+              <Package className="w-4 h-4" />
+              <span>Materials</span>
             </Button>
             <Button
               variant={location.pathname === '/admin' ? 'default' : 'ghost'}
