@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -11,8 +11,9 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { format, subDays, startOfWeek, endOfWeek } from 'date-fns';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { useNavigate } from 'react-router-dom';
-import { DollarSign, ExternalLink } from 'lucide-react';
+import { DollarSign, ExternalLink, Split } from 'lucide-react';
 import { toast } from 'sonner';
+import { SplitScheduleDialog } from '@/components/dashboard/SplitScheduleDialog';
 
 interface TimeLogsTableViewProps {
   initialWorkerId?: string;
@@ -22,6 +23,7 @@ interface TimeLogsTableViewProps {
 
 export function TimeLogsTableView({ initialWorkerId, initialDate, initialProjectId }: TimeLogsTableViewProps) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [dateRange, setDateRange] = useState<string>('7');
   const [companyFilter, setCompanyFilter] = useState<string>('all');
   const [workerFilter, setWorkerFilter] = useState<string>(initialWorkerId || 'all');
@@ -31,6 +33,9 @@ export function TimeLogsTableView({ initialWorkerId, initialDate, initialProject
   const [showUnpaidOnly, setShowUnpaidOnly] = useState(false);
   const [selectedLogs, setSelectedLogs] = useState<Set<string>>(new Set());
   const [selectedLog, setSelectedLog] = useState<any>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [splitDialogOpen, setSplitDialogOpen] = useState(false);
+  const [scheduleToSplit, setScheduleToSplit] = useState<any>(null);
 
   const getDateRange = () => {
     const now = new Date();
@@ -392,7 +397,13 @@ export function TimeLogsTableView({ initialWorkerId, initialDate, initialProject
                       {log.cost_codes ? `${log.cost_codes.code}` : 'N/A'}
                     </TableCell>
                     <TableCell>
-                      <Button variant="ghost" size="sm">View</Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => setSelectedLog(log)}
+                      >
+                        View
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -477,28 +488,71 @@ export function TimeLogsTableView({ initialWorkerId, initialDate, initialProject
                 )}
               </div>
 
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => navigate(`/projects/${selectedLog.project_id}?tab=costs&worker=${selectedLog.worker_id}`)}
-                >
-                  View in Project <ExternalLink className="h-4 w-4 ml-2" />
-                </Button>
-                {selectedLog.payment_id && (
+              <div className="flex flex-col gap-2">
+                {selectedLog.schedule_id && selectedLog.payment_status === 'unpaid' && (
+                  <Button
+                    variant="default"
+                    onClick={() => {
+                      setScheduleToSplit({
+                        id: selectedLog.schedule_id,
+                        workerName: selectedLog.workers?.name,
+                        originalDate: selectedLog.date,
+                        originalHours: selectedLog.hours_worked,
+                        originalProjectId: selectedLog.project_id,
+                      });
+                      setSplitDialogOpen(true);
+                    }}
+                  >
+                    <Split className="h-4 w-4 mr-2" />
+                    Split Across Projects
+                  </Button>
+                )}
+                <div className="flex gap-2">
                   <Button
                     variant="outline"
                     className="flex-1"
-                    onClick={() => navigate(`/financials/payments?id=${selectedLog.payment_id}`)}
+                    onClick={() => navigate(`/projects/${selectedLog.project_id}?tab=costs&worker=${selectedLog.worker_id}`)}
                   >
-                    View Payment Run <ExternalLink className="h-4 w-4 ml-2" />
+                    View in Project <ExternalLink className="h-4 w-4 ml-2" />
                   </Button>
-                )}
+                  {selectedLog.payment_id && (
+                    <Button
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => navigate(`/financials/payments?id=${selectedLog.payment_id}`)}
+                    >
+                      View Payment Run <ExternalLink className="h-4 w-4 ml-2" />
+                    </Button>
+                  )}
+                </div>
               </div>
             </div>
           )}
         </SheetContent>
       </Sheet>
+
+      {/* Split Schedule Dialog */}
+      {scheduleToSplit && (
+        <SplitScheduleDialog
+          isOpen={splitDialogOpen}
+          onClose={() => {
+            setSplitDialogOpen(false);
+            setScheduleToSplit(null);
+          }}
+          scheduleId={scheduleToSplit.id}
+          workerName={scheduleToSplit.workerName}
+          originalDate={scheduleToSplit.originalDate}
+          originalHours={scheduleToSplit.originalHours}
+          originalProjectId={scheduleToSplit.originalProjectId}
+          onSuccess={() => {
+            queryClient.invalidateQueries({ queryKey: ['time-logs'] });
+            setSplitDialogOpen(false);
+            setScheduleToSplit(null);
+            setDrawerOpen(false);
+            toast.success('Time log split successfully');
+          }}
+        />
+      )}
     </>
   );
 }
