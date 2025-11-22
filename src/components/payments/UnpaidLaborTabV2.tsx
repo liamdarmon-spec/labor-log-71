@@ -20,9 +20,9 @@ export function UnpaidLaborTabV2() {
         .from('daily_logs')
         .select(`
           *,
-          workers(name, hourly_rate, trades(name)),
-          projects(project_name),
-          companies(name)
+          workers(name, hourly_rate, trade),
+          projects(project_name, company_id, companies(name)),
+          trades(name)
         `)
         .eq('payment_status', 'unpaid')
         .order('date', { ascending: false });
@@ -33,9 +33,9 @@ export function UnpaidLaborTabV2() {
         id: log.id,
         date: log.date,
         workerName: log.workers?.name || 'Unknown',
-        companyName: log.companies?.name || 'N/A',
+        companyName: log.projects?.companies?.name || 'N/A',
         projectName: log.projects?.project_name || 'Unknown',
-        trade: log.workers?.trades?.name || 'N/A',
+        trade: log.trades?.name || log.workers?.trade || 'N/A',
         hours: log.hours_worked,
         rate: log.workers?.hourly_rate || 0,
         cost: (log.hours_worked || 0) * (log.workers?.hourly_rate || 0),
