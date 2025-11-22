@@ -9,11 +9,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { format, subDays, startOfWeek, endOfWeek } from 'date-fns';
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { useNavigate } from 'react-router-dom';
-import { DollarSign, ExternalLink, Split } from 'lucide-react';
+import { DollarSign } from 'lucide-react';
 import { toast } from 'sonner';
 import { SplitScheduleDialog } from '@/components/dashboard/SplitScheduleDialog';
+import { TimeLogDetailDrawer } from '@/components/unified/TimeLogDetailDrawer';
 
 interface TimeLogsTableViewProps {
   initialWorkerId?: string;
@@ -138,7 +138,7 @@ export function TimeLogsTableView({ initialWorkerId, initialDate, initialProject
       // Calculate cost for each log
       return filtered.map(log => ({
         ...log,
-        cost: log.hours_worked * (log.workers?.hourly_rate || 0),
+        cost: log.hours_worked * (log.hourly_rate || log.workers?.hourly_rate || 0),
       }));
     },
   });
@@ -374,7 +374,10 @@ export function TimeLogsTableView({ initialWorkerId, initialDate, initialProject
                   <TableRow 
                     key={log.id} 
                     className="cursor-pointer hover:bg-accent"
-                    onClick={() => setSelectedLog(log)}
+                    onClick={() => {
+                      setSelectedLog(log);
+                      setDrawerOpen(true);
+                    }}
                   >
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <Checkbox
@@ -390,7 +393,7 @@ export function TimeLogsTableView({ initialWorkerId, initialDate, initialProject
                     <TableCell>{log.projects?.project_name}</TableCell>
                     <TableCell className="text-muted-foreground">{log.trades?.name || log.workers?.trade}</TableCell>
                     <TableCell className="text-right">{log.hours_worked}h</TableCell>
-                    <TableCell className="text-right">${log.workers?.hourly_rate}/hr</TableCell>
+                    <TableCell className="text-right">${log.hourly_rate || log.workers?.hourly_rate}/hr</TableCell>
                     <TableCell className="text-right font-semibold">${log.cost.toLocaleString()}</TableCell>
                     <TableCell>{getPaymentStatusBadge(log.payment_status)}</TableCell>
                     <TableCell className="text-muted-foreground text-sm">
@@ -400,7 +403,11 @@ export function TimeLogsTableView({ initialWorkerId, initialDate, initialProject
                       <Button 
                         variant="ghost" 
                         size="sm"
-                        onClick={() => setSelectedLog(log)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedLog(log);
+                          setDrawerOpen(true);
+                        }}
                       >
                         View
                       </Button>
@@ -418,118 +425,28 @@ export function TimeLogsTableView({ initialWorkerId, initialDate, initialProject
       </Card>
 
       {/* Detail Drawer */}
-      <Sheet open={!!selectedLog} onOpenChange={() => setSelectedLog(null)}>
-        <SheetContent className="sm:max-w-xl">
-          <SheetHeader>
-            <SheetTitle>Time Log Details</SheetTitle>
-            <SheetDescription>
-              {selectedLog && format(new Date(selectedLog.date), 'MMMM d, yyyy')}
-            </SheetDescription>
-          </SheetHeader>
-          {selectedLog && (
-            <div className="mt-6 space-y-6">
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">Worker</p>
-                    <p className="font-medium">{selectedLog.workers?.name}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">Trade</p>
-                    <p className="font-medium">{selectedLog.trades?.name || selectedLog.workers?.trade}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">Company</p>
-                    <Badge variant="outline">{selectedLog.projects?.companies?.name}</Badge>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">Project</p>
-                    <p className="font-medium">{selectedLog.projects?.project_name}</p>
-                  </div>
-                </div>
-
-                <div className="p-4 bg-muted rounded-lg space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Hours Worked</span>
-                    <span className="font-semibold">{selectedLog.hours_worked}h</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Hourly Rate</span>
-                    <span className="font-semibold">${selectedLog.workers?.hourly_rate}/hr</span>
-                  </div>
-                  <div className="flex justify-between pt-2 border-t">
-                    <span className="font-medium">Total Cost</span>
-                    <span className="text-lg font-bold text-primary">${selectedLog.cost.toLocaleString()}</span>
-                  </div>
-                </div>
-
-                <div>
-                  <p className="text-sm text-muted-foreground mb-1">Payment Status</p>
-                  {getPaymentStatusBadge(selectedLog.payment_status)}
-                  {selectedLog.payments && (
-                    <p className="text-sm text-muted-foreground mt-2">
-                      Paid on {format(new Date(selectedLog.payments.payment_date), 'MMM d, yyyy')} by {selectedLog.payments.paid_by}
-                    </p>
-                  )}
-                </div>
-
-                {selectedLog.cost_codes && (
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">Cost Code</p>
-                    <p className="font-medium">{selectedLog.cost_codes.code} - {selectedLog.cost_codes.name}</p>
-                  </div>
-                )}
-
-                {selectedLog.notes && (
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">Notes</p>
-                    <p className="text-sm">{selectedLog.notes}</p>
-                  </div>
-                )}
-              </div>
-
-              <div className="flex flex-col gap-2">
-                {selectedLog.schedule_id && selectedLog.payment_status === 'unpaid' && (
-                  <Button
-                    variant="default"
-                    onClick={() => {
-                      setScheduleToSplit({
-                        id: selectedLog.schedule_id,
-                        workerName: selectedLog.workers?.name,
-                        originalDate: selectedLog.date,
-                        originalHours: selectedLog.hours_worked,
-                        originalProjectId: selectedLog.project_id,
-                      });
-                      setSplitDialogOpen(true);
-                    }}
-                  >
-                    <Split className="h-4 w-4 mr-2" />
-                    Split Across Projects
-                  </Button>
-                )}
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    className="flex-1"
-                    onClick={() => navigate(`/projects/${selectedLog.project_id}?tab=costs&worker=${selectedLog.worker_id}`)}
-                  >
-                    View in Project <ExternalLink className="h-4 w-4 ml-2" />
-                  </Button>
-                  {selectedLog.payment_id && (
-                    <Button
-                      variant="outline"
-                      className="flex-1"
-                      onClick={() => navigate(`/financials/payments?id=${selectedLog.payment_id}`)}
-                    >
-                      View Payment Run <ExternalLink className="h-4 w-4 ml-2" />
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-        </SheetContent>
-      </Sheet>
+      <TimeLogDetailDrawer
+        log={selectedLog}
+        open={drawerOpen}
+        onOpenChange={(open) => {
+          setDrawerOpen(open);
+          if (!open) setSelectedLog(null);
+        }}
+        onSplit={(log) => {
+          if (log.source_schedule_id) {
+            setScheduleToSplit({
+              id: log.source_schedule_id,
+              workerName: log.workers?.name,
+              originalDate: log.date,
+              originalHours: log.hours_worked,
+              originalProjectId: log.project_id,
+            });
+            setSplitDialogOpen(true);
+          } else {
+            toast.error('Cannot split time log without linked schedule');
+          }
+        }}
+      />
 
       {/* Split Schedule Dialog */}
       {scheduleToSplit && (
@@ -545,10 +462,11 @@ export function TimeLogsTableView({ initialWorkerId, initialDate, initialProject
           originalHours={scheduleToSplit.originalHours}
           originalProjectId={scheduleToSplit.originalProjectId}
           onSuccess={() => {
-            queryClient.invalidateQueries({ queryKey: ['time-logs'] });
+            queryClient.invalidateQueries({ queryKey: ['time-logs-table'] });
             setSplitDialogOpen(false);
             setScheduleToSplit(null);
             setDrawerOpen(false);
+            setSelectedLog(null);
             toast.success('Time log split successfully');
           }}
         />

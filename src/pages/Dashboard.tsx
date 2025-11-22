@@ -1,4 +1,5 @@
 import { Layout } from '@/components/Layout';
+import { DashboardOverviewCards } from '@/components/dashboard/DashboardOverviewCards';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AnalyticsTab } from '@/components/dashboard/AnalyticsTab';
 import { ReportsTab } from '@/components/dashboard/ReportsTab';
@@ -12,10 +13,14 @@ const Dashboard = () => {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold">Dashboard</h1>
-            <p className="text-muted-foreground">Analytics, reports, and cost calculations</p>
+            <p className="text-muted-foreground">Your workforce and project overview</p>
           </div>
         </div>
 
+        {/* Overview Cards */}
+        <DashboardOverviewCards />
+
+        {/* Analytics Tabs */}
         <Tabs defaultValue="analytics" className="w-full">
           <TabsList className="grid w-full max-w-2xl grid-cols-3">
             <TabsTrigger value="analytics" className="gap-2">
