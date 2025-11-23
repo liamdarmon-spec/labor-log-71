@@ -460,6 +460,138 @@ export type Database = {
           },
         ]
       }
+      costs: {
+        Row: {
+          amount: number
+          category: string
+          company_id: string | null
+          cost_code_id: string | null
+          created_at: string | null
+          date_incurred: string
+          description: string
+          id: string
+          notes: string | null
+          payment_id: string | null
+          project_id: string
+          status: string
+          updated_at: string | null
+          vendor_id: string | null
+          vendor_type: string | null
+        }
+        Insert: {
+          amount?: number
+          category: string
+          company_id?: string | null
+          cost_code_id?: string | null
+          created_at?: string | null
+          date_incurred?: string
+          description: string
+          id?: string
+          notes?: string | null
+          payment_id?: string | null
+          project_id: string
+          status?: string
+          updated_at?: string | null
+          vendor_id?: string | null
+          vendor_type?: string | null
+        }
+        Update: {
+          amount?: number
+          category?: string
+          company_id?: string | null
+          cost_code_id?: string | null
+          created_at?: string | null
+          date_incurred?: string
+          description?: string
+          id?: string
+          notes?: string | null
+          payment_id?: string | null
+          project_id?: string
+          status?: string
+          updated_at?: string | null
+          vendor_id?: string | null
+          vendor_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "costs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "costs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_payroll_summary"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "costs_cost_code_id_fkey"
+            columns: ["cost_code_id"]
+            isOneToOne: false
+            referencedRelation: "cost_code_actuals"
+            referencedColumns: ["cost_code_id"]
+          },
+          {
+            foreignKeyName: "costs_cost_code_id_fkey"
+            columns: ["cost_code_id"]
+            isOneToOne: false
+            referencedRelation: "cost_codes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "costs_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payment_labor_summary"
+            referencedColumns: ["payment_id"]
+          },
+          {
+            foreignKeyName: "costs_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "costs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_costs_view"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "costs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_dashboard_view"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "costs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_labor_summary"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "costs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "costs_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "subs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_payments: {
         Row: {
           amount: number
@@ -1311,6 +1443,8 @@ export type Database = {
       }
       invoice_items: {
         Row: {
+          category: string | null
+          cost_code_id: string | null
           created_at: string | null
           description: string
           id: string
@@ -1321,6 +1455,8 @@ export type Database = {
           unit_price: number
         }
         Insert: {
+          category?: string | null
+          cost_code_id?: string | null
           created_at?: string | null
           description: string
           id?: string
@@ -1331,6 +1467,8 @@ export type Database = {
           unit_price?: number
         }
         Update: {
+          category?: string | null
+          cost_code_id?: string | null
           created_at?: string | null
           description?: string
           id?: string
@@ -1341,6 +1479,20 @@ export type Database = {
           unit_price?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "invoice_items_cost_code_id_fkey"
+            columns: ["cost_code_id"]
+            isOneToOne: false
+            referencedRelation: "cost_code_actuals"
+            referencedColumns: ["cost_code_id"]
+          },
+          {
+            foreignKeyName: "invoice_items_cost_code_id_fkey"
+            columns: ["cost_code_id"]
+            isOneToOne: false
+            referencedRelation: "cost_codes"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "invoice_items_invoice_id_fkey"
             columns: ["invoice_id"]
@@ -1353,6 +1505,7 @@ export type Database = {
       invoices: {
         Row: {
           balance_to_finish: number | null
+          client_name: string | null
           created_at: string | null
           due_date: string | null
           id: string
@@ -1373,6 +1526,7 @@ export type Database = {
         }
         Insert: {
           balance_to_finish?: number | null
+          client_name?: string | null
           created_at?: string | null
           due_date?: string | null
           id?: string
@@ -1393,6 +1547,7 @@ export type Database = {
         }
         Update: {
           balance_to_finish?: number | null
+          client_name?: string | null
           created_at?: string | null
           due_date?: string | null
           id?: string

@@ -1,0 +1,158 @@
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+
+export interface Invoice {
+  id: string;
+  project_id: string;
+  client_name: string | null;
+  invoice_number: string;
+  issue_date: string;
+  due_date: string | null;
+  total_amount: number | null;
+  status: 'draft' | 'sent' | 'partially_paid' | 'paid' | 'void';
+  retention_amount: number | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface InvoiceFilters {
+  startDate?: string;
+  endDate?: string;
+  status?: string;
+  companyId?: string;
+  projectId?: string;
+}
+
+export function useInvoices(filters?: InvoiceFilters) {
+  return useQuery({
+    queryKey: ['invoices', filters],
+    queryFn: async () => {
+      let query = supabase
+        .from('invoices')
+        .select(`
+          *,
+          projects (id, project_name, client_name, company_id, companies (id, name))
+        `)
+        .order('issue_date', { ascending: false });
+
+      if (filters?.startDate) {
+        query = query.gte('issue_date', filters.startDate);
+      }
+      if (filters?.endDate) {
+        query = query.lte('issue_date', filters.endDate);
+      }
+      if (filters?.status) {
+        query = query.eq('status', filters.status);
+      }
+      if (filters?.projectId) {
+        query = query.eq('project_id', filters.projectId);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      // Apply company filter in JS
+      let results = data || [];
+      if (filters?.companyId) {
+        results = results.filter((invoice: any) => 
+          invoice.projects?.company_id === filters.companyId
+        );
+      }
+
+      return results;
+    },
+  });
+}
+
+export function useCreateInvoice() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (invoice: Omit<Invoice, 'id' | 'created_at' | 'updated_at'>) => {
+      const { data, error } = await supabase
+        .from('invoices')
+        .insert(invoice)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['invoices'] });
+    },
+  });
+}
+
+export function useUpdateInvoice() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, updates }: { id: string; updates: Partial<Invoice> }) => {
+      const { data, error } = await supabase
+        .from('invoices')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['invoices'] });
+    },
+  });
+}
+
+// Invoice summary
+export function useInvoicesSummary(filters?: InvoiceFilters) {
+  return useQuery({
+    queryKey: ['invoices-summary', filters],
+    queryFn: async () => {
+      let query = supabase
+        .from('invoices')
+        .select('total_amount, status, issue_date, due_date, projects!inner(company_id)');
+
+      if (filters?.startDate) {
+        query = query.gte('issue_date', filters.startDate);
+      }
+      if (filters?.endDate) {
+        query = query.lte('issue_date', filters.endDate);
+      }
+      if (filters?.companyId) {
+        query = query.eq('projects.company_id', filters.companyId);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      const invoices = data || [];
+      
+      const totalInvoiced = invoices
+        .filter(i => i.status !== 'void')
+        .reduce((sum, i) => sum + (i.total_amount || 0), 0);
+      
+      const outstanding = invoices
+        .filter(i => ['sent', 'partially_paid'].includes(i.status))
+        .reduce((sum, i) => sum + (i.total_amount || 0), 0);
+      
+      const drafts = invoices.filter(i => i.status === 'draft').length;
+      
+      const today = new Date().toISOString().split('T')[0];
+      const overdue = invoices.filter(i => 
+        i.due_date && 
+        i.due_date < today && 
+        !['paid', 'void'].includes(i.status)
+      ).length;
+
+      return {
+        totalInvoiced,
+        outstanding,
+        drafts,
+        overdue,
+      };
+    },
+  });
+}
