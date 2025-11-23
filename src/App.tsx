@@ -17,13 +17,15 @@ import ProposalSettings from "./pages/ProposalSettings";
 import FinancialsOS from "./pages/FinancialsOS";
 import Workforce from "./pages/Workforce";
 import WorkerProfile from "./pages/WorkerProfile";
-import FinancialsV2 from "./pages/FinancialsV2";
-import FinancialPayments from "./pages/FinancialPayments";
-import FinancialEstimates from "./pages/FinancialEstimates";
-import FinancialMaterials from "./pages/FinancialMaterials";
-import FinancialReports from "./pages/FinancialReports";
-import Documents from "./pages/Documents";
-import Materials from "./pages/Materials";
+import FinancialsV2 from '@/pages/FinancialsV2';
+import FinancialPayments from '@/pages/FinancialPayments';
+import FinancialEstimates from '@/pages/FinancialEstimates';
+import FinancialMaterials from '@/pages/FinancialMaterials';
+import FinancialReports from '@/pages/FinancialReports';
+import Documents from '@/pages/Documents';
+import Proposals from '@/pages/Proposals';
+import ProposalBuilder from '@/pages/ProposalBuilder';
+import Materials from '@/pages/Materials';
 import SubProfile from "./pages/SubProfile";
 import Subs from "./pages/Subs";
 import NotFound from "./pages/NotFound";
@@ -59,6 +61,8 @@ const App = () => (
           <Route path="/financials/reports" element={<FinancialReports />} />
           <Route path="/financials/os" element={<FinancialsOS />} />
             <Route path="/documents" element={<Documents />} />
+            <Route path="/proposals" element={<Proposals />} />
+            <Route path="/proposals/:id" element={<ProposalBuilder />} />
             <Route path="/materials" element={<Materials />} />
             <Route path="/subs" element={<Subs />} />
             <Route path="/subs/:id" element={<SubProfile />} />

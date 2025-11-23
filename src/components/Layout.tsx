@@ -86,6 +86,15 @@ export const Layout = ({ children }: LayoutProps) => {
               <span>Financials</span>
             </Button>
             <Button
+              variant={location.pathname.startsWith('/proposals') ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => navigate('/proposals')}
+              className={`gap-2 h-9 ${location.pathname.startsWith('/proposals') ? 'font-semibold' : ''}`}
+            >
+              <CalendarClock className="w-4 h-4" />
+              <span>Proposals</span>
+            </Button>
+            <Button
               variant={location.pathname === '/admin' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => navigate('/admin')}
