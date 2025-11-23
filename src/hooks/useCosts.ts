@@ -142,9 +142,10 @@ export function useCostsSummary(filters?: CostFilters) {
   return useQuery({
     queryKey: ['costs-summary', filters],
     queryFn: async () => {
+      // Build query with proper joins for company filtering
       let query = supabase
         .from('costs')
-        .select('amount, status, category, date_incurred, projects!inner(company_id)');
+        .select('amount, status, category, date_incurred, project_id, projects!inner(company_id)');
 
       if (filters?.startDate) {
         query = query.gte('date_incurred', filters.startDate);
@@ -152,8 +153,17 @@ export function useCostsSummary(filters?: CostFilters) {
       if (filters?.endDate) {
         query = query.lte('date_incurred', filters.endDate);
       }
+      if (filters?.category) {
+        query = query.eq('category', filters.category);
+      }
+      if (filters?.status) {
+        query = query.eq('status', filters.status);
+      }
       if (filters?.companyId) {
         query = query.eq('projects.company_id', filters.companyId);
+      }
+      if (filters?.projectId) {
+        query = query.eq('project_id', filters.projectId);
       }
 
       const { data, error } = await query;
@@ -161,16 +171,29 @@ export function useCostsSummary(filters?: CostFilters) {
 
       const costs = data || [];
       
-      const totalCosts = costs.reduce((sum, c) => sum + (c.amount || 0), 0);
-      const unpaidCosts = costs.filter(c => c.status === 'unpaid').reduce((sum, c) => sum + (c.amount || 0), 0);
-      const paidCosts = costs.filter(c => c.status === 'paid').reduce((sum, c) => sum + (c.amount || 0), 0);
-      
+      // Optimized aggregations using single pass
+      let totalCosts = 0;
+      let unpaidCosts = 0;
+      let paidCosts = 0;
       const byCategory = {
-        labor: costs.filter(c => c.category === 'labor').reduce((sum, c) => sum + (c.amount || 0), 0),
-        subs: costs.filter(c => c.category === 'subs').reduce((sum, c) => sum + (c.amount || 0), 0),
-        materials: costs.filter(c => c.category === 'materials').reduce((sum, c) => sum + (c.amount || 0), 0),
-        misc: costs.filter(c => c.category === 'misc').reduce((sum, c) => sum + (c.amount || 0), 0),
+        labor: 0,
+        subs: 0,
+        materials: 0,
+        misc: 0,
       };
+
+      costs.forEach(c => {
+        const amount = c.amount || 0;
+        totalCosts += amount;
+        
+        if (c.status === 'unpaid') unpaidCosts += amount;
+        else if (c.status === 'paid') paidCosts += amount;
+        
+        if (c.category === 'labor') byCategory.labor += amount;
+        else if (c.category === 'subs') byCategory.subs += amount;
+        else if (c.category === 'materials') byCategory.materials += amount;
+        else if (c.category === 'misc') byCategory.misc += amount;
+      });
 
       return {
         totalCosts,
