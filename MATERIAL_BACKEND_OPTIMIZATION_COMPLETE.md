@@ -275,6 +275,11 @@ Actual: SUM(costs.amount WHERE project_id=:id AND category='materials')
 Variance: budget - actual
 ```
 
+**Hook Updated**: `useProjectBudgetLedger`
+- NOW fetches material actuals from `costs` table (lines 60-66)
+- Aggregates by cost_code_id alongside labor and subs
+- Ensures materials appear in Cost Code Ledger with proper actuals
+
 **ALL FOUR VIEWS USE THE SAME DEFINITION** ✅
 
 ---
@@ -389,12 +394,13 @@ WHERE project_id = :project_id
 ```
 
 ### Views Using This Definition
-1. ✅ Financial Hub → Job Costing
-2. ✅ Financial Hub → Costs Ledger
-3. ✅ Financial Hub → Materials Tab
-4. ✅ Project Budget Tab
-5. ✅ Database View: `material_actuals_by_project`
-6. ✅ Database Functions: `get_material_actuals_by_project()`, `get_material_actuals_by_cost_code()`
+1. ✅ Financial Hub → Job Costing (`useJobCosting` - lines 51-81)
+2. ✅ Financial Hub → Costs Ledger (direct `costs` query)
+3. ✅ Financial Hub → Materials Tab (`useMaterialInsights` - lines 38-52)
+4. ✅ Project Budget Tab (`useProjectBudgetLedger` - lines 60-147)
+5. ✅ Project Financials v3 (`useProjectFinancialsV3` - lines 44-46)
+6. ✅ Database View: `material_actuals_by_project`
+7. ✅ Database Functions: `get_material_actuals_by_project()`, `get_material_actuals_by_cost_code()`
 
 ### Schema & Index Changes
 **Added Constraint:**

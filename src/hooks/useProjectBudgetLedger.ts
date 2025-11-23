@@ -51,11 +51,18 @@ export function useProjectBudgetLedger(projectId: string) {
 
       const workerRateMap = new Map(workers?.map(w => [w.id, w.hourly_rate]) || []);
 
-      // Fetch sub actuals (placeholder for now)
+      // Fetch sub actuals
       const { data: subLogs } = await supabase
         .from('sub_logs')
         .select('cost_code_id, amount')
         .eq('project_id', projectId);
+
+      // Fetch material actuals from costs table
+      const { data: materialCosts } = await supabase
+        .from('costs')
+        .select('cost_code_id, amount')
+        .eq('project_id', projectId)
+        .eq('category', 'materials');
 
       // Build ledger lines by cost code
       const ledgerMap = new Map<string, CostCodeLedgerLine>();
@@ -124,6 +131,29 @@ export function useProjectBudgetLedger(projectId: string) {
 
         const line = ledgerMap.get(costCodeId)!;
         line.actualAmount += log.amount || 0;
+        line.variance = line.budgetAmount - line.actualAmount;
+      });
+
+      // Add material actuals from costs table
+      materialCosts?.forEach((cost) => {
+        const costCodeId = cost.cost_code_id || 'unassigned';
+
+        if (!ledgerMap.has(costCodeId)) {
+          ledgerMap.set(costCodeId, {
+            costCodeId: cost.cost_code_id,
+            costCode: 'UNASSIGNED',
+            costCodeName: 'Unassigned',
+            category: 'materials',
+            budgetAmount: 0,
+            budgetHours: null,
+            actualAmount: 0,
+            actualHours: null,
+            variance: 0,
+          });
+        }
+
+        const line = ledgerMap.get(costCodeId)!;
+        line.actualAmount += cost.amount || 0;
         line.variance = line.budgetAmount - line.actualAmount;
       });
 
