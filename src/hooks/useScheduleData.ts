@@ -51,9 +51,14 @@ export function useScheduleData(filters: ScheduleFilters = {}, enabled = true) {
         query = query.eq('sub_id', filters.subId);
       }
 
-      // Apply type filter
+      // Type filter: labor vs subs
+      // Labor schedules have worker_id, sub schedules have sub_id
       if (filters.type && filters.type !== 'all') {
-        query = query.eq('schedule_type', filters.type);
+        if (filters.type === 'labor') {
+          query = query.not('worker_id', 'is', null);
+        } else if (filters.type === 'sub') {
+          query = query.not('sub_id', 'is', null);
+        }
       }
 
       const { data, error } = await query;
