@@ -11,6 +11,8 @@ import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval, 
 import { AddToScheduleDialog } from '@/components/scheduling/AddToScheduleDialog';
 import { FullDayPlanner } from '@/components/scheduling/FullDayPlanner';
 import { useScheduleData } from '@/hooks/useScheduleData';
+import { useTradesSimple } from '@/hooks/useTrades';
+import { useProjectsSimple } from '@/hooks/useProjects';
 
 export function WorkforceScheduleTab() {
   const [currentWeek, setCurrentWeek] = useState(new Date());
@@ -35,27 +37,9 @@ export function WorkforceScheduleTab() {
     },
   });
 
-  // Fetch trades
-  const { data: trades } = useQuery({
-    queryKey: ['trades'],
-    queryFn: async () => {
-      const { data } = await supabase.from('trades').select('id, name').order('name');
-      return data || [];
-    },
-  });
-
-  // Fetch active projects
-  const { data: projects } = useQuery({
-    queryKey: ['projects-active'],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from('projects')
-        .select('id, project_name')
-        .eq('status', 'Active')
-        .order('project_name');
-      return data || [];
-    },
-  });
+  // Use centralized hooks with caching
+  const { data: trades = [] } = useTradesSimple();
+  const { data: projects = [] } = useProjectsSimple();
 
   // Fetch active workers
   const { data: workers } = useQuery({

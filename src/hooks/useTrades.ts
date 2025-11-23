@@ -11,6 +11,10 @@ export interface Trade {
   default_sub_cost_code_id: string | null;
 }
 
+/**
+ * Canonical hook for fetching trades
+ * Used across: Admin, Workers, Subs, Materials, Cost Codes, Schedule
+ */
 export function useTrades() {
   return useQuery({
     queryKey: ['trades'],
@@ -23,6 +27,28 @@ export function useTrades() {
       if (error) throw error;
       return data as Trade[];
     },
+    staleTime: 10 * 60 * 1000, // 10 minutes - trades rarely change
+    gcTime: 30 * 60 * 1000, // 30 minutes
+  });
+}
+
+/**
+ * Lightweight version for dropdowns - only id and name
+ */
+export function useTradesSimple() {
+  return useQuery({
+    queryKey: ['trades-simple'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('trades')
+        .select('id, name')
+        .order('name');
+      
+      if (error) throw error;
+      return data;
+    },
+    staleTime: 10 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
   });
 }
 
@@ -47,6 +73,8 @@ export function useTradeCostCodes(tradeId?: string) {
       return data;
     },
     enabled: !!tradeId || tradeId === undefined,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
   });
 }
 
