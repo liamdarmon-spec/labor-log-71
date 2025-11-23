@@ -24,8 +24,8 @@ export function useScheduleData(filters: ScheduleFilters = {}, enabled = true) {
         .from('work_schedules')
         .select(`
           *,
-          worker:workers(id, name, trade, hourly_rate, company_id),
-          project:projects(id, project_name, client_name, status),
+          worker:workers(id, name, trade, hourly_rate),
+          project:projects(id, project_name, client_name, status, company_id),
           trade:trades(id, name),
           cost_code:cost_codes(id, code, name, category)
         `)
@@ -50,9 +50,6 @@ export function useScheduleData(filters: ScheduleFilters = {}, enabled = true) {
       if (filters.subId) {
         query = query.eq('sub_id', filters.subId);
       }
-      if (filters.companyId && filters.companyId !== 'all') {
-        query = query.eq('company_id', filters.companyId);
-      }
 
       // Apply type filter
       if (filters.type && filters.type !== 'all') {
@@ -62,7 +59,16 @@ export function useScheduleData(filters: ScheduleFilters = {}, enabled = true) {
       const { data, error } = await query;
 
       if (error) throw error;
-      return data || [];
+      
+      // Apply company filter post-fetch (since it's on related projects table)
+      let filteredData = data || [];
+      if (filters.companyId && filters.companyId !== 'all') {
+        filteredData = filteredData.filter((schedule: any) => 
+          schedule.project?.company_id === filters.companyId
+        );
+      }
+      
+      return filteredData;
     },
   });
 }

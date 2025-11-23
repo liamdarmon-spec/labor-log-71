@@ -13,13 +13,23 @@ import { Users, DollarSign, Clock, TrendingUp } from 'lucide-react';
 import { format, subDays } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 
+interface UnpaidSummary {
+  id: string;
+  name: string;
+  company_id: string;
+  company_name: string;
+  total_hours: number;
+  total_amount: number;
+  item_count: number;
+}
+
 export function WorkforcePayCenterTab() {
   const navigate = useNavigate();
   const [dateRange, setDateRange] = useState('7');
   const [selectedCompany, setSelectedCompany] = useState<string>('all');
   const [groupBy, setGroupBy] = useState<'worker' | 'project'>('worker');
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [selectedGroupDetails, setSelectedGroupDetails] = useState<any>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   // Fetch companies
   const { data: companies } = useQuery({
@@ -30,84 +40,152 @@ export function WorkforcePayCenterTab() {
     },
   });
 
-  // Fetch unpaid time logs
-  const { data: unpaidLogs, isLoading } = useQuery({
-    queryKey: ['workforce-unpaid-logs', dateRange, selectedCompany],
+  // Fetch aggregated unpaid summary using SQL
+  const { data: unpaidSummary, isLoading: summaryLoading } = useQuery({
+    queryKey: ['workforce-unpaid-summary', dateRange, selectedCompany, groupBy],
     queryFn: async () => {
-      const startDate = subDays(new Date(), parseInt(dateRange));
-      
-      let query = supabase
-        .from('time_logs')
-        .select(`
-          *,
-          workers(id, name, trade, hourly_rate),
-          projects(id, project_name, company_id, companies(name)),
-          trades(name)
-        `)
-        .eq('payment_status', 'unpaid')
-        .gte('date', format(startDate, 'yyyy-MM-dd'))
-        .order('date', { ascending: false });
+      const startDate = format(subDays(new Date(), parseInt(dateRange)), 'yyyy-MM-dd');
+      const endDate = format(new Date(), 'yyyy-MM-dd');
 
-      if (selectedCompany !== 'all') {
-        const { data: projectIds } = await supabase
-          .from('projects')
-          .select('id')
-          .eq('company_id', selectedCompany);
-        
-        if (projectIds && projectIds.length > 0) {
-          query = query.in('project_id', projectIds.map(p => p.id));
+      if (groupBy === 'worker') {
+        // Aggregate by worker using RPC or view
+        let query = supabase
+          .from('time_logs')
+          .select(`
+            worker_id,
+            workers!inner(name, hourly_rate),
+            projects!inner(company_id, companies(name)),
+            hours_worked
+          `)
+          .eq('payment_status', 'unpaid')
+          .gte('date', startDate)
+          .lte('date', endDate);
+
+        if (selectedCompany !== 'all') {
+          query = query.eq('projects.company_id', selectedCompany);
         }
-      }
 
-      const { data } = await query;
-      return data || [];
+        const { data: logs, error } = await query;
+        if (error) throw error;
+
+        // Group by worker in application (since complex aggregation with joins is tricky in Supabase)
+        const grouped = logs?.reduce((acc: any, log: any) => {
+          const workerId = log.worker_id;
+          if (!acc[workerId]) {
+            acc[workerId] = {
+              id: workerId,
+              name: log.workers?.name || 'Unknown',
+              company_id: log.projects?.company_id || '',
+              company_name: log.projects?.companies?.name || 'Unknown',
+              total_hours: 0,
+              total_amount: 0,
+              item_count: 0,
+            };
+          }
+          const rate = log.workers?.hourly_rate || 0;
+          acc[workerId].total_hours += log.hours_worked;
+          acc[workerId].total_amount += log.hours_worked * rate;
+          acc[workerId].item_count += 1;
+          return acc;
+        }, {});
+
+        return Object.values(grouped || {}) as UnpaidSummary[];
+      } else {
+        // Aggregate by project
+        let query = supabase
+          .from('time_logs')
+          .select(`
+            project_id,
+            projects!inner(project_name, company_id, companies(name)),
+            workers!inner(hourly_rate),
+            hours_worked
+          `)
+          .eq('payment_status', 'unpaid')
+          .gte('date', startDate)
+          .lte('date', endDate);
+
+        if (selectedCompany !== 'all') {
+          query = query.eq('projects.company_id', selectedCompany);
+        }
+
+        const { data: logs, error } = await query;
+        if (error) throw error;
+
+        const grouped = logs?.reduce((acc: any, log: any) => {
+          const projectId = log.project_id;
+          if (!acc[projectId]) {
+            acc[projectId] = {
+              id: projectId,
+              name: log.projects?.project_name || 'Unknown',
+              company_id: log.projects?.company_id || '',
+              company_name: log.projects?.companies?.name || 'Unknown',
+              total_hours: 0,
+              total_amount: 0,
+              item_count: 0,
+            };
+          }
+          const rate = log.workers?.hourly_rate || 0;
+          acc[projectId].total_hours += log.hours_worked;
+          acc[projectId].total_amount += log.hours_worked * rate;
+          acc[projectId].item_count += 1;
+          return acc;
+        }, {});
+
+        return Object.values(grouped || {}) as UnpaidSummary[];
+      }
     },
   });
 
-  // Group data by worker or project
-  const groupedData = unpaidLogs?.reduce((acc: any, log: any) => {
-    const key = groupBy === 'worker' ? log.worker_id : log.project_id;
-    const name = groupBy === 'worker' ? log.workers?.name : log.projects?.project_name;
-    const company = log.projects?.companies?.name;
-    
-    if (!acc[key]) {
-      acc[key] = {
-        id: key,
-        name,
-        company,
-        totalHours: 0,
-        totalAmount: 0,
-        logs: [],
-        projectCount: groupBy === 'worker' ? new Set() : undefined,
-      };
-    }
+  // Fetch detail logs for selected worker/project
+  const { data: detailLogs } = useQuery({
+    queryKey: ['workforce-unpaid-details', selectedId, groupBy, dateRange, selectedCompany],
+    queryFn: async () => {
+      if (!selectedId) return [];
 
-    const amount = log.hours_worked * (log.workers?.hourly_rate || 0);
-    acc[key].totalHours += log.hours_worked;
-    acc[key].totalAmount += amount;
-    acc[key].logs.push(log);
-    
-    if (groupBy === 'worker') {
-      acc[key].projectCount.add(log.project_id);
-    }
+      const startDate = format(subDays(new Date(), parseInt(dateRange)), 'yyyy-MM-dd');
+      const endDate = format(new Date(), 'yyyy-MM-dd');
 
-    return acc;
-  }, {});
+      let query = supabase
+        .from('time_logs')
+        .select(`
+          id,
+          date,
+          hours_worked,
+          notes,
+          workers(name, hourly_rate),
+          projects(project_name, companies(name))
+        `)
+        .eq('payment_status', 'unpaid')
+        .gte('date', startDate)
+        .lte('date', endDate)
+        .order('date', { ascending: false });
 
-  const groupedArray = groupedData ? Object.values(groupedData).map((group: any) => ({
-    ...group,
-    projectCount: group.projectCount ? group.projectCount.size : group.logs.length,
-  })) : [];
+      if (groupBy === 'worker') {
+        query = query.eq('worker_id', selectedId);
+      } else {
+        query = query.eq('project_id', selectedId);
+      }
 
-  // Calculate totals
-  const totalUnpaidHours = unpaidLogs?.reduce((sum, log) => sum + log.hours_worked, 0) || 0;
-  const totalUnpaidAmount = unpaidLogs?.reduce((sum, log) => {
-    const rate = log.workers?.hourly_rate || 0;
-    return sum + (log.hours_worked * rate);
-  }, 0) || 0;
+      if (selectedCompany !== 'all') {
+        query = query.eq('projects.company_id', selectedCompany);
+      }
 
-  const handleViewDetails = (group: any) => {
-    setSelectedGroupDetails(group);
+      const { data, error } = await query;
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!selectedId && drawerOpen,
+  });
+
+  // Calculate global totals
+  const totalUnpaidHours = unpaidSummary?.reduce((sum, item) => sum + item.total_hours, 0) || 0;
+  const totalUnpaidAmount = unpaidSummary?.reduce((sum, item) => sum + item.total_amount, 0) || 0;
+  const totalItems = unpaidSummary?.reduce((sum, item) => sum + item.item_count, 0) || 0;
+
+  const selectedSummary = unpaidSummary?.find(s => s.id === selectedId);
+
+  const handleViewDetails = (id: string) => {
+    setSelectedId(id);
     setDrawerOpen(true);
   };
 
@@ -125,7 +203,7 @@ export function WorkforcePayCenterTab() {
     navigate(`/financials/payments?${params.toString()}`);
   };
 
-  if (isLoading) {
+  if (summaryLoading) {
     return <Skeleton className="h-96" />;
   }
 
@@ -184,7 +262,7 @@ export function WorkforcePayCenterTab() {
               <Clock className="h-4 w-4" />
               <span className="text-sm">Unpaid Logs</span>
             </div>
-            <p className="text-2xl font-bold">{unpaidLogs?.length || 0}</p>
+            <p className="text-2xl font-bold">{totalItems}</p>
           </CardContent>
         </Card>
         <Card>
@@ -213,7 +291,7 @@ export function WorkforcePayCenterTab() {
               <Users className="h-4 w-4" />
               <span className="text-sm">{groupBy === 'worker' ? 'Workers' : 'Projects'}</span>
             </div>
-            <p className="text-2xl font-bold">{groupedArray.length}</p>
+            <p className="text-2xl font-bold">{unpaidSummary?.length || 0}</p>
           </CardContent>
         </Card>
       </div>
@@ -223,7 +301,7 @@ export function WorkforcePayCenterTab() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle>Unpaid Labor Summary</CardTitle>
-            {unpaidLogs && unpaidLogs.length > 0 && (
+            {unpaidSummary && unpaidSummary.length > 0 && (
               <Button onClick={handleOpenPaymentDialog}>
                 Create Payment
               </Button>
@@ -231,7 +309,7 @@ export function WorkforcePayCenterTab() {
           </div>
         </CardHeader>
         <CardContent>
-          {groupedArray.length > 0 ? (
+          {unpaidSummary && unpaidSummary.length > 0 ? (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -239,29 +317,27 @@ export function WorkforcePayCenterTab() {
                   <TableHead>Company</TableHead>
                   <TableHead className="text-right">Hours</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
-                  <TableHead className="text-right">
-                    {groupBy === 'worker' ? 'Projects' : 'Logs'}
-                  </TableHead>
+                  <TableHead className="text-right">Logs</TableHead>
                   <TableHead></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {groupedArray.map((group: any) => (
-                  <TableRow key={group.id}>
-                    <TableCell className="font-medium">{group.name}</TableCell>
+                {unpaidSummary.map((item) => (
+                  <TableRow key={item.id}>
+                    <TableCell className="font-medium">{item.name}</TableCell>
                     <TableCell>
-                      <Badge variant="outline">{group.company}</Badge>
+                      <Badge variant="outline">{item.company_name}</Badge>
                     </TableCell>
-                    <TableCell className="text-right">{group.totalHours.toFixed(1)}h</TableCell>
+                    <TableCell className="text-right">{item.total_hours.toFixed(1)}h</TableCell>
                     <TableCell className="text-right font-semibold">
-                      ${group.totalAmount.toLocaleString()}
+                      ${item.total_amount.toLocaleString()}
                     </TableCell>
-                    <TableCell className="text-right">{group.projectCount}</TableCell>
+                    <TableCell className="text-right">{item.item_count}</TableCell>
                     <TableCell>
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleViewDetails(group)}
+                        onClick={() => handleViewDetails(item.id)}
                       >
                         View Details
                       </Button>
@@ -284,25 +360,29 @@ export function WorkforcePayCenterTab() {
       <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
         <SheetContent className="sm:max-w-xl overflow-y-auto">
           <SheetHeader>
-            <SheetTitle>Unpaid Logs - {selectedGroupDetails?.name}</SheetTitle>
+            <SheetTitle>Unpaid Logs - {selectedSummary?.name}</SheetTitle>
           </SheetHeader>
           
-          {selectedGroupDetails && (
+          {selectedSummary && (
             <div className="mt-6 space-y-6">
               {/* Summary */}
               <Card>
                 <CardContent className="pt-6">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-3 gap-4">
                     <div>
-                      <p className="text-sm text-muted-foreground">Total Hours</p>
+                      <p className="text-sm text-muted-foreground">Logs</p>
+                      <p className="text-xl font-bold">{selectedSummary.item_count}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Hours</p>
                       <p className="text-xl font-bold text-blue-600">
-                        {selectedGroupDetails.totalHours.toFixed(1)}h
+                        {selectedSummary.total_hours.toFixed(1)}h
                       </p>
                     </div>
                     <div>
-                      <p className="text-sm text-muted-foreground">Total Amount</p>
+                      <p className="text-sm text-muted-foreground">Amount</p>
                       <p className="text-xl font-bold text-orange-600">
-                        ${selectedGroupDetails.totalAmount.toLocaleString()}
+                        ${selectedSummary.total_amount.toLocaleString()}
                       </p>
                     </div>
                   </div>
@@ -312,8 +392,9 @@ export function WorkforcePayCenterTab() {
               {/* Individual Logs */}
               <div className="space-y-3">
                 <h4 className="font-semibold">Individual Logs</h4>
-                {selectedGroupDetails.logs.map((log: any) => {
-                  const amount = log.hours_worked * (log.workers?.hourly_rate || 0);
+                {detailLogs?.map((log: any) => {
+                  const rate = log.workers?.hourly_rate || 0;
+                  const amount = log.hours_worked * rate;
                   return (
                     <Card key={log.id}>
                       <CardContent className="pt-4">
