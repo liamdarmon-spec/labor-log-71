@@ -23,6 +23,13 @@ import FinancialPayments from '@/pages/FinancialPayments';
 import FinancialEstimates from '@/pages/FinancialEstimates';
 import FinancialMaterials from '@/pages/FinancialMaterials';
 import FinancialReports from '@/pages/FinancialReports';
+import FinancialsLayout from '@/pages/financials/FinancialsLayout';
+import FinancialsOverview from '@/pages/financials/FinancialsOverview';
+import { JobCostingTab } from '@/components/financials/JobCostingTab';
+import { InvoicesTab } from '@/components/financials/InvoicesTab';
+import { MaterialsTab } from '@/components/financials/MaterialsTab';
+import { CostsTab } from '@/components/financials/CostsTab';
+import { UnifiedPaymentsPanelV2 } from '@/components/financials/UnifiedPaymentsPanelV2';
 import Documents from '@/pages/Documents';
 import Proposals from '@/pages/Proposals';
 import ProposalBuilderV2 from '@/pages/ProposalBuilderV2';
@@ -54,11 +61,21 @@ const App = () => (
           <Route path="/settings/proposals" element={<ProposalSettings />} />
             <Route path="/workforce" element={<Workforce />} />
             <Route path="/workforce/worker/:workerId" element={<WorkerProfile />} />
-            <Route path="/financials" element={<FinancialsV3 />} />
+            
+            {/* New Financial Hub Routes */}
+            <Route path="/financials" element={<FinancialsLayout />}>
+              <Route index element={<FinancialsOverview />} />
+              <Route path="job-costing" element={<JobCostingTab />} />
+              <Route path="invoices" element={<InvoicesTab />} />
+              <Route path="materials" element={<MaterialsTab />} />
+              <Route path="costs" element={<CostsTab />} />
+              <Route path="payments" element={<UnifiedPaymentsPanelV2 />} />
+            </Route>
+
+            {/* Legacy routes */}
             <Route path="/financials-v2" element={<FinancialsV2 />} />
-            <Route path="/financials/payments" element={<FinancialPayments />} />
+            <Route path="/financials-v3" element={<FinancialsV3 />} />
             <Route path="/financials/estimates" element={<FinancialEstimates />} />
-            <Route path="/financials/materials" element={<FinancialMaterials />} />
             <Route path="/financials/subcontractors" element={<Subs />} />
             <Route path="/financials/documents" element={<Documents />} />
           <Route path="/financials/reports" element={<FinancialReports />} />
