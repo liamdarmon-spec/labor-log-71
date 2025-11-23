@@ -197,7 +197,12 @@ export const ProjectEstimatesEnhanced = ({ projectId }: { projectId: string }) =
                         {budgetImpact.label}
                       </Badge>
                     </TableCell>
-                    <TableCell>{format(new Date(estimate.created_at), 'MMM d, yyyy')}</TableCell>
+                    <TableCell>
+                      {estimate.created_at 
+                        ? format(new Date(estimate.created_at), 'MMM d, yyyy')
+                        : '—'
+                      }
+                    </TableCell>
                     <TableCell className="text-right font-semibold">
                       ${Number(estimate.total_amount).toFixed(2)}
                     </TableCell>
