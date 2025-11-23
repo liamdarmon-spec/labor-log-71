@@ -16,7 +16,7 @@ export function WorkforceTimeLogsTab() {
   const [selectedWorker, setSelectedWorker] = useState<string>('all');
   const [selectedProject, setSelectedProject] = useState<string>('all');
   const [paymentFilter, setPaymentFilter] = useState<string>('all');
-  const [selectedLogId, setSelectedLogId] = useState<string | null>(null);
+  const [selectedLog, setSelectedLog] = useState<any>(null);
 
   // Fetch companies
   const { data: companies } = useQuery({
@@ -52,7 +52,7 @@ export function WorkforceTimeLogsTab() {
     },
   });
 
-  // Fetch time logs
+  // Fetch time logs with proper joins
   const { data: timeLogs, isLoading, refetch } = useQuery({
     queryKey: ['workforce-time-logs', dateRange, selectedCompany, selectedWorker, selectedProject, paymentFilter],
     queryFn: async () => {
@@ -61,16 +61,27 @@ export function WorkforceTimeLogsTab() {
       let query = supabase
         .from('time_logs')
         .select(`
-          *,
-          workers(name, trade, hourly_rate),
-          projects(project_name, company_id, companies(name)),
+          id,
+          worker_id,
+          project_id,
+          trade_id,
+          cost_code_id,
+          date,
+          hours_worked,
+          notes,
+          payment_status,
+          paid_amount,
+          source_schedule_id,
+          workers!inner(name, trade, hourly_rate),
+          projects!inner(project_name, company_id, companies(name)),
           trades(name),
           cost_codes(code, name)
         `)
         .gte('date', format(startDate, 'yyyy-MM-dd'))
-        .order('date', { ascending: false });
+        .order('date', { ascending: false })
+        .limit(500);
 
-      // Apply filters
+      // Apply filters at DB level
       if (selectedWorker !== 'all') {
         query = query.eq('worker_id', selectedWorker);
       }
@@ -83,19 +94,13 @@ export function WorkforceTimeLogsTab() {
         query = query.eq('payment_status', paymentFilter);
       }
 
+      // Company filter via projects join
       if (selectedCompany !== 'all') {
-        // Filter by company through projects
-        const { data: projectIds } = await supabase
-          .from('projects')
-          .select('id')
-          .eq('company_id', selectedCompany);
-        
-        if (projectIds && projectIds.length > 0) {
-          query = query.in('project_id', projectIds.map(p => p.id));
-        }
+        query = query.eq('projects.company_id', selectedCompany);
       }
 
-      const { data } = await query;
+      const { data, error } = await query;
+      if (error) throw error;
       return data || [];
     },
   });
@@ -248,7 +253,36 @@ export function WorkforceTimeLogsTab() {
                       <TableRow 
                         key={log.id}
                         className="cursor-pointer hover:bg-accent"
-                        onClick={() => setSelectedLogId(log.id)}
+                        onClick={() => setSelectedLog({
+                          id: log.id,
+                          worker_id: log.worker_id,
+                          project_id: log.project_id,
+                          trade_id: log.trade_id,
+                          cost_code_id: log.cost_code_id,
+                          date: log.date,
+                          hours_worked: log.hours_worked,
+                          notes: log.notes,
+                          payment_status: log.payment_status,
+                          paid_amount: log.paid_amount,
+                          schedule_id: log.source_schedule_id,
+                          worker: log.workers ? {
+                            name: log.workers.name,
+                            trade: log.workers.trade,
+                            hourly_rate: log.workers.hourly_rate
+                          } : null,
+                          project: log.projects ? {
+                            project_name: log.projects.project_name,
+                            client_name: ''
+                          } : null,
+                          trade: log.trades ? {
+                            name: log.trades.name
+                          } : null,
+                          cost_code: log.cost_codes ? {
+                            code: log.cost_codes.code,
+                            name: log.cost_codes.name
+                          } : null,
+                          payment: null
+                        })}
                       >
                         <TableCell>{format(new Date(log.date), 'MMM d, yyyy')}</TableCell>
                         <TableCell className="font-medium">{log.workers?.name}</TableCell>
@@ -273,7 +307,36 @@ export function WorkforceTimeLogsTab() {
                             size="sm"
                             onClick={(e) => {
                               e.stopPropagation();
-                              setSelectedLogId(log.id);
+                              setSelectedLog({
+                                id: log.id,
+                                worker_id: log.worker_id,
+                                project_id: log.project_id,
+                                trade_id: log.trade_id,
+                                cost_code_id: log.cost_code_id,
+                                date: log.date,
+                                hours_worked: log.hours_worked,
+                                notes: log.notes,
+                                payment_status: log.payment_status,
+                                paid_amount: log.paid_amount,
+                                schedule_id: log.source_schedule_id,
+                                worker: log.workers ? {
+                                  name: log.workers.name,
+                                  trade: log.workers.trade,
+                                  hourly_rate: log.workers.hourly_rate
+                                } : null,
+                                project: log.projects ? {
+                                  project_name: log.projects.project_name,
+                                  client_name: ''
+                                } : null,
+                                trade: log.trades ? {
+                                  name: log.trades.name
+                                } : null,
+                                cost_code: log.cost_codes ? {
+                                  code: log.cost_codes.code,
+                                  name: log.cost_codes.name
+                                } : null,
+                                payment: null
+                              });
                             }}
                           >
                             View
@@ -295,42 +358,13 @@ export function WorkforceTimeLogsTab() {
       </Card>
 
       {/* Time Log Drawer */}
-      {selectedLogId && timeLogs && (
+      {selectedLog && (
         <UniversalTimeLogDrawer
-          open={!!selectedLogId}
+          open={!!selectedLog}
           onOpenChange={(open) => {
-            if (!open) setSelectedLogId(null);
+            if (!open) setSelectedLog(null);
           }}
-          timeLog={timeLogs?.find(log => log.id === selectedLogId) ? {
-            id: timeLogs.find(log => log.id === selectedLogId)!.id,
-            worker_id: timeLogs.find(log => log.id === selectedLogId)!.worker_id,
-            project_id: timeLogs.find(log => log.id === selectedLogId)!.project_id,
-            trade_id: timeLogs.find(log => log.id === selectedLogId)!.trade_id,
-            cost_code_id: timeLogs.find(log => log.id === selectedLogId)!.cost_code_id,
-            date: timeLogs.find(log => log.id === selectedLogId)!.date,
-            hours_worked: timeLogs.find(log => log.id === selectedLogId)!.hours_worked,
-            notes: timeLogs.find(log => log.id === selectedLogId)!.notes,
-            payment_status: timeLogs.find(log => log.id === selectedLogId)!.payment_status,
-            paid_amount: timeLogs.find(log => log.id === selectedLogId)!.paid_amount,
-            schedule_id: timeLogs.find(log => log.id === selectedLogId)!.source_schedule_id,
-            worker: timeLogs.find(log => log.id === selectedLogId)!.workers ? {
-              name: timeLogs.find(log => log.id === selectedLogId)!.workers!.name,
-              trade: timeLogs.find(log => log.id === selectedLogId)!.workers!.trade,
-              hourly_rate: timeLogs.find(log => log.id === selectedLogId)!.workers!.hourly_rate
-            } : null,
-            project: timeLogs.find(log => log.id === selectedLogId)!.projects ? {
-              project_name: timeLogs.find(log => log.id === selectedLogId)!.projects!.project_name,
-              client_name: ''
-            } : null,
-            trade: timeLogs.find(log => log.id === selectedLogId)!.trades ? {
-              name: timeLogs.find(log => log.id === selectedLogId)!.trades!.name
-            } : null,
-            cost_code: timeLogs.find(log => log.id === selectedLogId)!.cost_codes ? {
-              code: timeLogs.find(log => log.id === selectedLogId)!.cost_codes!.code,
-              name: timeLogs.find(log => log.id === selectedLogId)!.cost_codes!.name
-            } : null,
-            payment: null
-          } : null}
+          timeLog={selectedLog}
           onRefresh={() => refetch()}
         />
       )}
