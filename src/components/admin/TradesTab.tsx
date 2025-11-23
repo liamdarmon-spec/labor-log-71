@@ -271,14 +271,14 @@ export const TradesTab = () => {
               <div className="space-y-2">
                 <Label htmlFor="labor_cost_code">Default Labor Cost Code</Label>
                 <Select
-                  value={formData.default_labor_cost_code_id}
-                  onValueChange={(value) => setFormData({ ...formData, default_labor_cost_code_id: value })}
+                  value={formData.default_labor_cost_code_id || "none"}
+                  onValueChange={(value) => setFormData({ ...formData, default_labor_cost_code_id: value === "none" ? "" : value })}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select labor cost code" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
+                    <SelectItem value="none">None</SelectItem>
                     {laborCostCodes.map((cc) => (
                       <SelectItem key={cc.id} value={cc.id}>
                         {cc.code} – {cc.name}
@@ -290,14 +290,14 @@ export const TradesTab = () => {
               <div className="space-y-2">
                 <Label htmlFor="material_cost_code">Default Material Cost Code</Label>
                 <Select
-                  value={formData.default_material_cost_code_id}
-                  onValueChange={(value) => setFormData({ ...formData, default_material_cost_code_id: value })}
+                  value={formData.default_material_cost_code_id || "none"}
+                  onValueChange={(value) => setFormData({ ...formData, default_material_cost_code_id: value === "none" ? "" : value })}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select material cost code" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
+                    <SelectItem value="none">None</SelectItem>
                     {materialCostCodes.map((cc) => (
                       <SelectItem key={cc.id} value={cc.id}>
                         {cc.code} – {cc.name}
@@ -309,14 +309,14 @@ export const TradesTab = () => {
               <div className="space-y-2">
                 <Label htmlFor="sub_cost_code">Default Sub Cost Code</Label>
                 <Select
-                  value={formData.default_sub_cost_code_id}
-                  onValueChange={(value) => setFormData({ ...formData, default_sub_cost_code_id: value })}
+                  value={formData.default_sub_cost_code_id || "none"}
+                  onValueChange={(value) => setFormData({ ...formData, default_sub_cost_code_id: value === "none" ? "" : value })}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select sub cost code" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
+                    <SelectItem value="none">None</SelectItem>
                     {subCostCodes.map((cc) => (
                       <SelectItem key={cc.id} value={cc.id}>
                         {cc.code} – {cc.name}

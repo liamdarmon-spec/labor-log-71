@@ -141,14 +141,14 @@ export const MaterialVendorsTab = () => {
                 <div className="space-y-2">
                   <Label htmlFor="trade">Trade</Label>
                   <Select
-                    value={formData.trade_id}
-                    onValueChange={(value) => setFormData({ ...formData, trade_id: value })}
+                    value={formData.trade_id || "none"}
+                    onValueChange={(value) => setFormData({ ...formData, trade_id: value === "none" ? "" : value })}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select trade" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">None</SelectItem>
+                      <SelectItem value="none">None</SelectItem>
                       {trades?.map((trade) => (
                         <SelectItem key={trade.id} value={trade.id}>
                           {trade.name}
@@ -160,14 +160,14 @@ export const MaterialVendorsTab = () => {
                 <div className="space-y-2">
                   <Label htmlFor="cost_code">Default Cost Code</Label>
                   <Select
-                    value={formData.default_cost_code_id}
-                    onValueChange={(value) => setFormData({ ...formData, default_cost_code_id: value })}
+                    value={formData.default_cost_code_id || "none"}
+                    onValueChange={(value) => setFormData({ ...formData, default_cost_code_id: value === "none" ? "" : value })}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select cost code" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">None</SelectItem>
+                      <SelectItem value="none">None</SelectItem>
                       {costCodes?.map((code) => (
                         <SelectItem key={code.id} value={code.id}>
                           {code.code} - {code.name}
