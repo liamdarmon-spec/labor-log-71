@@ -113,13 +113,19 @@ export function useInvoicesSummary(filters?: InvoiceFilters) {
     queryFn: async () => {
       let query = supabase
         .from('invoices')
-        .select('total_amount, status, issue_date, due_date, projects!inner(company_id)');
+        .select('total_amount, status, issue_date, due_date, project_id, projects!inner(company_id)');
 
       if (filters?.startDate) {
         query = query.gte('issue_date', filters.startDate);
       }
       if (filters?.endDate) {
         query = query.lte('issue_date', filters.endDate);
+      }
+      if (filters?.status) {
+        query = query.eq('status', filters.status);
+      }
+      if (filters?.projectId) {
+        query = query.eq('project_id', filters.projectId);
       }
       if (filters?.companyId) {
         query = query.eq('projects.company_id', filters.companyId);
@@ -130,22 +136,30 @@ export function useInvoicesSummary(filters?: InvoiceFilters) {
 
       const invoices = data || [];
       
-      const totalInvoiced = invoices
-        .filter(i => i.status !== 'void')
-        .reduce((sum, i) => sum + (i.total_amount || 0), 0);
-      
-      const outstanding = invoices
-        .filter(i => ['sent', 'partially_paid'].includes(i.status))
-        .reduce((sum, i) => sum + (i.total_amount || 0), 0);
-      
-      const drafts = invoices.filter(i => i.status === 'draft').length;
-      
+      // Optimized single-pass aggregation
+      let totalInvoiced = 0;
+      let outstanding = 0;
+      let drafts = 0;
+      let overdue = 0;
       const today = new Date().toISOString().split('T')[0];
-      const overdue = invoices.filter(i => 
-        i.due_date && 
-        i.due_date < today && 
-        !['paid', 'void'].includes(i.status)
-      ).length;
+
+      invoices.forEach(i => {
+        if (i.status !== 'void') {
+          totalInvoiced += i.total_amount || 0;
+        }
+        
+        if (i.status === 'sent' || i.status === 'partially_paid') {
+          outstanding += i.total_amount || 0;
+        }
+        
+        if (i.status === 'draft') {
+          drafts++;
+        }
+        
+        if (i.due_date && i.due_date < today && i.status !== 'paid' && i.status !== 'void') {
+          overdue++;
+        }
+      });
 
       return {
         totalInvoiced,

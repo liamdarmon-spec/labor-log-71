@@ -10,7 +10,7 @@ export function useJobCosting(filters?: JobCostingFilters) {
   return useQuery({
     queryKey: ['job-costing', filters],
     queryFn: async () => {
-      // Fetch all active projects
+      // Build base projects query
       let projectsQuery = supabase
         .from('projects')
         .select(`
@@ -35,63 +35,71 @@ export function useJobCosting(filters?: JobCostingFilters) {
 
       const projectIds = projects.map(p => p.id);
 
-      // Fetch budgets
+      // Fetch budgets with a single query
       const { data: budgets } = await supabase
         .from('project_budgets')
-        .select('*')
+        .select('project_id, labor_budget, subs_budget, materials_budget, other_budget')
         .in('project_id', projectIds);
 
-      // Fetch labor actuals (daily_logs)
-      const { data: laborLogs } = await supabase
+      // Fetch labor actuals with single query
+      const { data: laborActuals } = await supabase
         .from('daily_logs')
         .select('project_id, hours_worked, workers!inner(hourly_rate)')
         .in('project_id', projectIds);
 
-      // Fetch other costs
-      const { data: costs } = await supabase
+      // Fetch costs actuals with single query
+      const { data: costsActuals } = await supabase
         .from('costs')
         .select('project_id, category, amount')
         .in('project_id', projectIds);
 
-      // Fetch invoices
+      // Fetch invoices with single query
       const { data: invoices } = await supabase
         .from('invoices')
-        .select('project_id, total_amount, status')
+        .select('project_id, total_amount')
         .in('project_id', projectIds)
         .neq('status', 'void');
 
-      // Aggregate by project
+      // Client-side aggregation (optimized with Maps for O(1) lookups)
+      const budgetMap = new Map(budgets?.map(b => [b.project_id, b]));
+      
+      const laborMap = new Map<string, number>();
+      (laborActuals || []).forEach((log: any) => {
+        const cost = log.hours_worked * (log.workers?.hourly_rate || 0);
+        laborMap.set(log.project_id, (laborMap.get(log.project_id) || 0) + cost);
+      });
+
+      const costsMap = new Map<string, { subs: number; materials: number; misc: number }>();
+      (costsActuals || []).forEach((cost: any) => {
+        if (!costsMap.has(cost.project_id)) {
+          costsMap.set(cost.project_id, { subs: 0, materials: 0, misc: 0 });
+        }
+        const projectCosts = costsMap.get(cost.project_id)!;
+        if (cost.category === 'subs') projectCosts.subs += cost.amount || 0;
+        else if (cost.category === 'materials') projectCosts.materials += cost.amount || 0;
+        else if (cost.category === 'misc') projectCosts.misc += cost.amount || 0;
+      });
+
+      const invoiceMap = new Map<string, number>();
+      invoices?.forEach(inv => {
+        invoiceMap.set(inv.project_id, (invoiceMap.get(inv.project_id) || 0) + (inv.total_amount || 0));
+      });
+
+      // Build final result set
       return projects.map(project => {
-        const budget = budgets?.find(b => b.project_id === project.id);
+        const budget = budgetMap.get(project.id);
         const totalBudget = (budget?.labor_budget || 0) + 
                            (budget?.subs_budget || 0) + 
                            (budget?.materials_budget || 0) + 
                            (budget?.other_budget || 0);
 
-        // Labor actuals
-        const projectLaborLogs = laborLogs?.filter(l => l.project_id === project.id) || [];
-        const laborActual = projectLaborLogs.reduce((sum, log: any) => 
-          sum + (log.hours_worked * (log.workers?.hourly_rate || 0)), 0
-        );
-
-        // Other costs actuals
-        const projectCosts = costs?.filter(c => c.project_id === project.id) || [];
-        const subsActual = projectCosts
-          .filter(c => c.category === 'subs')
-          .reduce((sum, c) => sum + (c.amount || 0), 0);
-        const materialsActual = projectCosts
-          .filter(c => c.category === 'materials')
-          .reduce((sum, c) => sum + (c.amount || 0), 0);
-        const miscActual = projectCosts
-          .filter(c => c.category === 'misc')
-          .reduce((sum, c) => sum + (c.amount || 0), 0);
-
-        const totalActual = laborActual + subsActual + materialsActual + miscActual;
+        const laborActual = laborMap.get(project.id) || 0;
+        const projectCosts = costsMap.get(project.id) || { subs: 0, materials: 0, misc: 0 };
+        
+        const totalActual = laborActual + projectCosts.subs + projectCosts.materials + projectCosts.misc;
         const variance = totalBudget - totalActual;
 
-        // Invoiced
-        const projectInvoices = invoices?.filter(i => i.project_id === project.id) || [];
-        const billed = projectInvoices.reduce((sum, i) => sum + (i.total_amount || 0), 0);
+        const billed = invoiceMap.get(project.id) || 0;
         const margin = billed - totalActual;
 
         return {
@@ -99,9 +107,9 @@ export function useJobCosting(filters?: JobCostingFilters) {
           budget: totalBudget,
           actuals: {
             labor: laborActual,
-            subs: subsActual,
-            materials: materialsActual,
-            misc: miscActual,
+            subs: projectCosts.subs,
+            materials: projectCosts.materials,
+            misc: projectCosts.misc,
             total: totalActual,
           },
           variance,
