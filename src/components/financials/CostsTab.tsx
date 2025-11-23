@@ -16,12 +16,17 @@ import {
 } from '@/components/ui/table';
 import { format } from 'date-fns';
 
-export const CostsTab = () => {
+interface CostsTabProps {
+  categoryFilter?: string;
+  statusFilter?: string;
+}
+
+export const CostsTab = ({ categoryFilter: propCategoryFilter, statusFilter: propStatusFilter }: CostsTabProps = {}) => {
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
   const [companyFilter, setCompanyFilter] = useState<string>('all');
-  const [categoryFilter, setCategoryFilter] = useState<string>('all');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [categoryFilter, setCategoryFilter] = useState<string>(propCategoryFilter || 'all');
+  const [statusFilter, setStatusFilter] = useState<string>(propStatusFilter || 'all');
 
   const { data: companies } = useQuery({
     queryKey: ['companies'],

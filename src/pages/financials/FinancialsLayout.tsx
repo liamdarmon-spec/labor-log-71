@@ -9,22 +9,22 @@ export default function FinancialsLayout() {
   const getActiveTab = () => {
     const path = location.pathname;
     if (path === '/financials' || path === '/financials/') return 'overview';
-    if (path.includes('/job-costing')) return 'job-costing';
-    if (path.includes('/invoices')) return 'invoices';
-    if (path.includes('/materials')) return 'materials';
+    if (path.includes('/revenue')) return 'revenue';
     if (path.includes('/costs')) return 'costs';
+    if (path.includes('/job-costing')) return 'job-costing';
     if (path.includes('/payments')) return 'payments';
+    if (path.includes('/procurement')) return 'procurement';
     return 'overview';
   };
 
   const handleTabChange = (value: string) => {
     const routes: Record<string, string> = {
       'overview': '/financials',
-      'job-costing': '/financials/job-costing',
-      'invoices': '/financials/invoices',
-      'materials': '/financials/materials',
+      'revenue': '/financials/revenue',
       'costs': '/financials/costs',
+      'job-costing': '/financials/job-costing',
       'payments': '/financials/payments',
+      'procurement': '/financials/procurement',
     };
     navigate(routes[value]);
   };
@@ -33,20 +33,20 @@ export default function FinancialsLayout() {
     <Layout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold">Financial Hub</h1>
+          <h1 className="text-3xl font-bold">Financials</h1>
           <p className="text-muted-foreground">
-            Comprehensive financial control center for job costing, invoices, materials, costs, and payments
+            Professional AP/AR management, job costing analytics, and payment center
           </p>
         </div>
 
         <Tabs value={getActiveTab()} onValueChange={handleTabChange} className="space-y-6">
           <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="job-costing">Job Costing</TabsTrigger>
-            <TabsTrigger value="invoices">Invoices (AR)</TabsTrigger>
-            <TabsTrigger value="materials">Materials</TabsTrigger>
+            <TabsTrigger value="revenue">Revenue (AR)</TabsTrigger>
             <TabsTrigger value="costs">Costs (AP)</TabsTrigger>
+            <TabsTrigger value="job-costing">Job Costing</TabsTrigger>
             <TabsTrigger value="payments">Payments</TabsTrigger>
+            <TabsTrigger value="procurement">Procurement</TabsTrigger>
           </TabsList>
         </Tabs>
 

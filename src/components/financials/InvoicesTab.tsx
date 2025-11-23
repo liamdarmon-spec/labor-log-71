@@ -16,11 +16,16 @@ import {
 } from '@/components/ui/table';
 import { format } from 'date-fns';
 
-export const InvoicesTab = () => {
+interface InvoicesTabProps {
+  statusFilter?: string;
+  showRetention?: boolean;
+}
+
+export const InvoicesTab = ({ statusFilter: propStatusFilter, showRetention }: InvoicesTabProps = {}) => {
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
   const [companyFilter, setCompanyFilter] = useState<string>('all');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>(propStatusFilter || 'all');
 
   const { data: companies } = useQuery({
     queryKey: ['companies'],
