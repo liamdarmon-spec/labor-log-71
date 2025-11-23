@@ -13,7 +13,8 @@ import { SubComplianceCard } from '@/components/subs/SubComplianceCard';
 import { SubDocumentsSection } from '@/components/subs/SubDocumentsSection';
 import { SubCostsTab } from '@/components/subs/SubCostsTab';
 import { SubScheduleTab } from '@/components/subs/SubScheduleTab';
-import { useSubCostsSummary } from '@/hooks/useSubCosts';
+import { SubProjectsTab } from '@/components/subs/SubProjectsTab';
+import { useSubFinancialsSummary } from '@/hooks/useSubFinancials';
 
 export default function SubProfileV2() {
   const { id } = useParams();
@@ -33,52 +34,21 @@ export default function SubProfileV2() {
     },
   });
 
-  // Fetch all contracts for this sub
+  // Fetch unified financial summary using single source of truth
+  const { data: summary } = useSubFinancialsSummary(id!);
+
+  // Count active projects from contracts
   const { data: contracts } = useQuery({
-    queryKey: ['sub-all-contracts', id],
+    queryKey: ['sub-contracts-count', id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('sub_contracts')
-        .select(`
-          *,
-          projects(id, project_name, status, company_id, companies(name))
-        `)
-        .eq('sub_id', id!)
-        .order('created_at', { ascending: false });
+        .select('project_id, projects(status)')
+        .eq('sub_id', id!);
       if (error) throw error;
       return data;
     },
   });
-
-  // Fetch summary via sub_contract_summary view
-  const { data: summary } = useQuery({
-    queryKey: ['sub-summary', id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('sub_contract_summary')
-        .select('*')
-        .eq('sub_id', id!);
-      if (error) throw error;
-
-      // Aggregate across all projects
-      const totals = data.reduce(
-        (acc, row) => ({
-          totalContracted: acc.totalContracted + Number(row.contract_value),
-          totalBilled: acc.totalBilled + Number(row.total_billed),
-          totalPaid: acc.totalPaid + Number(row.total_paid),
-          retentionHeld: acc.retentionHeld + Number(row.total_retention_held),
-          outstanding: acc.outstanding + Number(row.outstanding_balance),
-          remainingToBill: acc.remainingToBill + Number(row.remaining_to_bill),
-        }),
-        { totalContracted: 0, totalBilled: 0, totalPaid: 0, retentionHeld: 0, outstanding: 0, remainingToBill: 0 }
-      );
-
-      return totals;
-    },
-  });
-
-  // Get cost summary from costs table
-  const { data: costSummary } = useSubCostsSummary(id!);
 
   if (isLoading) {
     return (
@@ -204,37 +174,37 @@ export default function SubProfileV2() {
               <Card>
                 <CardContent className="pt-6">
                   <div className="text-sm text-muted-foreground mb-1">Active Projects</div>
-                  <div className="text-2xl font-bold">{activeProjects}</div>
+                  <div className="text-2xl font-bold">{summary?.activeProjectsCount || 0}</div>
                 </CardContent>
               </Card>
               <Card>
                 <CardContent className="pt-6">
-                  <div className="text-sm text-muted-foreground mb-1">Contract Value</div>
-                  <div className="text-2xl font-bold">${(summary?.totalContracted || 0).toLocaleString()}</div>
+                  <div className="text-sm text-muted-foreground mb-1">Contract Total</div>
+                  <div className="text-2xl font-bold">${(summary?.totalContractTotal || 0).toLocaleString()}</div>
                 </CardContent>
               </Card>
               <Card>
                 <CardContent className="pt-6">
-                  <div className="text-sm text-muted-foreground mb-1">Total Billed</div>
+                  <div className="text-sm text-muted-foreground mb-1">Actual Cost</div>
+                  <div className="text-2xl font-bold text-purple-600">${(summary?.totalActualCost || 0).toLocaleString()}</div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="text-sm text-muted-foreground mb-1">Remaining</div>
+                  <div className="text-2xl font-bold text-foreground">${(summary?.totalRemaining || 0).toLocaleString()}</div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="text-sm text-muted-foreground mb-1">Billed</div>
                   <div className="text-2xl font-bold text-blue-600">${(summary?.totalBilled || 0).toLocaleString()}</div>
                 </CardContent>
               </Card>
               <Card>
                 <CardContent className="pt-6">
-                  <div className="text-sm text-muted-foreground mb-1">Total Paid</div>
-                  <div className="text-2xl font-bold text-green-600">${(summary?.totalPaid || 0).toLocaleString()}</div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="text-sm text-muted-foreground mb-1">Total Costs</div>
-                  <div className="text-2xl font-bold text-purple-600">${(costSummary?.totalCost || 0).toLocaleString()}</div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="pt-6">
                   <div className="text-sm text-muted-foreground mb-1">Outstanding</div>
-                  <div className="text-2xl font-bold text-orange-600">${(summary?.outstanding || 0).toLocaleString()}</div>
+                  <div className="text-2xl font-bold text-orange-600">${(summary?.totalOutstanding || 0).toLocaleString()}</div>
                 </CardContent>
               </Card>
             </div>
@@ -245,83 +215,7 @@ export default function SubProfileV2() {
 
           {/* PROJECTS & CONTRACTS TAB */}
           <TabsContent value="projects" className="space-y-6">
-            <Card>
-              <CardContent className="pt-6">
-                {contracts && contracts.length > 0 ? (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Project</TableHead>
-                        <TableHead>Company</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="text-right">Contract Value</TableHead>
-                        <TableHead className="text-right">Billed</TableHead>
-                        <TableHead className="text-right">Paid</TableHead>
-                        <TableHead className="text-right">Remaining</TableHead>
-                        <TableHead className="text-right">Outstanding</TableHead>
-                        <TableHead></TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {contracts.map((contract: any) => {
-                        const billed = Number(contract.amount_billed || 0);
-                        const paid = Number(contract.amount_paid || 0);
-                        const value = Number(contract.contract_value || 0);
-                        const remaining = value - billed;
-                        const outstanding = billed - paid;
-
-                        return (
-                          <TableRow key={contract.id}>
-                            <TableCell className="font-medium">
-                              {contract.projects?.project_name || 'Unknown'}
-                            </TableCell>
-                            <TableCell>
-                              {contract.projects?.companies?.name || '—'}
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant={contract.projects?.status === 'Active' ? 'default' : 'secondary'}>
-                                {contract.projects?.status || contract.status}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="text-right font-medium">
-                              ${value.toLocaleString()}
-                            </TableCell>
-                            <TableCell className="text-right text-blue-600">
-                              ${billed.toLocaleString()}
-                            </TableCell>
-                            <TableCell className="text-right text-green-600 font-medium">
-                              ${paid.toLocaleString()}
-                            </TableCell>
-                            <TableCell className="text-right font-semibold">
-                              ${remaining.toLocaleString()}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <span className={outstanding > 0 ? 'text-orange-600 font-bold' : ''}>
-                                ${outstanding.toLocaleString()}
-                              </span>
-                            </TableCell>
-                            <TableCell>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => navigate(`/projects/${contract.projects?.id}?tab=subs`)}
-                              >
-                                View
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                ) : (
-                  <div className="text-center py-12 text-muted-foreground">
-                    <Building2 className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>No projects yet</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+            <SubProjectsTab subId={id!} />
           </TabsContent>
 
           {/* COSTS TAB */}
