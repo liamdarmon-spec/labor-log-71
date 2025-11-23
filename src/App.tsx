@@ -28,7 +28,7 @@ import Proposals from '@/pages/Proposals';
 import ProposalBuilderV2 from '@/pages/ProposalBuilderV2';
 import PublicProposal from '@/pages/PublicProposal';
 import Materials from '@/pages/Materials';
-import SubProfile from "./pages/SubProfile";
+import SubProfileV2 from './pages/SubProfileV2';
 import Subs from "./pages/Subs";
 import NotFound from "./pages/NotFound";
 import "./i18n/config";
@@ -69,7 +69,7 @@ const App = () => (
             <Route path="/public/proposal/:token" element={<PublicProposal />} />
             <Route path="/materials" element={<Materials />} />
             <Route path="/subs" element={<Subs />} />
-            <Route path="/subs/:id" element={<SubProfile />} />
+            <Route path="/subs/:id" element={<SubProfileV2 />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
