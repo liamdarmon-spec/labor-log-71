@@ -2323,6 +2323,54 @@ export type Database = {
           },
         ]
       }
+      proposal_images: {
+        Row: {
+          caption: string | null
+          created_at: string | null
+          file_name: string
+          file_url: string
+          id: string
+          proposal_id: string
+          section_id: string | null
+          sort_order: number
+        }
+        Insert: {
+          caption?: string | null
+          created_at?: string | null
+          file_name: string
+          file_url: string
+          id?: string
+          proposal_id: string
+          section_id?: string | null
+          sort_order?: number
+        }
+        Update: {
+          caption?: string | null
+          created_at?: string | null
+          file_name?: string
+          file_url?: string
+          id?: string
+          proposal_id?: string
+          section_id?: string | null
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proposal_images_proposal_id_fkey"
+            columns: ["proposal_id"]
+            isOneToOne: false
+            referencedRelation: "proposals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposal_images_section_id_fkey"
+            columns: ["section_id"]
+            isOneToOne: false
+            referencedRelation: "proposal_sections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       proposal_line_groups: {
         Row: {
           created_at: string
@@ -2564,6 +2612,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      proposal_templates: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          id: string
+          is_system: boolean | null
+          template_data: Json
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_system?: boolean | null
+          template_data?: Json
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_system?: boolean | null
+          template_data?: Json
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       proposals: {
         Row: {
