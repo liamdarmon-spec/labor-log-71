@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -14,6 +14,29 @@ import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { getClientIP } from '@/hooks/useProposalEvents';
+import { z } from 'zod';
+
+// Input validation schema
+const acceptanceSchema = z.object({
+  name: z.string()
+    .trim()
+    .min(1, 'Name is required')
+    .max(100, 'Name must be less than 100 characters'),
+  email: z.string()
+    .trim()
+    .email('Invalid email address')
+    .max(255, 'Email must be less than 255 characters')
+    .optional()
+    .or(z.literal('')),
+  notes: z.string()
+    .trim()
+    .max(2000, 'Notes must be less than 2000 characters')
+    .optional(),
+  signature: z.string()
+    .trim()
+    .max(100, 'Signature must be less than 100 characters')
+    .optional(),
+});
 
 interface ProposalAcceptanceDialogProps {
   open: boolean;
@@ -38,19 +61,30 @@ export function ProposalAcceptanceDialog({
     signature: '',
   });
 
+  // Reset form when dialog opens
+  useEffect(() => {
+    if (open) {
+      setFormData({ name: '', email: '', notes: '', signature: '' });
+    }
+  }, [open]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.name.trim()) {
-      toast.error('Please enter your name');
+    // Validate input
+    const validation = acceptanceSchema.safeParse(formData);
+    if (!validation.success) {
+      const firstError = validation.error.errors[0];
+      toast.error(firstError.message);
       return;
     }
+
+    const validData = validation.data;
 
     try {
       setLoading(true);
       
-      const ip = await getClientIP();
-      const timestamp = new Date().toISOString();
+      const ip = await getClientIP().catch(() => 'unknown');
       
       let acceptanceStatus = 'pending';
       let eventType: 'accepted' | 'changes_requested' | 'rejected' = 'accepted';
@@ -66,32 +100,37 @@ export function ProposalAcceptanceDialog({
         eventType = 'rejected';
       }
 
-      // Update proposal
-      const { error: updateError } = await supabase
-        .from('proposals')
-        .update({
-          acceptance_status: acceptanceStatus,
-          acceptance_date: timestamp,
-          accepted_by_name: formData.name,
-          accepted_by_email: formData.email || null,
-          acceptance_notes: formData.notes || null,
-          client_signature: formData.signature || null,
-          acceptance_ip: ip,
-        })
-        .eq('id', proposalId);
+      // Use backend function with double-submission protection
+      const { data: result, error: rpcError } = await supabase.rpc('update_proposal_acceptance', {
+        p_proposal_id: proposalId,
+        p_new_status: acceptanceStatus,
+        p_accepted_by_name: validData.name,
+        p_accepted_by_email: validData.email || null,
+        p_acceptance_notes: validData.notes || null,
+        p_client_signature: validData.signature || null,
+        p_acceptance_ip: ip,
+      });
 
-      if (updateError) throw updateError;
+      if (rpcError) throw rpcError;
 
-      // Log event
-      await supabase.from('proposal_events').insert({
-        proposal_id: proposalId,
-        event_type: eventType,
-        actor_name: formData.name,
-        actor_email: formData.email || null,
-        actor_ip: ip,
-        metadata: {
-          notes: formData.notes,
-          signature: formData.signature,
+      // Check if update was successful
+      const response = result as any;
+      if (!response.success) {
+        toast.error(response.error || 'Failed to submit response');
+        return;
+      }
+
+      // Log event using backend function (with deduplication)
+      await supabase.rpc('log_proposal_event', {
+        p_proposal_id: proposalId,
+        p_event_type: eventType,
+        p_actor_name: validData.name,
+        p_actor_email: validData.email || null,
+        p_actor_ip: ip,
+        p_metadata: {
+          notes: validData.notes,
+          signature: validData.signature,
+          previous_status: response.previous_status,
         },
       });
 
@@ -107,7 +146,7 @@ export function ProposalAcceptanceDialog({
       onOpenChange(false);
     } catch (error: any) {
       console.error('Error submitting response:', error);
-      toast.error('Failed to submit response');
+      toast.error('Failed to submit response. Please try again.');
     } finally {
       setLoading(false);
     }

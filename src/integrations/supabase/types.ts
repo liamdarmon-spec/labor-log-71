@@ -5122,6 +5122,17 @@ export type Database = {
         }
         Returns: boolean
       }
+      log_proposal_event: {
+        Args: {
+          p_actor_email?: string
+          p_actor_ip?: string
+          p_actor_name?: string
+          p_event_type: string
+          p_metadata?: Json
+          p_proposal_id: string
+        }
+        Returns: string
+      }
       migrate_to_day_cards: { Args: never; Returns: undefined }
       split_schedule_for_multi_project: {
         Args: { p_original_schedule_id: string; p_time_log_entries: Json }
@@ -5133,6 +5144,18 @@ export type Database = {
       sync_estimate_to_budget: {
         Args: { p_estimate_id: string }
         Returns: undefined
+      }
+      update_proposal_acceptance: {
+        Args: {
+          p_acceptance_ip?: string
+          p_acceptance_notes?: string
+          p_accepted_by_email?: string
+          p_accepted_by_name: string
+          p_client_signature?: string
+          p_new_status: string
+          p_proposal_id: string
+        }
+        Returns: Json
       }
     }
     Enums: {

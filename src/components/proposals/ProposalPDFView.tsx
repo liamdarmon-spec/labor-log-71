@@ -35,12 +35,17 @@ export function ProposalPDFView({ proposal, sections }: ProposalPDFViewProps) {
       downloadPDF(blob, filename);
 
       // Log the event
-      const ip = await getClientIP();
-      logEvent.mutate({
-        proposal_id: proposal.id,
-        event_type: 'pdf_downloaded',
-        actor_ip: ip,
-      });
+      try {
+        const ip = await getClientIP();
+        logEvent.mutate({
+          proposal_id: proposal.id,
+          event_type: 'pdf_downloaded',
+          actor_ip: ip,
+          metadata: { filename },
+        });
+      } catch {
+        // Silent fail for event logging
+      }
 
       toast.success('PDF downloaded successfully');
     } catch (error) {
