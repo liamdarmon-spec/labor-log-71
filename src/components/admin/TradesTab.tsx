@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { useCostCodes } from '@/hooks/useCostCodes';
 import { STANDARD_REMODELING_TRADES, generateCostCodesForTrade } from '@/utils/tradesSeeding';
+import { useQueryClient } from '@tanstack/react-query';
 
 const tradeSchema = z.object({
   name: z.string().trim().nonempty({ message: 'Trade name is required' }).max(100),
@@ -43,6 +44,7 @@ export const TradesTab = () => {
     default_sub_cost_code_id: '',
   });
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   
   const { data: laborCostCodes = [] } = useCostCodes('labor');
   const { data: materialCostCodes = [] } = useCostCodes('materials');
@@ -306,6 +308,8 @@ export const TradesTab = () => {
         console.error('Generation errors:', errors);
       }
 
+      // Invalidate cost codes cache to refetch them
+      queryClient.invalidateQueries({ queryKey: ['cost_codes'] });
       fetchTrades();
     } catch (error) {
       toast({
@@ -402,6 +406,8 @@ export const TradesTab = () => {
         console.error('Seeding errors:', errors);
       }
 
+      // Invalidate cost codes cache to refetch them
+      queryClient.invalidateQueries({ queryKey: ['cost_codes'] });
       fetchTrades();
     } catch (error) {
       toast({
