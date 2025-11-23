@@ -1,16 +1,15 @@
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/Layout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { RosterTab } from '@/components/workforce/RosterTab';
-import { SchedulerTab } from '@/components/workforce/SchedulerTab';
-import { ActivityTab } from '@/components/workforce/ActivityTab';
-import { PayCenterTabV2 } from '@/components/workforce/PayCenterTabV2';
+import { WorkforceScheduleTab } from '@/components/workforce/WorkforceScheduleTab';
+import { WorkforceTimeLogsTab } from '@/components/workforce/WorkforceTimeLogsTab';
+import { WorkforcePayCenterTab } from '@/components/workforce/WorkforcePayCenterTab';
 import { useSearchParams } from 'react-router-dom';
 
 const Workforce = () => {
   const [searchParams] = useSearchParams();
   const tabParam = searchParams.get('tab');
-  const [activeTab, setActiveTab] = useState(tabParam || 'scheduler');
+  const [activeTab, setActiveTab] = useState(tabParam || 'schedule');
 
   // Update active tab when URL param changes
   useEffect(() => {
@@ -23,34 +22,29 @@ const Workforce = () => {
     <Layout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold mb-2">Workforce OS</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold mb-2">Workforce & Pay Center</h1>
           <p className="text-sm sm:text-base text-muted-foreground">
-            Unified labor planning, tracking, payments, and intelligence
+            Schedule, track time logs, and manage payments in one place
           </p>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 gap-1">
-            <TabsTrigger value="scheduler" className="text-xs sm:text-sm">Scheduler</TabsTrigger>
-            <TabsTrigger value="labor" className="text-xs sm:text-sm">Roster</TabsTrigger>
-            <TabsTrigger value="activity" className="text-xs sm:text-sm">Activity</TabsTrigger>
-            <TabsTrigger value="pay-center" className="text-xs sm:text-sm">Pay</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-3 gap-1">
+            <TabsTrigger value="schedule" className="text-xs sm:text-sm">Schedule</TabsTrigger>
+            <TabsTrigger value="logs" className="text-xs sm:text-sm">Time Logs</TabsTrigger>
+            <TabsTrigger value="pay" className="text-xs sm:text-sm">Pay Center</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="scheduler">
-            <SchedulerTab />
+          <TabsContent value="schedule">
+            <WorkforceScheduleTab />
           </TabsContent>
 
-          <TabsContent value="labor">
-            <RosterTab />
+          <TabsContent value="logs">
+            <WorkforceTimeLogsTab />
           </TabsContent>
 
-          <TabsContent value="activity">
-            <ActivityTab />
-          </TabsContent>
-
-          <TabsContent value="pay-center">
-            <PayCenterTabV2 />
+          <TabsContent value="pay">
+            <WorkforcePayCenterTab />
           </TabsContent>
         </Tabs>
       </div>
