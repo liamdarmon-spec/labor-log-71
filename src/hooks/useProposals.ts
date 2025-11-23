@@ -21,6 +21,15 @@ export interface Proposal {
   accepted_at: string | null;
   rejected_at: string | null;
   acceptance_method: 'manual' | 'e_signature' | 'imported' | null;
+  acceptance_status: 'pending' | 'accepted' | 'changes_requested' | 'rejected';
+  acceptance_date: string | null;
+  acceptance_notes: string | null;
+  accepted_by_name: string | null;
+  accepted_by_email: string | null;
+  client_signature: string | null;
+  acceptance_ip: string | null;
+  public_token: string | null;
+  token_expires_at: string | null;
   metadata: any;
   created_at: string;
   updated_at: string;

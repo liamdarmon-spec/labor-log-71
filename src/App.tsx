@@ -24,7 +24,8 @@ import FinancialMaterials from '@/pages/FinancialMaterials';
 import FinancialReports from '@/pages/FinancialReports';
 import Documents from '@/pages/Documents';
 import Proposals from '@/pages/Proposals';
-import ProposalBuilder from '@/pages/ProposalBuilder';
+import ProposalBuilderV2 from '@/pages/ProposalBuilderV2';
+import PublicProposal from '@/pages/PublicProposal';
 import Materials from '@/pages/Materials';
 import SubProfile from "./pages/SubProfile";
 import Subs from "./pages/Subs";
@@ -60,9 +61,10 @@ const App = () => (
             <Route path="/financials/documents" element={<Documents />} />
           <Route path="/financials/reports" element={<FinancialReports />} />
           <Route path="/financials/os" element={<FinancialsOS />} />
-            <Route path="/documents" element={<Documents />} />
+          <Route path="/documents" element={<Documents />} />
             <Route path="/proposals" element={<Proposals />} />
-            <Route path="/proposals/:id" element={<ProposalBuilder />} />
+            <Route path="/proposals/:id" element={<ProposalBuilderV2 />} />
+            <Route path="/public/proposal/:token" element={<PublicProposal />} />
             <Route path="/materials" element={<Materials />} />
             <Route path="/subs" element={<Subs />} />
             <Route path="/subs/:id" element={<SubProfile />} />

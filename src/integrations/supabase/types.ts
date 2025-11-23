@@ -2323,6 +2323,47 @@ export type Database = {
           },
         ]
       }
+      proposal_events: {
+        Row: {
+          actor_email: string | null
+          actor_ip: string | null
+          actor_name: string | null
+          created_at: string | null
+          event_type: string
+          id: string
+          metadata: Json | null
+          proposal_id: string
+        }
+        Insert: {
+          actor_email?: string | null
+          actor_ip?: string | null
+          actor_name?: string | null
+          created_at?: string | null
+          event_type: string
+          id?: string
+          metadata?: Json | null
+          proposal_id: string
+        }
+        Update: {
+          actor_email?: string | null
+          actor_ip?: string | null
+          actor_name?: string | null
+          created_at?: string | null
+          event_type?: string
+          id?: string
+          metadata?: Json | null
+          proposal_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proposal_events_proposal_id_fkey"
+            columns: ["proposal_id"]
+            isOneToOne: false
+            referencedRelation: "proposals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       proposal_images: {
         Row: {
           caption: string | null
@@ -2648,12 +2689,19 @@ export type Database = {
       }
       proposals: {
         Row: {
+          acceptance_date: string | null
+          acceptance_ip: string | null
           acceptance_method: string | null
+          acceptance_notes: string | null
+          acceptance_status: string | null
           accepted_at: string | null
+          accepted_by_email: string | null
+          accepted_by_name: string | null
           branding: Json | null
           change_log: Json | null
           client_email: string | null
           client_name: string | null
+          client_signature: string | null
           cover_image_url: string | null
           created_at: string
           created_by: string | null
@@ -2665,6 +2713,7 @@ export type Database = {
           primary_estimate_id: string | null
           project_id: string
           proposal_date: string
+          public_token: string | null
           rejected_at: string | null
           sent_at: string | null
           status: string
@@ -2672,6 +2721,7 @@ export type Database = {
           tax_amount: number
           template_settings: Json | null
           title: string
+          token_expires_at: string | null
           total_amount: number
           updated_at: string
           validity_days: number
@@ -2680,12 +2730,19 @@ export type Database = {
           viewed_at: string | null
         }
         Insert: {
+          acceptance_date?: string | null
+          acceptance_ip?: string | null
           acceptance_method?: string | null
+          acceptance_notes?: string | null
+          acceptance_status?: string | null
           accepted_at?: string | null
+          accepted_by_email?: string | null
+          accepted_by_name?: string | null
           branding?: Json | null
           change_log?: Json | null
           client_email?: string | null
           client_name?: string | null
+          client_signature?: string | null
           cover_image_url?: string | null
           created_at?: string
           created_by?: string | null
@@ -2697,6 +2754,7 @@ export type Database = {
           primary_estimate_id?: string | null
           project_id: string
           proposal_date?: string
+          public_token?: string | null
           rejected_at?: string | null
           sent_at?: string | null
           status?: string
@@ -2704,6 +2762,7 @@ export type Database = {
           tax_amount?: number
           template_settings?: Json | null
           title: string
+          token_expires_at?: string | null
           total_amount?: number
           updated_at?: string
           validity_days?: number
@@ -2712,12 +2771,19 @@ export type Database = {
           viewed_at?: string | null
         }
         Update: {
+          acceptance_date?: string | null
+          acceptance_ip?: string | null
           acceptance_method?: string | null
+          acceptance_notes?: string | null
+          acceptance_status?: string | null
           accepted_at?: string | null
+          accepted_by_email?: string | null
+          accepted_by_name?: string | null
           branding?: Json | null
           change_log?: Json | null
           client_email?: string | null
           client_name?: string | null
+          client_signature?: string | null
           cover_image_url?: string | null
           created_at?: string
           created_by?: string | null
@@ -2729,6 +2795,7 @@ export type Database = {
           primary_estimate_id?: string | null
           project_id?: string
           proposal_date?: string
+          public_token?: string | null
           rejected_at?: string | null
           sent_at?: string | null
           status?: string
@@ -2736,6 +2803,7 @@ export type Database = {
           tax_amount?: number
           template_settings?: Json | null
           title?: string
+          token_expires_at?: string | null
           total_amount?: number
           updated_at?: string
           validity_days?: number
@@ -5046,6 +5114,7 @@ export type Database = {
     Functions: {
       auto_create_past_logs: { Args: never; Returns: undefined }
       delete_old_archived_logs: { Args: never; Returns: undefined }
+      generate_proposal_public_token: { Args: never; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

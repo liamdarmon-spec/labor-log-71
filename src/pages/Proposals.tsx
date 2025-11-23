@@ -128,6 +128,7 @@ export default function Proposals() {
                 <TableHead>Client</TableHead>
                 <TableHead>Project</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Response</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead className="text-right">Amount</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -148,7 +149,7 @@ export default function Proposals() {
                 ))
               ) : filteredProposals?.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
+                  <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
                     <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
                     <p className="text-lg font-medium mb-1">No proposals yet</p>
                     <p className="text-sm">Create your first proposal to get started</p>
@@ -167,6 +168,11 @@ export default function Proposals() {
                     <TableCell>
                       <Badge variant={getStatusColor(proposal.status)}>
                         {proposal.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={getStatusColor(proposal.acceptance_status || 'pending')}>
+                        {(proposal.acceptance_status || 'pending').replace('_', ' ')}
                       </Badge>
                     </TableCell>
                     <TableCell>
