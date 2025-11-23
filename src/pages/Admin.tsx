@@ -12,7 +12,8 @@ import { ArchivedLogsTab } from '@/components/admin/ArchivedLogsTab';
 import { SettingsTab } from '@/components/admin/SettingsTab';
 import { DocumentsTab } from '@/components/admin/DocumentsTab';
 import { SubcontractorsTab } from '@/components/admin/SubcontractorsTab';
-import { Users, Briefcase, Wrench, FileText, BarChart3, UserCog, Archive, Settings, Hash, Building2 } from 'lucide-react';
+import { MaterialVendorsTab } from '@/components/admin/MaterialVendorsTab';
+import { Users, Briefcase, Wrench, FileText, BarChart3, UserCog, Archive, Settings, Hash, Building2, Package } from 'lucide-react';
 
 const Admin = () => {
   const [activeTab, setActiveTab] = useState('workers');
@@ -28,7 +29,7 @@ const Admin = () => {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-11 h-auto gap-1 p-1 bg-muted/50">
+          <TabsList className="grid w-full grid-cols-12 h-auto gap-1 p-1 bg-muted/50">
             <TabsTrigger value="users" className="gap-1 sm:gap-2 py-2 sm:py-3 text-xs sm:text-sm flex-col sm:flex-row">
               <UserCog className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               <span className="text-[10px] sm:text-sm">Users</span>
@@ -40,6 +41,10 @@ const Admin = () => {
             <TabsTrigger value="subs" className="gap-1 sm:gap-2 py-2 sm:py-3 text-xs sm:text-sm flex-col sm:flex-row">
               <Building2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               <span className="text-[10px] sm:text-sm">Subs</span>
+            </TabsTrigger>
+            <TabsTrigger value="vendors" className="gap-1 sm:gap-2 py-2 sm:py-3 text-xs sm:text-sm flex-col sm:flex-row">
+              <Package className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span className="text-[10px] sm:text-sm">Vendors</span>
             </TabsTrigger>
             <TabsTrigger value="trades" className="gap-1 sm:gap-2 py-2 sm:py-3 text-xs sm:text-sm flex-col sm:flex-row">
               <Wrench className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
@@ -85,6 +90,10 @@ const Admin = () => {
 
           <TabsContent value="subs" className="mt-4 sm:mt-6">
             <SubcontractorsTab />
+          </TabsContent>
+
+          <TabsContent value="vendors" className="mt-4 sm:mt-6">
+            <MaterialVendorsTab />
           </TabsContent>
 
           <TabsContent value="trades" className="mt-4 sm:mt-6">

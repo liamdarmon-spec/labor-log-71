@@ -73,7 +73,7 @@ export function AddMaterialReceiptDialog({ isOpen, onClose, projectId }: AddMate
       .insert([{
         project_id: formData.project_id,
         vendor: formData.vendor,
-        date: formData.date,
+        receipt_date: formData.date,
         subtotal,
         tax,
         total,

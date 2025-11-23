@@ -1741,14 +1741,19 @@ export type Database = {
           created_by: string | null
           date: string
           id: string
+          linked_cost_id: string | null
           linked_document_id: string | null
           notes: string | null
           project_id: string
+          receipt_date: string
+          receipt_document_id: string | null
+          shipping: number | null
           subtotal: number
           tax: number | null
           total: number
           updated_at: string | null
           vendor: string
+          vendor_id: string | null
         }
         Insert: {
           auto_classified?: boolean | null
@@ -1757,14 +1762,19 @@ export type Database = {
           created_by?: string | null
           date?: string
           id?: string
+          linked_cost_id?: string | null
           linked_document_id?: string | null
           notes?: string | null
           project_id: string
+          receipt_date: string
+          receipt_document_id?: string | null
+          shipping?: number | null
           subtotal?: number
           tax?: number | null
           total?: number
           updated_at?: string | null
           vendor: string
+          vendor_id?: string | null
         }
         Update: {
           auto_classified?: boolean | null
@@ -1773,14 +1783,19 @@ export type Database = {
           created_by?: string | null
           date?: string
           id?: string
+          linked_cost_id?: string | null
           linked_document_id?: string | null
           notes?: string | null
           project_id?: string
+          receipt_date?: string
+          receipt_document_id?: string | null
+          shipping?: number | null
           subtotal?: number
           tax?: number | null
           total?: number
           updated_at?: string | null
           vendor?: string
+          vendor_id?: string | null
         }
         Relationships: [
           {
@@ -1795,6 +1810,13 @@ export type Database = {
             columns: ["cost_code_id"]
             isOneToOne: false
             referencedRelation: "cost_codes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "material_receipts_linked_cost_id_fkey"
+            columns: ["linked_cost_id"]
+            isOneToOne: false
+            referencedRelation: "costs"
             referencedColumns: ["id"]
           },
           {
@@ -1830,6 +1852,84 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "material_receipts_receipt_document_id_fkey"
+            columns: ["receipt_document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "material_receipts_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "material_vendors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      material_vendors: {
+        Row: {
+          active: boolean | null
+          company_name: string | null
+          created_at: string | null
+          default_cost_code_id: string | null
+          email: string | null
+          id: string
+          name: string
+          notes: string | null
+          phone: string | null
+          trade_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          active?: boolean | null
+          company_name?: string | null
+          created_at?: string | null
+          default_cost_code_id?: string | null
+          email?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          phone?: string | null
+          trade_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          active?: boolean | null
+          company_name?: string | null
+          created_at?: string | null
+          default_cost_code_id?: string | null
+          email?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          trade_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "material_vendors_default_cost_code_id_fkey"
+            columns: ["default_cost_code_id"]
+            isOneToOne: false
+            referencedRelation: "cost_code_actuals"
+            referencedColumns: ["cost_code_id"]
+          },
+          {
+            foreignKeyName: "material_vendors_default_cost_code_id_fkey"
+            columns: ["default_cost_code_id"]
+            isOneToOne: false
+            referencedRelation: "cost_codes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "material_vendors_trade_id_fkey"
+            columns: ["trade_id"]
+            isOneToOne: false
+            referencedRelation: "trades"
             referencedColumns: ["id"]
           },
         ]
