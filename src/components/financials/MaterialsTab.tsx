@@ -17,7 +17,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 export const MaterialsTab = () => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
-  const [projectFilter, setProjectFilter] = useState<string>('');
+  const [projectFilter, setProjectFilter] = useState<string>('all');
   
   const { data: insights, isLoading: insightsLoading } = useMaterialInsights();
   const { data: receipts, isLoading: receiptsLoading } = useMaterialReceipts();
@@ -42,7 +42,7 @@ export const MaterialsTab = () => {
 
   const filteredReceipts = receipts?.filter(receipt => {
     const matchesSearch = receipt.vendor?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesProject = !projectFilter || receipt.project_id === projectFilter;
+    const matchesProject = !projectFilter || projectFilter === 'all' || receipt.project_id === projectFilter;
     return matchesSearch && matchesProject;
   });
 
@@ -157,7 +157,7 @@ export const MaterialsTab = () => {
                 <SelectValue placeholder="All projects" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All projects</SelectItem>
+                <SelectItem value="all">All projects</SelectItem>
                 {projects?.map((project) => (
                   <SelectItem key={project.id} value={project.id}>
                     {project.project_name}
