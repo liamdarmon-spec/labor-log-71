@@ -151,7 +151,7 @@ export function CostCodesManagementTab() {
       // Create Misc cost codes if they don't exist
       const miscCodes = costCodes.filter(cc => cc.trade_id === null);
       const hasMiscLabor = miscCodes.some(cc => cc.category === 'labor');
-      const hasMiscOther = miscCodes.some(cc => cc.category === 'misc');
+      const hasMiscOther = miscCodes.some(cc => cc.category === 'other');
 
       const miscToCreate = [];
       if (!hasMiscLabor) {
@@ -168,7 +168,7 @@ export function CostCodesManagementTab() {
           trade_id: null,
           code: 'MISC-O',
           name: 'Miscellaneous - Other',
-          category: 'misc',
+          category: 'other',
           is_active: true,
         });
       }
@@ -201,9 +201,10 @@ export function CostCodesManagementTab() {
       labor: 'bg-blue-100 text-blue-800 border-blue-200',
       subs: 'bg-green-100 text-green-800 border-green-200',
       materials: 'bg-purple-100 text-purple-800 border-purple-200',
-      misc: 'bg-gray-100 text-gray-800 border-gray-200',
+      other: 'bg-gray-100 text-gray-800 border-gray-200',
+      equipment: 'bg-orange-100 text-orange-800 border-orange-200',
     };
-    return colors[category] || colors.misc;
+    return colors[category] || colors.other;
   };
 
   const missingCostCodes = trades.filter(
