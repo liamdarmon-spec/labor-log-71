@@ -28,7 +28,8 @@ export function useMaterialInsights(projectId?: string) {
   return useQuery({
     queryKey: ['material-insights', projectId],
     queryFn: async () => {
-      // Get material costs
+      // SINGLE SOURCE OF TRUTH: Get material costs from costs table only
+      // Material receipts are input UI, costs table is financial source of truth
       let costsQuery = supabase
         .from('costs')
         .select(`
@@ -38,7 +39,8 @@ export function useMaterialInsights(projectId?: string) {
           projects (id, project_name),
           cost_codes!inner (id, code, name, trade_id, trades!cost_codes_trade_id_fkey (id, name))
         `)
-        .eq('category', 'materials');
+        .eq('category', 'materials')
+        .neq('status', 'void');
 
       if (projectId) {
         costsQuery = costsQuery.eq('project_id', projectId);
