@@ -150,7 +150,12 @@ export function ProjectEstimatesV3({ projectId }: ProjectEstimatesV3Props) {
                     <TableCell className="text-right font-medium">
                       ${(estimate.total_amount || 0).toLocaleString()}
                     </TableCell>
-                    <TableCell>{format(new Date(estimate.created_at!), 'MMM d, yyyy')}</TableCell>
+                    <TableCell>
+                      {estimate.created_at 
+                        ? format(new Date(estimate.created_at), 'MMM d, yyyy')
+                        : '—'
+                      }
+                    </TableCell>
                     <TableCell className="text-center">
                       {estimate.is_budget_source ? (
                         <Badge variant="default" className="gap-1">
