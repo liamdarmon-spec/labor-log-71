@@ -8,6 +8,8 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { FileText, Download, Trash2, Search, ExternalLink } from 'lucide-react';
+import { useProjectsSimple } from '@/hooks/useProjects';
+import { useSubsSimple } from '@/hooks/useSubs';
 
 interface Document {
   id: string;
@@ -39,19 +41,13 @@ export function DocumentsTab() {
 
   const fetchAllData = async () => {
     try {
-      const [docsRes, projRes, subsRes] = await Promise.all([
-        supabase.from('documents').select('*').order('uploaded_at', { ascending: false }),
-        supabase.from('projects').select('id, project_name'),
-        supabase.from('subs').select('id, name'),
-      ]);
+      const { data: docsData, error } = await supabase
+        .from('documents')
+        .select('*')
+        .order('uploaded_at', { ascending: false });
 
-      if (docsRes.error) throw docsRes.error;
-      if (projRes.error) throw projRes.error;
-      if (subsRes.error) throw subsRes.error;
-
-      setDocuments(docsRes.data || []);
-      setProjects(projRes.data || []);
-      setSubs(subsRes.data || []);
+      if (error) throw error;
+      setDocuments(docsData || []);
     } catch (error) {
       console.error('Error fetching data:', error);
       toast({

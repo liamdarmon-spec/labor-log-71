@@ -40,7 +40,18 @@ import Subs from "./pages/Subs";
 import NotFound from "./pages/NotFound";
 import "./i18n/config";
 
-const queryClient = new QueryClient();
+// Configure React Query with optimized defaults for performance
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30 * 1000, // 30 seconds - balance freshness and performance
+      gcTime: 5 * 60 * 1000, // 5 minutes cache retention
+      refetchOnWindowFocus: false, // Prevent unnecessary refetches on tab switch
+      retry: 1, // Only retry failed requests once
+      refetchOnMount: false, // Use cached data when component mounts
+    },
+  },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
