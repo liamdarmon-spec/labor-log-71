@@ -8,11 +8,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Plus, Pencil, Trash2, Wrench, AlertTriangle } from 'lucide-react';
+import { Plus, Pencil, Trash2, Wrench, AlertTriangle, Sparkles } from 'lucide-react';
 import { z } from 'zod';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { useCostCodes } from '@/hooks/useCostCodes';
+import { STANDARD_REMODELING_TRADES, generateCostCodesForTrade } from '@/utils/tradesSeeding';
 
 const tradeSchema = z.object({
   name: z.string().trim().nonempty({ message: 'Trade name is required' }).max(100),
@@ -33,6 +34,7 @@ export const TradesTab = () => {
   const [trades, setTrades] = useState<Trade[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTrade, setEditingTrade] = useState<Trade | null>(null);
+  const [isSeeding, setIsSeeding] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -214,6 +216,102 @@ export const TradesTab = () => {
     t => !t.default_labor_cost_code_id || !t.default_material_cost_code_id || !t.default_sub_cost_code_id
   );
 
+  const handleSeedTrades = async () => {
+    if (!confirm(
+      `This will populate ${STANDARD_REMODELING_TRADES.length} standard trades for remodeling.\n\n` +
+      `Existing trades will NOT be deleted or modified.\n\n` +
+      `Each new trade will auto-generate 3 cost codes (Labor, Materials, Subcontract).\n\n` +
+      `Continue?`
+    )) return;
+
+    setIsSeeding(true);
+    let created = 0;
+    let skipped = 0;
+    const errors: string[] = [];
+
+    try {
+      for (const standardTrade of STANDARD_REMODELING_TRADES) {
+        try {
+          // Check if trade already exists by name
+          const { data: existing } = await supabase
+            .from('trades')
+            .select('id')
+            .eq('name', standardTrade.name)
+            .maybeSingle();
+
+          if (existing) {
+            skipped++;
+            continue;
+          }
+
+          // Create trade
+          const { data: newTrade, error: tradeError } = await supabase
+            .from('trades')
+            .insert([{
+              name: standardTrade.name,
+              description: standardTrade.description,
+            }])
+            .select()
+            .single();
+
+          if (tradeError) throw tradeError;
+
+          // Generate cost codes using the proper trade key
+          const costCodes = generateCostCodesForTrade(standardTrade.key, standardTrade.name);
+
+          const { data: createdCodes, error: codesError } = await supabase
+            .from('cost_codes')
+            .insert(
+              costCodes.map(cc => ({
+                ...cc,
+                trade_id: newTrade.id,
+                is_active: true,
+              }))
+            )
+            .select();
+
+          if (codesError) throw codesError;
+
+          // Link cost codes back to trade
+          const { error: updateError } = await supabase
+            .from('trades')
+            .update({
+              default_labor_cost_code_id: createdCodes.find(c => c.category === 'labor')?.id,
+              default_material_cost_code_id: createdCodes.find(c => c.category === 'materials')?.id,
+              default_sub_cost_code_id: createdCodes.find(c => c.category === 'subs')?.id,
+            })
+            .eq('id', newTrade.id);
+
+          if (updateError) throw updateError;
+
+          created++;
+        } catch (err) {
+          errors.push(`${standardTrade.name}: ${err instanceof Error ? err.message : 'Unknown error'}`);
+        }
+      }
+
+      toast({
+        title: 'Seeding Complete',
+        description: `Created ${created} trades with ${created * 3} cost codes. Skipped ${skipped} existing trades.${errors.length > 0 ? ` ${errors.length} errors occurred.` : ''}`,
+      });
+
+      if (errors.length > 0) {
+        console.error('Seeding errors:', errors);
+      }
+
+      fetchTrades();
+    } catch (error) {
+      toast({
+        title: 'Seeding Failed',
+        description: 'Failed to seed trades. Check console for details.',
+        variant: 'destructive',
+      });
+      console.error('Seeding error:', error);
+    } finally {
+      setIsSeeding(false);
+    }
+  };
+
   return (
     <Card className="shadow-medium">
       <CardHeader className="flex flex-row items-center justify-between border-b border-border pb-4">
@@ -231,16 +329,28 @@ export const TradesTab = () => {
             )}
           </div>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={(open) => {
-          setIsDialogOpen(open);
-          if (!open) resetForm();
-        }}>
-          <DialogTrigger asChild>
-            <Button className="gap-2">
-              <Plus className="w-4 h-4" />
-              Add Trade
+        <div className="flex gap-2">
+          {trades.length === 0 && (
+            <Button 
+              onClick={handleSeedTrades}
+              disabled={isSeeding}
+              variant="outline"
+              className="gap-2"
+            >
+              <Sparkles className="w-4 h-4" />
+              {isSeeding ? 'Seeding...' : 'Seed Standard Trades'}
             </Button>
-          </DialogTrigger>
+          )}
+          <Dialog open={isDialogOpen} onOpenChange={(open) => {
+            setIsDialogOpen(open);
+            if (!open) resetForm();
+          }}>
+            <DialogTrigger asChild>
+              <Button className="gap-2">
+                <Plus className="w-4 h-4" />
+                Add Trade
+              </Button>
+            </DialogTrigger>
           <DialogContent className="bg-card">
             <DialogHeader>
               <DialogTitle>
@@ -331,6 +441,7 @@ export const TradesTab = () => {
             </form>
           </DialogContent>
         </Dialog>
+        </div>
       </CardHeader>
       <CardContent className="p-0">
         <div className="overflow-x-auto">
