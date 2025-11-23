@@ -24,12 +24,12 @@ import FinancialEstimates from '@/pages/FinancialEstimates';
 import FinancialMaterials from '@/pages/FinancialMaterials';
 import FinancialReports from '@/pages/FinancialReports';
 import FinancialsLayout from '@/pages/financials/FinancialsLayout';
-import FinancialsOverview from '@/pages/financials/FinancialsOverview';
-import { JobCostingTab } from '@/components/financials/JobCostingTab';
-import { InvoicesTab } from '@/components/financials/InvoicesTab';
-import { MaterialsTab } from '@/components/financials/MaterialsTab';
-import { CostsTab } from '@/components/financials/CostsTab';
-import { UnifiedPaymentsPanelV2 } from '@/components/financials/UnifiedPaymentsPanelV2';
+import FinancialsOverviewV2 from '@/pages/financials/FinancialsOverviewV2';
+import RevenueTab from '@/pages/financials/RevenueTab';
+import CostsAPTab from '@/pages/financials/CostsAPTab';
+import JobCostingTabV2 from '@/pages/financials/JobCostingTabV2';
+import PaymentsCenterTab from '@/pages/financials/PaymentsCenterTab';
+import ProcurementTab from '@/pages/financials/ProcurementTab';
 import Documents from '@/pages/Documents';
 import Proposals from '@/pages/Proposals';
 import ProposalBuilderV2 from '@/pages/ProposalBuilderV2';
@@ -62,14 +62,15 @@ const App = () => (
             <Route path="/workforce" element={<Workforce />} />
             <Route path="/workforce/worker/:workerId" element={<WorkerProfile />} />
             
-            {/* New Financial Hub Routes */}
+            {/* Financial System - AP/AR Architecture */}
             <Route path="/financials" element={<FinancialsLayout />}>
-              <Route index element={<FinancialsOverview />} />
-              <Route path="job-costing" element={<JobCostingTab />} />
-              <Route path="invoices" element={<InvoicesTab />} />
-              <Route path="materials" element={<MaterialsTab />} />
-              <Route path="costs" element={<CostsTab />} />
-              <Route path="payments" element={<UnifiedPaymentsPanelV2 />} />
+              <Route index element={<FinancialsOverviewV2 />} />
+              <Route path="overview" element={<FinancialsOverviewV2 />} />
+              <Route path="revenue" element={<RevenueTab />} />
+              <Route path="costs" element={<CostsAPTab />} />
+              <Route path="job-costing" element={<JobCostingTabV2 />} />
+              <Route path="payments" element={<PaymentsCenterTab />} />
+              <Route path="procurement" element={<ProcurementTab />} />
             </Route>
 
             {/* Legacy routes */}

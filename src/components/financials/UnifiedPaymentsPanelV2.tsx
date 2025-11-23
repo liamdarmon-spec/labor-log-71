@@ -5,8 +5,12 @@ import { UnpaidLaborTabV2 } from '../payments/UnpaidLaborTabV2';
 import { LaborPayRunsTabV2 } from '../payments/LaborPayRunsTabV2';
 import { SubPaymentsTab } from './SubPaymentsTab';
 
-export function UnifiedPaymentsPanelV2() {
-  const [activeTab, setActiveTab] = useState('unpaid-labor');
+interface UnifiedPaymentsPanelV2Props {
+  defaultView?: string;
+}
+
+export function UnifiedPaymentsPanelV2({ defaultView }: UnifiedPaymentsPanelV2Props = {}) {
+  const [activeTab, setActiveTab] = useState(defaultView || 'unpaid-labor');
 
   return (
     <Card>
