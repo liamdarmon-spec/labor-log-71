@@ -192,7 +192,10 @@ export const InvoicesTab = ({ statusFilter: propStatusFilter, showRetention }: I
                       {invoice.client_name || invoice.projects?.client_name}
                     </TableCell>
                     <TableCell>
-                      {format(new Date(invoice.issue_date), 'MM/dd/yyyy')}
+                      {invoice.issue_date 
+                        ? format(new Date(invoice.issue_date), 'MM/dd/yyyy')
+                        : '—'
+                      }
                     </TableCell>
                     <TableCell>
                       {invoice.due_date 
