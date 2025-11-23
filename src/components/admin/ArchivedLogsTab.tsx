@@ -8,6 +8,9 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { RotateCcw, Search, Trash2, AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useWorkersSimple } from '@/hooks/useWorkers';
+import { useProjectsSimple } from '@/hooks/useProjects';
+import { useTradesSimple } from '@/hooks/useTrades';
 
 interface ArchivedLog {
   id: string;

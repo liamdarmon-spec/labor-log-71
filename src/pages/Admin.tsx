@@ -1,19 +1,29 @@
-import { useState } from 'react';
+import { useState, lazy, Suspense } from 'react';
 import { Layout } from '@/components/Layout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { WorkersTab } from '@/components/admin/WorkersTab';
-import { ProjectsTab } from '@/components/admin/ProjectsTab';
-import { TradesTab } from '@/components/admin/TradesTab';
-import { CostCodesManagementTab } from '@/components/admin/CostCodesManagementTab';
-import { LogsTab } from '@/components/admin/LogsTab';
-import { ReportsTab } from '@/components/admin/ReportsTab';
-import { UsersTab } from '@/components/admin/UsersTab';
-import { ArchivedLogsTab } from '@/components/admin/ArchivedLogsTab';
-import { SettingsTab } from '@/components/admin/SettingsTab';
-import { DocumentsTab } from '@/components/admin/DocumentsTab';
-import { SubcontractorsTab } from '@/components/admin/SubcontractorsTab';
-import { MaterialVendorsTab } from '@/components/admin/MaterialVendorsTab';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Users, Briefcase, Wrench, FileText, BarChart3, UserCog, Archive, Settings, Hash, Building2, Package } from 'lucide-react';
+
+// Lazy load all admin tabs for better performance
+const WorkersTab = lazy(() => import('@/components/admin/WorkersTab').then(m => ({ default: m.WorkersTab })));
+const ProjectsTab = lazy(() => import('@/components/admin/ProjectsTab').then(m => ({ default: m.ProjectsTab })));
+const TradesTab = lazy(() => import('@/components/admin/TradesTab').then(m => ({ default: m.TradesTab })));
+const CostCodesManagementTab = lazy(() => import('@/components/admin/CostCodesManagementTab').then(m => ({ default: m.CostCodesManagementTab })));
+const LogsTab = lazy(() => import('@/components/admin/LogsTab').then(m => ({ default: m.LogsTab })));
+const ReportsTab = lazy(() => import('@/components/admin/ReportsTab').then(m => ({ default: m.ReportsTab })));
+const UsersTab = lazy(() => import('@/components/admin/UsersTab').then(m => ({ default: m.UsersTab })));
+const ArchivedLogsTab = lazy(() => import('@/components/admin/ArchivedLogsTab').then(m => ({ default: m.ArchivedLogsTab })));
+const SettingsTab = lazy(() => import('@/components/admin/SettingsTab').then(m => ({ default: m.SettingsTab })));
+const DocumentsTab = lazy(() => import('@/components/admin/DocumentsTab').then(m => ({ default: m.DocumentsTab })));
+const SubcontractorsTab = lazy(() => import('@/components/admin/SubcontractorsTab').then(m => ({ default: m.SubcontractorsTab })));
+const MaterialVendorsTab = lazy(() => import('@/components/admin/MaterialVendorsTab').then(m => ({ default: m.MaterialVendorsTab })));
+
+const TabLoading = () => (
+  <div className="space-y-4">
+    <Skeleton className="h-8 w-48" />
+    <Skeleton className="h-64 w-full" />
+  </div>
+);
 
 const Admin = () => {
   const [activeTab, setActiveTab] = useState('workers');
@@ -81,51 +91,75 @@ const Admin = () => {
           </TabsList>
 
           <TabsContent value="users" className="mt-4 sm:mt-6">
-            <UsersTab />
+            <Suspense fallback={<TabLoading />}>
+              <UsersTab />
+            </Suspense>
           </TabsContent>
 
           <TabsContent value="workers" className="mt-4 sm:mt-6">
-            <WorkersTab />
+            <Suspense fallback={<TabLoading />}>
+              <WorkersTab />
+            </Suspense>
           </TabsContent>
 
           <TabsContent value="subs" className="mt-4 sm:mt-6">
-            <SubcontractorsTab />
+            <Suspense fallback={<TabLoading />}>
+              <SubcontractorsTab />
+            </Suspense>
           </TabsContent>
 
           <TabsContent value="vendors" className="mt-4 sm:mt-6">
-            <MaterialVendorsTab />
+            <Suspense fallback={<TabLoading />}>
+              <MaterialVendorsTab />
+            </Suspense>
           </TabsContent>
 
           <TabsContent value="trades" className="mt-4 sm:mt-6">
-            <TradesTab />
+            <Suspense fallback={<TabLoading />}>
+              <TradesTab />
+            </Suspense>
           </TabsContent>
 
           <TabsContent value="costcodes" className="mt-4 sm:mt-6">
-            <CostCodesManagementTab />
+            <Suspense fallback={<TabLoading />}>
+              <CostCodesManagementTab />
+            </Suspense>
           </TabsContent>
 
           <TabsContent value="projects" className="mt-4 sm:mt-6">
-            <ProjectsTab />
+            <Suspense fallback={<TabLoading />}>
+              <ProjectsTab />
+            </Suspense>
           </TabsContent>
 
           <TabsContent value="logs" className="mt-4 sm:mt-6">
-            <LogsTab />
+            <Suspense fallback={<TabLoading />}>
+              <LogsTab />
+            </Suspense>
           </TabsContent>
 
           <TabsContent value="archived" className="mt-4 sm:mt-6">
-            <ArchivedLogsTab />
+            <Suspense fallback={<TabLoading />}>
+              <ArchivedLogsTab />
+            </Suspense>
           </TabsContent>
 
           <TabsContent value="documents" className="mt-4 sm:mt-6">
-            <DocumentsTab />
+            <Suspense fallback={<TabLoading />}>
+              <DocumentsTab />
+            </Suspense>
           </TabsContent>
 
           <TabsContent value="reports" className="mt-4 sm:mt-6">
-            <ReportsTab />
+            <Suspense fallback={<TabLoading />}>
+              <ReportsTab />
+            </Suspense>
           </TabsContent>
 
           <TabsContent value="settings" className="mt-4 sm:mt-6">
-            <SettingsTab />
+            <Suspense fallback={<TabLoading />}>
+              <SettingsTab />
+            </Suspense>
           </TabsContent>
         </Tabs>
       </div>

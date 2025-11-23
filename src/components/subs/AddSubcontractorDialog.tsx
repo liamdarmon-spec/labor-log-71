@@ -6,8 +6,9 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { useTrades } from '@/hooks/useTrades';
 
 interface AddSubcontractorDialogProps {
   open: boolean;
@@ -25,18 +26,8 @@ export function AddSubcontractorDialog({ open, onOpenChange }: AddSubcontractorD
     notes: '',
   });
 
-  // Fetch trades
-  const { data: trades } = useQuery({
-    queryKey: ['trades'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('trades')
-        .select('*')
-        .order('name');
-      if (error) throw error;
-      return data;
-    },
-  });
+  // Use centralized hook with caching
+  const { data: trades = [] } = useTrades();
 
   const createSubMutation = useMutation({
     mutationFn: async (data: typeof formData) => {

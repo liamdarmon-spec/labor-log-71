@@ -6,8 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { useState, useEffect } from "react";
 import { useCostCodes } from "@/hooks/useCostCodes";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { useTradesSimple } from "@/hooks/useTrades";
 
 interface EstimateItemDialogProps {
   open: boolean;
@@ -74,18 +73,8 @@ export function EstimateItemDialog({ open, onOpenChange, onSave, estimateItem }:
   const { data: costCodes } = useCostCodes(categoryForCostCodes as any);
   const { data: allCostCodes } = useCostCodes(); // For cost code selection reverse lookup
   
-  const { data: trades } = useQuery({
-    queryKey: ['trades'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('trades')
-        .select('id, name')
-        .order('name');
-      if (error) throw error;
-      return data;
-    },
-    enabled: formData.category === 'Labor',
-  });
+  // Use centralized hook with caching
+  const { data: trades = [] } = useTradesSimple();
 
   const qty = parseFloat(formData.quantity) || 0;
   const price = parseFloat(formData.unit_price) || 0;
