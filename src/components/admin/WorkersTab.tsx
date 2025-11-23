@@ -11,6 +11,9 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Plus, Pencil, Trash2, Users as UsersIcon } from 'lucide-react';
 import { z } from 'zod';
+import { useWorkers, Worker } from '@/hooks/useWorkers';
+import { useTradesSimple } from '@/hooks/useTrades';
+import { useQueryClient } from '@tanstack/react-query';
 
 const workerSchema = z.object({
   name: z.string().trim().nonempty({ message: 'Name is required' }).max(100),
@@ -19,24 +22,7 @@ const workerSchema = z.object({
   phone: z.string().max(20).optional(),
 });
 
-interface Worker {
-  id: string;
-  name: string;
-  trade_id: string | null;
-  trades: { name: string } | null;
-  hourly_rate: number;
-  phone: string | null;
-  active: boolean;
-}
-
-interface Trade {
-  id: string;
-  name: string;
-}
-
 export const WorkersTab = () => {
-  const [workers, setWorkers] = useState<Worker[]>([]);
-  const [trades, setTrades] = useState<Trade[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingWorker, setEditingWorker] = useState<Worker | null>(null);
   const [formData, setFormData] = useState({
@@ -47,45 +33,11 @@ export const WorkersTab = () => {
     active: true,
   });
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    fetchWorkers();
-    fetchTrades();
-  }, []);
-
-  const fetchWorkers = async () => {
-    const { data, error } = await supabase
-      .from('workers')
-      .select('*, trades(name)')
-      .order('name');
-
-    if (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to load workers',
-        variant: 'destructive',
-      });
-    } else {
-      setWorkers(data || []);
-    }
-  };
-
-  const fetchTrades = async () => {
-    const { data, error } = await supabase
-      .from('trades')
-      .select('id, name')
-      .order('name');
-
-    if (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to load trades',
-        variant: 'destructive',
-      });
-    } else {
-      setTrades(data || []);
-    }
-  };
+  // Use centralized hooks with caching
+  const { data: workers = [], isLoading: workersLoading } = useWorkers(true);
+  const { data: trades = [], isLoading: tradesLoading } = useTradesSimple();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -142,7 +94,7 @@ export const WorkersTab = () => {
 
       setIsDialogOpen(false);
       resetForm();
-      fetchWorkers();
+      queryClient.invalidateQueries({ queryKey: ['workers'] });
     } catch (error) {
       if (error instanceof z.ZodError) {
         toast({
@@ -177,7 +129,7 @@ export const WorkersTab = () => {
         title: 'Success',
         description: 'Worker deleted successfully',
       });
-      fetchWorkers();
+      queryClient.invalidateQueries({ queryKey: ['workers'] });
     }
   };
 
@@ -217,7 +169,7 @@ export const WorkersTab = () => {
         variant: 'destructive',
       });
     } else {
-      fetchWorkers();
+      queryClient.invalidateQueries({ queryKey: ['workers'] });
     }
   };
 

@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,6 +10,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Search, Plus, Code, AlertCircle, CheckCircle } from 'lucide-react';
 import { AddSubcontractorDialog } from '@/components/subs/AddSubcontractorDialog';
 import { toast } from 'sonner';
+import { useSubs } from '@/hooks/useSubs';
+import { useTradeCostCodes } from '@/hooks/useTrades';
 
 export function SubcontractorsTab() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -18,33 +19,9 @@ export function SubcontractorsTab() {
   const [showCostCodes, setShowCostCodes] = useState(false);
   const queryClient = useQueryClient();
 
-  // Fetch all subs
-  const { data: subs, isLoading } = useQuery({
-    queryKey: ['admin-subs'],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from('subs')
-        .select(`
-          *,
-          trades(id, name)
-        `)
-        .order('name');
-      return data || [];
-    },
-  });
-
-  // Fetch all cost codes for display purposes
-  const { data: costCodes } = useQuery({
-    queryKey: ['trade-cost-codes'],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from('cost_codes')
-        .select('*')
-        .eq('is_active', true)
-        .not('trade_id', 'is', null);
-      return data || [];
-    },
-  });
+  // Use centralized hooks with caching
+  const { data: subs = [], isLoading } = useSubs(true);
+  const { data: costCodes = [] } = useTradeCostCodes();
 
   const getSubTradeCodes = (sub: any) => {
     if (!sub.trades?.name) return [];

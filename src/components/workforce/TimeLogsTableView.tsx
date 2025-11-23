@@ -14,6 +14,9 @@ import { DollarSign } from 'lucide-react';
 import { toast } from 'sonner';
 import { SplitScheduleDialog } from '@/components/dashboard/SplitScheduleDialog';
 import { TimeLogDetailDrawer } from '@/components/unified/TimeLogDetailDrawer';
+import { useWorkersSimple } from '@/hooks/useWorkers';
+import { useProjectsSimple } from '@/hooks/useProjects';
+import { useTradesSimple } from '@/hooks/useTrades';
 
 interface TimeLogsTableViewProps {
   initialWorkerId?: string;
@@ -60,32 +63,10 @@ export function TimeLogsTableView({ initialWorkerId, initialDate, initialProject
     },
   });
 
-  // Fetch workers
-  const { data: workers } = useQuery({
-    queryKey: ['workers'],
-    queryFn: async () => {
-      const { data } = await supabase.from('workers').select('id, name').order('name');
-      return data || [];
-    },
-  });
-
-  // Fetch projects
-  const { data: projects } = useQuery({
-    queryKey: ['projects'],
-    queryFn: async () => {
-      const { data } = await supabase.from('projects').select('id, project_name').order('project_name');
-      return data || [];
-    },
-  });
-
-  // Fetch trades
-  const { data: trades } = useQuery({
-    queryKey: ['trades'],
-    queryFn: async () => {
-      const { data } = await supabase.from('trades').select('id, name').order('name');
-      return data || [];
-    },
-  });
+  // Use centralized hooks with caching
+  const { data: workers = [] } = useWorkersSimple();
+  const { data: projects = [] } = useProjectsSimple(false);
+  const { data: trades = [] } = useTradesSimple();
 
   // Fetch time logs
   const { data: timeLogs, isLoading, refetch } = useQuery({
