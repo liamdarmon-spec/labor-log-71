@@ -216,6 +216,109 @@ export const TradesTab = () => {
     t => !t.default_labor_cost_code_id || !t.default_material_cost_code_id || !t.default_sub_cost_code_id
   );
 
+  const handleGenerateMissingCodes = async () => {
+    if (!confirm(
+      `This will auto-generate missing cost codes for ${tradesWithMissingCodes.length} trade(s).\n\n` +
+      `Each trade will get Labor (-L), Material (-M), and Sub (-S) codes.\n\n` +
+      `Continue?`
+    )) return;
+
+    setIsSeeding(true);
+    let generated = 0;
+    const errors: string[] = [];
+
+    try {
+      for (const trade of tradesWithMissingCodes) {
+        try {
+          const baseCode = trade.name.substring(0, 4).toUpperCase().replace(/[^A-Z]/g, '');
+          const codes = generateCostCodesForTrade(baseCode, trade.name);
+          const updates: any = {};
+
+          // Generate missing codes
+          if (!trade.default_labor_cost_code_id) {
+            const { data: laborCode } = await supabase
+              .from('cost_codes')
+              .insert({
+                code: codes[0].code,
+                name: codes[0].name,
+                category: codes[0].category,
+                trade_id: trade.id,
+                is_active: true,
+              })
+              .select()
+              .single();
+            
+            if (laborCode) updates.default_labor_cost_code_id = laborCode.id;
+          }
+
+          if (!trade.default_material_cost_code_id) {
+            const { data: materialCode } = await supabase
+              .from('cost_codes')
+              .insert({
+                code: codes[1].code,
+                name: codes[1].name,
+                category: codes[1].category,
+                trade_id: trade.id,
+                is_active: true,
+              })
+              .select()
+              .single();
+            
+            if (materialCode) updates.default_material_cost_code_id = materialCode.id;
+          }
+
+          if (!trade.default_sub_cost_code_id) {
+            const { data: subCode } = await supabase
+              .from('cost_codes')
+              .insert({
+                code: codes[2].code,
+                name: codes[2].name,
+                category: codes[2].category,
+                trade_id: trade.id,
+                is_active: true,
+              })
+              .select()
+              .single();
+            
+            if (subCode) updates.default_sub_cost_code_id = subCode.id;
+          }
+
+          // Update trade with new code IDs
+          if (Object.keys(updates).length > 0) {
+            await supabase
+              .from('trades')
+              .update(updates)
+              .eq('id', trade.id);
+            
+            generated++;
+          }
+        } catch (err) {
+          errors.push(`${trade.name}: ${err instanceof Error ? err.message : 'Unknown error'}`);
+        }
+      }
+
+      toast({
+        title: 'Cost Codes Generated',
+        description: `Generated cost codes for ${generated} trade(s).${errors.length > 0 ? ` ${errors.length} errors occurred.` : ''}`,
+      });
+
+      if (errors.length > 0) {
+        console.error('Generation errors:', errors);
+      }
+
+      fetchTrades();
+    } catch (error) {
+      toast({
+        title: 'Generation Failed',
+        description: 'Failed to generate cost codes. Check console for details.',
+        variant: 'destructive',
+      });
+      console.error('Generation error:', error);
+    } finally {
+      setIsSeeding(false);
+    }
+  };
+
   const handleSeedTrades = async () => {
     if (!confirm(
       `This will populate ${STANDARD_REMODELING_TRADES.length} standard trades for remodeling.\n\n` +
@@ -339,6 +442,17 @@ export const TradesTab = () => {
             >
               <Sparkles className="w-4 h-4" />
               {isSeeding ? 'Seeding...' : 'Seed Standard Trades'}
+            </Button>
+          )}
+          {tradesWithMissingCodes.length > 0 && (
+            <Button 
+              onClick={handleGenerateMissingCodes}
+              disabled={isSeeding}
+              variant="outline"
+              className="gap-2"
+            >
+              <Sparkles className="w-4 h-4" />
+              {isSeeding ? 'Generating...' : 'Auto-Generate Cost Codes'}
             </Button>
           )}
           <Dialog open={isDialogOpen} onOpenChange={(open) => {
