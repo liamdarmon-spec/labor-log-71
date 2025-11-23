@@ -11,8 +11,10 @@ import {
   Check,
   Send,
 } from 'lucide-react';
-import { useProposal, useUpdateProposal } from '@/hooks/useProposals';
-import { useProposalSections, useCreateProposalSection, useReorderProposalSections } from '@/hooks/useProposalSections';
+import { useProposalWithSections } from '@/hooks/useProposalWithSections';
+import { useUpdateProposal } from '@/hooks/useProposals';
+import { useCreateProposalSection, useReorderProposalSections } from '@/hooks/useProposalSections';
+import { getClientIP } from '@/hooks/useProposalEvents';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
@@ -28,8 +30,12 @@ import { supabase } from '@/integrations/supabase/client';
 export default function ProposalBuilderV2() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
-  const { data: proposal, isLoading: proposalLoading } = useProposal(id!);
-  const { data: sections, isLoading: sectionsLoading } = useProposalSections(id);
+  
+  // Use optimized hook to fetch proposal + sections in single query
+  const { data: proposalData, isLoading, isError } = useProposalWithSections(id);
+  const proposal = proposalData;
+  const sections = proposalData?.proposal_sections || [];
+  
   const createSection = useCreateProposalSection();
   const reorderSections = useReorderProposalSections();
   const updateProposal = useUpdateProposal();
@@ -105,6 +111,12 @@ export default function ProposalBuilderV2() {
 
   const handleGeneratePublicLink = async () => {
     try {
+      // Check if token already exists
+      if (proposal?.public_token) {
+        toast.info('Public link already exists');
+        return;
+      }
+
       // Generate token
       const { data, error } = await supabase.rpc('generate_proposal_public_token');
       if (error) throw error;
@@ -120,10 +132,23 @@ export default function ProposalBuilderV2() {
         token_expires_at: expiresAt.toISOString(),
       });
 
+      // Log "sent" event
+      try {
+        const ip = await getClientIP();
+        await supabase.rpc('log_proposal_event', {
+          p_proposal_id: id!,
+          p_event_type: 'sent',
+          p_actor_ip: ip,
+          p_metadata: { expires_at: expiresAt.toISOString() },
+        });
+      } catch {
+        // Silent fail for event logging
+      }
+
       toast.success('Public link generated');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error generating public link:', error);
-      toast.error('Failed to generate public link');
+      toast.error('Failed to generate public link. Please try again.');
     }
   };
 
@@ -147,7 +172,7 @@ export default function ProposalBuilderV2() {
     }
   };
 
-  if (proposalLoading) {
+  if (isLoading) {
     return (
       <Layout>
         <div className="space-y-4">
@@ -158,12 +183,12 @@ export default function ProposalBuilderV2() {
     );
   }
 
-  if (!proposal) {
+  if (isError || !proposal) {
     return (
       <Layout>
         <div className="text-center py-12">
-          <p>Proposal not found</p>
-          <Button onClick={() => navigate('/proposals')} className="mt-4">
+          <p className="text-muted-foreground">Proposal not found</p>
+          <Button onClick={() => navigate('/proposals')} className="mt-4" variant="outline">
             Back to Proposals
           </Button>
         </div>
@@ -175,17 +200,17 @@ export default function ProposalBuilderV2() {
     <Layout>
       {/* Header */}
       <div className="flex items-start justify-between mb-6 gap-4 flex-col md:flex-row">
-        <div className="flex-1 min-w-0">
-          <h1 className="text-2xl md:text-3xl font-bold truncate">{proposal.title}</h1>
-          <div className="flex items-center gap-2 mt-2 flex-wrap">
-            <Badge variant={getStatusColor(proposal.acceptance_status)}>
-              {proposal.acceptance_status?.replace('_', ' ')}
-            </Badge>
-            <p className="text-sm text-muted-foreground">
-              {proposal.projects?.project_name || 'No project'}
-            </p>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-2xl md:text-3xl font-bold truncate">{proposal.title}</h1>
+            <div className="flex items-center gap-2 mt-2 flex-wrap">
+              <Badge variant={getStatusColor(proposal.acceptance_status)}>
+                {proposal.acceptance_status?.replace('_', ' ') || 'pending'}
+              </Badge>
+              <p className="text-sm text-muted-foreground">
+                {proposal.projects?.project_name || 'No project'}
+              </p>
+            </div>
           </div>
-        </div>
         <div className="flex items-center gap-2 flex-wrap">
           <Button variant="outline" size="sm" onClick={() => navigate('/proposals')}>
             <ArrowLeft className="h-4 w-4 mr-2" />

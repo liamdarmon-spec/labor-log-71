@@ -27,52 +27,65 @@ export default function PublicProposal() {
       setLoading(true);
       setError(null);
 
-      // Fetch proposal by public token
+      if (!token) {
+        setError('Invalid proposal link');
+        return;
+      }
+
+      // Single optimized query - fetch proposal and sections together
       const { data: proposalData, error: proposalError } = await supabase
         .from('proposals')
         .select(`
           *,
-          projects (project_name, client_name, address)
+          projects (project_name, client_name, address),
+          proposal_sections (
+            id,
+            type,
+            title,
+            content_richtext,
+            sort_order,
+            is_visible
+          )
         `)
         .eq('public_token', token)
         .single();
 
-      if (proposalError) throw proposalError;
-
-      if (!proposalData) {
+      if (proposalError || !proposalData) {
         setError('Proposal not found or link has expired');
         return;
       }
 
-      // Check if token is expired
+      // Validate token expiration
       if (proposalData.token_expires_at && new Date(proposalData.token_expires_at) < new Date()) {
         setError('This proposal link has expired');
         return;
       }
 
       setProposal(proposalData);
+      
+      // Extract and sort sections
+      const sortedSections = (proposalData.proposal_sections || [])
+        .filter((s: any) => s.is_visible !== false)
+        .sort((a: any, b: any) => a.sort_order - b.sort_order);
+      
+      setSections(sortedSections);
 
-      // Fetch sections
-      const { data: sectionsData, error: sectionsError } = await supabase
-        .from('proposal_sections')
-        .select('*')
-        .eq('proposal_id', proposalData.id)
-        .order('sort_order', { ascending: true });
-
-      if (sectionsError) throw sectionsError;
-      setSections(sectionsData || []);
-
-      // Log "viewed" event
-      const ip = await getClientIP();
-      await supabase.from('proposal_events').insert({
-        proposal_id: proposalData.id,
-        event_type: 'viewed',
-        actor_ip: ip,
-      });
+      // Log "viewed" event using backend function (with deduplication)
+      try {
+        const ip = await getClientIP();
+        await supabase.rpc('log_proposal_event', {
+          p_proposal_id: proposalData.id,
+          p_event_type: 'viewed',
+          p_actor_ip: ip,
+          p_metadata: {},
+        });
+      } catch {
+        // Silent fail for event logging - don't block page load
+      }
 
     } catch (err: any) {
       console.error('Error loading proposal:', err);
-      setError('Failed to load proposal');
+      setError('Unable to load proposal. Please contact support.');
     } finally {
       setLoading(false);
     }

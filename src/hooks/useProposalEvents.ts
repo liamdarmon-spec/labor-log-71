@@ -35,28 +35,48 @@ export function useLogProposalEvent() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (event: any) => {
-      const { data, error} = await supabase
-        .from('proposal_events')
-        .insert([event])
-        .select()
-        .single();
+    mutationFn: async (event: {
+      proposal_id: string;
+      event_type: ProposalEvent['event_type'];
+      actor_name?: string;
+      actor_email?: string;
+      actor_ip?: string;
+      metadata?: any;
+    }) => {
+      // Use backend function with deduplication
+      const { data, error } = await supabase.rpc('log_proposal_event', {
+        p_proposal_id: event.proposal_id,
+        p_event_type: event.event_type,
+        p_actor_name: event.actor_name || null,
+        p_actor_email: event.actor_email || null,
+        p_actor_ip: event.actor_ip || null,
+        p_metadata: event.metadata || {},
+      });
       
       if (error) throw error;
       return data;
     },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['proposal-events', data.proposal_id] });
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['proposal-events', variables.proposal_id] });
     },
   });
 }
 
-// Helper to get client IP (best effort)
+// Helper to get client IP (best effort, non-blocking)
 export async function getClientIP(): Promise<string> {
   try {
-    const response = await fetch('https://api.ipify.org?format=json');
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
+    
+    const response = await fetch('https://api.ipify.org?format=json', {
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    
+    if (!response.ok) return 'unknown';
+    
     const data = await response.json();
-    return data.ip;
+    return data.ip || 'unknown';
   } catch {
     return 'unknown';
   }
