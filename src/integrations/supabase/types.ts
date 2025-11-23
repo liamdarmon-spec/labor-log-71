@@ -179,6 +179,13 @@ export type Database = {
             foreignKeyName: "bid_packages_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
+            referencedRelation: "material_actuals_by_project"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "bid_packages_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
             referencedRelation: "project_costs_view"
             referencedColumns: ["project_id"]
           },
@@ -255,6 +262,13 @@ export type Database = {
           status?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "budget_revisions_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "material_actuals_by_project"
+            referencedColumns: ["project_id"]
+          },
           {
             foreignKeyName: "budget_revisions_project_id_fkey"
             columns: ["project_id"]
@@ -434,6 +448,13 @@ export type Database = {
             foreignKeyName: "cost_entries_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
+            referencedRelation: "material_actuals_by_project"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "cost_entries_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
             referencedRelation: "project_costs_view"
             referencedColumns: ["project_id"]
           },
@@ -559,6 +580,13 @@ export type Database = {
             foreignKeyName: "costs_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
+            referencedRelation: "material_actuals_by_project"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "costs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
             referencedRelation: "project_costs_view"
             referencedColumns: ["project_id"]
           },
@@ -642,6 +670,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "invoices"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_payments_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "material_actuals_by_project"
+            referencedColumns: ["project_id"]
           },
           {
             foreignKeyName: "customer_payments_project_id_fkey"
@@ -753,6 +788,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "payments"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "daily_logs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "material_actuals_by_project"
+            referencedColumns: ["project_id"]
           },
           {
             foreignKeyName: "daily_logs_project_id_fkey"
@@ -888,6 +930,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "worker_day_summary"
             referencedColumns: ["day_card_id"]
+          },
+          {
+            foreignKeyName: "day_card_jobs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "material_actuals_by_project"
+            referencedColumns: ["project_id"]
           },
           {
             foreignKeyName: "day_card_jobs_project_id_fkey"
@@ -1170,6 +1219,13 @@ export type Database = {
             foreignKeyName: "documents_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
+            referencedRelation: "material_actuals_by_project"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "documents_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
             referencedRelation: "project_costs_view"
             referencedColumns: ["project_id"]
           },
@@ -1385,6 +1441,13 @@ export type Database = {
             foreignKeyName: "estimates_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
+            referencedRelation: "material_actuals_by_project"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "estimates_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
             referencedRelation: "project_costs_view"
             referencedColumns: ["project_id"]
           },
@@ -1567,6 +1630,13 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "invoices_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "material_actuals_by_project"
+            referencedColumns: ["project_id"]
+          },
           {
             foreignKeyName: "invoices_project_id_fkey"
             columns: ["project_id"]
@@ -1830,6 +1900,13 @@ export type Database = {
             foreignKeyName: "material_receipts_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
+            referencedRelation: "material_actuals_by_project"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "material_receipts_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
             referencedRelation: "project_costs_view"
             referencedColumns: ["project_id"]
           },
@@ -2080,6 +2157,13 @@ export type Database = {
             foreignKeyName: "project_budget_lines_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
+            referencedRelation: "material_actuals_by_project"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "project_budget_lines_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
             referencedRelation: "project_costs_view"
             referencedColumns: ["project_id"]
           },
@@ -2154,6 +2238,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "estimates"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_budgets_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: true
+            referencedRelation: "material_actuals_by_project"
+            referencedColumns: ["project_id"]
           },
           {
             foreignKeyName: "project_budgets_project_id_fkey"
@@ -2263,6 +2354,13 @@ export type Database = {
             foreignKeyName: "project_financials_snapshot_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: true
+            referencedRelation: "material_actuals_by_project"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "project_financials_snapshot_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: true
             referencedRelation: "project_costs_view"
             referencedColumns: ["project_id"]
           },
@@ -2330,6 +2428,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "project_subcontracts_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "material_actuals_by_project"
+            referencedColumns: ["project_id"]
+          },
           {
             foreignKeyName: "project_subcontracts_project_id_fkey"
             columns: ["project_id"]
@@ -2427,6 +2532,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "workers_public"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_todos_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "material_actuals_by_project"
+            referencedColumns: ["project_id"]
           },
           {
             foreignKeyName: "project_todos_project_id_fkey"
@@ -3085,6 +3197,13 @@ export type Database = {
             foreignKeyName: "proposals_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
+            referencedRelation: "material_actuals_by_project"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "proposals_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
             referencedRelation: "project_costs_view"
             referencedColumns: ["project_id"]
           },
@@ -3221,6 +3340,13 @@ export type Database = {
             foreignKeyName: "schedule_of_values_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
+            referencedRelation: "material_actuals_by_project"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "schedule_of_values_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
             referencedRelation: "project_costs_view"
             referencedColumns: ["project_id"]
           },
@@ -3310,6 +3436,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "cost_codes"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scheduled_shifts_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "material_actuals_by_project"
+            referencedColumns: ["project_id"]
           },
           {
             foreignKeyName: "scheduled_shifts_project_id_fkey"
@@ -3672,6 +3805,13 @@ export type Database = {
             foreignKeyName: "sub_contracts_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
+            referencedRelation: "material_actuals_by_project"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "sub_contracts_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
             referencedRelation: "project_costs_view"
             referencedColumns: ["project_id"]
           },
@@ -3795,6 +3935,13 @@ export type Database = {
             foreignKeyName: "sub_invoices_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
+            referencedRelation: "material_actuals_by_project"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "sub_invoices_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
             referencedRelation: "project_costs_view"
             referencedColumns: ["project_id"]
           },
@@ -3876,6 +4023,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "cost_codes"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sub_logs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "material_actuals_by_project"
+            referencedColumns: ["project_id"]
           },
           {
             foreignKeyName: "sub_logs_project_id_fkey"
@@ -4040,6 +4194,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "cost_codes"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sub_scheduled_shifts_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "material_actuals_by_project"
+            referencedColumns: ["project_id"]
           },
           {
             foreignKeyName: "sub_scheduled_shifts_project_id_fkey"
@@ -4217,6 +4378,13 @@ export type Database = {
             foreignKeyName: "time_log_allocations_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
+            referencedRelation: "material_actuals_by_project"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "time_log_allocations_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
             referencedRelation: "project_costs_view"
             referencedColumns: ["project_id"]
           },
@@ -4339,6 +4507,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "cost_codes"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_logs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "material_actuals_by_project"
+            referencedColumns: ["project_id"]
           },
           {
             foreignKeyName: "time_logs_project_id_fkey"
@@ -4583,6 +4758,13 @@ export type Database = {
             foreignKeyName: "work_schedules_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
+            referencedRelation: "material_actuals_by_project"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "work_schedules_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
             referencedRelation: "project_costs_view"
             referencedColumns: ["project_id"]
           },
@@ -4705,6 +4887,13 @@ export type Database = {
             foreignKeyName: "time_log_allocations_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
+            referencedRelation: "material_actuals_by_project"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "time_log_allocations_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
             referencedRelation: "project_costs_view"
             referencedColumns: ["project_id"]
           },
@@ -4813,6 +5002,13 @@ export type Database = {
             foreignKeyName: "daily_logs_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
+            referencedRelation: "material_actuals_by_project"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "daily_logs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
             referencedRelation: "project_costs_view"
             referencedColumns: ["project_id"]
           },
@@ -4839,6 +5035,34 @@ export type Database = {
           },
         ]
       }
+      material_actuals_by_project: {
+        Row: {
+          company_id: string | null
+          material_actual: number | null
+          material_variance: number | null
+          materials_budget: number | null
+          project_id: string | null
+          project_name: string | null
+          receipt_count: number | null
+          vendor_count: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "projects_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "projects_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_payroll_summary"
+            referencedColumns: ["company_id"]
+          },
+        ]
+      }
       payment_labor_summary: {
         Row: {
           end_date: string | null
@@ -4855,6 +5079,13 @@ export type Database = {
           worker_trade: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "daily_logs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "material_actuals_by_project"
+            referencedColumns: ["project_id"]
+          },
           {
             foreignKeyName: "daily_logs_project_id_fkey"
             columns: ["project_id"]
@@ -4916,6 +5147,13 @@ export type Database = {
           worker_trade: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "daily_logs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "material_actuals_by_project"
+            referencedColumns: ["project_id"]
+          },
           {
             foreignKeyName: "daily_logs_project_id_fkey"
             columns: ["project_id"]
@@ -5093,6 +5331,13 @@ export type Database = {
             foreignKeyName: "scheduled_shifts_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
+            referencedRelation: "material_actuals_by_project"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "scheduled_shifts_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
             referencedRelation: "project_costs_view"
             referencedColumns: ["project_id"]
           },
@@ -5163,6 +5408,13 @@ export type Database = {
             foreignKeyName: "sub_contracts_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
+            referencedRelation: "material_actuals_by_project"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "sub_contracts_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
             referencedRelation: "project_costs_view"
             referencedColumns: ["project_id"]
           },
@@ -5209,6 +5461,13 @@ export type Database = {
           total_hours: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "daily_logs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "material_actuals_by_project"
+            referencedColumns: ["project_id"]
+          },
           {
             foreignKeyName: "daily_logs_project_id_fkey"
             columns: ["project_id"]
@@ -5370,6 +5629,14 @@ export type Database = {
       auto_create_past_logs: { Args: never; Returns: undefined }
       delete_old_archived_logs: { Args: never; Returns: undefined }
       generate_proposal_public_token: { Args: never; Returns: string }
+      get_material_actuals_by_cost_code: {
+        Args: { p_cost_code_id: string; p_project_id: string }
+        Returns: number
+      }
+      get_material_actuals_by_project: {
+        Args: { p_project_id: string }
+        Returns: number
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
