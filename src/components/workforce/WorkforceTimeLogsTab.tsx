@@ -98,6 +98,7 @@ export function WorkforceTimeLogsTab() {
   };
 
   // Fetch time logs (CANONICAL: from time_logs table)
+  // Uses LEFT joins to include all time_logs regardless of missing FK relationships
   const { data: timeLogs, isLoading, refetch } = useQuery({
     queryKey: ['workforce-time-logs', dateRange, customStartDate, customEndDate, selectedCompany, selectedWorker, selectedProject, paymentFilter],
     queryFn: async () => {
@@ -118,8 +119,8 @@ export function WorkforceTimeLogsTab() {
           payment_status,
           paid_amount,
           source_schedule_id,
-          workers!inner(id, name, trade, hourly_rate),
-          projects!inner(id, project_name, client_name, company_id, companies(name)),
+          workers(id, name, trade, hourly_rate),
+          projects(id, project_name, client_name, company_id, companies(name)),
           trades(name),
           cost_codes(code, name)
         `)
