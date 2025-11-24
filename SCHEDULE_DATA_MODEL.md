@@ -1,10 +1,8 @@
-# Schedule Data Model - Canonical Reference (AFTER PRIORITY-1 FIXES)
+# Schedule Data Model - Canonical Reference
 
 ## ✅ CANONICAL TABLE: `work_schedules` (LABOR ONLY)
 
 **Status:** ACTIVE - Single source of truth for LABOR schedule entries.
-
-**Row Count:** 0 (clean slate)
 
 **Schema:**
 ```
@@ -28,7 +26,7 @@ work_schedules:
   - updated_at (timestamptz)
 ```
 
-**Used By (ALL ALIGNED):**
+**Used By:**
 - ✅ `src/hooks/useScheduleData.ts`
 - ✅ `src/lib/scheduler/useSchedulerData.ts`
 - ✅ `src/components/scheduling/UniversalDayDetailDialog.tsx`
@@ -37,13 +35,13 @@ work_schedules:
 - ✅ `src/components/scheduling/ScheduleDeleteButton.tsx`
 - ✅ All calendar views (Daily, Weekly, Monthly)
 
+**Converts To:** `daily_logs` when `converted_to_timelog = true`
+
 ---
 
 ## ✅ CANONICAL TABLE: `sub_scheduled_shifts` (SUBS ONLY)
 
 **Status:** ACTIVE - Single source of truth for SUBCONTRACTOR schedule entries.
-
-**Row Count:** 0 (clean slate)
 
 **Schema:**
 ```
@@ -67,17 +65,42 @@ sub_scheduled_shifts:
 
 ---
 
+## ✅ TIME LOG TABLE: `daily_logs`
+
+**Status:** ACTIVE - Records actual hours worked.
+
+**Schema:**
+```
+daily_logs:
+  - id (uuid, primary key)
+  - worker_id (uuid, NOT NULL, references workers)
+  - project_id (uuid, NOT NULL, references projects)
+  - schedule_id (uuid, NULLABLE, references work_schedules) ← Link to schedule
+  - date (date, NOT NULL)
+  - hours_worked (numeric, NOT NULL)
+  - trade_id (uuid, references trades)
+  - cost_code_id (uuid, references cost_codes)
+  - notes (text)
+  - payment_status (text: 'unpaid' | 'paid')
+  - payment_id (uuid, references payments)
+  - paid_amount (numeric)
+  - created_by (uuid)
+  - created_at (timestamptz)
+```
+
+**Purpose:** Tracks actual time worked. Can be created from schedules or entered directly.
+
+---
+
 ## 🗑️ LEGACY TABLE: `scheduled_shifts`
 
-**Status:** DEPRECATED - No longer used after Priority-1 fixes.
-
-**Row Count:** 0 (empty)
+**Status:** DEPRECATED - No longer used.
 
 **Action:** Can be safely dropped in future cleanup.
 
 ---
 
-## 📊 UNIFIED DATA FLOW (AFTER FIX)
+## 📊 UNIFIED DATA FLOW
 
 ```
 LABOR SCHEDULES:
@@ -91,7 +114,7 @@ UniversalDayDetailDialog (displays from work_schedules)
   ↓
 [If past date OR manual conversion]
   ↓
-time_logs (INSERT via trigger)
+daily_logs (INSERT with schedule_id reference)
 
 SUB SCHEDULES:
 User Input (Add Sub to Schedule)
@@ -107,7 +130,7 @@ Calendar views display subs
 
 ## 🎯 UNIFIED SCHEDULER COMPONENTS
 
-All schedule views now use the SAME data sources:
+All schedule views use the SAME data sources:
 
 1. **Labor Data Hook:** `useScheduleData()` + `useSchedulerData()` → queries `work_schedules`
 2. **Sub Data Hook:** `useSchedulerData()` → queries `sub_scheduled_shifts`
@@ -117,29 +140,17 @@ All schedule views now use the SAME data sources:
    - WeeklyScheduleView → `useSchedulerData` → `work_schedules` + `sub_scheduled_shifts`
    - MonthlyScheduleView → `useSchedulerData` → `work_schedules` + `sub_scheduled_shifts`
 
-All aligned ✅
-
 ---
 
-## ⚡ KEY RULES (ENFORCED)
+## ⚡ KEY RULES
 
 1. **Labor Schedules:** Always read/write from `work_schedules`
 2. **Sub Schedules:** Always read/write from `sub_scheduled_shifts`
-3. **Single Editor:** Always use `UniversalDayDetailDialog` for day-level edits
-4. **Single Hook:** Use `useScheduleData()` for filtered queries, `useSchedulerData()` for calendar aggregation
-5. **No Duplicates:** Never create parallel schedule dialogs or queries
+3. **Time Logs:** Always use `daily_logs` (not `time_logs`)
+4. **Schedule-Log Link:** Use `daily_logs.schedule_id` to reference `work_schedules.id`
+5. **Single Editor:** Always use `UniversalDayDetailDialog` for day-level edits
+6. **Single Hook:** Use `useScheduleData()` for filtered queries, `useSchedulerData()` for calendar aggregation
 
 ---
 
-## 🔧 FUTURE UNIFICATION (OPTIONAL)
-
-To merge into ONE true table:
-1. Add `sub_id UUID NULLABLE` to `work_schedules`
-2. Rename `work_schedules` → `schedule_entries`
-3. Migrate `sub_scheduled_shifts` data into `schedule_entries`
-4. Drop `sub_scheduled_shifts` and `scheduled_shifts`
-5. Update queries to use discriminator: `WHERE worker_id IS NOT NULL` (labor) or `WHERE sub_id IS NOT NULL` (sub)
-
----
-
-Last Updated: 2025-11-22 (After Priority-1 System Fixes - COMPLETED)
+Last Updated: 2025-11-24 (Standardized on daily_logs, removed time_logs confusion)

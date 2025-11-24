@@ -98,11 +98,11 @@ export function EditScheduleDialog({ open, onOpenChange, schedule, onSuccess }: 
     const schedDate = parseISO(scheduleDate);
     const isFutureDate = isFuture(schedDate);
 
-    // Check if there's a related time log
+    // Check if there's a related time log in daily_logs
     const { data, error } = await supabase
-      .from("time_logs")
+      .from("daily_logs")
       .select("id")
-      .eq("source_schedule_id", scheduleId)
+      .eq("schedule_id", scheduleId)
       .maybeSingle();
 
     if (error) {

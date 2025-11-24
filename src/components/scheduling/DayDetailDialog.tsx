@@ -104,7 +104,7 @@ export function DayDetailDialog({ open, onOpenChange, date, onRefresh, onAddSche
 
     const { data: userData } = await supabase.auth.getUser();
     
-    // Mark schedules as converted (the triggers will create time logs automatically)
+    // Mark schedules as converted (the triggers will create daily_logs automatically)
     const scheduleIds = selectedSchedules.map(s => s.id);
     
     const { error } = await supabase
