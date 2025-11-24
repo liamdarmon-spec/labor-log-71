@@ -23,7 +23,7 @@ export function SubScheduleTab({ subId }: SubScheduleTabProps) {
           subs (name, company_name)
         `)
         .eq('sub_id', subId)
-        .order('date', { ascending: true });
+        .order('scheduled_date', { ascending: true });
       
       if (error) throw error;
       return data;
