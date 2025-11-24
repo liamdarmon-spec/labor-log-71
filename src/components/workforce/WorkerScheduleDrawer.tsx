@@ -32,7 +32,7 @@ export function WorkerScheduleDrawer({ worker, date, open, onOpenChange }: Worke
     queryFn: async () => {
       // Fetch schedules for this date
       const { data: schedules } = await supabase
-        .from('scheduled_shifts')
+        .from('work_schedules')
         .select('*, projects(id, project_name), trades(name)')
         .eq('worker_id', worker.id)
         .eq('scheduled_date', dateStr);

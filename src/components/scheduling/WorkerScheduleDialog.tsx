@@ -74,7 +74,7 @@ export function WorkerScheduleDialog({
 
     setLoading(true);
     const { data, error } = await supabase
-      .from("scheduled_shifts")
+      .from("work_schedules")
       .select(`
         *,
         worker:workers(name, trade),
@@ -117,7 +117,7 @@ export function WorkerScheduleDialog({
       .in("schedule_id", scheduleIds);
 
     const { error } = await supabase
-      .from("scheduled_shifts")
+      .from("work_schedules")
       .delete()
       .eq("worker_id", workerId)
       .eq("scheduled_date", date);
@@ -152,7 +152,7 @@ export function WorkerScheduleDialog({
     if (!workerId || !date || !newWorkerId) return;
 
     const { error } = await supabase
-      .from("scheduled_shifts")
+      .from("work_schedules")
       .update({ worker_id: newWorkerId })
       .eq("worker_id", workerId)
       .eq("scheduled_date", date);

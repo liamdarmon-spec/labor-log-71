@@ -67,11 +67,11 @@ export function SchedulerTableView({
     queryKey: ['scheduler-table', format(weekStart, 'yyyy-MM-dd'), format(weekEnd, 'yyyy-MM-dd'), selectedCompany, selectedTrade, projectFilter, workerFilter, refreshTrigger],
     queryFn: async () => {
       let query = supabase
-        .from('scheduled_shifts')
+        .from('work_schedules')
         .select(`
           *,
           workers(id, name, trade, hourly_rate),
-          projects(id, project_name, company_id, companies(name)),
+          projects(id, project_name, company_id),
           trades(name)
         `)
         .gte('scheduled_date', format(weekStart, 'yyyy-MM-dd'))
@@ -282,7 +282,7 @@ export function SchedulerTableView({
                   <TableCell>{format(new Date(schedule.scheduled_date), 'MMM d, yyyy')}</TableCell>
                   <TableCell className="font-medium">{schedule.workers?.name}</TableCell>
                   <TableCell>
-                    <Badge variant="outline">{schedule.projects?.companies?.name}</Badge>
+                    <Badge variant="outline">Company</Badge>
                   </TableCell>
                   <TableCell>{schedule.projects?.project_name}</TableCell>
                   <TableCell className="text-muted-foreground">{schedule.trades?.name || schedule.workers?.trade}</TableCell>

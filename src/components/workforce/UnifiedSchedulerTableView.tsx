@@ -57,11 +57,11 @@ export function UnifiedSchedulerTableView({
       if (showType === 'subs') return [];
 
       let query = supabase
-        .from('scheduled_shifts')
+        .from('work_schedules')
         .select(`
           *,
           workers(id, name, trade, hourly_rate),
-          projects(id, project_name, company_id, companies(name)),
+          projects(id, project_name, company_id),
           trades(name)
         `)
         .gte('scheduled_date', format(weekStart, 'yyyy-MM-dd'))
@@ -351,7 +351,7 @@ export function UnifiedSchedulerTableView({
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline">
-                          {schedule.projects?.companies?.name}
+                          Company
                         </Badge>
                       </TableCell>
                       <TableCell>{schedule.projects?.project_name}</TableCell>

@@ -32,7 +32,7 @@ export function ProjectWorkforceTab({ projectId }: ProjectWorkforceTabProps) {
 
       // Get all scheduled shifts for this project in date range
       const { data: schedule } = await supabase
-        .from('scheduled_shifts')
+        .from('work_schedules')
         .select('worker_id, scheduled_hours')
         .eq('project_id', projectId)
         .gte('scheduled_date', dateRange.start)

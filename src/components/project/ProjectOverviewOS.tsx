@@ -33,7 +33,7 @@ export function ProjectOverviewOS({ projectId }: ProjectOverviewOSProps) {
     queryKey: ['schedule-health', projectId],
     queryFn: async () => {
       const { data: schedules } = await supabase
-        .from('scheduled_shifts')
+        .from('work_schedules')
         .select('scheduled_date, worker_id')
         .eq('project_id', projectId)
         .lt('scheduled_date', today);
@@ -191,8 +191,8 @@ export function ProjectOverviewOS({ projectId }: ProjectOverviewOSProps) {
     queryKey: ['today-schedule', projectId, today],
     queryFn: async () => {
       const { data } = await supabase
-        .from('scheduled_shifts')
-        .select('*, workers(name, trade, company_id, companies(name))')
+        .from('work_schedules')
+        .select('*, workers(name, trade), project:projects(company_id)')
         .eq('project_id', projectId)
         .eq('scheduled_date', today);
 
@@ -209,7 +209,7 @@ export function ProjectOverviewOS({ projectId }: ProjectOverviewOSProps) {
     queryFn: async () => {
       const [scheduleRes, logsRes] = await Promise.all([
         supabase
-          .from('scheduled_shifts')
+          .from('work_schedules')
           .select('scheduled_hours')
           .eq('project_id', projectId)
           .gte('scheduled_date', weekStart)
@@ -316,7 +316,7 @@ export function ProjectOverviewOS({ projectId }: ProjectOverviewOSProps) {
       const workerIds = Array.from(workerStats.keys());
       const { data: workers } = await supabase
         .from('workers')
-        .select('id, name, trade, hourly_rate, companies(name)')
+        .select('id, name, trade, hourly_rate')
         .in('id', workerIds);
 
       const { data: unpaidLogs } = await supabase

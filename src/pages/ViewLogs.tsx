@@ -426,7 +426,7 @@ const ViewLogs = () => {
       const scheduleIds = logsWithSchedules?.map(log => log.schedule_id).filter(Boolean) || [];
       if (scheduleIds.length > 0) {
         const { error: scheduleError } = await supabase
-          .from('scheduled_shifts')
+          .from('work_schedules')
           .delete()
           .in('id', scheduleIds);
 
@@ -906,7 +906,7 @@ const ViewLogs = () => {
                         // Delete linked schedule first if it exists
                         if (logWithSchedule?.schedule_id) {
                           const { error: scheduleError } = await supabase
-                            .from('scheduled_shifts')
+                            .from('work_schedules')
                             .delete()
                             .eq('id', logWithSchedule.schedule_id);
 

@@ -36,11 +36,11 @@ export function ScheduleRowDrawer({
     queryKey: ['schedule-detail', scheduleId],
     queryFn: async () => {
       const { data } = await supabase
-        .from('scheduled_shifts')
+        .from('work_schedules')
         .select(`
           *,
           workers(id, name, trade, hourly_rate),
-          projects(id, project_name, companies(name)),
+          projects(id, project_name),
           trades(name)
         `)
         .eq('id', scheduleId)
@@ -81,7 +81,7 @@ export function ScheduleRowDrawer({
     setIsConverting(true);
     try {
       const { error } = await supabase
-        .from('scheduled_shifts')
+        .from('work_schedules')
         .update({ converted_to_timelog: true })
         .eq('id', scheduleId);
 
@@ -136,8 +136,6 @@ export function ScheduleRowDrawer({
 
             <div className="flex items-center gap-2 text-sm">
               <Building2 className="h-4 w-4 text-muted-foreground" />
-              <span>{schedule.projects?.companies?.name}</span>
-              <span className="text-muted-foreground">•</span>
               <span>{schedule.projects?.project_name}</span>
             </div>
           </div>

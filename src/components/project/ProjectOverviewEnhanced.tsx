@@ -80,7 +80,7 @@ export const ProjectOverviewEnhanced = ({ projectId }: { projectId: string }) =>
 
       // Fetch today's workers
       const { data: todayWorkers } = await supabase
-        .from('scheduled_shifts')
+        .from('work_schedules')
         .select('id, scheduled_hours, worker:workers(name, trade)')
         .eq('project_id', projectId)
         .eq('scheduled_date', today);
@@ -126,7 +126,7 @@ export const ProjectOverviewEnhanced = ({ projectId }: { projectId: string }) =>
 
       // Fetch upcoming shifts and tasks
       const { data: upcomingShifts } = await supabase
-        .from('scheduled_shifts')
+        .from('work_schedules')
         .select('scheduled_date, scheduled_hours, worker:workers(name)')
         .eq('project_id', projectId)
         .gt('scheduled_date', today)
