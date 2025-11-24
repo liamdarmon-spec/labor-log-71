@@ -253,11 +253,6 @@ export function WorkforceScheduleTab() {
       </Card>
 
       {/* Dialogs */}
-      <AddToScheduleDialog
-        open={addDialogOpen}
-        onOpenChange={setAddDialogOpen}
-        onScheduleCreated={() => refetch()}
-      />
 
       {selectedDate && dayPlannerOpen && (
         <FullDayPlanner
@@ -267,7 +262,20 @@ export function WorkforceScheduleTab() {
           highlightWorkerId={selectedWorkerId}
           companyId={selectedCompany !== 'all' ? selectedCompany : undefined}
           onRefresh={() => refetch()}
-          onAddSchedule={() => {}}
+          onAddSchedule={() => {
+            setDayPlannerOpen(false);
+            setAddDialogOpen(true);
+          }}
+        />
+      )}
+
+      {/* AddToScheduleDialog with default date */}
+      {addDialogOpen && (
+        <AddToScheduleDialog
+          open={addDialogOpen}
+          onOpenChange={setAddDialogOpen}
+          onScheduleCreated={() => refetch()}
+          defaultDate={selectedDate || undefined}
         />
       )}
     </div>
