@@ -17,7 +17,7 @@ export function ProjectOverviewTab({ projectId }: ProjectOverviewTabProps) {
     queryFn: async () => {
       const today = format(new Date(), 'yyyy-MM-dd');
       const { data } = await supabase
-        .from('scheduled_shifts')
+        .from('work_schedules')
         .select('*, workers(name, trade)')
         .eq('project_id', projectId)
         .eq('scheduled_date', today);
@@ -34,7 +34,7 @@ export function ProjectOverviewTab({ projectId }: ProjectOverviewTabProps) {
     queryFn: async () => {
       const [scheduleRes, logsRes] = await Promise.all([
         supabase
-          .from('scheduled_shifts')
+          .from('work_schedules')
           .select('scheduled_hours')
           .eq('project_id', projectId)
           .gte('scheduled_date', weekStart)

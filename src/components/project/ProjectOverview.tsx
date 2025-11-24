@@ -64,7 +64,7 @@ export const ProjectOverview = ({ projectId }: { projectId: string }) => {
       const today = format(new Date(), 'yyyy-MM-dd');
       const thirtyDaysLater = format(addDays(new Date(), 30), 'yyyy-MM-dd');
       const { count: shiftsCount } = await supabase
-        .from('scheduled_shifts')
+        .from('work_schedules')
         .select('*', { count: 'exact', head: true })
         .eq('project_id', projectId)
         .gte('scheduled_date', today)
@@ -73,7 +73,7 @@ export const ProjectOverview = ({ projectId }: { projectId: string }) => {
       // Get hours scheduled this week
       const weekEnd = format(addDays(new Date(), 7), 'yyyy-MM-dd');
       const { data: weekShifts } = await supabase
-        .from('scheduled_shifts')
+        .from('work_schedules')
         .select('scheduled_hours')
         .eq('project_id', projectId)
         .gte('scheduled_date', today)
