@@ -828,14 +828,7 @@ export type Database = {
             foreignKeyName: "daily_logs_schedule_id_fkey"
             columns: ["schedule_id"]
             isOneToOne: false
-            referencedRelation: "project_schedule_view"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "daily_logs_schedule_id_fkey"
-            columns: ["schedule_id"]
-            isOneToOne: false
-            referencedRelation: "scheduled_shifts"
+            referencedRelation: "work_schedules"
             referencedColumns: ["id"]
           },
           {
@@ -5186,14 +5179,7 @@ export type Database = {
             foreignKeyName: "daily_logs_schedule_id_fkey"
             columns: ["schedule_id"]
             isOneToOne: false
-            referencedRelation: "project_schedule_view"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "daily_logs_schedule_id_fkey"
-            columns: ["schedule_id"]
-            isOneToOne: false
-            referencedRelation: "scheduled_shifts"
+            referencedRelation: "work_schedules"
             referencedColumns: ["id"]
           },
           {
