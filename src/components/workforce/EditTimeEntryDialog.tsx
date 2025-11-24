@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DatePickerWithPresets } from '@/components/ui/date-picker-with-presets';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2, Plus, Trash2, Calendar, User } from 'lucide-react';
@@ -46,7 +47,26 @@ export function EditTimeEntryDialog({
 }: EditTimeEntryDialogProps) {
   const { toast } = useToast();
   const [allocations, setAllocations] = useState<TimeLogAllocation[]>([]);
+  const [selectedWorker, setSelectedWorker] = useState<string>('');
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [loading, setLoading] = useState(false);
+
+  const isAddMode = !group?.worker_id;
+
+  // Fetch workers (for add mode)
+  const { data: workers } = useQuery({
+    queryKey: ['workers-active'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('workers')
+        .select('id, name, trade, hourly_rate')
+        .eq('active', true)
+        .order('name');
+      if (error) throw error;
+      return data;
+    },
+    enabled: open && isAddMode
+  });
 
   // Fetch projects and trades for dropdowns
   const { data: projects } = useQuery({
@@ -94,16 +114,33 @@ export function EditTimeEntryDialog({
   // Initialize allocations from group data
   useEffect(() => {
     if (group && open) {
-      const initialAllocations: TimeLogAllocation[] = group.projects.map(project => ({
-        id: project.id,
-        project_id: project.project_id,
-        trade_id: project.trade_id,
-        cost_code_id: project.cost_code_id,
-        hours_worked: project.hours,
-        notes: project.notes,
-        source_schedule_id: project.source_schedule_id || null
-      }));
-      setAllocations(initialAllocations);
+      if (group.worker_id) {
+        // Edit mode: load existing allocations
+        const initialAllocations: TimeLogAllocation[] = group.projects.map(project => ({
+          id: project.id,
+          project_id: project.project_id,
+          trade_id: project.trade_id,
+          cost_code_id: project.cost_code_id,
+          hours_worked: project.hours,
+          notes: project.notes,
+          source_schedule_id: project.source_schedule_id || null
+        }));
+        setAllocations(initialAllocations);
+        setSelectedDate(new Date(group.date));
+      } else {
+        // Add mode: start with one empty allocation
+        setAllocations([{
+          id: `new-${crypto.randomUUID()}`,
+          project_id: '',
+          trade_id: null,
+          cost_code_id: null,
+          hours_worked: 8,
+          notes: null,
+          source_schedule_id: null
+        }]);
+        setSelectedWorker('');
+        setSelectedDate(new Date());
+      }
     }
   }, [group, open]);
 
@@ -149,6 +186,15 @@ export function EditTimeEntryDialog({
 
   const handleSave = async () => {
     // Validate
+    if (isAddMode && !selectedWorker) {
+      toast({
+        title: 'Missing worker',
+        description: 'Please select a worker',
+        variant: 'destructive'
+      });
+      return;
+    }
+
     const invalidAllocations = allocations.filter(a => !a.project_id || a.hours_worked <= 0);
     if (invalidAllocations.length > 0) {
       toast({
@@ -162,72 +208,106 @@ export function EditTimeEntryDialog({
     setLoading(true);
 
     try {
-      // Separate new vs existing allocations
-      const existingAllocations = allocations.filter(a => !a.id.startsWith('new-'));
-      const newAllocations = allocations.filter(a => a.id.startsWith('new-'));
+      if (isAddMode) {
+        // Insert new time logs
+        // Get company_id from the first project
+        const firstProject = await supabase
+          .from('projects')
+          .select('company_id')
+          .eq('id', allocations[0].project_id)
+          .single();
 
-      // Find allocations to delete (in original group but not in current allocations)
-      const originalIds = group.log_ids;
-      const currentIds = existingAllocations.map(a => a.id);
-      const idsToDelete = originalIds.filter(id => !currentIds.includes(id));
+        if (firstProject.error) throw firstProject.error;
 
-      // Update existing allocations
-      for (const alloc of existingAllocations) {
-        const { error } = await supabase
-          .from('time_logs')
-          .update({
-            project_id: alloc.project_id,
-            trade_id: alloc.trade_id,
-            cost_code_id: alloc.cost_code_id,
-            hours_worked: alloc.hours_worked,
-            notes: alloc.notes
-          })
-          .eq('id', alloc.id);
+        for (const alloc of allocations) {
+          const { error } = await supabase
+            .from('time_logs')
+            .insert({
+              worker_id: selectedWorker,
+              date: format(selectedDate, 'yyyy-MM-dd'),
+              company_id: firstProject.data.company_id,
+              project_id: alloc.project_id,
+              trade_id: alloc.trade_id,
+              cost_code_id: alloc.cost_code_id,
+              hours_worked: alloc.hours_worked,
+              notes: alloc.notes,
+              source_schedule_id: null // Manual entry
+            });
 
-        if (error) throw error;
+          if (error) throw error;
+        }
+
+        toast({
+          title: 'Success',
+          description: 'Time log created successfully'
+        });
+      } else {
+        // Edit mode: existing logic
+        const existingAllocations = allocations.filter(a => !a.id.startsWith('new-'));
+        const newAllocations = allocations.filter(a => a.id.startsWith('new-'));
+
+        // Find allocations to delete
+        const originalIds = group!.log_ids;
+        const currentIds = existingAllocations.map(a => a.id);
+        const idsToDelete = originalIds.filter(id => !currentIds.includes(id));
+
+        // Update existing allocations
+        for (const alloc of existingAllocations) {
+          const { error } = await supabase
+            .from('time_logs')
+            .update({
+              project_id: alloc.project_id,
+              trade_id: alloc.trade_id,
+              cost_code_id: alloc.cost_code_id,
+              hours_worked: alloc.hours_worked,
+              notes: alloc.notes
+            })
+            .eq('id', alloc.id);
+
+          if (error) throw error;
+        }
+
+        // Insert new allocations
+        for (const alloc of newAllocations) {
+          const { error } = await supabase
+            .from('time_logs')
+            .insert({
+              worker_id: group!.worker_id,
+              date: group!.date,
+              company_id: group!.company_id,
+              project_id: alloc.project_id,
+              trade_id: alloc.trade_id,
+              cost_code_id: alloc.cost_code_id,
+              hours_worked: alloc.hours_worked,
+              notes: alloc.notes,
+              source_schedule_id: alloc.source_schedule_id
+            });
+
+          if (error) throw error;
+        }
+
+        // Delete removed allocations
+        if (idsToDelete.length > 0) {
+          const { error } = await supabase
+            .from('time_logs')
+            .delete()
+            .in('id', idsToDelete);
+
+          if (error) throw error;
+        }
+
+        toast({
+          title: 'Success',
+          description: 'Time entry updated successfully'
+        });
       }
-
-      // Insert new allocations
-      // CRITICAL: Preserve source_schedule_id from original (or NULL for manual entries)
-      for (const alloc of newAllocations) {
-        const { error } = await supabase
-          .from('time_logs')
-          .insert({
-            worker_id: group.worker_id,
-            date: group.date,
-            company_id: group.company_id,
-            project_id: alloc.project_id,
-            trade_id: alloc.trade_id,
-            cost_code_id: alloc.cost_code_id,
-            hours_worked: alloc.hours_worked,
-            notes: alloc.notes,
-            source_schedule_id: alloc.source_schedule_id // Keep same as original (or NULL)
-          });
-
-        if (error) throw error;
-      }
-
-      // Delete removed allocations
-      if (idsToDelete.length > 0) {
-        const { error } = await supabase
-          .from('time_logs')
-          .delete()
-          .in('id', idsToDelete);
-
-        if (error) throw error;
-      }
-
-      toast({
-        title: 'Success',
-        description: 'Time entry updated successfully'
-      });
 
       onSuccess();
     } catch (error: any) {
-      console.error('Error updating time entry:', error);
+      console.error('Error saving time entry:', error);
       toast({
         title: 'Error',
-        description: error.message || 'Failed to update time entry',
+        description: error.message || 'Failed to save time entry',
         variant: 'destructive'
       });
     } finally {
@@ -239,30 +319,62 @@ export function EditTimeEntryDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Edit Time Entry</DialogTitle>
+          <DialogTitle>{isAddMode ? 'Add Time Log' : 'Edit Time Entry'}</DialogTitle>
         </DialogHeader>
 
         {/* Header Info */}
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <User className="h-4 w-4 text-muted-foreground" />
-                  <span className="font-semibold">{group.worker_name}</span>
+        {!isAddMode ? (
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <User className="h-4 w-4 text-muted-foreground" />
+                    <span className="font-semibold">{group!.worker_name}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground ml-6">
+                    <Calendar className="h-3 w-3" />
+                    {format(new Date(group!.date), 'MMM d, yyyy')}
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground ml-6">
-                  <Calendar className="h-3 w-3" />
-                  {format(new Date(group.date), 'MMM d, yyyy')}
+                <div className="text-right">
+                  <div className="text-2xl font-bold">{totalHours.toFixed(1)}h</div>
+                  <div className="text-xs text-muted-foreground">Total Hours</div>
                 </div>
               </div>
-              <div className="text-right">
-                <div className="text-2xl font-bold">{totalHours.toFixed(1)}h</div>
-                <div className="text-xs text-muted-foreground">Total Hours</div>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card>
+            <CardContent className="p-4 space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Worker *</Label>
+                  <Select value={selectedWorker} onValueChange={setSelectedWorker}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select worker" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {workers?.map(worker => (
+                        <SelectItem key={worker.id} value={worker.id}>
+                          {worker.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Date *</Label>
+                  <DatePickerWithPresets
+                    date={selectedDate}
+                    onDateChange={setSelectedDate}
+                  />
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Allocations */}
         <div className="space-y-3">

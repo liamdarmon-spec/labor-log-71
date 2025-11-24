@@ -13,21 +13,27 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { format, subDays } from 'date-fns';
+import { DatePickerWithPresets } from '@/components/ui/date-picker-with-presets';
+import { format, subDays, startOfMonth } from 'date-fns';
 import { UniversalTimeLogDrawer } from '@/components/unified/UniversalTimeLogDrawer';
 import { SplitTimeLogDialog } from '@/components/unified/SplitTimeLogDialog';
+import { EditTimeEntryDialog } from '@/components/workforce/EditTimeEntryDialog';
 import { GroupedTimeLogsTable } from '@/components/workforce/GroupedTimeLogsTable';
 import { groupTimeLogsByWorkerAndDate, GroupedTimeLog, TimeLogEntry } from '@/lib/timeLogGrouping';
 import { toast } from 'sonner';
+import { Plus } from 'lucide-react';
 
 export function WorkforceTimeLogsTab() {
-  const [dateRange, setDateRange] = useState('7'); // days
+  const [dateRange, setDateRange] = useState('7'); // preset values: '7', '30', 'month', 'custom'
+  const [customStartDate, setCustomStartDate] = useState<Date | undefined>();
+  const [customEndDate, setCustomEndDate] = useState<Date | undefined>();
   const [selectedCompany, setSelectedCompany] = useState<string>('all');
   const [selectedWorker, setSelectedWorker] = useState<string>('all');
   const [selectedProject, setSelectedProject] = useState<string>('all');
   const [paymentFilter, setPaymentFilter] = useState<string>('all');
   const [selectedLogs, setSelectedLogs] = useState<Set<string>>(new Set());
   const [selectedGroup, setSelectedGroup] = useState<GroupedTimeLog | null>(null);
+  const [addTimeLogOpen, setAddTimeLogOpen] = useState(false);
   const [splitTimeLogData, setSplitTimeLogData] = useState<{
     timeLogId: string;
     workerName: string;
@@ -70,11 +76,32 @@ export function WorkforceTimeLogsTab() {
     },
   });
 
+  // Compute effective date range
+  const getEffectiveDateRange = () => {
+    if (dateRange === 'custom') {
+      return {
+        start: customStartDate ? format(customStartDate, 'yyyy-MM-dd') : format(subDays(new Date(), 7), 'yyyy-MM-dd'),
+        end: customEndDate ? format(customEndDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd')
+      };
+    } else if (dateRange === 'month') {
+      return {
+        start: format(startOfMonth(new Date()), 'yyyy-MM-dd'),
+        end: format(new Date(), 'yyyy-MM-dd')
+      };
+    } else {
+      const days = parseInt(dateRange);
+      return {
+        start: format(subDays(new Date(), days), 'yyyy-MM-dd'),
+        end: format(new Date(), 'yyyy-MM-dd')
+      };
+    }
+  };
+
   // Fetch time logs (CANONICAL: from time_logs table)
   const { data: timeLogs, isLoading, refetch } = useQuery({
-    queryKey: ['workforce-time-logs', dateRange, selectedCompany, selectedWorker, selectedProject, paymentFilter],
+    queryKey: ['workforce-time-logs', dateRange, customStartDate, customEndDate, selectedCompany, selectedWorker, selectedProject, paymentFilter],
     queryFn: async () => {
-      const startDate = subDays(new Date(), parseInt(dateRange));
+      const { start, end } = getEffectiveDateRange();
       
       let query = supabase
         .from('time_logs')
@@ -96,7 +123,8 @@ export function WorkforceTimeLogsTab() {
           trades(name),
           cost_codes(code, name)
         `)
-        .gte('date', format(startDate, 'yyyy-MM-dd'))
+        .gte('date', start)
+        .lte('date', end)
         .order('date', { ascending: false })
         .limit(500);
 
@@ -189,75 +217,96 @@ export function WorkforceTimeLogsTab() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h3 className="text-xl font-bold">Time Logs</h3>
-        <p className="text-sm text-muted-foreground">
-          View and manage actual hours worked
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-xl font-bold">Time Logs</h3>
+          <p className="text-sm text-muted-foreground">
+            View and manage actual hours worked
+          </p>
+        </div>
+        <Button onClick={() => setAddTimeLogOpen(true)}>
+          <Plus className="h-4 w-4 mr-2" />
+          Add Time Log
+        </Button>
       </div>
 
       {/* Filters */}
       <Card>
         <CardContent className="p-4">
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-            <Select value={dateRange} onValueChange={setDateRange}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="7">Last 7 days</SelectItem>
-                <SelectItem value="14">Last 14 days</SelectItem>
-                <SelectItem value="30">Last 30 days</SelectItem>
-                <SelectItem value="90">Last 90 days</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+              <Select value={dateRange} onValueChange={setDateRange}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="7">Last 7 days</SelectItem>
+                  <SelectItem value="30">Last 30 days</SelectItem>
+                  <SelectItem value="month">This month</SelectItem>
+                  <SelectItem value="custom">Custom range</SelectItem>
+                </SelectContent>
+              </Select>
 
-            <Select value={selectedCompany} onValueChange={setSelectedCompany}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Companies</SelectItem>
-                {companies?.map(company => (
-                  <SelectItem key={company.id} value={company.id}>{company.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              {dateRange === 'custom' && (
+                <>
+                  <DatePickerWithPresets
+                    date={customStartDate || new Date()}
+                    onDateChange={setCustomStartDate}
+                  />
+                  <DatePickerWithPresets
+                    date={customEndDate || new Date()}
+                    onDateChange={setCustomEndDate}
+                  />
+                </>
+              )}
 
-            <Select value={selectedWorker} onValueChange={setSelectedWorker}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Workers</SelectItem>
-                {workers?.map(worker => (
-                  <SelectItem key={worker.id} value={worker.id}>{worker.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              <Select value={selectedCompany} onValueChange={setSelectedCompany}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Companies</SelectItem>
+                  {companies?.map(company => (
+                    <SelectItem key={company.id} value={company.id}>{company.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
 
-            <Select value={selectedProject} onValueChange={setSelectedProject}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Projects</SelectItem>
-                {projects?.map(project => (
-                  <SelectItem key={project.id} value={project.id}>{project.project_name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              <Select value={selectedWorker} onValueChange={setSelectedWorker}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Workers</SelectItem>
+                  {workers?.map(worker => (
+                    <SelectItem key={worker.id} value={worker.id}>{worker.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
 
-            <Select value={paymentFilter} onValueChange={setPaymentFilter}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="unpaid">Unpaid</SelectItem>
-                <SelectItem value="paid">Paid</SelectItem>
-              </SelectContent>
-            </Select>
+              <Select value={selectedProject} onValueChange={setSelectedProject}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Projects</SelectItem>
+                  {projects?.map(project => (
+                    <SelectItem key={project.id} value={project.id}>{project.project_name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select value={paymentFilter} onValueChange={setPaymentFilter}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="unpaid">Unpaid</SelectItem>
+                  <SelectItem value="paid">Paid</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -300,6 +349,46 @@ export function WorkforceTimeLogsTab() {
           />
         </CardContent>
       </Card>
+
+      {/* Edit Time Entry Dialog (for viewing existing entries) */}
+      {selectedGroup && (
+        <EditTimeEntryDialog
+          open={!!selectedGroup}
+          onOpenChange={(open) => !open && setSelectedGroup(null)}
+          group={selectedGroup}
+          onSuccess={() => {
+            refetch();
+            setSelectedGroup(null);
+          }}
+        />
+      )}
+
+      {/* Add New Time Log Dialog */}
+      {addTimeLogOpen && (
+        <EditTimeEntryDialog
+          open={addTimeLogOpen}
+          onOpenChange={setAddTimeLogOpen}
+          group={{
+            worker_id: '',
+            worker_name: '',
+            worker_trade: null,
+            company_id: '',
+            company_name: '',
+            date: format(new Date(), 'yyyy-MM-dd'),
+            total_hours: 0,
+            total_cost: 0,
+            payment_status: 'unpaid',
+            log_ids: [],
+            projects: [],
+            earliest_log_id: 'new'
+          }}
+          onSuccess={() => {
+            refetch();
+            setAddTimeLogOpen(false);
+            toast.success('Time log created successfully');
+          }}
+        />
+      )}
 
       {/* Split Time Log Dialog */}
       {splitTimeLogData && (
