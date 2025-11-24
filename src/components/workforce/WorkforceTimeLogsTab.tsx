@@ -1,14 +1,24 @@
+/**
+ * WorkforceTimeLogsTab - Unified time log display for Workforce OS
+ * 
+ * CANONICAL: Queries time_logs table only
+ * Uses grouped display: one row per worker per day
+ */
+
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { format, subDays } from 'date-fns';
 import { UniversalTimeLogDrawer } from '@/components/unified/UniversalTimeLogDrawer';
+import { SplitTimeLogDialog } from '@/components/unified/SplitTimeLogDialog';
+import { GroupedTimeLogsTable } from '@/components/workforce/GroupedTimeLogsTable';
+import { groupTimeLogsByWorkerAndDate, GroupedTimeLog, TimeLogEntry } from '@/lib/timeLogGrouping';
+import { toast } from 'sonner';
 
 export function WorkforceTimeLogsTab() {
   const [dateRange, setDateRange] = useState('7'); // days
@@ -16,7 +26,15 @@ export function WorkforceTimeLogsTab() {
   const [selectedWorker, setSelectedWorker] = useState<string>('all');
   const [selectedProject, setSelectedProject] = useState<string>('all');
   const [paymentFilter, setPaymentFilter] = useState<string>('all');
-  const [selectedLog, setSelectedLog] = useState<any>(null);
+  const [selectedLogs, setSelectedLogs] = useState<Set<string>>(new Set());
+  const [selectedGroup, setSelectedGroup] = useState<GroupedTimeLog | null>(null);
+  const [splitTimeLogData, setSplitTimeLogData] = useState<{
+    timeLogId: string;
+    workerName: string;
+    date: string;
+    hours: number;
+    projectId: string;
+  } | null>(null);
 
   // Fetch companies
   const { data: companies } = useQuery({
@@ -52,7 +70,7 @@ export function WorkforceTimeLogsTab() {
     },
   });
 
-  // Fetch time logs from time_logs (canonical table)
+  // Fetch time logs (CANONICAL: from time_logs table)
   const { data: timeLogs, isLoading, refetch } = useQuery({
     queryKey: ['workforce-time-logs', dateRange, selectedCompany, selectedWorker, selectedProject, paymentFilter],
     queryFn: async () => {
@@ -73,8 +91,8 @@ export function WorkforceTimeLogsTab() {
           payment_status,
           paid_amount,
           source_schedule_id,
-          workers!inner(name, trade, hourly_rate),
-          projects!inner(project_name, company_id, companies(name)),
+          workers!inner(id, name, trade, hourly_rate),
+          projects!inner(id, project_name, client_name, company_id, companies(name)),
           trades(name),
           cost_codes(code, name)
         `)
@@ -102,26 +120,67 @@ export function WorkforceTimeLogsTab() {
 
       const { data, error } = await query;
       if (error) throw error;
-      return data || [];
+      return (data || []) as TimeLogEntry[];
     },
   });
 
-  // Calculate totals
-  const totalHours = timeLogs?.reduce((sum, log) => sum + log.hours_worked, 0) || 0;
-  const totalAmount = timeLogs?.reduce((sum, log) => {
-    const rate = log.workers?.hourly_rate || 0;
-    return sum + (log.hours_worked * rate);
-  }, 0) || 0;
+  // Group time logs by worker + date
+  const groupedLogs = timeLogs ? groupTimeLogsByWorkerAndDate(timeLogs) : [];
 
-  const getPaymentStatusBadge = (status: string) => {
-    switch (status) {
-      case 'paid':
-        return <Badge className="bg-green-100 text-green-700 hover:bg-green-100">Paid</Badge>;
-      case 'unpaid':
-        return <Badge className="bg-orange-100 text-orange-700 hover:bg-orange-100">Unpaid</Badge>;
-      default:
-        return <Badge variant="outline">Unknown</Badge>;
+  // Calculate totals
+  const totalHours = groupedLogs.reduce((sum, group) => sum + group.total_hours, 0);
+  const totalAmount = groupedLogs.reduce((sum, group) => sum + group.total_cost, 0);
+
+  const handleSelectLog = (logId: string, checked: boolean) => {
+    const newSelected = new Set(selectedLogs);
+    if (checked) {
+      newSelected.add(logId);
+    } else {
+      newSelected.delete(logId);
     }
+    setSelectedLogs(newSelected);
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      const allIds = groupedLogs.flatMap(g => g.log_ids);
+      setSelectedLogs(new Set(allIds));
+    } else {
+      setSelectedLogs(new Set());
+    }
+  };
+
+  const handleSelectGroup = (group: GroupedTimeLog) => {
+    const newSelected = new Set(selectedLogs);
+    const allSelected = group.log_ids.every(id => newSelected.has(id));
+
+    if (allSelected) {
+      group.log_ids.forEach(id => newSelected.delete(id));
+    } else {
+      group.log_ids.forEach(id => newSelected.add(id));
+    }
+    
+    setSelectedLogs(newSelected);
+  };
+
+  const handleEditGroup = (group: GroupedTimeLog) => {
+    setSelectedGroup(group);
+  };
+
+  const handleSplitGroup = (group: GroupedTimeLog) => {
+    if (group.projects.length !== 1) {
+      toast.error('Can only split entries with a single project');
+      return;
+    }
+
+    const project = group.projects[0];
+    setSplitTimeLogData({
+      timeLogId: project.id,
+      workerName: group.worker_name,
+      date: group.date,
+      hours: project.hours,
+      projectId: project.project_id,
+    });
   };
 
   if (isLoading) {
@@ -207,8 +266,8 @@ export function WorkforceTimeLogsTab() {
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
         <Card>
           <CardContent className="pt-6">
-            <p className="text-sm text-muted-foreground mb-1">Total Logs</p>
-            <p className="text-2xl font-bold">{timeLogs?.length || 0}</p>
+            <p className="text-sm text-muted-foreground mb-1">Total Entries</p>
+            <p className="text-2xl font-bold">{groupedLogs.length}</p>
           </CardContent>
         </Card>
         <Card>
@@ -225,148 +284,38 @@ export function WorkforceTimeLogsTab() {
         </Card>
       </div>
 
-      {/* Table */}
+      {/* Grouped Table */}
       <Card>
         <CardContent className="p-0">
-          {timeLogs && timeLogs.length > 0 ? (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Worker</TableHead>
-                    <TableHead>Company</TableHead>
-                    <TableHead>Project</TableHead>
-                    <TableHead>Trade</TableHead>
-                    <TableHead className="text-right">Hours</TableHead>
-                    <TableHead className="text-right">Rate</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
-                    <TableHead>Payment</TableHead>
-                    <TableHead></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {timeLogs.map((log: any) => {
-                    const rate = log.workers?.hourly_rate || 0;
-                    const amount = log.hours_worked * rate;
-                    
-                    return (
-                      <TableRow 
-                        key={log.id}
-                        className="cursor-pointer hover:bg-accent"
-                        onClick={() => setSelectedLog({
-                          id: log.id,
-                          worker_id: log.worker_id,
-                          project_id: log.project_id,
-                          trade_id: log.trade_id,
-                          cost_code_id: log.cost_code_id,
-                          date: log.date,
-                          hours_worked: log.hours_worked,
-                          notes: log.notes,
-                          payment_status: log.payment_status,
-                          paid_amount: log.paid_amount,
-                          source_schedule_id: log.source_schedule_id,
-                          worker: log.workers ? {
-                            name: log.workers.name,
-                            trade: log.workers.trade,
-                            hourly_rate: log.workers.hourly_rate
-                          } : null,
-                          project: log.projects ? {
-                            project_name: log.projects.project_name,
-                            client_name: ''
-                          } : null,
-                          trade: log.trades ? {
-                            name: log.trades.name
-                          } : null,
-                          cost_code: log.cost_codes ? {
-                            code: log.cost_codes.code,
-                            name: log.cost_codes.name
-                          } : null,
-                          payment: null
-                        })}
-                      >
-                        <TableCell>{format(new Date(log.date), 'MMM d, yyyy')}</TableCell>
-                        <TableCell className="font-medium">{log.workers?.name}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline">
-                            {log.projects?.companies?.name || 'N/A'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{log.projects?.project_name}</TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {log.trades?.name || log.workers?.trade}
-                        </TableCell>
-                        <TableCell className="text-right">{log.hours_worked}h</TableCell>
-                        <TableCell className="text-right">${rate.toFixed(2)}/hr</TableCell>
-                        <TableCell className="text-right font-semibold">
-                          ${amount.toFixed(2)}
-                        </TableCell>
-                        <TableCell>{getPaymentStatusBadge(log.payment_status)}</TableCell>
-                        <TableCell>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedLog({
-                                id: log.id,
-                                worker_id: log.worker_id,
-                                project_id: log.project_id,
-                                trade_id: log.trade_id,
-                                cost_code_id: log.cost_code_id,
-                                date: log.date,
-                                hours_worked: log.hours_worked,
-                                notes: log.notes,
-                                payment_status: log.payment_status,
-                                paid_amount: log.paid_amount,
-                                source_schedule_id: log.source_schedule_id,
-                                worker: log.workers ? {
-                                  name: log.workers.name,
-                                  trade: log.workers.trade,
-                                  hourly_rate: log.workers.hourly_rate
-                                } : null,
-                                project: log.projects ? {
-                                  project_name: log.projects.project_name,
-                                  client_name: ''
-                                } : null,
-                                trade: log.trades ? {
-                                  name: log.trades.name
-                                } : null,
-                                cost_code: log.cost_codes ? {
-                                  code: log.cost_codes.code,
-                                  name: log.cost_codes.name
-                                } : null,
-                                payment: null
-                              });
-                            }}
-                          >
-                            View
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
-          ) : (
-            <div className="p-12 text-center text-muted-foreground">
-              <p className="text-lg font-medium mb-2">No time logs found</p>
-              <p className="text-sm">Try adjusting your filters or date range</p>
-            </div>
-          )}
+          <GroupedTimeLogsTable
+            groups={groupedLogs}
+            selectedLogs={selectedLogs}
+            onSelectLog={handleSelectLog}
+            onSelectAll={handleSelectAll}
+            onSelectGroup={handleSelectGroup}
+            onEditGroup={handleEditGroup}
+            onSplitGroup={handleSplitGroup}
+            showSelection={false}
+            showActions={true}
+          />
         </CardContent>
       </Card>
 
-      {/* Time Log Drawer */}
-      {selectedLog && (
-        <UniversalTimeLogDrawer
-          open={!!selectedLog}
-          onOpenChange={(open) => {
-            if (!open) setSelectedLog(null);
+      {/* Split Time Log Dialog */}
+      {splitTimeLogData && (
+        <SplitTimeLogDialog
+          isOpen={!!splitTimeLogData}
+          onClose={() => setSplitTimeLogData(null)}
+          timeLogId={splitTimeLogData.timeLogId}
+          workerName={splitTimeLogData.workerName}
+          originalDate={splitTimeLogData.date}
+          originalHours={splitTimeLogData.hours}
+          originalProjectId={splitTimeLogData.projectId}
+          onSuccess={() => {
+            refetch();
+            setSplitTimeLogData(null);
+            toast.success('Time log split successfully');
           }}
-          timeLog={selectedLog}
-          onRefresh={() => refetch()}
         />
       )}
     </div>
