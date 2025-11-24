@@ -24,7 +24,7 @@ import { toast } from 'sonner';
 import { Plus } from 'lucide-react';
 
 export function WorkforceTimeLogsTab() {
-  const [dateRange, setDateRange] = useState('7'); // preset values: '7', '30', 'month', 'custom'
+  const [dateRange, setDateRange] = useState('30'); // DEFAULT: 30 days to show all recent time logs including manual entries
   const [customStartDate, setCustomStartDate] = useState<Date | undefined>();
   const [customEndDate, setCustomEndDate] = useState<Date | undefined>();
   const [selectedCompany, setSelectedCompany] = useState<string>('all');
