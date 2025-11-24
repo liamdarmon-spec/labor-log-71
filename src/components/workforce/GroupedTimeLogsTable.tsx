@@ -120,9 +120,13 @@ export function GroupedTimeLogsTable({
                 </TableCell>
                 <TableCell className="font-medium">{group.worker_name}</TableCell>
                 <TableCell>
-                  <Badge variant="outline" className="bg-primary/10 text-primary">
-                    {group.worker_trade || 'N/A'}
-                  </Badge>
+                  {group.worker_trade && (
+                    <Badge variant="outline" className="bg-primary/10 text-primary">
+                      {group.projects.length === 1 
+                        ? (group.projects[0].trade_name || group.worker_trade)
+                        : 'Mixed trades'}
+                    </Badge>
+                  )}
                 </TableCell>
                 <TableCell>
                   <Badge variant="outline">
@@ -132,7 +136,7 @@ export function GroupedTimeLogsTable({
                 <TableCell>
                   <div className="flex flex-col gap-2">
                     {(() => {
-                      // Display projects in pairs
+                      // Display projects in pairs with project name · trade · hours format
                       const pairs = [];
                       for (let i = 0; i < group.projects.length; i += 2) {
                         pairs.push(group.projects.slice(i, i + 2));
@@ -145,6 +149,8 @@ export function GroupedTimeLogsTable({
                               className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs bg-accent/50 border border-border whitespace-nowrap"
                             >
                               <span className="font-medium">{project.project_name}</span>
+                              <span className="text-muted-foreground">·</span>
+                              <span className="text-muted-foreground">{project.trade_name || 'No Trade'}</span>
                               <span className="text-muted-foreground">·</span>
                               <span className="font-semibold text-primary">{project.hours}h</span>
                             </div>
