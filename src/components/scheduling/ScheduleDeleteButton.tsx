@@ -37,9 +37,9 @@ export function ScheduleDeleteButton({ scheduleId, scheduleDate, onSuccess }: Sc
 
   const checkForTimeLog = async () => {
     const { data, error } = await supabase
-      .from("time_logs")
+      .from("daily_logs")
       .select("id")
-      .eq("source_schedule_id", scheduleId);
+      .eq("schedule_id", scheduleId);
 
     if (error) {
       console.error("Error checking for time log:", error);
@@ -83,11 +83,11 @@ export function ScheduleDeleteButton({ scheduleId, scheduleDate, onSuccess }: Sc
   const handleKeepTimeLog = async () => {
     setLoading(true);
 
-    // Set source_schedule_id to NULL on all related time logs
+    // Set schedule_id to NULL on all related daily logs
     if (timeLogIds.length > 0) {
       const { error: updateError } = await supabase
-        .from("time_logs")
-        .update({ source_schedule_id: null })
+        .from("daily_logs")
+        .update({ schedule_id: null })
         .in("id", timeLogIds);
 
       if (updateError) {
@@ -129,10 +129,10 @@ export function ScheduleDeleteButton({ scheduleId, scheduleDate, onSuccess }: Sc
   const handleDeleteBoth = async () => {
     setLoading(true);
 
-    // Delete time logs first
+    // Delete daily logs first
     if (timeLogIds.length > 0) {
       const { error: logError } = await supabase
-        .from("time_logs")
+        .from("daily_logs")
         .delete()
         .in("id", timeLogIds);
 

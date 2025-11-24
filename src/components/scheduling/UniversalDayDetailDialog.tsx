@@ -132,7 +132,7 @@ export function UniversalDayDetailDialog({
   const handleConvertToTimeLogs = async () => {
     if (!date) return;
 
-    // Mark schedules as converted - triggers will create time_logs
+    // Mark schedules as converted - triggers will create daily_logs
     const scheduleIds = selectedSchedules.map(s => s.id);
     const { error: updateError } = await supabase
       .from("work_schedules")
