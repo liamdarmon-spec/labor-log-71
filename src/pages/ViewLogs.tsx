@@ -16,6 +16,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { SingleEntryTab } from '@/components/dashboard/SingleEntryTab';
 import { BulkEntryTab } from '@/components/dashboard/BulkEntryTab';
 import { SplitScheduleDialog } from '@/components/dashboard/SplitScheduleDialog';
+import { SplitTimeLogDialog } from '@/components/unified/SplitTimeLogDialog';
 
 interface LogEntry {
   id: string;
@@ -92,6 +93,13 @@ const ViewLogs = () => {
   const [selectedGroup, setSelectedGroup] = useState<GroupedLogEntry | null>(null);
   const [splitScheduleData, setSplitScheduleData] = useState<{
     scheduleId: string;
+    workerName: string;
+    date: string;
+    hours: number;
+    projectId: string;
+  } | null>(null);
+  const [splitTimeLogData, setSplitTimeLogData] = useState<{
+    timeLogId: string;
     workerName: string;
     date: string;
     hours: number;
@@ -815,15 +823,15 @@ const ViewLogs = () => {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex gap-1 justify-end">
-                          {/* Show split button if there's a linked schedule and single project */}
-                          {group.entries.length === 1 && group.entries[0].source_schedule_id && (
+                          {/* Show split button for single-project entries */}
+                          {group.entries.length === 1 && (
                             <Button
                               variant="ghost"
                               size="sm"
                               onClick={() => {
                                 const entry = group.entries[0];
-                                setSplitScheduleData({
-                                  scheduleId: entry.source_schedule_id!,
+                                setSplitTimeLogData({
+                                  timeLogId: entry.id,
                                   workerName: group.worker_name,
                                   date: group.date,
                                   hours: entry.hours_worked,
@@ -1055,19 +1063,19 @@ const ViewLogs = () => {
           </DialogContent>
         </Dialog>
 
-        {/* Split Schedule Dialog */}
-        {splitScheduleData && (
-          <SplitScheduleDialog
-            isOpen={!!splitScheduleData}
-            onClose={() => setSplitScheduleData(null)}
-            scheduleId={splitScheduleData.scheduleId}
-            workerName={splitScheduleData.workerName}
-            originalDate={splitScheduleData.date}
-            originalHours={splitScheduleData.hours}
-            originalProjectId={splitScheduleData.projectId}
+        {/* Split Time Log Dialog */}
+        {splitTimeLogData && (
+          <SplitTimeLogDialog
+            isOpen={!!splitTimeLogData}
+            onClose={() => setSplitTimeLogData(null)}
+            timeLogId={splitTimeLogData.timeLogId}
+            workerName={splitTimeLogData.workerName}
+            originalDate={splitTimeLogData.date}
+            originalHours={splitTimeLogData.hours}
+            originalProjectId={splitTimeLogData.projectId}
             onSuccess={() => {
               fetchData();
-              setSplitScheduleData(null);
+              setSplitTimeLogData(null);
             }}
           />
         )}

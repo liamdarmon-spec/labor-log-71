@@ -5649,6 +5649,13 @@ export type Database = {
           time_log_id: string
         }[]
       }
+      split_time_log_for_multi_project: {
+        Args: { p_entries: Json; p_original_time_log_id: string }
+        Returns: {
+          schedule_id: string
+          time_log_id: string
+        }[]
+      }
       split_work_schedule_for_multi_project: {
         Args: { p_original_schedule_id: string; p_time_log_entries: Json }
         Returns: {

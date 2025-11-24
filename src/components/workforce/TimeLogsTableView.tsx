@@ -13,6 +13,7 @@ import { useNavigate } from 'react-router-dom';
 import { DollarSign } from 'lucide-react';
 import { toast } from 'sonner';
 import { SplitScheduleDialog } from '@/components/dashboard/SplitScheduleDialog';
+import { SplitTimeLogDialog } from '@/components/unified/SplitTimeLogDialog';
 import { TimeLogDetailDrawer } from '@/components/unified/TimeLogDetailDrawer';
 import { useWorkersSimple } from '@/hooks/useWorkers';
 import { useProjectsSimple } from '@/hooks/useProjects';
@@ -39,6 +40,7 @@ export function TimeLogsTableView({ initialWorkerId, initialDate, initialProject
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [splitDialogOpen, setSplitDialogOpen] = useState(false);
   const [scheduleToSplit, setScheduleToSplit] = useState<any>(null);
+  const [timeLogToSplit, setTimeLogToSplit] = useState<any>(null);
 
   const getDateRange = () => {
     const now = new Date();
@@ -414,38 +416,35 @@ export function TimeLogsTableView({ initialWorkerId, initialDate, initialProject
           if (!open) setSelectedLog(null);
         }}
         onSplit={(log) => {
-          if (log.source_schedule_id) {
-            setScheduleToSplit({
-              id: log.source_schedule_id,
-              workerName: log.workers?.name,
-              originalDate: log.date,
-              originalHours: log.hours_worked,
-              originalProjectId: log.project_id,
-            });
-            setSplitDialogOpen(true);
-          } else {
-            toast.error('Cannot split time log without linked schedule');
-          }
+          // Always allow splitting time logs directly
+          setTimeLogToSplit({
+            id: log.id,
+            workerName: log.workers?.name,
+            originalDate: log.date,
+            originalHours: log.hours_worked,
+            originalProjectId: log.project_id,
+          });
+          setSplitDialogOpen(true);
         }}
       />
 
-      {/* Split Schedule Dialog */}
-      {scheduleToSplit && (
-        <SplitScheduleDialog
+      {/* Split Time Log Dialog */}
+      {timeLogToSplit && (
+        <SplitTimeLogDialog
           isOpen={splitDialogOpen}
           onClose={() => {
             setSplitDialogOpen(false);
-            setScheduleToSplit(null);
+            setTimeLogToSplit(null);
           }}
-          scheduleId={scheduleToSplit.id}
-          workerName={scheduleToSplit.workerName}
-          originalDate={scheduleToSplit.originalDate}
-          originalHours={scheduleToSplit.originalHours}
-          originalProjectId={scheduleToSplit.originalProjectId}
+          timeLogId={timeLogToSplit.id}
+          workerName={timeLogToSplit.workerName}
+          originalDate={timeLogToSplit.originalDate}
+          originalHours={timeLogToSplit.originalHours}
+          originalProjectId={timeLogToSplit.originalProjectId}
           onSuccess={() => {
             queryClient.invalidateQueries({ queryKey: ['time-logs-table'] });
             setSplitDialogOpen(false);
-            setScheduleToSplit(null);
+            setTimeLogToSplit(null);
             setDrawerOpen(false);
             setSelectedLog(null);
             toast.success('Time log split successfully');
