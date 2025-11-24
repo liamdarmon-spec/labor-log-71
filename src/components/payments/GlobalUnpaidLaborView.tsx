@@ -41,13 +41,15 @@ export const GlobalUnpaidLaborView = () => {
     try {
       setLoading(true);
 
-      // Get all unpaid logs with project and company info
+      // CANONICAL: Get all unpaid time_logs with project and company info
       const { data: unpaidLogs, error } = await supabase
-        .from('daily_logs')
+        .from('time_logs')
         .select(`
           id,
           date,
           hours_worked,
+          hourly_rate,
+          labor_cost,
           project_id,
           workers (hourly_rate),
           projects (
@@ -98,7 +100,8 @@ export const GlobalUnpaidLaborView = () => {
           company.projects.push(project);
         }
 
-        const amount = log.hours_worked * (log.workers?.hourly_rate || 0);
+        // Use labor_cost if available (from trigger), otherwise calculate
+        const amount = log.labor_cost || (log.hours_worked * (log.hourly_rate || log.workers?.hourly_rate || 0));
         project.log_count++;
         project.total_hours += log.hours_worked;
         project.total_amount += amount;

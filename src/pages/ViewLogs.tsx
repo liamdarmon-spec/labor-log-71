@@ -25,7 +25,10 @@ interface LogEntry {
   worker_id: string;
   project_id: string;
   trade_id: string | null;
-  schedule_id: string | null;
+  source_schedule_id: string | null; // CANONICAL: from time_logs (not schedule_id)
+  payment_status: string | null; // CANONICAL: time_logs has payment_status
+  paid_amount: number | null; // CANONICAL: time_logs has paid_amount
+  labor_cost: number | null; // CANONICAL: time_logs has labor_cost
   workers: { 
     name: string; 
     hourly_rate: number;
@@ -118,15 +121,15 @@ const ViewLogs = () => {
   useEffect(() => {
     fetchData();
 
-    // Set up realtime subscription for new entries
+    // Set up realtime subscription for new entries (CANONICAL: time_logs)
     const channel = supabase
-      .channel('daily-logs-changes')
+      .channel('time-logs-changes')
       .on(
         'postgres_changes',
         {
           event: 'INSERT',
           schema: 'public',
-          table: 'daily_logs'
+          table: 'time_logs'
         },
         (payload) => {
           console.log('New entry detected:', payload);
@@ -195,9 +198,9 @@ const ViewLogs = () => {
   };
 
   const fetchData = async () => {
-    // Fetch logs with relationships
+    // CANONICAL: Fetch from time_logs (not daily_logs)
     const { data: logsData, error: logsError } = await supabase
-      .from('daily_logs')
+      .from('time_logs')
       .select(`
         *,
         workers (
@@ -292,27 +295,27 @@ const ViewLogs = () => {
       filtered = filtered.filter(log => log.date <= filters.endDate);
     }
 
-    // Worker filter
+    // Worker filter (CANONICAL: time_logs)
     if (filters.workerId && filters.workerId !== 'all') {
       const { data: workerLogs } = await supabase
-        .from('daily_logs')
+        .from('time_logs')
         .select('id')
         .eq('worker_id', filters.workerId);
       const workerLogIds = new Set(workerLogs?.map(l => l.id) || []);
       filtered = filtered.filter(log => workerLogIds.has(log.id));
     }
 
-    // Project filter
+    // Project filter (CANONICAL: time_logs)
     if (filters.projectId && filters.projectId !== 'all') {
       const { data: projectLogs } = await supabase
-        .from('daily_logs')
+        .from('time_logs')
         .select('id')
         .eq('project_id', filters.projectId);
       const projectLogIds = new Set(projectLogs?.map(l => l.id) || []);
       filtered = filtered.filter(log => projectLogIds.has(log.id));
     }
 
-    // Trade filter
+    // Trade filter (CANONICAL: time_logs)
     if (filters.tradeId && filters.tradeId !== 'all') {
       const { data: workerIds } = await supabase
         .from('workers')
@@ -320,7 +323,7 @@ const ViewLogs = () => {
         .eq('trade_id', filters.tradeId);
       const tradeWorkerIds = new Set(workerIds?.map(w => w.id) || []);
       const { data: tradeLogs } = await supabase
-        .from('daily_logs')
+        .from('time_logs')
         .select('id, worker_id');
       const tradeLogIds = new Set(
         tradeLogs?.filter(l => tradeWorkerIds.has(l.worker_id))?.map(l => l.id) || []
@@ -404,12 +407,12 @@ const ViewLogs = () => {
   const handleMassDelete = async () => {
     if (selectedLogs.size === 0) return;
 
-    // Check if any of the selected logs are linked to schedules
+    // CANONICAL: Check if any time logs are linked to schedules via source_schedule_id
     const { data: logsWithSchedules } = await supabase
-      .from('daily_logs')
-      .select('id, schedule_id')
+      .from('time_logs')
+      .select('id, source_schedule_id')
       .in('id', Array.from(selectedLogs))
-      .not('schedule_id', 'is', null);
+      .not('source_schedule_id', 'is', null);
 
     const linkedCount = logsWithSchedules?.length || 0;
     
@@ -423,7 +426,7 @@ const ViewLogs = () => {
 
     // Delete linked schedules first if they exist
     if (linkedCount > 0) {
-      const scheduleIds = logsWithSchedules?.map(log => log.schedule_id).filter(Boolean) || [];
+      const scheduleIds = logsWithSchedules?.map(log => log.source_schedule_id).filter(Boolean) || [];
       if (scheduleIds.length > 0) {
         const { error: scheduleError } = await supabase
           .from('work_schedules')
@@ -441,8 +444,9 @@ const ViewLogs = () => {
       }
     }
 
+    // CANONICAL: Delete from time_logs
     const { error } = await supabase
-      .from('daily_logs')
+      .from('time_logs')
       .delete()
       .in('id', Array.from(selectedLogs));
 
@@ -477,8 +481,10 @@ const ViewLogs = () => {
   const handleUpdateLog = async () => {
     if (!editingLog) return;
 
+    // CANONICAL: Update time_logs (not daily_logs)
+    // If source_schedule_id exists, trigger will sync back to work_schedules
     const { error } = await supabase
-      .from('daily_logs')
+      .from('time_logs')
       .update({
         date: editForm.date,
         worker_id: editForm.worker_id,
@@ -810,14 +816,14 @@ const ViewLogs = () => {
                       <TableCell className="text-right">
                         <div className="flex gap-1 justify-end">
                           {/* Show split button if there's a linked schedule and single project */}
-                          {group.entries.length === 1 && group.entries[0].schedule_id && (
+                          {group.entries.length === 1 && group.entries[0].source_schedule_id && (
                             <Button
                               variant="ghost"
                               size="sm"
                               onClick={() => {
                                 const entry = group.entries[0];
                                 setSplitScheduleData({
-                                  scheduleId: entry.schedule_id!,
+                                  scheduleId: entry.source_schedule_id!,
                                   workerName: group.worker_name,
                                   date: group.date,
                                   hours: entry.hours_worked,
@@ -893,22 +899,22 @@ const ViewLogs = () => {
                       variant="destructive"
                       size="icon"
                       onClick={async () => {
-                        // Check if this log is linked to a schedule
+                        // CANONICAL: Check if this log is linked to a schedule via source_schedule_id
                         const logWithSchedule = logs.find(log => log.id === entry.id);
                         let confirmMessage = 'Are you sure you want to delete this entry?';
                         
-                        if (logWithSchedule?.schedule_id) {
+                        if (logWithSchedule?.source_schedule_id) {
                           confirmMessage += '\n\nThis entry is linked to a schedule. The linked schedule will also be deleted.';
                         }
                         
                         if (!confirm(confirmMessage)) return;
 
                         // Delete linked schedule first if it exists
-                        if (logWithSchedule?.schedule_id) {
+                        if (logWithSchedule?.source_schedule_id) {
                           const { error: scheduleError } = await supabase
                             .from('work_schedules')
                             .delete()
-                            .eq('id', logWithSchedule.schedule_id);
+                            .eq('id', logWithSchedule.source_schedule_id);
 
                           if (scheduleError) {
                             toast({
@@ -920,8 +926,9 @@ const ViewLogs = () => {
                           }
                         }
                         
+                        // CANONICAL: Delete from time_logs
                         const { error } = await supabase
-                          .from('daily_logs')
+                          .from('time_logs')
                           .delete()
                           .eq('id', entry.id);
 
@@ -934,7 +941,7 @@ const ViewLogs = () => {
                         } else {
                           toast({
                             title: 'Success',
-                            description: `Entry deleted successfully${logWithSchedule?.schedule_id ? ' and linked schedule removed' : ''}`,
+                            description: `Entry deleted successfully${logWithSchedule?.source_schedule_id ? ' and linked schedule removed' : ''}`,
                           });
                           setSelectedGroup(null);
                           fetchData();
