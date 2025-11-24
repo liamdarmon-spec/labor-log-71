@@ -1,3 +1,18 @@
+/**
+ * DayDetailDialog - Day-level schedule editor
+ * 
+ * CANONICAL: Uses work_schedules for scheduling data
+ * 
+ * This component displays all schedules for a specific day and allows:
+ * - Viewing schedule details with status indicators
+ * - Editing individual schedules via EditScheduleDialog
+ * - Splitting multi-project schedules via SplitScheduleDialog
+ * - Converting schedules to time logs
+ * - Deleting schedules
+ * 
+ * All writes go to work_schedules. Triggers handle time_logs sync.
+ */
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -104,7 +119,7 @@ export function DayDetailDialog({ open, onOpenChange, date, onRefresh, onAddSche
 
     const { data: userData } = await supabase.auth.getUser();
     
-    // Mark schedules as converted (the triggers will create daily_logs automatically)
+    // Mark schedules as converted (the triggers will create time_logs automatically)
     const scheduleIds = selectedSchedules.map(s => s.id);
     
     const { error } = await supabase
