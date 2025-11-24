@@ -28,6 +28,7 @@ interface TimeLogAllocation {
   cost_code_id: string | null;
   hours_worked: number;
   notes: string | null;
+  source_schedule_id: string | null; // FK to work_schedules
 }
 
 interface EditTimeEntryDialogProps {
@@ -99,7 +100,8 @@ export function EditTimeEntryDialog({
         trade_id: project.trade_id,
         cost_code_id: project.cost_code_id,
         hours_worked: project.hours,
-        notes: project.notes
+        notes: project.notes,
+        source_schedule_id: project.source_schedule_id || null
       }));
       setAllocations(initialAllocations);
     }
@@ -116,6 +118,9 @@ export function EditTimeEntryDialog({
   };
 
   const handleAddAllocation = () => {
+    // Get source_schedule_id from first allocation (they all share the same one)
+    const sourceScheduleId = allocations.length > 0 ? allocations[0].source_schedule_id : null;
+    
     setAllocations(prev => [
       ...prev,
       {
@@ -124,7 +129,8 @@ export function EditTimeEntryDialog({
         trade_id: null,
         cost_code_id: null,
         hours_worked: 0,
-        notes: null
+        notes: null,
+        source_schedule_id: sourceScheduleId
       }
     ]);
   };
@@ -182,6 +188,7 @@ export function EditTimeEntryDialog({
       }
 
       // Insert new allocations
+      // CRITICAL: Preserve source_schedule_id from original (or NULL for manual entries)
       for (const alloc of newAllocations) {
         const { error } = await supabase
           .from('time_logs')
@@ -193,7 +200,8 @@ export function EditTimeEntryDialog({
             trade_id: alloc.trade_id,
             cost_code_id: alloc.cost_code_id,
             hours_worked: alloc.hours_worked,
-            notes: alloc.notes
+            notes: alloc.notes,
+            source_schedule_id: alloc.source_schedule_id // Keep same as original (or NULL)
           });
 
         if (error) throw error;
