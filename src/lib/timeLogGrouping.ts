@@ -56,6 +56,7 @@ export interface ProjectSplit {
   trade_name: string | null;
   cost_code_id: string | null;
   cost_code: string | null;
+  source_schedule_id: string | null; // FK to work_schedules (or NULL for manual entries)
 }
 
 export interface GroupedTimeLog {
@@ -116,6 +117,7 @@ export function groupTimeLogsByWorkerAndDate(logs: TimeLogEntry[]): GroupedTimeL
       trade_name: log.trades?.name || log.workers?.trade || null,
       cost_code_id: log.cost_code_id,
       cost_code: log.cost_codes ? `${log.cost_codes.code}` : null,
+      source_schedule_id: log.source_schedule_id
     });
 
     group.total_hours += log.hours_worked;
