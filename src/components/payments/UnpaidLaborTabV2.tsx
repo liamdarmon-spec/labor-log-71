@@ -13,11 +13,12 @@ export function UnpaidLaborTabV2() {
   const navigate = useNavigate();
   const [selectedLogs, setSelectedLogs] = useState<Set<string>>(new Set());
 
+  // CANONICAL: Query time_logs where payment_status = 'unpaid'
   const { data: unpaidLogs, isLoading } = useQuery({
     queryKey: ['unpaid-labor-logs'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('daily_logs')
+        .from('time_logs')
         .select(`
           *,
           workers(name, hourly_rate, trade),
@@ -37,8 +38,8 @@ export function UnpaidLaborTabV2() {
         projectName: log.projects?.project_name || 'Unknown',
         trade: log.trades?.name || log.workers?.trade || 'N/A',
         hours: log.hours_worked,
-        rate: log.workers?.hourly_rate || 0,
-        cost: (log.hours_worked || 0) * (log.workers?.hourly_rate || 0),
+        rate: log.hourly_rate || log.workers?.hourly_rate || 0,
+        cost: log.labor_cost || ((log.hours_worked || 0) * (log.hourly_rate || log.workers?.hourly_rate || 0)),
       }));
     },
   });
