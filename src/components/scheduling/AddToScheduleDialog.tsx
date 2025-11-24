@@ -1,3 +1,16 @@
+/**
+ * AddToScheduleDialog - Multi-mode schedule creator
+ * 
+ * CANONICAL: Creates entries in work_schedules (workers) and sub_scheduled_shifts (subs)
+ * 
+ * Modes:
+ * - Workers (single or bulk): Insert into work_schedules
+ * - Subs: Insert into sub_scheduled_shifts
+ * - Meetings: Insert into project_todos
+ * 
+ * Triggers handle auto-population of company_id and cost_code_id.
+ */
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";

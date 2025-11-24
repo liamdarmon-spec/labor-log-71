@@ -1,3 +1,12 @@
+/**
+ * WorkerScheduleDialog - Single worker's day view and editor
+ * 
+ * CANONICAL: Uses work_schedules and time_logs
+ * 
+ * Shows all schedules for a worker on a specific date.
+ * Allows batch operations on all schedules for that worker/date.
+ */
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -109,12 +118,12 @@ export function WorkerScheduleDialog({
   const handleDeleteAll = async () => {
     if (!workerId || !date) return;
 
-    // Check for linked time logs
+    // Check for linked time logs (canonical)
     const scheduleIds = schedules.map(s => s.id);
     const { data: linkedLogs } = await supabase
-      .from("daily_logs")
+      .from("time_logs")
       .select("id")
-      .in("schedule_id", scheduleIds);
+      .in("source_schedule_id", scheduleIds);
 
     const { error } = await supabase
       .from("work_schedules")
@@ -131,10 +140,10 @@ export function WorkerScheduleDialog({
       return;
     }
 
-    // Also delete linked logs if any
+    // Also delete linked time logs if any (canonical)
     if (linkedLogs && linkedLogs.length > 0) {
       await supabase
-        .from("daily_logs")
+        .from("time_logs")
         .delete()
         .in("id", linkedLogs.map(l => l.id));
     }

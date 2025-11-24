@@ -1,3 +1,15 @@
+/**
+ * SplitScheduleDialog - Multi-project split for work_schedules
+ * 
+ * CANONICAL: Calls split_schedule_for_multi_project RPC
+ * 
+ * The RPC function:
+ * - Updates the original work_schedules entry with first project split
+ * - Creates new work_schedules entries for additional projects
+ * - Creates/updates linked time_logs for each split
+ * - All operations are atomic via database function
+ */
+
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';

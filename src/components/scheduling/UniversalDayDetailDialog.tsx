@@ -1,3 +1,13 @@
+/**
+ * UniversalDayDetailDialog - Universal day planner
+ * 
+ * CANONICAL: THE single day-level schedule editor
+ * Uses work_schedules for labor, sub_scheduled_shifts for subs
+ * 
+ * All schedule entry points (Global Schedule, Workforce Scheduler, Project Schedule, Subs Schedule)
+ * MUST use this component instead of creating their own dialogs.
+ */
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -132,7 +142,7 @@ export function UniversalDayDetailDialog({
   const handleConvertToTimeLogs = async () => {
     if (!date) return;
 
-    // Mark schedules as converted - triggers will create daily_logs
+    // Mark schedules as converted - triggers will create time_logs (canonical)
     const scheduleIds = selectedSchedules.map(s => s.id);
     const { error: updateError } = await supabase
       .from("work_schedules")

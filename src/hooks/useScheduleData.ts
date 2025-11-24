@@ -1,3 +1,14 @@
+/**
+ * useScheduleData - Canonical schedule data hook
+ * 
+ * THE SINGLE SOURCE OF TRUTH for all schedule queries
+ * 
+ * CANONICAL: Reads from work_schedules (labor schedules)
+ * All schedule views must use this hook instead of writing their own queries
+ * 
+ * For sub schedules, use sub_scheduled_shifts directly (different table)
+ */
+
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 

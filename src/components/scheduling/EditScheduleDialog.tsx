@@ -1,3 +1,12 @@
+/**
+ * EditScheduleDialog - Single schedule entry editor
+ * 
+ * CANONICAL: Updates work_schedules table
+ * 
+ * Locks editing if a time_log is already linked and date has passed.
+ * All edits to work_schedules will auto-sync to time_logs via triggers.
+ */
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -98,11 +107,11 @@ export function EditScheduleDialog({ open, onOpenChange, schedule, onSuccess }: 
     const schedDate = parseISO(scheduleDate);
     const isFutureDate = isFuture(schedDate);
 
-    // Check if there's a related time log in daily_logs
+    // Check if there's a related time log in time_logs (canonical)
     const { data, error } = await supabase
-      .from("daily_logs")
+      .from("time_logs")
       .select("id")
-      .eq("schedule_id", scheduleId)
+      .eq("source_schedule_id", scheduleId)
       .maybeSingle();
 
     if (error) {
