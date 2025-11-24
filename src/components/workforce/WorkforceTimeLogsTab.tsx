@@ -52,14 +52,14 @@ export function WorkforceTimeLogsTab() {
     },
   });
 
-  // Fetch time logs with proper joins
+  // Fetch time logs from daily_logs (canonical table)
   const { data: timeLogs, isLoading, refetch } = useQuery({
     queryKey: ['workforce-time-logs', dateRange, selectedCompany, selectedWorker, selectedProject, paymentFilter],
     queryFn: async () => {
       const startDate = subDays(new Date(), parseInt(dateRange));
       
       let query = supabase
-        .from('time_logs')
+        .from('daily_logs')
         .select(`
           id,
           worker_id,
@@ -71,7 +71,7 @@ export function WorkforceTimeLogsTab() {
           notes,
           payment_status,
           paid_amount,
-          source_schedule_id,
+          schedule_id,
           workers!inner(name, trade, hourly_rate),
           projects!inner(project_name, company_id, companies(name)),
           trades(name),
@@ -264,7 +264,7 @@ export function WorkforceTimeLogsTab() {
                           notes: log.notes,
                           payment_status: log.payment_status,
                           paid_amount: log.paid_amount,
-                          schedule_id: log.source_schedule_id,
+                          schedule_id: log.schedule_id,
                           worker: log.workers ? {
                             name: log.workers.name,
                             trade: log.workers.trade,
@@ -318,7 +318,7 @@ export function WorkforceTimeLogsTab() {
                                 notes: log.notes,
                                 payment_status: log.payment_status,
                                 paid_amount: log.paid_amount,
-                                schedule_id: log.source_schedule_id,
+                                schedule_id: log.schedule_id,
                                 worker: log.workers ? {
                                   name: log.workers.name,
                                   trade: log.workers.trade,
