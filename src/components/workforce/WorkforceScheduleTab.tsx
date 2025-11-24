@@ -61,6 +61,9 @@ export function WorkforceScheduleTab() {
   });
 
   // Fetch schedule data for the week
+  // NOTE: This tab displays work_schedules (planned labor) ONLY.
+  // Manual time_logs with source_schedule_id = NULL are NOT shown here.
+  // Those manual entries appear only in the Time Logs tab.
   const { data: schedules, isLoading: schedulesLoading, refetch } = useScheduleData({
     startDate: format(weekStart, 'yyyy-MM-dd'),
     endDate: format(weekEnd, 'yyyy-MM-dd'),
