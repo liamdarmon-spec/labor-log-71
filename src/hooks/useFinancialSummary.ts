@@ -18,39 +18,48 @@ export interface FinancialSummary {
 export function useFinancialSummary() {
   return useQuery({
     queryKey: ['financial-summary'],
-    queryFn: async (): Promise<FinancialSummary> => {
-      //
-      // 1) COSTS LEDGER – single source of truth for AP
-      //
-      const { data: costsData, error: costsError } = await supabase
-        .from('costs')
-        .select('amount, status, category');
+    queryFn: async () => {
+      // -------------------------------------------------------------------
+      // 1) LABOR FROM CANONICAL time_logs
+      // -------------------------------------------------------------------
+      const { data: timeLogs, error: timeLogsError } = await supabase
+        .from('time_logs')
+        .select('labor_cost, payment_status');
 
-      if (costsError) throw costsError;
-
-      const costs = costsData || [];
+      if (timeLogsError) throw timeLogsError;
 
       let laborActual = 0;
       let laborUnpaid = 0;
 
+      (timeLogs || []).forEach((log: any) => {
+        const cost = log.labor_cost || 0;
+        laborActual += cost;
+        if (log.payment_status === 'unpaid') {
+          laborUnpaid += cost;
+        }
+      });
+
+      // -------------------------------------------------------------------
+      // 2) NON-LABOR COSTS FROM CANONICAL costs TABLE
+      // -------------------------------------------------------------------
+      const { data: costs, error: costsError } = await supabase
+        .from('costs')
+        .select('amount, category, status');
+
+      if (costsError) throw costsError;
+
       let subsActual = 0;
       let subsUnpaid = 0;
-
       let materialsActual = 0;
       let materialsUnpaid = 0;
-
       let otherActual = 0;
       let otherUnpaid = 0;
 
-      costs.forEach((c: any) => {
+      (costs || []).forEach((c: any) => {
         const amount = c.amount || 0;
         const isUnpaid = c.status === 'unpaid';
 
         switch (c.category) {
-          case 'labor':
-            laborActual += amount;
-            if (isUnpaid) laborUnpaid += amount;
-            break;
           case 'subs':
             subsActual += amount;
             if (isUnpaid) subsUnpaid += amount;
@@ -60,68 +69,67 @@ export function useFinancialSummary() {
             if (isUnpaid) materialsUnpaid += amount;
             break;
           default:
-            // misc / equipment / other etc.
+            // misc / other / anything else
             otherActual += amount;
             if (isUnpaid) otherUnpaid += amount;
             break;
         }
       });
 
-      const totalCosts = laborActual + subsActual + materialsActual + otherActual;
-
-      //
-      // 2) REVENUE – AR from invoices (not estimates)
-      //
-      const { data: invoicesData, error: invoicesError } = await supabase
-        .from('invoices')
-        .select('total_amount, status');
-
-      if (invoicesError) throw invoicesError;
-
-      const invoices = invoicesData || [];
-      let revenue = 0;
-
-      invoices.forEach((inv: any) => {
-        if (inv.status !== 'void') {
-          revenue += inv.total_amount || 0;
-        }
-      });
-
-      //
-      // 3) RETENTION – held vs released on subs
-      //
-      const { data: subInvoicesData, error: subInvError } = await supabase
+      // -------------------------------------------------------------------
+      // 3) RETENTION: STILL FROM sub_invoices + sub_payments (OK FOR NOW)
+      // -------------------------------------------------------------------
+      const { data: allSubInvoices, error: invoicesError } = await supabase
         .from('sub_invoices')
         .select('retention_amount');
 
-      if (subInvError) throw subInvError;
+      if (invoicesError) throw invoicesError;
 
-      const { data: subPaymentsData, error: subPayError } = await supabase
+      const { data: retentionPayments, error: retentionError } = await supabase
         .from('sub_payments')
         .select('retention_released');
 
-      if (subPayError) throw subPayError;
+      if (retentionError) throw retentionError;
 
-      const totalRetentionHeld = (subInvoicesData || []).reduce(
+      const totalRetentionHeld = (allSubInvoices || []).reduce(
         (sum: number, inv: any) => sum + (inv.retention_amount || 0),
         0
       );
 
-      const totalRetentionReleased = (subPaymentsData || []).reduce(
+      const totalRetentionReleased = (retentionPayments || []).reduce(
         (sum: number, pay: any) => sum + (pay.retention_released || 0),
         0
       );
 
       const retentionHeld = totalRetentionHeld - totalRetentionReleased;
 
-      //
-      // 4) OUTSTANDING AP – what you owe out
-      //
-      const totalOutstanding = laborUnpaid + subsUnpaid + materialsUnpaid + otherUnpaid;
+      // -------------------------------------------------------------------
+      // 4) REVENUE FROM ACCEPTED ESTIMATES
+      // -------------------------------------------------------------------
+      const { data: estimates, error: estimatesError } = await supabase
+        .from('estimates')
+        .select('total_amount')
+        .eq('status', 'accepted');
+
+      if (estimatesError) throw estimatesError;
+
+      const revenue = (estimates || []).reduce(
+        (sum: number, est: any) => sum + (est.total_amount || 0),
+        0
+      );
+
+      // -------------------------------------------------------------------
+      // 5) TOP-LINE PROFIT + OUTSTANDING
+      // -------------------------------------------------------------------
+      const totalCosts =
+        laborActual + subsActual + materialsActual + otherActual;
 
       const profit = revenue - totalCosts;
 
-      return {
+      const totalOutstanding =
+        laborUnpaid + subsUnpaid + materialsUnpaid + otherUnpaid;
+
+      const summary: FinancialSummary = {
         revenue,
         profit,
         laborActual,
@@ -131,9 +139,11 @@ export function useFinancialSummary() {
         materialsActual,
         materialsUnpaid,
         retentionHeld,
-        retentionPayable: retentionHeld, // same bucket for now
+        retentionPayable: retentionHeld,
         totalOutstanding,
       };
+
+      return summary;
     },
   });
 }
