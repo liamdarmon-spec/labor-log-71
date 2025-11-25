@@ -57,10 +57,18 @@ export const ProjectOverviewEnhanced = ({ projectId }: { projectId: string }) =>
 
       // Fetch project stats
       const { data: costData } = await supabase
-        .from('project_costs_view')
-        .select('labor_total_hours, labor_total_cost, labor_budget, labor_budget_variance')
+        .from('project_budget_vs_actual_view')
+        .select('labor_budget, actual_labor_cost')
         .eq('project_id', projectId)
         .single();
+
+      // Get labor hours separately
+      const { data: laborData } = await supabase
+        .from('project_labor_costs_view')
+        .select('total_hours')
+        .eq('project_id', projectId);
+
+      const totalHours = laborData?.reduce((sum, row) => sum + (row.total_hours || 0), 0) || 0;
 
       const { data: dashboardData } = await supabase
         .from('project_dashboard_view')
@@ -68,12 +76,15 @@ export const ProjectOverviewEnhanced = ({ projectId }: { projectId: string }) =>
         .eq('project_id', projectId)
         .single();
 
+      const laborBudget = costData?.labor_budget || 0;
+      const laborActual = costData?.actual_labor_cost || 0;
+
       if (costData) {
         setStats({
-          laborTotalHours: costData.labor_total_hours || 0,
-          laborActualCost: costData.labor_total_cost || 0,
-          laborBudget: costData.labor_budget || 0,
-          laborVariance: costData.labor_budget_variance || 0,
+          laborTotalHours: totalHours,
+          laborActualCost: laborActual,
+          laborBudget,
+          laborVariance: laborBudget - laborActual,
           workerCount: dashboardData?.worker_count || 0,
         });
       }

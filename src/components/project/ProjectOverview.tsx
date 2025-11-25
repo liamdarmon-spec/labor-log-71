@@ -40,8 +40,8 @@ export const ProjectOverview = ({ projectId }: { projectId: string }) => {
 
       // Get budget and cost data
       const { data: costData } = await supabase
-        .from('project_costs_view')
-        .select('labor_budget, labor_total_cost, labor_budget_variance, subs_budget')
+        .from('project_budget_vs_actual_view')
+        .select('labor_budget, actual_labor_cost, subs_budget')
         .eq('project_id', projectId)
         .single();
 
@@ -81,14 +81,18 @@ export const ProjectOverview = ({ projectId }: { projectId: string }) => {
 
       const hoursThisWeek = weekShifts?.reduce((sum, shift) => sum + Number(shift.scheduled_hours), 0) || 0;
 
+      const laborBudget = costData?.labor_budget || 0;
+      const laborActual = costData?.actual_labor_cost || 0;
+      const subsBudget = costData?.subs_budget || 0;
+
       setData({
         estimateTotal: estimates?.[0]?.total_amount || 0,
-        laborBudget: costData?.labor_budget || 0,
-        laborActual: costData?.labor_total_cost || 0,
-        laborVariance: costData?.labor_budget_variance || 0,
-        subsBudget: costData?.subs_budget || 0,
+        laborBudget,
+        laborActual,
+        laborVariance: laborBudget - laborActual,
+        subsBudget,
         subsActual,
-        subsVariance: (costData?.subs_budget || 0) - subsActual,
+        subsVariance: subsBudget - subsActual,
         openTasks: tasksCount || 0,
         upcomingShifts: shiftsCount || 0,
         hoursThisWeek,

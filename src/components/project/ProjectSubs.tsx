@@ -98,7 +98,7 @@ export const ProjectSubs = ({ projectId }: { projectId: string }) => {
 
       // Fetch budget
       const { data: costData } = await supabase
-        .from('project_costs_view')
+        .from('project_budget_vs_actual_view')
         .select('subs_budget')
         .eq('project_id', projectId)
         .single();
