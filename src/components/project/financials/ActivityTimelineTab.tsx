@@ -1,340 +1,217 @@
-import { Layout } from '@/components/Layout';
-import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, MapPin, User, Building2, Calendar, Clock, DollarSign, ArrowRight } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import { AddProjectDialog } from '@/components/dashboard/AddProjectDialog';
-import { toast } from 'sonner';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Clock, DollarSign, FileText, Calendar, CreditCard } from 'lucide-react';
 import { format } from 'date-fns';
 
-interface Project {
+interface ActivityTimelineTabProps {
+  projectId: string;
+}
+
+type ActivityEvent = {
   id: string;
-  project_name: string;
-  client_name: string;
-  address: string | null;
-  project_manager: string | null;
-  status: string;
-  created_at: string;
-  company_id: string | null;
-  companies: { name: string } | null;
-}
+  type: 'time_log' | 'payment' | 'budget_sync' | 'estimate';
+  date: string;
+  description: string;
+  amount?: number;
+  metadata?: any;
+};
 
-interface ProjectStats {
-  totalHours: number;
-  totalCost: number;
-  workerCount: number;
-  lastActivity: string | null;
-}
+export function ActivityTimelineTab({ projectId }: ActivityTimelineTabProps) {
+  const { data: events, isLoading } = useQuery({
+    queryKey: ['project-activity-timeline', projectId],
+    queryFn: async () => {
+      const activities: ActivityEvent[] = [];
 
-const Projects = () => {
-  const navigate = useNavigate();
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [filteredProjects, setFilteredProjects] = useState<Project[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [projectStats, setProjectStats] = useState<Record<string, ProjectStats>>({});
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetchProjects();
-  }, []);
-
-  useEffect(() => {
-    const filtered = projects.filter(
-      (project) =>
-        project.project_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        project.client_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (project.address && project.address.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
-    setFilteredProjects(filtered);
-  }, [searchTerm, projects]);
-
-  const fetchProjects = async () => {
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('projects')
-        .select('*, companies(name)')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-
-      setProjects(data || []);
-      setFilteredProjects(data || []);
-
-      if (data && data.length > 0) {
-        await fetchProjectStats(data.map((p) => p.id));
-      }
-    } catch (error) {
-      console.error('Error fetching projects:', error);
-      toast.error('Failed to load projects');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchProjectStats = async (projectIds: string[]) => {
-    try {
-      const { data: logs, error } = await supabase
+      // 1) Recent time logs from time_logs (canonical labor)
+      const { data: logs, error: logsError } = await supabase
         .from('time_logs')
-        .select('project_id, hours_worked, labor_cost, worker_id, date')
-        .in('project_id', projectIds);
+        .select('id, date, hours_worked, labor_cost, workers(name, hourly_rate)')
+        .eq('project_id', projectId)
+        .order('date', { ascending: false })
+        .limit(20);
 
-      if (error) throw error;
+      if (logsError) throw logsError;
 
-      const stats: Record<string, ProjectStats> = {};
+      logs?.forEach((log: any) => {
+        const cost =
+          log.labor_cost ??
+          ((log.hours_worked || 0) * (log.workers?.hourly_rate || 0));
 
-      projectIds.forEach((projectId) => {
-        const projectLogs = logs?.filter((log) => log.project_id === projectId) || [];
-        const totalHours = projectLogs.reduce(
-          (sum, log) => sum + Number(log.hours_worked || 0),
-          0
-        );
-        const totalCost = projectLogs.reduce(
-          (sum, log) => sum + Number(log.labor_cost || 0),
-          0
-        );
-        const uniqueWorkers = new Set(projectLogs.map((log) => log.worker_id)).size;
-        const lastActivity =
-          projectLogs.length > 0
-            ? projectLogs
-                .slice()
-                .sort(
-                  (a, b) =>
-                    new Date(b.date).getTime() - new Date(a.date).getTime()
-                )[0].date
-            : null;
-
-        stats[projectId] = {
-          totalHours,
-          totalCost,
-          workerCount: uniqueWorkers,
-          lastActivity,
-        };
+        activities.push({
+          id: log.id,
+          type: 'time_log',
+          date: log.date,
+          description: `${log.workers?.name || 'Worker'} logged ${
+            log.hours_worked || 0
+          }h`,
+          amount: cost,
+          metadata: log,
+        });
       });
 
-      setProjectStats(stats);
-    } catch (error) {
-      console.error('Error fetching project stats:', error);
+      // 2) Payments (still joined to daily_logs for now – legacy linkage)
+      const { data: payments, error: paymentsError } = await supabase
+        .from('payments')
+        .select('*, daily_logs!inner(project_id)')
+        .eq('daily_logs.project_id', projectId)
+        .order('payment_date', { ascending: false })
+        .limit(10);
+
+      if (paymentsError) throw paymentsError;
+
+      payments?.forEach((payment: any) => {
+        activities.push({
+          id: payment.id,
+          type: 'payment',
+          date: payment.payment_date,
+          description: `Payment recorded: ${payment.paid_by}`,
+          amount: payment.amount,
+          metadata: payment,
+        });
+      });
+
+      // 3) Estimate / budget syncs
+      const { data: estimates, error: estimatesError } = await supabase
+        .from('estimates')
+        .select('*')
+        .eq('project_id', projectId)
+        .eq('is_budget_source', true)
+        .order('updated_at', { ascending: false });
+
+      if (estimatesError) throw estimatesError;
+
+      estimates?.forEach((estimate: any) => {
+        activities.push({
+          id: estimate.id,
+          type: 'budget_sync',
+          date: estimate.updated_at || estimate.created_at || '',
+          description: `Budget baseline synced from "${estimate.title}"`,
+          amount: estimate.total_amount || 0,
+          metadata: estimate,
+        });
+      });
+
+      // Sort all activities by date desc
+      return activities.sort(
+        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+      );
+    },
+  });
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <Skeleton className="h-8 w-48" />
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <Skeleton key={i} className="h-20" />
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const getEventIcon = (type: ActivityEvent['type']) => {
+    switch (type) {
+      case 'time_log':
+        return <Clock className="h-5 w-5 text-blue-600" />;
+      case 'payment':
+        return <CreditCard className="h-5 w-5 text-green-600" />;
+      case 'budget_sync':
+        return <FileText className="h-5 w-5 text-purple-600" />;
+      case 'estimate':
+        return <Calendar className="h-5 w-5 text-orange-600" />;
+      default:
+        return <DollarSign className="h-5 w-5" />;
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case 'active':
-        return 'bg-green-500/10 text-green-700 dark:text-green-400';
-      case 'completed':
-        return 'bg-blue-500/10 text-blue-700 dark:text-blue-400';
-      case 'on hold':
-        return 'bg-yellow-500/10 text-yellow-700 dark:text-yellow-400';
-      case 'cancelled':
-        return 'bg-red-500/10 text-red-700 dark:text-red-400';
-      default:
-        return 'bg-gray-500/10 text-gray-700 dark:text-gray-400';
-    }
+  const getEventBadge = (type: ActivityEvent['type']) => {
+    const badges = {
+      time_log: { label: 'Time Log', variant: 'default' as const },
+      payment: { label: 'Payment', variant: 'default' as const },
+      budget_sync: { label: 'Budget Sync', variant: 'secondary' as const },
+      estimate: { label: 'Estimate', variant: 'outline' as const },
+    };
+    return badges[type];
   };
 
   return (
-    <Layout>
-      <div className="container mx-auto p-6 space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold">Project Hub</h1>
-            <p className="text-muted-foreground">Manage and monitor all your projects</p>
-          </div>
-          <Button onClick={() => setIsDialogOpen(true)} className="gap-2">
-            <Plus className="w-4 h-4" />
-            New Project
-          </Button>
-        </div>
-
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-          <Input
-            placeholder="Search projects by name, client, or address..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-
-        {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[1, 2, 3].map((i) => (
-              <Card key={i} className="animate-pulse">
-                <CardHeader>
-                  <div className="h-6 bg-muted rounded w-3/4"></div>
-                  <div className="h-4 bg-muted rounded w-1/2"></div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    <div className="h-4 bg-muted rounded"></div>
-                    <div className="h-4 bg-muted rounded"></div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredProjects.map((project) => {
-              const stats = projectStats[project.id];
-              return (
-                <Card
-                  key={project.id}
-                  className="hover:shadow-lg transition-shadow cursor-pointer"
-                  onClick={() => navigate(`/projects/${project.id}`)}
-                >
-                  <CardHeader>
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <CardTitle className="text-lg">
-                          {project.project_name}
-                        </CardTitle>
-                        <CardDescription className="flex items-center gap-1 mt-1">
-                          <User className="w-3 h-3" />
-                          {project.client_name}
-                        </CardDescription>
-                      </div>
-                      <Badge
-                        className={getStatusColor(project.status)}
-                        variant="outline"
-                      >
-                        {project.status}
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    {project.address && (
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <MapPin className="w-4 h-4" />
-                        <span className="truncate">{project.address}</span>
-                      </div>
-                    )}
-
-                    {project.project_manager && (
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <User className="w-4 h-4" />
-                        <span>PM: {project.project_manager}</span>
-                      </div>
-                    )}
-
-                    {project.companies && (
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Building2 className="w-4 h-4" />
-                        <span>{project.companies.name}</span>
-                      </div>
-                    )}
-
-                    <div className="pt-3 border-t space-y-2">
-                      {stats && (
-                        <>
-                          <div className="flex items-center justify-between text-sm">
-                            <span className="flex items-center gap-1 text-muted-foreground">
-                              <Clock className="w-4 h-4" />
-                              Total Hours
-                            </span>
-                            <span className="font-semibold">
-                              {stats.totalHours.toFixed(1)}
-                            </span>
-                          </div>
-
-                          <div className="flex items-center justify-between text-sm">
-                            <span className="flex items-center gap-1 text-muted-foreground">
-                              <DollarSign className="w-4 h-4" />
-                              Total Cost
-                            </span>
-                            <span className="font-semibold">
-                              ${stats.totalCost.toFixed(2)}
-                            </span>
-                          </div>
-
-                          <div className="flex items-center justify-between text-sm">
-                            <span className="flex items-center gap-1 text-muted-foreground">
-                              <User className="w-4 h-4" />
-                              Workers
-                            </span>
-                            <span className="font-semibold">
-                              {stats.workerCount}
-                            </span>
-                          </div>
-
-                          {stats.lastActivity && (
-                            <div className="flex items-center justify-between text-sm">
-                              <span className="flex items-center gap-1 text-muted-foreground">
-                                <Calendar className="w-4 h-4" />
-                                Last Activity
-                              </span>
-                              <span className="font-semibold">
-                                {format(
-                                  new Date(stats.lastActivity),
-                                  'MMM d, yyyy'
-                                )}
-                              </span>
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </div>
-
-                    <div className="pt-3 border-t flex items-center justify-end">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="gap-2"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigate(`/projects/${project.id}`);
-                        }}
-                      >
-                        View Details
-                        <ArrowRight className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        )}
-
-        {!loading && filteredProjects.length === 0 && (
-          <Card className="p-12 text-center">
-            <div className="flex flex-col items-center gap-4">
-              <Building2 className="w-12 h-12 text-muted-foreground" />
-              <div>
-                <h3 className="font-semibold text-lg">No projects found</h3>
-                <p className="text-muted-foreground">
-                  {searchTerm
-                    ? 'Try a different search term'
-                    : 'Create your first project to get started'}
-                </p>
-              </div>
-              {!searchTerm && (
-                <Button
-                  onClick={() => setIsDialogOpen(true)}
-                  className="gap-2"
-                >
-                  <Plus className="w-4 h-4" />
-                  New Project
-                </Button>
-              )}
-            </div>
-          </Card>
-        )}
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-2xl font-bold mb-2">Activity Timeline</h3>
+        <p className="text-muted-foreground">
+          Chronological feed of all financial events for this project
+        </p>
       </div>
 
-      <AddProjectDialog
-        open={isDialogOpen}
-        onOpenChange={setIsDialogOpen}
-        onProjectAdded={fetchProjects}
-      />
-    </Layout>
+      <Card>
+        <CardHeader>
+          <CardTitle>Recent Activity</CardTitle>
+          <CardDescription>
+            {events?.length || 0} financial event
+            {events && events.length !== 1 ? 's' : ''}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {events && events.length > 0 ? (
+            <div className="space-y-1">
+              {events.map((event) => {
+                const badge = getEventBadge(event.type);
+                return (
+                  <div
+                    key={event.id}
+                    className="flex items-start gap-4 p-4 rounded-lg hover:bg-muted/50 transition-colors border border-transparent hover:border-border"
+                  >
+                    <div className="mt-1 p-2 rounded-lg bg-muted">
+                      {getEventIcon(event.type)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Badge variant={badge.variant}>{badge.label}</Badge>
+                            <span className="text-xs text-muted-foreground">
+                              {format(
+                                new Date(event.date),
+                                'MMM d, yyyy • h:mm a'
+                              )}
+                            </span>
+                          </div>
+                          <p className="text-sm font-medium">
+                            {event.description}
+                          </p>
+                        </div>
+                        {event.amount !== undefined && (
+                          <div className="text-right">
+                            <p className="text-lg font-bold text-primary">
+                              ${event.amount.toLocaleString()}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground mb-2">No activity yet</p>
+              <p className="text-sm text-muted-foreground">
+                Financial events will appear here as they occur
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
-};
-
-export default Projects;
+}
