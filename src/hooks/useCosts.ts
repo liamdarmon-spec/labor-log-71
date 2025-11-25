@@ -115,6 +115,7 @@ export function useCreateCost() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['costs'] });
       queryClient.invalidateQueries({ queryKey: ['costs-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['job-costing'] });
     },
   });
 }

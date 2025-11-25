@@ -5,18 +5,27 @@ import { MaterialsTab } from '@/components/financials/MaterialsTab';
 import { SubPaymentsTab } from '@/components/financials/SubPaymentsTab';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
+import { AddCostDialog } from '@/components/financials/AddCostDialog';
+import { Plus } from 'lucide-react';
 
 export default function CostsAPTab() {
   const [activeTab, setActiveTab] = useState('all');
+  const [addCostOpen, setAddCostOpen] = useState(false);
   const navigate = useNavigate();
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Costs (AP)</h1>
-        <p className="text-muted-foreground">
-          All job-related non-labor expenses and accounts payable
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Costs (AP)</h1>
+          <p className="text-muted-foreground">
+            All job-related non-labor expenses and accounts payable
+          </p>
+        </div>
+        <Button onClick={() => setAddCostOpen(true)}>
+          <Plus className="h-4 w-4 mr-2" />
+          Add Cost
+        </Button>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -70,6 +79,8 @@ export default function CostsAPTab() {
           <CostsTab categoryFilter="misc" />
         </TabsContent>
       </Tabs>
+
+      <AddCostDialog open={addCostOpen} onOpenChange={setAddCostOpen} />
     </div>
   );
 }
