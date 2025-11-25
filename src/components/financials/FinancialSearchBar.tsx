@@ -19,7 +19,6 @@ export function FinancialSearchBar() {
           subs: [],
           invoices: [],
           materials: [],
-          payments: [],
           costCodes: [],
         };
       }
@@ -41,11 +40,6 @@ export function FinancialSearchBar() {
           .ilike('vendor', `%${search}%`)
           .limit(3),
         supabase
-          .from('payments')
-          .select('id, paid_by, amount')
-          .ilike('paid_by', `%${search}%`)
-          .limit(3),
-        supabase
           .from('cost_codes')
           .select('id, code, name')
           .or(`code.ilike.%${search}%,name.ilike.%${search}%`)
@@ -56,8 +50,7 @@ export function FinancialSearchBar() {
         subs: searches[0].data || [],
         invoices: searches[1].data || [],
         materials: searches[2].data || [],
-        payments: searches[3].data || [],
-        costCodes: searches[4].data || [],
+        costCodes: searches[3].data || [],
       };
     },
     enabled: search.length >= 2,
@@ -77,9 +70,6 @@ export function FinancialSearchBar() {
       case 'material':
         navigate(`/materials?receipt=${id}`);
         break;
-      case 'payment':
-        navigate(`/payments?id=${id}`);
-        break;
       case 'costCode':
         navigate(`/admin?tab=cost-codes&code=${id}`);
         break;
@@ -90,7 +80,6 @@ export function FinancialSearchBar() {
     results.subs.length > 0 ||
     results.invoices.length > 0 ||
     results.materials.length > 0 ||
-    results.payments.length > 0 ||
     results.costCodes.length > 0
   ) : false;
 
@@ -99,7 +88,7 @@ export function FinancialSearchBar() {
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <Input
-          placeholder="Search subs, invoices, materials, payments..."
+          placeholder="Search subs, invoices, materials, cost codes..."
           value={search}
           onChange={(e) => {
             setSearch(e.target.value);
@@ -153,19 +142,6 @@ export function FinancialSearchBar() {
                 </CommandGroup>
               )}
 
-              {results.payments.length > 0 && (
-                <CommandGroup heading="Payments">
-                  {results.payments.map((pay: any) => (
-                    <CommandItem
-                      key={pay.id}
-                      onSelect={() => handleSelect('payment', pay.id)}
-                    >
-                      {pay.paid_by} - ${pay.amount.toFixed(2)}
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              )}
-
               {results.costCodes.length > 0 && (
                 <CommandGroup heading="Cost Codes">
                   {results.costCodes.map((code: any) => (
@@ -177,6 +153,10 @@ export function FinancialSearchBar() {
                     </CommandItem>
                   ))}
                 </CommandGroup>
+              )}
+
+              {!hasResults && (
+                <CommandEmpty>No results found.</CommandEmpty>
               )}
             </CommandList>
           </Command>
