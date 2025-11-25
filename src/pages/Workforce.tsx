@@ -3,6 +3,7 @@ import { Layout } from '@/components/Layout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { WorkforceScheduleTab } from '@/components/workforce/WorkforceScheduleTab';
 import { WorkforceTimeLogsTab } from '@/components/workforce/WorkforceTimeLogsTab';
+import { WorkforcePayRunsTab } from '@/components/workforce/WorkforcePayRunsTab';
 import { WorkforcePayCenterTab } from '@/components/workforce/WorkforcePayCenterTab';
 import { useSearchParams } from 'react-router-dom';
 
@@ -29,9 +30,10 @@ const Workforce = () => {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3 gap-1">
+          <TabsList className="grid w-full grid-cols-4 gap-1">
             <TabsTrigger value="schedule" className="text-xs sm:text-sm">Schedule</TabsTrigger>
             <TabsTrigger value="logs" className="text-xs sm:text-sm">Time Logs</TabsTrigger>
+            <TabsTrigger value="pay-runs" className="text-xs sm:text-sm">Pay Runs</TabsTrigger>
             <TabsTrigger value="pay" className="text-xs sm:text-sm">Pay Center</TabsTrigger>
           </TabsList>
 
@@ -41,6 +43,10 @@ const Workforce = () => {
 
           <TabsContent value="logs">
             <WorkforceTimeLogsTab />
+          </TabsContent>
+
+          <TabsContent value="pay-runs">
+            <WorkforcePayRunsTab />
           </TabsContent>
 
           <TabsContent value="pay">
