@@ -109,9 +109,9 @@ export function LaborPayRunsTabV2() {
             <TableRow>
               <TableHead>Date Range</TableHead>
               <TableHead>Company</TableHead>
-              <TableHead>Payment Method</TableHead>
-              <TableHead>Status</TableHead>
+              <TableHead className="text-right">Hours</TableHead>
               <TableHead className="text-right">Amount</TableHead>
+              <TableHead>Status</TableHead>
               <TableHead></TableHead>
             </TableRow>
           </TableHeader>
@@ -122,15 +122,17 @@ export function LaborPayRunsTabV2() {
                   {new Date(run.date_range_start).toLocaleDateString()} -{' '}
                   {new Date(run.date_range_end).toLocaleDateString()}
                 </TableCell>
-                <TableCell>{run.payee_company?.name || 'N/A'}</TableCell>
-                <TableCell>{run.payment_method || 'Not specified'}</TableCell>
+                <TableCell>{run.payee_company?.name || 'All Companies'}</TableCell>
+                <TableCell className="text-right">
+                  {(run.total_hours || 0).toFixed(1)}h
+                </TableCell>
+                <TableCell className="text-right font-medium">
+                  ${(run.total_amount || 0).toLocaleString()}
+                </TableCell>
                 <TableCell>
                   <Badge variant={getStatusColor(run.status)}>
                     {run.status || 'draft'}
                   </Badge>
-                </TableCell>
-                <TableCell className="text-right font-medium">
-                  ${(run.total_amount || 0).toLocaleString()}
                 </TableCell>
                 <TableCell className="text-right">
                   <Button
