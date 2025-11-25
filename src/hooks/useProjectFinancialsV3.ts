@@ -1,4 +1,3 @@
-// FILE: src/hooks/useProjectFinancialsV3.ts
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -21,6 +20,7 @@ export interface ProjectFinancialsV3 {
     labor: number;
     subs: number;
     materials: number;
+    misc: number;
   };
   invoicing: {
     billed: number;
@@ -32,21 +32,20 @@ export interface ProjectFinancialsV3 {
 }
 
 /**
- * Project-level financials that match the global Job Costing calculations.
- * Uses:
- * - project_budgets         → contract/budget
- * - project_labor_summary_view  → labor actuals + unpaid
- * - project_cost_summary_view   → subs/materials/misc actuals + unpaid
- * - project_revenue_summary_view → billed amount
+ * Project-level financials aligned with Job Costing + global views.
+ *
+ * Reads from:
+ * - project_budgets
+ * - project_labor_summary_view
+ * - project_cost_summary_view
+ * - project_revenue_summary_view
  */
 export function useProjectFinancialsV3(projectId: string) {
-  return useQuery<ProjectFinancialsV3>({
+  return useQuery({
     queryKey: ['project-financials-v3', projectId],
     enabled: !!projectId,
     queryFn: async () => {
-      if (!projectId) throw new Error('projectId is required');
-
-      // 1) Budget (contract level)
+      // 1) Budget by category
       const { data: budget, error: budgetError } = await supabase
         .from('project_budgets')
         .select('labor_budget, subs_budget, materials_budget, other_budget')
@@ -55,60 +54,62 @@ export function useProjectFinancialsV3(projectId: string) {
 
       if (budgetError) throw budgetError;
 
-      const laborBudget = Number(budget?.labor_budget || 0);
-      const subsBudget = Number(budget?.subs_budget || 0);
-      const materialsBudget = Number(budget?.materials_budget || 0);
-      const otherBudget = Number(budget?.other_budget || 0);
-      const totalBudget = laborBudget + subsBudget + materialsBudget + otherBudget;
+      const laborBudget = budget?.labor_budget ?? 0;
+      const subsBudget = budget?.subs_budget ?? 0;
+      const materialsBudget = budget?.materials_budget ?? 0;
+      const otherBudget = budget?.other_budget ?? 0;
+      const totalBudget =
+        laborBudget + subsBudget + materialsBudget + otherBudget;
 
-      // 2) Labor summary from view
+      // 2) Labor actuals from canonical labor summary view
       const { data: laborView, error: laborError } = await supabase
         .from('project_labor_summary_view')
-        .select('total_labor_cost, unpaid_labor_cost')
+        .select('*')
         .eq('project_id', projectId)
         .maybeSingle();
 
       if (laborError) throw laborError;
 
-      const laborActual = Number(laborView?.total_labor_cost || 0);
-      const unpaidLabor = Number(laborView?.unpaid_labor_cost || 0);
+      const laborActual = laborView?.total_labor_cost ?? 0;
+      const laborUnpaid = laborView?.unpaid_labor_cost ?? 0;
 
-      // 3) Non-labor cost summary from view
+      // 3) Non-labor costs from cost summary view
       const { data: costView, error: costError } = await supabase
         .from('project_cost_summary_view')
-        .select(
-          'subs_cost, materials_cost, misc_cost, subs_unpaid, materials_unpaid, misc_unpaid'
-        )
+        .select('*')
         .eq('project_id', projectId)
         .maybeSingle();
 
       if (costError) throw costError;
 
-      const subsActual = Number(costView?.subs_cost || 0);
-      const materialsActual = Number(costView?.materials_cost || 0);
-      const miscActual = Number(costView?.misc_cost || 0);
+      const subsActual = costView?.subs_cost ?? 0;
+      const materialsActual = costView?.materials_cost ?? 0;
+      const miscActual = costView?.misc_cost ?? 0;
 
-      const unpaidSubs = Number(costView?.subs_unpaid || 0);
-      const unpaidMaterials = Number(costView?.materials_unpaid || 0);
-      // misc unpaid tracked but not surfaced separately yet
-      // const unpaidMisc = Number(costView?.misc_unpaid || 0);
+      const subsUnpaid = costView?.subs_unpaid ?? 0;
+      const materialsUnpaid = costView?.materials_unpaid ?? 0;
+      const miscUnpaid = costView?.misc_unpaid ?? 0;
 
-      // 4) Billed amount from invoices via view
+      // 4) Revenue / billed from revenue summary view
       const { data: revenueView, error: revenueError } = await supabase
         .from('project_revenue_summary_view')
-        .select('billed_amount')
+        .select('*')
         .eq('project_id', projectId)
         .maybeSingle();
 
       if (revenueError) throw revenueError;
 
-      const billed = Number(revenueView?.billed_amount || 0);
+      const billed = revenueView?.billed_amount ?? 0;
 
-      // 5) Roll-up
+      // 5) Rollups
       const totalActual = laborActual + subsActual + materialsActual + miscActual;
       const variance = totalBudget - totalActual;
       const margin = billed - totalActual;
-      const percentComplete = totalBudget > 0 ? (totalActual / totalBudget) * 100 : 0;
+      const percentComplete =
+        totalBudget > 0 ? (totalActual / totalBudget) * 100 : 0;
+
+      // You explicitly parked retention / SOV logic for now
+      const retentionHeld = 0;
 
       const result: ProjectFinancialsV3 = {
         budget: {
@@ -126,14 +127,14 @@ export function useProjectFinancialsV3(projectId: string) {
           total: totalActual,
         },
         unpaid: {
-          labor: unpaidLabor,
-          subs: unpaidSubs,
-          materials: unpaidMaterials,
+          labor: laborUnpaid,
+          subs: subsUnpaid,
+          materials: materialsUnpaid,
+          misc: miscUnpaid,
         },
         invoicing: {
           billed,
-          // Owner-side retention/schedule-of-values is out of scope for now.
-          retentionHeld: 0,
+          retentionHeld,
         },
         variance,
         margin,
