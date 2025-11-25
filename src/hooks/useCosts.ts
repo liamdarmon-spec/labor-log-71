@@ -9,7 +9,12 @@ export interface Cost {
   vendor_id: string | null;
   description: string;
   cost_code_id: string | null;
-  category: 'labor' | 'subs' | 'materials' | 'misc';
+  /**
+   * Canonical non-labor cost categories.
+   * Note: labor is generally tracked via time_logs,
+   * but we keep 'labor' here for backward compatibility.
+   */
+  category: 'labor' | 'subs' | 'materials' | 'equipment' | 'misc';
   amount: number;
   date_incurred: string;
   status: 'unpaid' | 'paid';
@@ -37,9 +42,24 @@ export function useCosts(filters?: CostFilters) {
         .from('costs')
         .select(`
           *,
-          projects (id, project_name, company_id, companies (id, name)),
-          cost_codes (id, code, name),
-          subs (id, company_name)
+          projects (
+            id,
+            project_name,
+            company_id,
+            companies (
+              id,
+              name
+            )
+          ),
+          cost_codes (
+            id,
+            code,
+            name
+          ),
+          subs (
+            id,
+            company_name
+          )
         `)
         .order('date_incurred', { ascending: false });
 
@@ -65,10 +85,10 @@ export function useCosts(filters?: CostFilters) {
       const { data, error } = await query;
       if (error) throw error;
 
-      // Apply company filter in JS if needed (since company_id is on projects)
+      // Company filter is applied in JS because company_id lives on projects
       let results = data || [];
       if (filters?.companyId) {
-        results = results.filter((cost: any) => 
+        results = results.filter((cost: any) =>
           cost.projects?.company_id === filters.companyId
         );
       }
@@ -94,6 +114,7 @@ export function useCreateCost() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['costs'] });
+      queryClient.invalidateQueries({ queryKey: ['costs-summary'] });
     },
   });
 }
@@ -115,6 +136,7 @@ export function useUpdateCost() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['costs'] });
+      queryClient.invalidateQueries({ queryKey: ['costs-summary'] });
     },
   });
 }
@@ -133,19 +155,31 @@ export function useDeleteCost() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['costs'] });
+      queryClient.invalidateQueries({ queryKey: ['costs-summary'] });
     },
   });
 }
 
-// Cost summary aggregations
+// Cost summary aggregations (for dashboards, filters, etc.)
 export function useCostsSummary(filters?: CostFilters) {
   return useQuery({
     queryKey: ['costs-summary', filters],
     queryFn: async () => {
-      // Build query with proper joins for company filtering
+      // Build query with proper join for company filtering
       let query = supabase
         .from('costs')
-        .select('amount, status, category, date_incurred, project_id, projects!inner(company_id)');
+        .select(
+          `
+          amount,
+          status,
+          category,
+          date_incurred,
+          project_id,
+          projects!inner (
+            company_id
+          )
+        `
+        );
 
       if (filters?.startDate) {
         query = query.gte('date_incurred', filters.startDate);
@@ -170,8 +204,8 @@ export function useCostsSummary(filters?: CostFilters) {
       if (error) throw error;
 
       const costs = data || [];
-      
-      // Optimized aggregations using single pass
+
+      // Single-pass aggregation
       let totalCosts = 0;
       let unpaidCosts = 0;
       let paidCosts = 0;
@@ -179,19 +213,21 @@ export function useCostsSummary(filters?: CostFilters) {
         labor: 0,
         subs: 0,
         materials: 0,
+        equipment: 0,
         misc: 0,
       };
 
-      costs.forEach(c => {
+      costs.forEach((c: any) => {
         const amount = c.amount || 0;
         totalCosts += amount;
-        
+
         if (c.status === 'unpaid') unpaidCosts += amount;
         else if (c.status === 'paid') paidCosts += amount;
-        
+
         if (c.category === 'labor') byCategory.labor += amount;
         else if (c.category === 'subs') byCategory.subs += amount;
         else if (c.category === 'materials') byCategory.materials += amount;
+        else if (c.category === 'equipment') byCategory.equipment += amount;
         else if (c.category === 'misc') byCategory.misc += amount;
       });
 
