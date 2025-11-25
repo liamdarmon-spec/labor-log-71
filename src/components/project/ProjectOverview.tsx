@@ -41,17 +41,9 @@ export const ProjectOverview = ({ projectId }: { projectId: string }) => {
       // Get budget and cost data
       const { data: costData } = await supabase
         .from('project_budget_vs_actual_view')
-        .select('labor_budget, actual_labor_cost, subs_budget')
+        .select('labor_budget, actual_labor_cost, subs_budget, actual_subs_cost')
         .eq('project_id', projectId)
         .single();
-
-      // Get subs actual cost
-      const { data: subLogs } = await supabase
-        .from('sub_logs')
-        .select('amount')
-        .eq('project_id', projectId);
-
-      const subsActual = subLogs?.reduce((sum, log) => sum + Number(log.amount), 0) || 0;
 
       // Get open tasks
       const { count: tasksCount } = await supabase
@@ -84,6 +76,7 @@ export const ProjectOverview = ({ projectId }: { projectId: string }) => {
       const laborBudget = costData?.labor_budget || 0;
       const laborActual = costData?.actual_labor_cost || 0;
       const subsBudget = costData?.subs_budget || 0;
+      const subsActual = costData?.actual_subs_cost || 0;
 
       setData({
         estimateTotal: estimates?.[0]?.total_amount || 0,
