@@ -72,12 +72,12 @@ export function ProjectLaborTab({ projectId }: ProjectLaborTabProps) {
 
   // Calculate summary stats
   const stats = timeLogs ? {
-    totalHours: timeLogs.reduce((sum, log) => sum + log.hours_worked, 0),
-    totalCost: timeLogs.reduce((sum, log) => sum + log.labor_cost, 0),
-    unpaidHours: timeLogs.filter(log => log.payment_status === 'unpaid').reduce((sum, log) => sum + log.hours_worked, 0),
-    unpaidCost: timeLogs.filter(log => log.payment_status === 'unpaid').reduce((sum, log) => sum + log.labor_cost, 0),
-    paidHours: timeLogs.filter(log => log.payment_status === 'paid').reduce((sum, log) => sum + log.hours_worked, 0),
-    paidCost: timeLogs.filter(log => log.payment_status === 'paid').reduce((sum, log) => sum + log.labor_cost, 0),
+    totalHours: timeLogs.reduce((sum, log) => sum + (log.hours_worked ?? 0), 0),
+    totalCost: timeLogs.reduce((sum, log) => sum + (log.labor_cost ?? 0), 0),
+    unpaidHours: timeLogs.filter(log => log.payment_status === 'unpaid').reduce((sum, log) => sum + (log.hours_worked ?? 0), 0),
+    unpaidCost: timeLogs.filter(log => log.payment_status === 'unpaid').reduce((sum, log) => sum + (log.labor_cost ?? 0), 0),
+    paidHours: timeLogs.filter(log => log.payment_status === 'paid').reduce((sum, log) => sum + (log.hours_worked ?? 0), 0),
+    paidCost: timeLogs.filter(log => log.payment_status === 'paid').reduce((sum, log) => sum + (log.labor_cost ?? 0), 0),
   } : null;
 
   if (isLoading) {
@@ -203,36 +203,42 @@ export function ProjectLaborTab({ projectId }: ProjectLaborTabProps) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {timeLogs.map((log: any) => (
-                    <TableRow key={log.id} className="cursor-pointer hover:bg-muted/50">
-                      <TableCell>
-                        {format(new Date(log.date), 'MMM d, yyyy')}
-                      </TableCell>
-                      <TableCell className="font-medium">
-                        {log.worker?.name || 'N/A'}
-                      </TableCell>
-                      <TableCell>
-                        {log.trade?.name || 'N/A'}
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {log.cost_code ? `${log.cost_code.code} - ${log.cost_code.name}` : 'N/A'}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {log.hours_worked.toFixed(1)}h
-                      </TableCell>
-                      <TableCell className="text-right">
-                        ${log.hourly_rate.toFixed(2)}
-                      </TableCell>
-                      <TableCell className="text-right font-medium">
-                        ${log.labor_cost.toFixed(2)}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={log.payment_status === 'paid' ? 'default' : 'outline'}>
-                          {log.payment_status}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {timeLogs.map((log: any) => {
+                    const hours = log.hours_worked ?? 0;
+                    const cost = log.labor_cost ?? 0;
+                    const rate = hours > 0 ? cost / hours : 0;
+                    
+                    return (
+                      <TableRow key={log.id} className="cursor-pointer hover:bg-muted/50">
+                        <TableCell>
+                          {format(new Date(log.date), 'MMM d, yyyy')}
+                        </TableCell>
+                        <TableCell className="font-medium">
+                          {log.worker?.name || 'N/A'}
+                        </TableCell>
+                        <TableCell>
+                          {log.trade?.name || 'N/A'}
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {log.cost_code ? `${log.cost_code.code} - ${log.cost_code.name}` : 'N/A'}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {hours.toFixed(1)}h
+                        </TableCell>
+                        <TableCell className="text-right">
+                          ${rate.toFixed(2)}
+                        </TableCell>
+                        <TableCell className="text-right font-medium">
+                          ${cost.toFixed(2)}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={log.payment_status === 'paid' ? 'default' : 'outline'}>
+                            {log.payment_status}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
