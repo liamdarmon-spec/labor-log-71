@@ -22,6 +22,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, ExternalLink } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useCostCodes } from "@/hooks/useCostCodes";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface ScheduledShift {
   id: string;
@@ -61,6 +62,7 @@ interface EditScheduleDialogProps {
 
 export function EditScheduleDialog({ open, onOpenChange, schedule, onSuccess }: EditScheduleDialogProps) {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -186,6 +188,9 @@ export function EditScheduleDialog({ open, onOpenChange, schedule, onSuccess }: 
       title: "Success",
       description: "Schedule updated successfully"
     });
+
+    // Invalidate all schedule queries to refresh all views
+    queryClient.invalidateQueries({ queryKey: ['schedules'] });
 
     onSuccess();
     onOpenChange(false);
