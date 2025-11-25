@@ -65,10 +65,9 @@ const Projects = () => {
 
       setProjects(data || []);
       setFilteredProjects(data || []);
-      
-      // Fetch stats for each project
-      if (data) {
-        fetchProjectStats(data.map(p => p.id));
+
+      if (data && data.length > 0) {
+        await fetchProjectStats(data.map((p) => p.id));
       }
     } catch (error) {
       console.error('Error fetching projects:', error);
@@ -81,31 +80,40 @@ const Projects = () => {
   const fetchProjectStats = async (projectIds: string[]) => {
     try {
       const { data: logs, error } = await supabase
-        .from('daily_logs')
-        .select('project_id, hours_worked, worker_id, date, workers(hourly_rate)')
+        .from('time_logs')
+        .select('project_id, hours_worked, labor_cost, worker_id, date')
         .in('project_id', projectIds);
 
       if (error) throw error;
 
       const stats: Record<string, ProjectStats> = {};
-      
-      projectIds.forEach(projectId => {
-        const projectLogs = logs?.filter(log => log.project_id === projectId) || [];
-        const totalHours = projectLogs.reduce((sum, log) => sum + Number(log.hours_worked), 0);
-        const totalCost = projectLogs.reduce((sum, log) => {
-          const rate = log.workers?.hourly_rate || 0;
-          return sum + (Number(log.hours_worked) * Number(rate));
-        }, 0);
-        const uniqueWorkers = new Set(projectLogs.map(log => log.worker_id)).size;
-        const lastActivity = projectLogs.length > 0
-          ? projectLogs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0].date
-          : null;
+
+      projectIds.forEach((projectId) => {
+        const projectLogs = logs?.filter((log) => log.project_id === projectId) || [];
+        const totalHours = projectLogs.reduce(
+          (sum, log) => sum + Number(log.hours_worked || 0),
+          0
+        );
+        const totalCost = projectLogs.reduce(
+          (sum, log) => sum + Number(log.labor_cost || 0),
+          0
+        );
+        const uniqueWorkers = new Set(projectLogs.map((log) => log.worker_id)).size;
+        const lastActivity =
+          projectLogs.length > 0
+            ? projectLogs
+                .slice()
+                .sort(
+                  (a, b) =>
+                    new Date(b.date).getTime() - new Date(a.date).getTime()
+                )[0].date
+            : null;
 
         stats[projectId] = {
           totalHours,
           totalCost,
           workerCount: uniqueWorkers,
-          lastActivity
+          lastActivity,
         };
       });
 
@@ -176,21 +184,26 @@ const Projects = () => {
             {filteredProjects.map((project) => {
               const stats = projectStats[project.id];
               return (
-                <Card 
-                  key={project.id} 
+                <Card
+                  key={project.id}
                   className="hover:shadow-lg transition-shadow cursor-pointer"
                   onClick={() => navigate(`/projects/${project.id}`)}
                 >
                   <CardHeader>
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
-                        <CardTitle className="text-lg">{project.project_name}</CardTitle>
+                        <CardTitle className="text-lg">
+                          {project.project_name}
+                        </CardTitle>
                         <CardDescription className="flex items-center gap-1 mt-1">
                           <User className="w-3 h-3" />
                           {project.client_name}
                         </CardDescription>
                       </div>
-                      <Badge className={getStatusColor(project.status)} variant="outline">
+                      <Badge
+                        className={getStatusColor(project.status)}
+                        variant="outline"
+                      >
                         {project.status}
                       </Badge>
                     </div>
@@ -202,14 +215,14 @@ const Projects = () => {
                         <span className="truncate">{project.address}</span>
                       </div>
                     )}
-                    
+
                     {project.project_manager && (
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <User className="w-4 h-4" />
                         <span>PM: {project.project_manager}</span>
                       </div>
                     )}
-                    
+
                     {project.companies && (
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Building2 className="w-4 h-4" />
@@ -225,25 +238,31 @@ const Projects = () => {
                               <Clock className="w-4 h-4" />
                               Total Hours
                             </span>
-                            <span className="font-semibold">{stats.totalHours.toFixed(1)}</span>
+                            <span className="font-semibold">
+                              {stats.totalHours.toFixed(1)}
+                            </span>
                           </div>
-                          
+
                           <div className="flex items-center justify-between text-sm">
                             <span className="flex items-center gap-1 text-muted-foreground">
                               <DollarSign className="w-4 h-4" />
                               Total Cost
                             </span>
-                            <span className="font-semibold">${stats.totalCost.toFixed(2)}</span>
+                            <span className="font-semibold">
+                              ${stats.totalCost.toFixed(2)}
+                            </span>
                           </div>
-                          
+
                           <div className="flex items-center justify-between text-sm">
                             <span className="flex items-center gap-1 text-muted-foreground">
                               <User className="w-4 h-4" />
                               Workers
                             </span>
-                            <span className="font-semibold">{stats.workerCount}</span>
+                            <span className="font-semibold">
+                              {stats.workerCount}
+                            </span>
                           </div>
-                          
+
                           {stats.lastActivity && (
                             <div className="flex items-center justify-between text-sm">
                               <span className="flex items-center gap-1 text-muted-foreground">
@@ -251,7 +270,10 @@ const Projects = () => {
                                 Last Activity
                               </span>
                               <span className="font-semibold">
-                                {format(new Date(stats.lastActivity), 'MMM d, yyyy')}
+                                {format(
+                                  new Date(stats.lastActivity),
+                                  'MMM d, yyyy'
+                                )}
                               </span>
                             </div>
                           )}
@@ -260,9 +282,9 @@ const Projects = () => {
                     </div>
 
                     <div className="pt-3 border-t flex items-center justify-end">
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         className="gap-2"
                         onClick={(e) => {
                           e.stopPropagation();
@@ -287,11 +309,16 @@ const Projects = () => {
               <div>
                 <h3 className="font-semibold text-lg">No projects found</h3>
                 <p className="text-muted-foreground">
-                  {searchTerm ? 'Try a different search term' : 'Create your first project to get started'}
+                  {searchTerm
+                    ? 'Try a different search term'
+                    : 'Create your first project to get started'}
                 </p>
               </div>
               {!searchTerm && (
-                <Button onClick={() => setIsDialogOpen(true)} className="gap-2">
+                <Button
+                  onClick={() => setIsDialogOpen(true)}
+                  className="gap-2"
+                >
                   <Plus className="w-4 h-4" />
                   New Project
                 </Button>
