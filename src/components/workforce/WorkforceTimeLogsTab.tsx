@@ -18,6 +18,7 @@ import { format, subDays, startOfMonth } from 'date-fns';
 import { UniversalTimeLogDrawer } from '@/components/unified/UniversalTimeLogDrawer';
 import { SplitTimeLogDialog } from '@/components/unified/SplitTimeLogDialog';
 import { EditTimeEntryDialog } from '@/components/workforce/EditTimeEntryDialog';
+import { DaySummaryDialog } from '@/components/workforce/DaySummaryDialog';
 import { GroupedTimeLogsTable } from '@/components/workforce/GroupedTimeLogsTable';
 import { groupTimeLogsByWorkerAndDate, GroupedTimeLog, TimeLogEntry } from '@/lib/timeLogGrouping';
 import { toast } from 'sonner';
@@ -34,6 +35,7 @@ export function WorkforceTimeLogsTab() {
   const [selectedLogs, setSelectedLogs] = useState<Set<string>>(new Set());
   const [selectedGroup, setSelectedGroup] = useState<GroupedTimeLog | null>(null);
   const [addTimeLogOpen, setAddTimeLogOpen] = useState(false);
+  const [daySummaryGroup, setDaySummaryGroup] = useState<GroupedTimeLog | null>(null);
   const [splitTimeLogData, setSplitTimeLogData] = useState<{
     timeLogId: string;
     workerName: string;
@@ -41,6 +43,7 @@ export function WorkforceTimeLogsTab() {
     hours: number;
     projectId: string;
   } | null>(null);
+  const [editingTimeLogId, setEditingTimeLogId] = useState<string | null>(null);
 
   // Fetch companies
   const { data: companies } = useQuery({
@@ -197,19 +200,48 @@ export function WorkforceTimeLogsTab() {
   };
 
   const handleSplitGroup = (group: GroupedTimeLog) => {
-    if (group.projects.length !== 1) {
-      toast.error('Can only split entries with a single project');
+    // PART 1: Allow split for ANY group, even if already split
+    // Open the split dialog with the first time_log for this group
+    const firstProject = group.projects[0];
+    if (!firstProject) {
+      toast.error('No time log entries found');
       return;
     }
 
-    const project = group.projects[0];
     setSplitTimeLogData({
-      timeLogId: project.id,
+      timeLogId: firstProject.id,
       workerName: group.worker_name,
       date: group.date,
-      hours: project.hours,
-      projectId: project.project_id,
+      hours: firstProject.hours,
+      projectId: firstProject.project_id,
     });
+  };
+
+  const handleRowClick = (group: GroupedTimeLog) => {
+    setDaySummaryGroup(group);
+  };
+
+  const handleEditTimeLog = (timeLogId: string) => {
+    setEditingTimeLogId(timeLogId);
+    setDaySummaryGroup(null); // Close day summary when editing single log
+  };
+
+  const handleSplitFromDaySummary = () => {
+    if (daySummaryGroup) {
+      handleSplitGroup(daySummaryGroup);
+      setDaySummaryGroup(null);
+    }
+  };
+
+  const handleAddProjectFromDaySummary = () => {
+    if (daySummaryGroup) {
+      // Open edit dialog in "add mode" with pre-filled worker/date
+      setSelectedGroup({
+        ...daySummaryGroup,
+        projects: [] // Empty projects to trigger add mode
+      });
+      setDaySummaryGroup(null);
+    }
   };
 
   if (isLoading) {
@@ -345,6 +377,7 @@ export function WorkforceTimeLogsTab() {
             onSelectGroup={handleSelectGroup}
             onEditGroup={handleEditGroup}
             onSplitGroup={handleSplitGroup}
+            onRowClick={handleRowClick}
             showSelection={false}
             showActions={true}
           />
@@ -405,6 +438,32 @@ export function WorkforceTimeLogsTab() {
             refetch();
             setSplitTimeLogData(null);
             toast.success('Time log split successfully');
+          }}
+        />
+      )}
+
+      {/* Day Summary Dialog (PART 2) */}
+      {daySummaryGroup && (
+        <DaySummaryDialog
+          open={!!daySummaryGroup}
+          onOpenChange={(open) => !open && setDaySummaryGroup(null)}
+          group={daySummaryGroup}
+          onRefresh={refetch}
+          onEditTimeLog={handleEditTimeLog}
+          onSplitRebalance={handleSplitFromDaySummary}
+          onAddProject={handleAddProjectFromDaySummary}
+        />
+      )}
+
+      {/* Edit Single Time Log (from Day Summary) */}
+      {editingTimeLogId && (
+        <EditTimeEntryDialog
+          open={!!editingTimeLogId}
+          onOpenChange={(open) => !open && setEditingTimeLogId(null)}
+          group={groupedLogs.find(g => g.log_ids.includes(editingTimeLogId)) || null}
+          onSuccess={() => {
+            refetch();
+            setEditingTimeLogId(null);
           }}
         />
       )}

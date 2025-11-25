@@ -22,6 +22,7 @@ interface GroupedTimeLogsTableProps {
   onSelectGroup: (group: GroupedTimeLog) => void;
   onEditGroup: (group: GroupedTimeLog) => void;
   onSplitGroup: (group: GroupedTimeLog) => void;
+  onRowClick?: (group: GroupedTimeLog) => void;
   showSelection?: boolean;
   showActions?: boolean;
 }
@@ -34,6 +35,7 @@ export function GroupedTimeLogsTable({
   onSelectGroup,
   onEditGroup,
   onSplitGroup,
+  onRowClick,
   showSelection = true,
   showActions = true,
 }: GroupedTimeLogsTableProps) {
@@ -106,9 +108,13 @@ export function GroupedTimeLogsTable({
             </TableRow>
           ) : (
             groups.map((group) => (
-              <TableRow key={`${group.date}_${group.worker_id}`} className="hover:bg-muted/30 transition-colors">
+              <TableRow 
+                key={`${group.date}_${group.worker_id}`} 
+                className="hover:bg-muted/30 transition-colors cursor-pointer"
+                onClick={() => onRowClick?.(group)}
+              >
                 {showSelection && (
-                  <TableCell>
+                  <TableCell onClick={(e) => e.stopPropagation()}>
                     <Checkbox
                       checked={isGroupSelected(group)}
                       onCheckedChange={() => onSelectGroup(group)}
@@ -170,22 +176,30 @@ export function GroupedTimeLogsTable({
                   {getPaymentStatusIcon(group.payment_status)}
                 </TableCell>
                 {showActions && (
-                  <TableCell className="text-right">
+                  <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                     <div className="flex gap-1 justify-end">
-                      {group.projects.length === 1 && (
+                      {/* PART 1: Always show Split button for any row with hours > 0 */}
+                      {group.total_hours > 0 && (
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => onSplitGroup(group)}
-                          title="Split into multiple projects"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onSplitGroup(group);
+                          }}
+                          title="Split / Rebalance hours across projects"
                         >
                           <Split className="w-4 h-4" />
                         </Button>
                       )}
+                      {/* PART 1: Always show Edit button */}
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => onEditGroup(group)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onEditGroup(group);
+                        }}
                         title="Edit time entry"
                       >
                         <Edit2 className="w-4 h-4" />
