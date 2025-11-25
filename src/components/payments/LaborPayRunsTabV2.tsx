@@ -1,3 +1,33 @@
+/**
+ * LABOR PAY RUN SYSTEM - DATA FLOW
+ * 
+ * Canonical labor payment flow using existing triggers:
+ * 
+ * 1. SOURCE OF TRUTH: time_logs table
+ *    - hours_worked, labor_cost, payment_status ('unpaid' | 'paid')
+ *    - Generated from work_schedules or created manually
+ * 
+ * 2. CREATE PAY RUN:
+ *    - Query time_logs WHERE payment_status = 'unpaid'
+ *    - User selects date range, company, worker filters
+ *    - Creates labor_pay_runs record (status = 'draft')
+ *    - Creates labor_pay_run_items for each selected time_log
+ * 
+ * 3. MARK AS PAID:
+ *    - Update labor_pay_runs.status = 'paid'
+ *    - Trigger: mark_time_logs_paid_on_pay_run() automatically updates:
+ *      - time_logs.payment_status = 'paid'
+ *      - time_logs.paid_amount = labor_cost
+ * 
+ * 4. EXCLUSION LOGIC:
+ *    - Unpaid logs query excludes time_logs already linked to non-deleted pay runs
+ *    - Prevents double-payment and ensures idempotency
+ * 
+ * DO NOT modify time_logs.payment_status directly in UI.
+ * ONLY update labor_pay_runs.status and let trigger handle the rest.
+ */
+
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -6,10 +36,12 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Eye, DollarSign } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { CreatePayRunDialog } from '@/components/workforce/CreatePayRunDialog';
+import { PayRunDetailDrawer } from '@/components/workforce/PayRunDetailDrawer';
 
 export function LaborPayRunsTabV2() {
-  const navigate = useNavigate();
+  const [payRunDialogOpen, setPayRunDialogOpen] = useState(false);
+  const [detailPayRunId, setDetailPayRunId] = useState<string | null>(null);
 
   const { data: payRuns, isLoading } = useQuery({
     queryKey: ['labor-pay-runs'],
@@ -40,8 +72,8 @@ export function LaborPayRunsTabV2() {
           <p className="text-muted-foreground mb-4">
             Create your first labor pay run from unpaid time logs.
           </p>
-          <Button onClick={() => navigate('/financials/payments?tab=unpaid')}>
-            View Unpaid Labor
+          <Button onClick={() => setPayRunDialogOpen(true)}>
+            Create Pay Run
           </Button>
         </CardContent>
       </Card>
@@ -66,7 +98,7 @@ export function LaborPayRunsTabV2() {
       <CardHeader>
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <CardTitle>Labor Pay Runs</CardTitle>
-          <Button onClick={() => navigate('/payments')} size="sm" className="w-full sm:w-auto">
+          <Button onClick={() => setPayRunDialogOpen(true)} size="sm" className="w-full sm:w-auto">
             Create Pay Run
           </Button>
         </div>
@@ -104,10 +136,7 @@ export function LaborPayRunsTabV2() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => {
-                      // TODO: Open pay run detail drawer
-                      console.log('View pay run:', run.id);
-                    }}
+                    onClick={() => setDetailPayRunId(run.id)}
                   >
                     <Eye className="h-4 w-4" />
                   </Button>
@@ -117,6 +146,23 @@ export function LaborPayRunsTabV2() {
           </TableBody>
         </Table>
       </CardContent>
+
+      {/* Pay Run Creation Dialog */}
+      <CreatePayRunDialog
+        open={payRunDialogOpen}
+        onOpenChange={setPayRunDialogOpen}
+        onSuccess={() => setPayRunDialogOpen(false)}
+      />
+
+      {/* Pay Run Detail Drawer */}
+      {detailPayRunId && (
+        <PayRunDetailDrawer
+          payRunId={detailPayRunId}
+          open={!!detailPayRunId}
+          onOpenChange={(open) => !open && setDetailPayRunId(null)}
+          onSuccess={() => {}}
+        />
+      )}
     </Card>
   );
 }

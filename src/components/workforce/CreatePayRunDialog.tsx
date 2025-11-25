@@ -1,3 +1,29 @@
+/**
+ * LABOR PAY RUN SYSTEM - CREATE DIALOG
+ * 
+ * Two-step wizard for creating labor pay runs:
+ * 
+ * STEP 1: Select filters
+ *   - Date range (start/end)
+ *   - Payer company (optional)
+ *   - Worker/project filters (optional, via props)
+ * 
+ * STEP 2: Select time logs
+ *   - Query time_logs WHERE payment_status = 'unpaid'
+ *   - EXCLUDE logs already in labor_pay_run_items (prevents double-payment)
+ *   - Display grouped by worker → project
+ *   - User selects which logs to include via checkboxes
+ * 
+ * ON SUBMIT:
+ *   - Insert labor_pay_runs (status = 'draft')
+ *   - Insert labor_pay_run_items for each selected log
+ *   - Invalidate queries to refresh UI
+ * 
+ * TRIGGER FLOW:
+ *   - When pay run is marked 'paid', mark_time_logs_paid_on_pay_run() 
+ *     automatically updates time_logs.payment_status and paid_amount
+ */
+
 import { useState, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -66,11 +92,21 @@ export function CreatePayRunDialog({
   });
 
   // Fetch unpaid time logs (only when step 2)
+  // CRITICAL: Exclude time_logs already linked to existing pay runs to prevent double-payment
   const { data: timeLogs, isLoading: logsLoading } = useQuery({
     queryKey: ['unpaid-time-logs', dateRangeStart, dateRangeEnd, defaultWorkerId, defaultProjectId],
     queryFn: async () => {
       if (!dateRangeStart || !dateRangeEnd) return [];
       
+      // First, get all time_log_ids that are already in pay run items
+      const { data: existingItems, error: itemsError } = await supabase
+        .from('labor_pay_run_items')
+        .select('time_log_id');
+
+      if (itemsError) throw itemsError;
+
+      const excludedIds = new Set(existingItems?.map(item => item.time_log_id) || []);
+
       let query = supabase
         .from('time_logs')
         .select(`
@@ -99,7 +135,11 @@ export function CreatePayRunDialog({
 
       const { data, error } = await query;
       if (error) throw error;
-      return data as TimeLogWithDetails[];
+
+      // Filter out time logs that are already in pay runs
+      const filteredData = (data || []).filter(log => !excludedIds.has(log.id));
+      
+      return filteredData as TimeLogWithDetails[];
     },
     enabled: step === 2 && !!dateRangeStart && !!dateRangeEnd,
   });
