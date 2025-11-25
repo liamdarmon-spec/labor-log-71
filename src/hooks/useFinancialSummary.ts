@@ -18,75 +18,110 @@ export interface FinancialSummary {
 export function useFinancialSummary() {
   return useQuery({
     queryKey: ['financial-summary'],
-    queryFn: async () => {
-      // Labor calculations
-      const { data: allLogs } = await supabase
-        .from('daily_logs')
-        .select('hours_worked, payment_status, workers(hourly_rate)');
+    queryFn: async (): Promise<FinancialSummary> => {
+      //
+      // 1) COSTS LEDGER – single source of truth for AP
+      //
+      const { data: costsData, error: costsError } = await supabase
+        .from('costs')
+        .select('amount, status, category');
 
-      const laborActual = (allLogs || []).reduce((sum, log: any) => 
-        sum + (log.hours_worked * (log.workers?.hourly_rate || 0)), 0
-      );
+      if (costsError) throw costsError;
 
-      const laborUnpaid = (allLogs || [])
-        .filter((log: any) => log.payment_status === 'unpaid')
-        .reduce((sum, log: any) => sum + (log.hours_worked * (log.workers?.hourly_rate || 0)), 0);
+      const costs = costsData || [];
 
-      // Sub calculations
-      const { data: subPayments } = await supabase
-        .from('sub_payments')
-        .select('amount_paid, retention_released');
+      let laborActual = 0;
+      let laborUnpaid = 0;
 
-      const subsActual = (subPayments || []).reduce((sum, pay: any) => sum + pay.amount_paid, 0);
+      let subsActual = 0;
+      let subsUnpaid = 0;
 
-      const { data: unpaidSubInvoices } = await supabase
-        .from('sub_invoices')
-        .select('total, retention_amount')
-        .eq('payment_status', 'unpaid');
+      let materialsActual = 0;
+      let materialsUnpaid = 0;
 
-      const subsUnpaid = (unpaidSubInvoices || []).reduce((sum, inv: any) => {
-        const payable = inv.total - (inv.retention_amount || 0);
-        return sum + payable;
-      }, 0);
+      let otherActual = 0;
+      let otherUnpaid = 0;
 
-      const { data: allSubInvoices } = await supabase
+      costs.forEach((c: any) => {
+        const amount = c.amount || 0;
+        const isUnpaid = c.status === 'unpaid';
+
+        switch (c.category) {
+          case 'labor':
+            laborActual += amount;
+            if (isUnpaid) laborUnpaid += amount;
+            break;
+          case 'subs':
+            subsActual += amount;
+            if (isUnpaid) subsUnpaid += amount;
+            break;
+          case 'materials':
+            materialsActual += amount;
+            if (isUnpaid) materialsUnpaid += amount;
+            break;
+          default:
+            // misc / equipment / other etc.
+            otherActual += amount;
+            if (isUnpaid) otherUnpaid += amount;
+            break;
+        }
+      });
+
+      const totalCosts = laborActual + subsActual + materialsActual + otherActual;
+
+      //
+      // 2) REVENUE – AR from invoices (not estimates)
+      //
+      const { data: invoicesData, error: invoicesError } = await supabase
+        .from('invoices')
+        .select('total_amount, status');
+
+      if (invoicesError) throw invoicesError;
+
+      const invoices = invoicesData || [];
+      let revenue = 0;
+
+      invoices.forEach((inv: any) => {
+        if (inv.status !== 'void') {
+          revenue += inv.total_amount || 0;
+        }
+      });
+
+      //
+      // 3) RETENTION – held vs released on subs
+      //
+      const { data: subInvoicesData, error: subInvError } = await supabase
         .from('sub_invoices')
         .select('retention_amount');
 
-      const { data: retentionReleased } = await supabase
+      if (subInvError) throw subInvError;
+
+      const { data: subPaymentsData, error: subPayError } = await supabase
         .from('sub_payments')
         .select('retention_released');
 
-      const totalRetentionHeld = (allSubInvoices || []).reduce((sum, inv: any) => 
-        sum + (inv.retention_amount || 0), 0
+      if (subPayError) throw subPayError;
+
+      const totalRetentionHeld = (subInvoicesData || []).reduce(
+        (sum: number, inv: any) => sum + (inv.retention_amount || 0),
+        0
       );
 
-      const totalRetentionReleased = (retentionReleased || []).reduce((sum, pay: any) => 
-        sum + (pay.retention_released || 0), 0
+      const totalRetentionReleased = (subPaymentsData || []).reduce(
+        (sum: number, pay: any) => sum + (pay.retention_released || 0),
+        0
       );
 
       const retentionHeld = totalRetentionHeld - totalRetentionReleased;
 
-      // Material calculations
-      const { data: materials } = await supabase
-        .from('material_receipts')
-        .select('total');
+      //
+      // 4) OUTSTANDING AP – what you owe out
+      //
+      const totalOutstanding = laborUnpaid + subsUnpaid + materialsUnpaid + otherUnpaid;
 
-      const materialsActual = (materials || []).reduce((sum, m: any) => sum + m.total, 0);
-
-      // Revenue from estimates marked as accepted
-      const { data: estimates } = await supabase
-        .from('estimates')
-        .select('total_amount')
-        .eq('status', 'accepted');
-
-      const revenue = (estimates || []).reduce((sum, est: any) => sum + (est.total_amount || 0), 0);
-
-      const totalCosts = laborActual + subsActual + materialsActual;
       const profit = revenue - totalCosts;
-      const totalOutstanding = laborUnpaid + subsUnpaid;
 
-      const summary: FinancialSummary = {
+      return {
         revenue,
         profit,
         laborActual,
@@ -94,13 +129,11 @@ export function useFinancialSummary() {
         subsActual,
         subsUnpaid,
         materialsActual,
-        materialsUnpaid: 0, // Not tracking unpaid materials yet
+        materialsUnpaid,
         retentionHeld,
-        retentionPayable: retentionHeld, // Same for now
+        retentionPayable: retentionHeld, // same bucket for now
         totalOutstanding,
       };
-
-      return summary;
     },
   });
 }
