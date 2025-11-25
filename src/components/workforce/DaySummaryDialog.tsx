@@ -36,7 +36,7 @@ interface DaySummaryDialogProps {
   group: GroupedTimeLog;
   onRefresh: () => void;
   onEditTimeLog: (timeLogId: string) => void;
-  onSplitRebalance: () => void;
+  onSplitTimeLog: (timeLogId: string) => void;
   onAddProject: () => void;
 }
 
@@ -46,7 +46,7 @@ export function DaySummaryDialog({
   group,
   onRefresh,
   onEditTimeLog,
-  onSplitRebalance,
+  onSplitTimeLog,
   onAddProject
 }: DaySummaryDialogProps) {
   const { toast } = useToast();
@@ -57,6 +57,10 @@ export function DaySummaryDialog({
   const handleDeleteClick = (timeLogId: string) => {
     setTimeLogToDelete(timeLogId);
     setDeleteDialogOpen(true);
+  };
+
+  const handleSplitClick = (timeLogId: string) => {
+    onSplitTimeLog(timeLogId);
   };
 
   const handleConfirmDelete = async () => {
@@ -161,12 +165,8 @@ export function DaySummaryDialog({
           <Separator />
 
           {/* Top-level Actions */}
-          <div className="flex gap-2">
-            <Button onClick={onSplitRebalance} variant="outline" className="flex-1">
-              <Split className="h-4 w-4 mr-2" />
-              Split / Rebalance Hours
-            </Button>
-            <Button onClick={onAddProject} variant="outline" className="flex-1">
+          <div className="flex justify-end">
+            <Button onClick={onAddProject} variant="outline">
               <Plus className="h-4 w-4 mr-2" />
               Add Project to This Day
             </Button>
@@ -234,6 +234,14 @@ export function DaySummaryDialog({
                         title="Edit this entry"
                       >
                         <Edit2 className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleSplitClick(project.id)}
+                        title="Split this entry"
+                      >
+                        <Split className="h-4 w-4" />
                       </Button>
                       <Button
                         variant="ghost"
