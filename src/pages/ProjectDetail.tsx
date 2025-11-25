@@ -15,7 +15,7 @@ import { ProjectWorkforceTab } from '@/components/project/ProjectWorkforceTab';
 import { ProjectBudgetTabV2 } from '@/components/project/ProjectBudgetTabV2';
 import { ProjectBillingTab } from '@/components/project/ProjectBillingTab';
 import { ProjectFinancialDashboard } from '@/components/project/ProjectFinancialDashboard';
-import { ProjectFinancialsTabV2 } from '@/components/project/ProjectFinancialsTabV2';
+import { ProjectFinancialsTab } from '@/components/project/ProjectFinancialsTab';
 import { ProjectSubsTabV3 } from '@/components/project/ProjectSubsTabV3';
 import { ProjectDocumentsTab } from '@/components/project/ProjectDocumentsTab';
 import { ProjectLaborTab } from '@/components/project/ProjectLaborTab';
@@ -149,7 +149,7 @@ const ProjectDetail = () => {
           </TabsContent>
 
           <TabsContent value="financials">
-            <ProjectFinancialsTabV2 projectId={project.id} />
+            <ProjectFinancialsTab projectId={project.id} />
           </TabsContent>
 
           <TabsContent value="dashboard">
