@@ -7,11 +7,11 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Users, DollarSign } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { CreatePayRunDialog } from '@/components/workforce/CreatePayRunDialog';
 
 export function UnpaidLaborTabV2() {
-  const navigate = useNavigate();
   const [selectedLogs, setSelectedLogs] = useState<Set<string>>(new Set());
+  const [payRunDialogOpen, setPayRunDialogOpen] = useState(false);
 
   // CANONICAL: Query time_logs where payment_status = 'unpaid'
   const { data: unpaidLogs, isLoading } = useQuery({
@@ -100,7 +100,7 @@ export function UnpaidLaborTabV2() {
                   ${totalSelected.toLocaleString()}
                 </p>
               </div>
-              <Button onClick={() => navigate('/payments')} className="w-full sm:w-auto">
+              <Button onClick={() => setPayRunDialogOpen(true)} className="w-full sm:w-auto">
                 <DollarSign className="h-4 w-4 mr-2" />
                 Create Pay Run
               </Button>
@@ -152,6 +152,16 @@ export function UnpaidLaborTabV2() {
           </TableBody>
         </Table>
       </CardContent>
+
+      {/* Pay Run Creation Dialog */}
+      <CreatePayRunDialog
+        open={payRunDialogOpen}
+        onOpenChange={setPayRunDialogOpen}
+        onSuccess={() => {
+          setPayRunDialogOpen(false);
+          setSelectedLogs(new Set());
+        }}
+      />
     </Card>
   );
 }

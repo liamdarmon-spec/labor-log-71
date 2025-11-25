@@ -11,7 +11,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Users, DollarSign, Clock, TrendingUp } from 'lucide-react';
 import { format, subDays } from 'date-fns';
-import { useNavigate } from 'react-router-dom';
+import { CreatePayRunDialog } from './CreatePayRunDialog';
 
 interface UnpaidSummary {
   id: string;
@@ -24,12 +24,13 @@ interface UnpaidSummary {
 }
 
 export function WorkforcePayCenterTab() {
-  const navigate = useNavigate();
   const [dateRange, setDateRange] = useState('7');
   const [selectedCompany, setSelectedCompany] = useState<string>('all');
   const [groupBy, setGroupBy] = useState<'worker' | 'project'>('worker');
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [payRunDialogOpen, setPayRunDialogOpen] = useState(false);
+  const [payRunWorkerFilter, setPayRunWorkerFilter] = useState<string | undefined>();
 
   // Fetch companies
   const { data: companies } = useQuery({
@@ -189,18 +190,16 @@ export function WorkforcePayCenterTab() {
     setDrawerOpen(true);
   };
 
-  const handleOpenPaymentDialog = () => {
-    const startDate = format(subDays(new Date(), parseInt(dateRange)), 'yyyy-MM-dd');
-    const endDate = format(new Date(), 'yyyy-MM-dd');
-    const params = new URLSearchParams();
-    
-    if (selectedCompany !== 'all') {
-      params.set('company', selectedCompany);
-    }
-    params.set('start', startDate);
-    params.set('end', endDate);
-    
-    navigate(`/financials/payments?${params.toString()}`);
+  const handleOpenPaymentDialog = (workerId?: string) => {
+    setPayRunWorkerFilter(workerId);
+    setPayRunDialogOpen(true);
+  };
+
+  const handlePayRunSuccess = () => {
+    // Reset state and close drawer
+    setPayRunDialogOpen(false);
+    setPayRunWorkerFilter(undefined);
+    setDrawerOpen(false);
   };
 
   if (summaryLoading) {
@@ -302,7 +301,7 @@ export function WorkforcePayCenterTab() {
           <div className="flex items-center justify-between">
             <CardTitle>Unpaid Labor Summary</CardTitle>
             {unpaidSummary && unpaidSummary.length > 0 && (
-              <Button onClick={handleOpenPaymentDialog}>
+              <Button onClick={() => handleOpenPaymentDialog()}>
                 Create Payment
               </Button>
             )}
@@ -334,13 +333,25 @@ export function WorkforcePayCenterTab() {
                     </TableCell>
                     <TableCell className="text-right">{item.item_count}</TableCell>
                     <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleViewDetails(item.id)}
-                      >
-                        View Details
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleViewDetails(item.id)}
+                        >
+                          View Details
+                        </Button>
+                        {groupBy === 'worker' && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleOpenPaymentDialog(item.id)}
+                          >
+                            <DollarSign className="h-3 w-3 mr-1" />
+                            Pay
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -426,20 +437,30 @@ export function WorkforcePayCenterTab() {
               </div>
 
               {/* Action Button */}
-              <Button 
-                className="w-full" 
-                size="lg"
-                onClick={() => {
-                  setDrawerOpen(false);
-                  handleOpenPaymentDialog();
-                }}
-              >
-                Open Payment Dialog
-              </Button>
+              {groupBy === 'worker' && (
+                <Button 
+                  className="w-full" 
+                  size="lg"
+                  onClick={() => handleOpenPaymentDialog(selectedId || undefined)}
+                >
+                  Create Payment for {selectedSummary.name}
+                </Button>
+              )}
             </div>
           )}
         </SheetContent>
       </Sheet>
+
+      {/* Pay Run Creation Dialog */}
+      <CreatePayRunDialog
+        open={payRunDialogOpen}
+        onOpenChange={setPayRunDialogOpen}
+        onSuccess={handlePayRunSuccess}
+        defaultDateRangeStart={format(subDays(new Date(), parseInt(dateRange)), 'yyyy-MM-dd')}
+        defaultDateRangeEnd={format(new Date(), 'yyyy-MM-dd')}
+        defaultCompanyId={selectedCompany !== 'all' ? selectedCompany : undefined}
+        defaultWorkerId={payRunWorkerFilter}
+      />
     </div>
   );
 }

@@ -15,6 +15,11 @@ interface CreatePayRunDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
+  defaultDateRangeStart?: string;
+  defaultDateRangeEnd?: string;
+  defaultCompanyId?: string;
+  defaultWorkerId?: string;
+  defaultProjectId?: string;
 }
 
 interface TimeLogWithDetails {
@@ -29,13 +34,22 @@ interface TimeLogWithDetails {
   project: { project_name: string };
 }
 
-export function CreatePayRunDialog({ open, onOpenChange, onSuccess }: CreatePayRunDialogProps) {
+export function CreatePayRunDialog({ 
+  open, 
+  onOpenChange, 
+  onSuccess,
+  defaultDateRangeStart,
+  defaultDateRangeEnd,
+  defaultCompanyId,
+  defaultWorkerId,
+  defaultProjectId,
+}: CreatePayRunDialogProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [step, setStep] = useState<1 | 2>(1);
-  const [dateRangeStart, setDateRangeStart] = useState('');
-  const [dateRangeEnd, setDateRangeEnd] = useState('');
-  const [payerCompanyId, setPayerCompanyId] = useState<string>('');
+  const [dateRangeStart, setDateRangeStart] = useState(defaultDateRangeStart || '');
+  const [dateRangeEnd, setDateRangeEnd] = useState(defaultDateRangeEnd || '');
+  const [payerCompanyId, setPayerCompanyId] = useState<string>(defaultCompanyId || '');
   const [selectedLogIds, setSelectedLogIds] = useState<Set<string>>(new Set());
 
   // Fetch companies
@@ -53,11 +67,11 @@ export function CreatePayRunDialog({ open, onOpenChange, onSuccess }: CreatePayR
 
   // Fetch unpaid time logs (only when step 2)
   const { data: timeLogs, isLoading: logsLoading } = useQuery({
-    queryKey: ['unpaid-time-logs', dateRangeStart, dateRangeEnd],
+    queryKey: ['unpaid-time-logs', dateRangeStart, dateRangeEnd, defaultWorkerId, defaultProjectId],
     queryFn: async () => {
       if (!dateRangeStart || !dateRangeEnd) return [];
       
-      const { data, error } = await supabase
+      let query = supabase
         .from('time_logs')
         .select(`
           *,
@@ -66,11 +80,24 @@ export function CreatePayRunDialog({ open, onOpenChange, onSuccess }: CreatePayR
         `)
         .eq('payment_status', 'unpaid')
         .gte('date', dateRangeStart)
-        .lte('date', dateRangeEnd)
+        .lte('date', dateRangeEnd);
+
+      // Apply optional worker filter
+      if (defaultWorkerId) {
+        query = query.eq('worker_id', defaultWorkerId);
+      }
+
+      // Apply optional project filter
+      if (defaultProjectId) {
+        query = query.eq('project_id', defaultProjectId);
+      }
+
+      query = query
         .order('worker_id')
         .order('project_id')
         .order('date');
 
+      const { data, error } = await query;
       if (error) throw error;
       return data as TimeLogWithDetails[];
     },
@@ -138,7 +165,7 @@ export function CreatePayRunDialog({ open, onOpenChange, onSuccess }: CreatePayR
         time_log_id: log.id,
         worker_id: log.worker_id,
         hours: log.hours_worked,
-        rate: log.hourly_rate,
+        rate: log.labor_cost && log.hours_worked ? log.labor_cost / log.hours_worked : 0,
         amount: log.labor_cost,
       }));
 
@@ -153,6 +180,8 @@ export function CreatePayRunDialog({ open, onOpenChange, onSuccess }: CreatePayR
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['labor-pay-runs'] });
       queryClient.invalidateQueries({ queryKey: ['unpaid-time-logs'] });
+      queryClient.invalidateQueries({ queryKey: ['workforce-unpaid-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['time-logs'] });
       toast({
         title: 'Pay run created',
         description: 'Labor pay run created successfully',
@@ -171,9 +200,9 @@ export function CreatePayRunDialog({ open, onOpenChange, onSuccess }: CreatePayR
 
   const handleClose = () => {
     setStep(1);
-    setDateRangeStart('');
-    setDateRangeEnd('');
-    setPayerCompanyId('');
+    setDateRangeStart(defaultDateRangeStart || '');
+    setDateRangeEnd(defaultDateRangeEnd || '');
+    setPayerCompanyId(defaultCompanyId || '');
     setSelectedLogIds(new Set());
     onOpenChange(false);
   };
@@ -305,7 +334,7 @@ export function CreatePayRunDialog({ open, onOpenChange, onSuccess }: CreatePayR
                                   <span className="text-muted-foreground">·</span>
                                   <span>{log.hours_worked}h</span>
                                   <span className="text-muted-foreground">·</span>
-                                  <span>${log.hourly_rate}/hr</span>
+                                  <span>${(log.labor_cost && log.hours_worked ? log.labor_cost / log.hours_worked : 0).toFixed(2)}/hr</span>
                                   <span className="text-muted-foreground">·</span>
                                   <span className="font-medium">${log.labor_cost.toFixed(2)}</span>
                                 </div>
