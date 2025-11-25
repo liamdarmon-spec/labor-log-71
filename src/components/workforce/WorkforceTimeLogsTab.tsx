@@ -226,11 +226,22 @@ export function WorkforceTimeLogsTab() {
     setDaySummaryGroup(null); // Close day summary when editing single log
   };
 
-  const handleSplitFromDaySummary = () => {
-    if (daySummaryGroup) {
-      handleSplitGroup(daySummaryGroup);
-      setDaySummaryGroup(null);
+  const handleSplitTimeLogFromDaySummary = (timeLogId: string) => {
+    // Find the time log to get its details for the split dialog
+    const timeLog = timeLogs?.find(log => log.id === timeLogId);
+    if (!timeLog || !daySummaryGroup) {
+      toast.error('Time log not found');
+      return;
     }
+
+    setSplitTimeLogData({
+      timeLogId: timeLog.id,
+      workerName: daySummaryGroup.worker_name,
+      date: timeLog.date,
+      hours: timeLog.hours_worked,
+      projectId: timeLog.project_id,
+    });
+    setDaySummaryGroup(null); // Close day summary when splitting
   };
 
   const handleAddProjectFromDaySummary = () => {
@@ -450,7 +461,7 @@ export function WorkforceTimeLogsTab() {
           group={daySummaryGroup}
           onRefresh={refetch}
           onEditTimeLog={handleEditTimeLog}
-          onSplitRebalance={handleSplitFromDaySummary}
+          onSplitTimeLog={handleSplitTimeLogFromDaySummary}
           onAddProject={handleAddProjectFromDaySummary}
         />
       )}
