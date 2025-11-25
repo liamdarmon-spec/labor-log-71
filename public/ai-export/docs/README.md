@@ -166,64 +166,386 @@ Per-project, per-cost_code budget breakdown. Created when syncing estimate to bu
 
 ---
 
-### PILLAR 2: Field Operations (Scheduling + Labor Actuals)
+### PILLAR 2: Field Operations (Workforce OS)
 
-#### **work_schedules** ✅ CANONICAL
-- `id` (uuid)
-- `worker_id` (uuid, FK to workers)
-- `project_id` (uuid, FK to projects)
-- `company_id` (uuid, nullable, auto-populated from project)
-- `trade_id` (uuid, nullable, FK to trades)
-- `cost_code_id` (uuid, nullable, FK to cost_codes, auto-assigned)
-- `scheduled_date` (date)
-- `scheduled_hours` (numeric)
-- `notes` (text, nullable)
-- `status` (text: "planned", "synced", "converted")
-- `converted_to_timelog` (boolean, default: false)
-- `last_synced_at` (timestamp, nullable)
-- `created_by` (uuid, nullable)
-- Timestamps: `created_at`, `updated_at`
+> **📚 For detailed schema reference, see**: [Field Operations Schema](./field-ops-schema.md)  
+> **📚 For full SQL definitions, see**: [Field Operations SQL Dump](./field-ops-sql-dump.sql)
 
-**Scheduling source of truth.** Auto-syncs to time_logs for past dates via `sync_work_schedule_to_time_log()`.
+---
 
-**Triggers:**
-- BEFORE INSERT/UPDATE: `auto_populate_company_id()`, `auto_assign_labor_cost_code()`
+#### Overview
+
+Field Operations (Workforce OS) manages the complete labor lifecycle: scheduling planned work, tracking actual hours, and processing payments. The system uses a **canonical two-table architecture** with intelligent auto-sync and auto-population.
+
+**Core Flow**:
+1. Create `work_schedules` (planned labor assignments)
+2. Auto-sync to `time_logs` when date passes or manually converted
+3. Allow manual `time_logs` entry (no schedule required)
+4. Group time logs by worker+date in UI (one row, multiple project chips)
+5. Process payments via `labor_pay_runs` → updates `time_logs.payment_status`
+
+---
+
+#### Core Tables
+
+##### **work_schedules** ✅ CANONICAL
+**Purpose**: Scheduling source of truth for planned labor assignments
+
+**Key Columns**:
+- `id` (uuid), `worker_id` (FK → workers), `project_id` (FK → projects)
+- `company_id` (auto-populated from project), `trade_id` (auto-assigned from worker)
+- `cost_code_id` (auto-assigned from trade), `scheduled_date`, `scheduled_hours`
+- `status` (text) - Values: `'planned'`, `'synced'`, `'split_modified'`, `'split_created'`, `'converted'`
+- `converted_to_timelog` (boolean) - Manual conversion flag
+- `source_schedule_id` (uuid, nullable, FK → work_schedules) - For split schedules
+- `last_synced_at` (timestamp), `notes`, `created_by`
+
+**Auto-Population**:
+- `company_id` ← project.company_id
+- `trade_id` ← worker.trade_id (if NULL)
+- `cost_code_id` ← trade.default_labor_cost_code_id
+
+**Auto-Sync Behavior**:
+- When `scheduled_date < CURRENT_DATE`: Auto-creates/updates `time_logs` with `source_schedule_id` link
+- When `converted_to_timelog` set to `true`: Manual conversion to time log (even for future dates)
+- Status changes to `'synced'` after sync
+
+**Triggers**:
+- BEFORE INSERT/UPDATE: `auto_set_schedule_trade()`, `auto_populate_company_id()`
 - AFTER INSERT/UPDATE: `sync_work_schedule_to_time_log()`
 
-#### **time_logs** ✅ CANONICAL
-- `id` (uuid)
-- `worker_id` (uuid, FK to workers)
-- `project_id` (uuid, FK to projects)
-- `company_id` (uuid, nullable, auto-populated from project)
-- `trade_id` (uuid, nullable, FK to trades)
-- `cost_code_id` (uuid, nullable, FK to cost_codes, auto-assigned)
-- `date` (date, default: CURRENT_DATE)
-- `hours_worked` (numeric)
-- `hourly_rate` (numeric, nullable, auto-populated from worker)
-- `labor_cost` (numeric, generated: hours_worked * hourly_rate)
-- `notes` (text, nullable)
-- `payment_status` (text, default: 'unpaid': "unpaid" | "paid" | "pending")
-- `paid_amount` (numeric, nullable, default: 0)
-- `source_schedule_id` (uuid, nullable, FK to work_schedules)
-- `last_synced_at` (timestamp, nullable)
-- `created_by` (uuid, nullable)
-- Timestamps: `created_at`
+**Related RPCs**:
+- `split_schedule_for_multi_project()` - Splits schedule across multiple projects
 
-**Labor actuals source of truth.** Links back to work_schedules via `source_schedule_id`. Payment status updated via labor_pay_runs.
+---
 
-**Triggers:**
-- BEFORE INSERT/UPDATE: `auto_populate_company_id()`, `auto_populate_worker_rate()`, `auto_assign_labor_cost_code()`
+##### **time_logs** ✅ CANONICAL
+**Purpose**: Labor actuals source of truth - records actual hours worked
+
+**Key Columns**:
+- `id` (uuid), `worker_id` (FK → workers), `project_id` (FK → projects)
+- `company_id` (auto-populated from project), `trade_id` (auto-assigned with priority logic)
+- `cost_code_id` (auto-assigned from trade), `date`, `hours_worked`
+- `hourly_rate` (auto-populated from worker), `labor_cost` (generated: hours × rate)
+- `payment_status` (text) - Values: `'unpaid'`, `'paid'`, `'pending'`
+- `paid_amount` (numeric), `source_schedule_id` (uuid, nullable, FK → work_schedules)
+- `last_synced_at` (timestamp), `notes`, `created_by`
+
+**Auto-Population**:
+- `company_id` ← project.company_id
+- `hourly_rate` ← worker.hourly_rate
+- `trade_id` priority: explicit UI value → linked schedule.trade_id → worker.trade_id
+- `cost_code_id` ← trade.default_labor_cost_code_id
+
+**Two Types of Time Logs**:
+1. **Scheduled Logs**: `source_schedule_id IS NOT NULL` - Created from work_schedules
+2. **Manual Logs**: `source_schedule_id IS NULL` - Standalone entries (no schedule)
+
+**Bi-Directional Sync**:
+- Changes to time_logs can sync back to linked work_schedules (if `scheduled_date < CURRENT_DATE`)
+
+**Triggers**:
+- BEFORE INSERT/UPDATE: `auto_set_time_log_trade_and_cost_code()`, `auto_populate_company_id()`, `auto_populate_worker_rate()`
 - AFTER INSERT/UPDATE: `sync_time_log_to_work_schedule()`
 
-#### **workers** ✅ CANONICAL
-- `id` (uuid)
-- `name` (text)
-- `trade` (text)
-- `trade_id` (uuid, nullable, FK to trades)
-- `hourly_rate` (numeric) - Auto-populates into time_logs
-- `phone` (text, nullable)
-- `active` (boolean, default: true)
-- Timestamps: `created_at`, `updated_at`
+**Related RPCs**:
+- `split_time_log_for_multi_project()` - Splits time log across multiple projects
+
+---
+
+##### **workers** ✅ CANONICAL
+**Purpose**: Worker registry with default rates and trades
+
+**Key Columns**:
+- `id` (uuid), `name`, `trade` (legacy text), `trade_id` (FK → trades)
+- `hourly_rate` (numeric) - Default rate used in time_logs
+- `phone`, `active` (boolean)
+
+**Role in Auto-Population**:
+- `hourly_rate` → time_logs.hourly_rate
+- `trade_id` → fallback for work_schedules.trade_id and time_logs.trade_id
+
+---
+
+##### **trades** ✅ CANONICAL
+**Purpose**: Trade registry with default cost code mappings
+
+**Key Columns**:
+- `id` (uuid), `name`, `description`
+- `default_labor_cost_code_id` (FK → cost_codes) - Used for labor entries
+- `default_sub_cost_code_id` (FK → cost_codes) - Used for sub entries
+
+**Role in Auto-Assignment**:
+- Provides `cost_code_id` for schedules and time logs via triggers
+
+---
+
+##### **cost_codes** ✅ CANONICAL
+**Purpose**: Cost code registry for budget and actual categorization
+
+**Key Columns**:
+- `id` (uuid), `code`, `name`, `category` (labor/subs/materials/other)
+- `trade_id` (FK → trades), `is_active`
+
+**Usage**: Referenced by work_schedules, time_logs, budgets, and costs for consistent categorization
+
+---
+
+#### Payment Tables
+
+##### **labor_pay_runs** ✅ CANONICAL
+**Purpose**: Labor payment batch management
+
+**Key Columns**:
+- `id` (uuid), `payer_company_id`, `payee_company_id`
+- `date_range_start`, `date_range_end`, `total_amount`
+- `status` (text) - Values: `'draft'`, `'paid'`
+- `payment_method`, `notes`, `created_by`
+
+**Behavior**: When `status` → `'paid'`, triggers `mark_time_logs_paid_on_pay_run()` to update time_logs
+
+**Triggers**:
+- AFTER UPDATE: `mark_time_logs_paid_on_pay_run()` when status changes to 'paid'
+
+---
+
+##### **labor_pay_run_items** ✅ CANONICAL
+**Purpose**: Line items linking time_logs to pay runs
+
+**Key Columns**:
+- `id` (uuid), `pay_run_id` (FK → labor_pay_runs)
+- `time_log_id` (FK → time_logs), `worker_id` (FK → workers)
+- `hours`, `rate`, `amount`
+
+**Relationship**: Links time_logs to payment batches
+
+---
+
+#### Critical Rules & Behaviors
+
+##### Schedule-to-TimeLog Sync Rules
+
+**One-Way Primary Sync**: `work_schedules` → `time_logs` (past dates only)
+```
+IF scheduled_date < CURRENT_DATE THEN
+  - Create or update time_logs with source_schedule_id link
+  - Set work_schedules.status = 'synced'
+  - Set converted_to_timelog = TRUE
+END IF
+```
+
+**Manual Conversion** (User-Initiated):
+```
+IF converted_to_timelog = TRUE THEN
+  - Force sync to time_logs (even for future dates)
+  - Set status = 'converted'
+END IF
+```
+
+**Manual Time Logs** (No Schedule):
+- Users can create time_logs directly with `source_schedule_id = NULL`
+- These are standalone entries, never linked to schedules
+- Treated identically to scheduled logs for grouping, splitting, and payments
+
+**Bi-Directional Updates** (Edits Sync Back):
+- If time_log has `source_schedule_id IS NOT NULL`
+- AND linked schedule's `scheduled_date < CURRENT_DATE`
+- THEN changes to time_log sync back to work_schedule
+
+---
+
+##### Split Preservation Rules
+
+**Schedule Splits** (`split_schedule_for_multi_project()`):
+1. First entry updates original schedule → status = `'split_modified'`
+2. Additional entries create new schedules → status = `'split_created'`
+3. All splits create/update corresponding time_logs with matching `source_schedule_id`
+4. Result: Multiple schedules + time_logs, all linked together
+
+**Time Log Splits** (`split_time_log_for_multi_project()`):
+1. First entry updates original time_log
+2. Additional entries create new time_logs
+3. **CRITICAL**: All splits preserve original's `source_schedule_id` (may be NULL for manual logs)
+4. This prevents FK violations and maintains schedule relationship
+
+**Example Split**:
+```
+Original: Worker worked 8h on one project
+After Split:
+  - Time Log 1: 5h Project A (source_schedule_id = X or NULL)
+  - Time Log 2: 3h Project B (source_schedule_id = X or NULL)
+Both splits inherit the same source_schedule_id value.
+```
+
+---
+
+##### Trade & Cost Code Assignment Priority
+
+**For work_schedules**:
+1. Explicit `trade_id` from UI/API
+2. Fallback to `worker.trade_id`
+
+**For time_logs** (more complex):
+1. Explicit `trade_id` from UI/API
+2. If `source_schedule_id IS NOT NULL`, use `work_schedule.trade_id`
+3. Fallback to `worker.trade_id`
+
+**Cost Code Auto-Assignment**:
+- Once `trade_id` is determined, lookup `trade.default_labor_cost_code_id`
+- Assign to `cost_code_id` if NULL
+
+**Example**:
+```
+Worker: John (trade_id = "Carpenter")
+Trade: Carpenter (default_labor_cost_code_id = "FRAM-L")
+Schedule: Created with trade_id = NULL → auto-set to "Carpenter"
+TimeLog: Created from schedule → inherits trade_id = "Carpenter"
+Result: Both have cost_code_id = "FRAM-L"
+```
+
+---
+
+##### Multi-Project Day Handling
+
+**UI Behavior** (Workforce OS → Time Logs Tab):
+- Groups time_logs by `worker_id` + `date` into single row
+- Shows projects as chips: "ProjectName · TradeName · 8h"
+- Edit modal allows adding/removing project allocations
+- Splitting creates multiple time_logs with same date, different projects
+
+**Splitting Multi-Project Days**:
+```
+Before: Worker X, Date 2025-11-24, 8h total
+  - 1 time_log (project_id = A, hours_worked = 8, source_schedule_id = NULL)
+
+After Split:
+  - time_log 1 (project_id = A, hours = 4, source_schedule_id = NULL)
+  - time_log 2 (project_id = B, hours = 4, source_schedule_id = NULL)
+
+Both logs have same worker_id, date, but different project_id.
+```
+
+---
+
+#### Database Functions Reference
+
+**Auto-Population**:
+- `auto_populate_company_id()` - Fills company_id from project
+- `auto_populate_worker_rate()` - Fills hourly_rate from worker
+- `auto_set_schedule_trade()` - Sets trade_id for schedules
+- `auto_set_time_log_trade_and_cost_code()` - Sets trade_id and cost_code_id for time logs
+
+**Sync Functions**:
+- `sync_work_schedule_to_time_log()` - Primary one-way sync (schedules → time logs)
+- `sync_time_log_to_work_schedule()` - Bi-directional sync (time logs → schedules)
+
+**Split Functions**:
+- `split_schedule_for_multi_project(p_schedule_id, p_entries)` - Splits schedule across projects
+- `split_time_log_for_multi_project(p_time_log_id, p_entries)` - Splits time log across projects
+
+**Payment Functions**:
+- `mark_time_logs_paid_on_pay_run()` - Updates time_logs when pay run marked paid
+
+---
+
+#### Pay Center Flow
+
+**Unpaid Labor → Pay Run → Paid Labor**:
+1. User creates time_logs (either from schedules or manually)
+2. Time logs start with `payment_status = 'unpaid'`
+3. User creates `labor_pay_run` with date range
+4. System adds `labor_pay_run_items` linking time_logs to pay run
+5. When pay run marked `status = 'paid'`:
+   - Trigger updates all linked time_logs: `payment_status = 'paid'`, `paid_amount = labor_cost`
+6. Time logs now show as paid in Workforce OS
+
+---
+
+#### UI Integration (Workforce OS)
+
+**Schedule Tab**:
+- Displays `work_schedules` in weekly calendar view
+- Shows only schedules (not manual time logs)
+- Manual time logs with `source_schedule_id = NULL` don't appear here
+
+**Time Logs Tab**:
+- Groups `time_logs` by `worker_id + date` into single row
+- Displays all time logs (both scheduled and manual)
+- Edit modal supports multi-project splitting
+- Query uses LEFT JOINs to include manual logs (no source_schedule_id filter)
+
+**Pay Center Tab**:
+- Shows unpaid time_logs
+- Allows creating labor_pay_runs
+- Updates time_logs.payment_status when pay run marked paid
+
+---
+
+#### Legacy Tables (DO NOT USE)
+
+⚠️ **Historical data only** - do not use for new features:
+- `scheduled_shifts` → Use `work_schedules`
+- `daily_logs` → Use `time_logs`
+- `day_cards` → Use `time_logs` aggregations
+- `day_card_jobs` → Use `time_logs` with cost_code_id
+- `payments` → Use `labor_pay_runs` flow
+
+---
+
+#### Common Queries
+
+**Unpaid labor summary**:
+```sql
+SELECT worker_id, SUM(labor_cost) as total_unpaid
+FROM time_logs
+WHERE payment_status = 'unpaid'
+GROUP BY worker_id;
+```
+
+**Schedule vs actuals**:
+```sql
+SELECT 
+  ws.scheduled_date,
+  ws.worker_id,
+  ws.scheduled_hours,
+  tl.hours_worked,
+  (tl.hours_worked - ws.scheduled_hours) as variance
+FROM work_schedules ws
+LEFT JOIN time_logs tl ON tl.source_schedule_id = ws.id;
+```
+
+**Manual vs scheduled time logs**:
+```sql
+SELECT 
+  CASE 
+    WHEN source_schedule_id IS NOT NULL THEN 'scheduled'
+    ELSE 'manual'
+  END as log_type,
+  COUNT(*) as count,
+  SUM(hours_worked) as total_hours
+FROM time_logs
+GROUP BY log_type;
+```
+
+---
+
+#### Summary
+
+**Canonical Tables**: work_schedules, time_logs, workers, trades, cost_codes, labor_pay_runs, labor_pay_run_items
+
+**Key Features**:
+- One-way primary sync: schedules → time logs (past dates)
+- Manual time log entry (no schedule required)
+- Multi-project day splitting with source_schedule_id preservation
+- Auto-population: company_id, trade_id, cost_code_id, hourly_rate
+- Bi-directional updates for linked schedule-timelog pairs
+- Payment batch processing with status tracking
+
+**Data Integrity**:
+- All time_logs link to projects (FK constraint)
+- Manual time_logs have source_schedule_id = NULL (valid state)
+- Split time_logs preserve original's source_schedule_id (prevents FK violations)
+- Triggers handle all auto-population and sync logic
 
 ---
 
