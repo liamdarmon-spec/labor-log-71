@@ -1,0 +1,52 @@
+[
+  {
+    "id": "5ae6636f-a163-4924-b9b5-2a6cea5a14dc",
+    "code": "APPL-L",
+    "name": "Labor – Appliances Install",
+    "category": "labor",
+    "trade_id": "d144f3ca-c633-464d-8a16-a02888452a34",
+    "default_trade_id": null,
+    "is_active": true,
+    "created_at": "2025-11-23T04:01:00.360289Z"
+  },
+  {
+    "id": "fd225d27-fb5a-42ba-aff4-a1a8180e19eb",
+    "code": "CAB-L",
+    "name": "Labor – Cabinets & Millwork",
+    "category": "labor",
+    "trade_id": "174b3fb8-1b4b-41f4-b4fc-a214ea167849",
+    "default_trade_id": null,
+    "is_active": true,
+    "created_at": "2025-11-23T04:00:50.778869Z"
+  },
+  {
+    "id": "583a59f4-a722-4c1d-aa6c-00f312d35e89",
+    "code": "CONC-L",
+    "name": "Labor – Concrete & Foundations",
+    "category": "labor",
+    "trade_id": "c0410c73-169a-406b-999b-4f3017b4e1f8",
+    "default_trade_id": null,
+    "is_active": true,
+    "created_at": "2025-11-23T04:00:37.567368Z"
+  },
+  {
+    "id": "a4bb517e-d100-4035-ab8d-3e51832564ff",
+    "code": "DEMO-L",
+    "name": "Labor – Demolition",
+    "category": "labor",
+    "trade_id": "fb8d3e74-99a6-4c6f-840f-c783c01951cb",
+    "default_trade_id": null,
+    "is_active": true,
+    "created_at": "2025-11-23T04:00:36.440682Z"
+  },
+  {
+    "id": "7375de06-173c-4b25-bef1-3093393b798a",
+    "code": "EXT-L",
+    "name": "Labor – Exterior Cladding",
+    "category": "labor",
+    "trade_id": "36ff62c8-0bec-4773-aca8-af8c52a664ca",
+    "default_trade_id": null,
+    "is_active": true,
+    "created_at": "2025-11-23T04:00:44.516652Z"
+  }
+]
