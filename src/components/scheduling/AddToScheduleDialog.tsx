@@ -29,6 +29,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useCostCodes } from "@/hooks/useCostCodes";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface Worker {
   id: string;
@@ -82,6 +83,7 @@ export function AddToScheduleDialog({
   defaultProjectName
 }: AddToScheduleDialogProps) {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [mode, setMode] = useState<ScheduleMode>('workers');
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -319,6 +321,9 @@ export function AddToScheduleDialog({
       description: "Shift created successfully"
     });
 
+    // Invalidate all schedule queries to refresh all views
+    queryClient.invalidateQueries({ queryKey: ['schedules'] });
+
     if (addAnother) {
       // Keep modal open, only reset worker-specific fields
       setSelectedWorker("");
@@ -402,6 +407,9 @@ export function AddToScheduleDialog({
       description: `${schedules.length} shift(s) scheduled successfully`
     });
 
+    // Invalidate all schedule queries to refresh all views
+    queryClient.invalidateQueries({ queryKey: ['schedules'] });
+
     resetForm();
     onScheduleCreated();
     onOpenChange(false);
@@ -444,6 +452,9 @@ export function AddToScheduleDialog({
       title: "Success",
       description: "Sub schedule created successfully"
     });
+
+    // Invalidate all schedule queries to refresh all views
+    queryClient.invalidateQueries({ queryKey: ['schedules'] });
 
     if (addAnother) {
       setSelectedSub("");

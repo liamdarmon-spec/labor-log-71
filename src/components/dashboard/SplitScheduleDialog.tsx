@@ -21,6 +21,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Trash2, AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface Project {
   id: string;
@@ -62,6 +63,7 @@ export function SplitScheduleDialog({
   onSuccess
 }: SplitScheduleDialogProps) {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [projects, setProjects] = useState<Project[]>([]);
   const [trades, setTrades] = useState<Trade[]>([]);
   const [entries, setEntries] = useState<ProjectEntry[]>([
@@ -133,6 +135,9 @@ export function SplitScheduleDialog({
         title: 'Success',
         description: `Schedule split into ${entries.length} entries with linked time logs`,
       });
+
+      // Invalidate all schedule queries to refresh all views
+      queryClient.invalidateQueries({ queryKey: ['schedules'] });
 
       onSuccess();
       onClose();

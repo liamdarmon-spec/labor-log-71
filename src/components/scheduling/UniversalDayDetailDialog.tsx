@@ -21,6 +21,7 @@ import { EditScheduleDialog } from "./EditScheduleDialog";
 import { ScheduleEditButton } from "./ScheduleEditButton";
 import { ScheduleDeleteButton } from "./ScheduleDeleteButton";
 import { SplitScheduleDialog } from "@/components/dashboard/SplitScheduleDialog";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -74,6 +75,7 @@ export function UniversalDayDetailDialog({
   scheduleType = 'all'
 }: UniversalDayDetailDialogProps) {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [schedules, setSchedules] = useState<ScheduledShift[]>([]);
   const [loading, setLoading] = useState(false);
   const [convertDialogOpen, setConvertDialogOpen] = useState(false);
@@ -163,9 +165,19 @@ export function UniversalDayDetailDialog({
       description: `Converted ${selectedSchedules.length} schedule(s) to time logs`
     });
 
+    // Invalidate all schedule queries to refresh all views
+    queryClient.invalidateQueries({ queryKey: ['schedules'] });
+
     setConvertDialogOpen(false);
     setSelectedSchedules([]);
-    fetchDaySchedules();
+    await fetchDaySchedules();
+    onRefresh(); // Trigger parent refresh
+  };
+
+  // Centralized refresh handler that updates both local and parent state
+  const handleScheduleMutation = async () => {
+    await fetchDaySchedules();
+    queryClient.invalidateQueries({ queryKey: ['schedules'] });
     onRefresh();
   };
 

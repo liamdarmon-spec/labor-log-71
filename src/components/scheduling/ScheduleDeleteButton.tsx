@@ -13,6 +13,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { isPast, isFuture, parseISO } from "date-fns";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,6 +34,7 @@ interface ScheduleDeleteButtonProps {
 
 export function ScheduleDeleteButton({ scheduleId, scheduleDate, onSuccess }: ScheduleDeleteButtonProps) {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [hasTimeLog, setHasTimeLog] = useState(false);
   const [timeLogIds, setTimeLogIds] = useState<string[]>([]);
@@ -85,6 +87,10 @@ export function ScheduleDeleteButton({ scheduleId, scheduleDate, onSuccess }: Sc
       title: "Success",
       description: "Schedule deleted successfully"
     });
+
+    // Invalidate all schedule queries to refresh all views
+    queryClient.invalidateQueries({ queryKey: ['schedules'] });
+
     setOpen(false);
     onSuccess();
   };
@@ -131,6 +137,10 @@ export function ScheduleDeleteButton({ scheduleId, scheduleDate, onSuccess }: Sc
       title: "Success",
       description: "Schedule deleted. Time logs preserved."
     });
+
+    // Invalidate all schedule queries to refresh all views
+    queryClient.invalidateQueries({ queryKey: ['schedules'] });
+
     setOpen(false);
     onSuccess();
   };
@@ -177,6 +187,10 @@ export function ScheduleDeleteButton({ scheduleId, scheduleDate, onSuccess }: Sc
       title: "Success",
       description: "Schedule and time logs deleted"
     });
+
+    // Invalidate all schedule queries to refresh all views
+    queryClient.invalidateQueries({ queryKey: ['schedules'] });
+
     setOpen(false);
     onSuccess();
   };
