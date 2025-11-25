@@ -190,6 +190,7 @@ export function CreatePayRunDialog({
           date_range_start: dateRangeStart,
           date_range_end: dateRangeEnd,
           status: 'draft',
+          total_hours: selectedTotals.hours,
           total_amount: selectedTotals.amount,
           payer_company_id: payerCompanyId && payerCompanyId !== 'none' ? payerCompanyId : null,
           payee_company_id: null,

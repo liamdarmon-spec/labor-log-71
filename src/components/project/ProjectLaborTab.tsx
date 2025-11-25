@@ -43,7 +43,7 @@ export function ProjectLaborTab({ projectId }: ProjectLaborTabProps) {
 
   const dates = getDateRangeDates();
 
-  // Fetch time logs for this project
+  // Fetch time logs for this project with pay run info
   const { data: timeLogs, isLoading } = useQuery({
     queryKey: ['project-time-logs', projectId, dates.start, dates.end, paymentStatusFilter],
     queryFn: async () => {
@@ -53,7 +53,11 @@ export function ProjectLaborTab({ projectId }: ProjectLaborTabProps) {
           *,
           worker:workers(name),
           trade:trades(name),
-          cost_code:cost_codes(code, name)
+          cost_code:cost_codes(code, name),
+          pay_run_item:labor_pay_run_items(
+            pay_run_id,
+            pay_run:labor_pay_runs(id, payment_date, payment_method)
+          )
         `)
         .eq('project_id', projectId)
         .gte('date', dates.start)
@@ -232,9 +236,16 @@ export function ProjectLaborTab({ projectId }: ProjectLaborTabProps) {
                           ${cost.toFixed(2)}
                         </TableCell>
                         <TableCell>
-                          <Badge variant={log.payment_status === 'paid' ? 'default' : 'outline'}>
-                            {log.payment_status}
-                          </Badge>
+                          <div className="flex flex-col gap-1">
+                            <Badge variant={log.payment_status === 'paid' ? 'default' : 'outline'}>
+                              {log.payment_status}
+                            </Badge>
+                            {log.payment_status === 'paid' && log.pay_run_item?.[0]?.pay_run?.id && (
+                              <span className="text-xs text-muted-foreground">
+                                Pay Run #{log.pay_run_item[0].pay_run.id.slice(0, 8)}
+                              </span>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     );

@@ -1732,9 +1732,12 @@ export type Database = {
           notes: string | null
           payee_company_id: string | null
           payer_company_id: string | null
+          payment_date: string | null
           payment_method: string | null
+          payment_reference: string | null
           status: string | null
           total_amount: number | null
+          total_hours: number | null
           updated_at: string | null
         }
         Insert: {
@@ -1746,9 +1749,12 @@ export type Database = {
           notes?: string | null
           payee_company_id?: string | null
           payer_company_id?: string | null
+          payment_date?: string | null
           payment_method?: string | null
+          payment_reference?: string | null
           status?: string | null
           total_amount?: number | null
+          total_hours?: number | null
           updated_at?: string | null
         }
         Update: {
@@ -1760,9 +1766,12 @@ export type Database = {
           notes?: string | null
           payee_company_id?: string | null
           payer_company_id?: string | null
+          payment_date?: string | null
           payment_method?: string | null
+          payment_reference?: string | null
           status?: string | null
           total_amount?: number | null
+          total_hours?: number | null
           updated_at?: string | null
         }
         Relationships: [

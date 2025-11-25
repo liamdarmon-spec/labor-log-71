@@ -25,12 +25,16 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CheckCircle2, Loader2, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
+import { useState } from 'react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -53,6 +57,11 @@ interface PayRunDetailDrawerProps {
 export function PayRunDetailDrawer({ payRunId, open, onOpenChange, onSuccess }: PayRunDetailDrawerProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  const [paymentDate, setPaymentDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [paymentMethod, setPaymentMethod] = useState('');
+  const [paymentReference, setPaymentReference] = useState('');
+  const [paymentNotes, setPaymentNotes] = useState('');
 
   // Fetch pay run with items
   const { data: payRun, isLoading } = useQuery({
@@ -102,11 +111,17 @@ export function PayRunDetailDrawer({ payRunId, open, onOpenChange, onSuccess }: 
 
   const markPaid = useMutation({
     mutationFn: async () => {
-      // CRITICAL: Only update pay run status
+      // CRITICAL: Update pay run with payment info
       // The mark_time_logs_paid_on_pay_run() trigger will handle updating time_logs
       const { error } = await supabase
         .from('labor_pay_runs')
-        .update({ status: 'paid' })
+        .update({ 
+          status: 'paid',
+          payment_date: paymentDate,
+          payment_method: paymentMethod,
+          payment_reference: paymentReference,
+          notes: paymentNotes,
+        })
         .eq('id', payRunId);
 
       if (error) throw error;
@@ -226,9 +241,9 @@ export function PayRunDetailDrawer({ payRunId, open, onOpenChange, onSuccess }: 
 
             <Card>
               <CardContent className="pt-6">
-                <div className="text-sm text-muted-foreground">Payer Company</div>
+                <div className="text-sm text-muted-foreground">Total Hours</div>
                 <div className="text-lg font-semibold">
-                  {payRun.payer_company?.name || 'N/A'}
+                  {(payRun.total_hours || 0).toFixed(1)}h
                 </div>
               </CardContent>
             </Card>
@@ -243,21 +258,86 @@ export function PayRunDetailDrawer({ payRunId, open, onOpenChange, onSuccess }: 
             </Card>
           </div>
 
-          {/* Summary Stats */}
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex justify-between items-center">
-                <div>
-                  <div className="text-sm text-muted-foreground">Total Hours</div>
-                  <div className="text-2xl font-bold">{totalHours.toFixed(1)}h</div>
+          {/* Summary Stats removed - now in header cards */}
+
+          {/* Payment Details Section */}
+          {payRun.status === 'draft' && (
+            <Card>
+              <CardContent className="pt-6 space-y-4">
+                <h3 className="font-semibold mb-3">Payment Details</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="payment-date">Payment Date</Label>
+                    <Input
+                      id="payment-date"
+                      type="date"
+                      value={paymentDate}
+                      onChange={(e) => setPaymentDate(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="payment-method">Payment Method</Label>
+                    <Input
+                      id="payment-method"
+                      placeholder="e.g., Check, ACH, Wire"
+                      value={paymentMethod}
+                      onChange={(e) => setPaymentMethod(e.target.value)}
+                    />
+                  </div>
                 </div>
-                <div>
-                  <div className="text-sm text-muted-foreground">Time Logs</div>
-                  <div className="text-2xl font-bold">{payRunItems?.length || 0}</div>
+                <div className="space-y-2">
+                  <Label htmlFor="payment-reference">Payment Reference</Label>
+                  <Input
+                    id="payment-reference"
+                    placeholder="Check number, transaction ID, etc."
+                    value={paymentReference}
+                    onChange={(e) => setPaymentReference(e.target.value)}
+                  />
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+                <div className="space-y-2">
+                  <Label htmlFor="payment-notes">Notes</Label>
+                  <Textarea
+                    id="payment-notes"
+                    placeholder="Additional payment notes..."
+                    value={paymentNotes}
+                    onChange={(e) => setPaymentNotes(e.target.value)}
+                    rows={3}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Payment Info (Read-only when paid) */}
+          {payRun.status === 'paid' && (
+            <Card>
+              <CardContent className="pt-6">
+                <h3 className="font-semibold mb-3">Payment Information</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <div className="text-sm text-muted-foreground">Payment Date</div>
+                    <div className="font-medium">
+                      {payRun.payment_date ? format(new Date(payRun.payment_date), 'MMM d, yyyy') : 'N/A'}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-muted-foreground">Payment Method</div>
+                    <div className="font-medium">{payRun.payment_method || 'N/A'}</div>
+                  </div>
+                  <div className="col-span-2">
+                    <div className="text-sm text-muted-foreground">Payment Reference</div>
+                    <div className="font-medium">{payRun.payment_reference || 'N/A'}</div>
+                  </div>
+                  {payRun.notes && (
+                    <div className="col-span-2">
+                      <div className="text-sm text-muted-foreground">Notes</div>
+                      <div className="font-medium">{payRun.notes}</div>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Time Logs Table */}
           <div>
