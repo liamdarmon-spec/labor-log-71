@@ -11,7 +11,7 @@ export function useJobCosting(filters?: JobCostingFilters) {
     queryKey: ['job-costing', filters],
     queryFn: async () => {
       //
-      // 1) Projects Query (unchanged)
+      // 1) Base projects query
       //
       let projectsQuery = supabase
         .from('projects')
@@ -48,7 +48,7 @@ export function useJobCosting(filters?: JobCostingFilters) {
       if (budgetsError) throw budgetsError;
 
       //
-      // 3) LABOR: from project_labor_summary_view (~60% faster)
+      // 3) LABOR: from project_labor_summary_view
       //
       const { data: laborSummaries, error: laborError } = await supabase
         .from('project_labor_summary_view')
@@ -60,7 +60,7 @@ export function useJobCosting(filters?: JobCostingFilters) {
       const laborMap = new Map<string, number>(
         (laborSummaries || []).map(row => [
           row.project_id,
-          row.total_labor_cost || 0
+          row.total_labor_cost || 0,
         ])
       );
 
@@ -83,33 +83,30 @@ export function useJobCosting(filters?: JobCostingFilters) {
           {
             subs: row.subs_cost || 0,
             materials: row.materials_cost || 0,
-            misc: row.misc_cost || 0
-          }
+            misc: row.misc_cost || 0,
+          },
         ])
       );
 
       //
-      // 5) Revenue / billed (still from invoices)
+      // 5) REVENUE: from project_revenue_summary_view
       //
-      const { data: invoices, error: invoicesError } = await supabase
-        .from('invoices')
-        .select('project_id, total_amount, status')
-        .in('project_id', projectIds)
-        .neq('status', 'void');
+      const { data: revenueSummaries, error: revenueError } = await supabase
+        .from('project_revenue_summary_view')
+        .select('project_id, billed_amount')
+        .in('project_id', projectIds);
 
-      if (invoicesError) throw invoicesError;
+      if (revenueError) throw revenueError;
 
-      const invoiceMap = new Map<string, number>();
-      (invoices || []).forEach(inv => {
-        const amt = inv.total_amount || 0;
-        invoiceMap.set(
-          inv.project_id,
-          (invoiceMap.get(inv.project_id) || 0) + amt
-        );
-      });
+      const billedMap = new Map<string, number>(
+        (revenueSummaries || []).map(row => [
+          row.project_id,
+          row.billed_amount || 0,
+        ])
+      );
 
       //
-      // ---------- FINAL UI SHAPE ----------
+      // ---------- FINAL SHAPE FOR UI ----------
       //
       return projects.map(project => {
         const budget = budgets?.find(b => b.project_id === project.id);
@@ -120,12 +117,21 @@ export function useJobCosting(filters?: JobCostingFilters) {
           (budget?.other_budget || 0);
 
         const laborActual = laborMap.get(project.id) || 0;
-        const c = costsMap.get(project.id) || { subs: 0, materials: 0, misc: 0 };
+        const c = costsMap.get(project.id) || {
+          subs: 0,
+          materials: 0,
+          misc: 0,
+        };
 
-        const totalActual = laborActual + c.subs + c.materials + c.misc;
+        const totalActual =
+          laborActual +
+          c.subs +
+          c.materials +
+          c.misc;
+
         const variance = totalBudget - totalActual;
 
-        const billed = invoiceMap.get(project.id) || 0;
+        const billed = billedMap.get(project.id) || 0;
         const margin = billed - totalActual;
 
         return {
@@ -136,11 +142,11 @@ export function useJobCosting(filters?: JobCostingFilters) {
             subs: c.subs,
             materials: c.materials,
             misc: c.misc,
-            total: totalActual
+            total: totalActual,
           },
           variance,
           billed,
-          margin
+          margin,
         };
       });
     },
