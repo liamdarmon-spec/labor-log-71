@@ -75,7 +75,7 @@ export function CreatePayRunDialog({
   const [step, setStep] = useState<1 | 2>(1);
   const [dateRangeStart, setDateRangeStart] = useState(defaultDateRangeStart || '');
   const [dateRangeEnd, setDateRangeEnd] = useState(defaultDateRangeEnd || '');
-  const [payerCompanyId, setPayerCompanyId] = useState<string>(defaultCompanyId || '');
+  const [payerCompanyId, setPayerCompanyId] = useState<string>(defaultCompanyId || 'none');
   const [selectedLogIds, setSelectedLogIds] = useState<Set<string>>(new Set());
 
   // Fetch companies
@@ -191,7 +191,7 @@ export function CreatePayRunDialog({
           date_range_end: dateRangeEnd,
           status: 'draft',
           total_amount: selectedTotals.amount,
-          payer_company_id: payerCompanyId || null,
+          payer_company_id: payerCompanyId && payerCompanyId !== 'none' ? payerCompanyId : null,
           payee_company_id: null,
         })
         .select()
@@ -242,7 +242,7 @@ export function CreatePayRunDialog({
     setStep(1);
     setDateRangeStart(defaultDateRangeStart || '');
     setDateRangeEnd(defaultDateRangeEnd || '');
-    setPayerCompanyId(defaultCompanyId || '');
+    setPayerCompanyId(defaultCompanyId || 'none');
     setSelectedLogIds(new Set());
     onOpenChange(false);
   };
@@ -317,7 +317,7 @@ export function CreatePayRunDialog({
                   <SelectValue placeholder="Select company or leave blank" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No Company</SelectItem>
+                  <SelectItem value="none">No Company</SelectItem>
                   {companies?.map(company => (
                     <SelectItem key={company.id} value={company.id}>
                       {company.name}
