@@ -3,16 +3,19 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CostsTab } from '@/components/financials/CostsTab';
 import { MaterialsTab } from '@/components/financials/MaterialsTab';
 import { SubPaymentsTab } from '@/components/financials/SubPaymentsTab';
+import { Button } from '@/components/ui/button';
+import { useNavigate } from 'react-router-dom';
 
 export default function CostsAPTab() {
   const [activeTab, setActiveTab] = useState('all');
+  const navigate = useNavigate();
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold">Costs (AP)</h1>
         <p className="text-muted-foreground">
-          All job-related expenses and accounts payable
+          All job-related non-labor expenses and accounts payable
         </p>
       </div>
 
@@ -26,22 +29,39 @@ export default function CostsAPTab() {
           <TabsTrigger value="misc">Misc</TabsTrigger>
         </TabsList>
 
+        {/* All non-labor AP pulled from `costs` */}
         <TabsContent value="all">
           <CostsTab />
         </TabsContent>
 
+        {/* Labor = point them to Workforce Pay Center / Pay Runs */}
         <TabsContent value="labor">
-          <CostsTab categoryFilter="labor" />
+          <div className="space-y-3 border rounded-lg p-4">
+            <p className="text-sm text-muted-foreground">
+              Labor costs and payments are managed via time logs and pay runs, not the AP costs ledger.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" variant="default" onClick={() => navigate('/financials/payments')}>
+                Go to Payment Center
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => navigate('/workforce')}>
+                Open Workforce OS
+              </Button>
+            </div>
+          </div>
         </TabsContent>
 
+        {/* Subs = costs coming from subs / sub_invoices / vendor_payments */}
         <TabsContent value="subs">
           <SubPaymentsTab />
         </TabsContent>
 
+        {/* Materials = material_receipts + costs.category = 'materials' */}
         <TabsContent value="materials">
           <MaterialsTab />
         </TabsContent>
 
+        {/* Equipment + Misc = filtered costs categories */}
         <TabsContent value="equipment">
           <CostsTab categoryFilter="equipment" />
         </TabsContent>
