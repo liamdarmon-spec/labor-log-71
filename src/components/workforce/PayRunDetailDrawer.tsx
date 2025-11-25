@@ -1,3 +1,25 @@
+/**
+ * LABOR PAY RUN DETAIL DRAWER
+ * 
+ * Displays full details of a labor pay run and allows marking as paid.
+ * 
+ * DATA FLOW:
+ *   - Fetches labor_pay_runs + labor_pay_run_items + linked time_logs
+ *   - Shows summary stats and itemized table
+ * 
+ * MARK AS PAID ACTION:
+ *   - Updates labor_pay_runs.status = 'paid'
+ *   - Trigger mark_time_logs_paid_on_pay_run() automatically:
+ *     - Sets time_logs.payment_status = 'paid'
+ *     - Sets time_logs.paid_amount = labor_cost
+ *   - DO NOT manually update time_logs in this component
+ * 
+ * DELETE ACTION:
+ *   - Only available for draft pay runs
+ *   - Removes labor_pay_run_items first, then labor_pay_runs
+ *   - Time logs revert to unpaid status automatically
+ */
+
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -80,6 +102,8 @@ export function PayRunDetailDrawer({ payRunId, open, onOpenChange, onSuccess }: 
 
   const markPaid = useMutation({
     mutationFn: async () => {
+      // CRITICAL: Only update pay run status
+      // The mark_time_logs_paid_on_pay_run() trigger will handle updating time_logs
       const { error } = await supabase
         .from('labor_pay_runs')
         .update({ status: 'paid' })
@@ -91,9 +115,11 @@ export function PayRunDetailDrawer({ payRunId, open, onOpenChange, onSuccess }: 
       queryClient.invalidateQueries({ queryKey: ['labor-pay-run-detail', payRunId] });
       queryClient.invalidateQueries({ queryKey: ['labor-pay-run-items', payRunId] });
       queryClient.invalidateQueries({ queryKey: ['labor-pay-runs'] });
+      queryClient.invalidateQueries({ queryKey: ['time-logs'] });
+      queryClient.invalidateQueries({ queryKey: ['workforce-unpaid-summary'] });
       toast({
         title: 'Pay run marked as paid',
-        description: 'All time logs have been updated to paid status',
+        description: 'All time logs have been updated to paid status via trigger',
       });
       onSuccess();
     },
@@ -108,7 +134,7 @@ export function PayRunDetailDrawer({ payRunId, open, onOpenChange, onSuccess }: 
 
   const deletePayRun = useMutation({
     mutationFn: async () => {
-      // First delete items
+      // Delete items first to avoid FK constraint errors
       const { error: itemsError } = await supabase
         .from('labor_pay_run_items')
         .delete()
@@ -126,9 +152,11 @@ export function PayRunDetailDrawer({ payRunId, open, onOpenChange, onSuccess }: 
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['labor-pay-runs'] });
+      queryClient.invalidateQueries({ queryKey: ['time-logs'] });
+      queryClient.invalidateQueries({ queryKey: ['workforce-unpaid-summary'] });
       toast({
         title: 'Pay run deleted',
-        description: 'Pay run and all items have been removed',
+        description: 'Time logs have been reverted to unpaid status',
       });
       onOpenChange(false);
       onSuccess();
