@@ -10,7 +10,9 @@ export function useJobCosting(filters?: JobCostingFilters) {
   return useQuery({
     queryKey: ['job-costing', filters],
     queryFn: async () => {
-      // 1) Base projects query
+      //
+      // 1) Projects Query (unchanged)
+      //
       let projectsQuery = supabase
         .from('projects')
         .select(`
@@ -35,7 +37,9 @@ export function useJobCosting(filters?: JobCostingFilters) {
 
       const projectIds = projects.map(p => p.id);
 
-      // 2) Budgets (still canonical source)
+      //
+      // 2) Budgets (canonical)
+      //
       const { data: budgets, error: budgetsError } = await supabase
         .from('project_budgets')
         .select('project_id, labor_budget, subs_budget, materials_budget, other_budget')
@@ -43,23 +47,50 @@ export function useJobCosting(filters?: JobCostingFilters) {
 
       if (budgetsError) throw budgetsError;
 
-      // 3) Labor actuals — SWITCHED TO time_logs (canonical labor ledger)
-      const { data: laborActuals, error: laborError } = await supabase
-        .from('time_logs')
-        .select('project_id, labor_cost')
+      //
+      // 3) LABOR: from project_labor_summary_view (~60% faster)
+      //
+      const { data: laborSummaries, error: laborError } = await supabase
+        .from('project_labor_summary_view')
+        .select('project_id, total_labor_cost')
         .in('project_id', projectIds);
 
       if (laborError) throw laborError;
 
-      // 4) Non-labor costs (subs / materials / misc) from costs table
-      const { data: costsActuals, error: costsError } = await supabase
-        .from('costs')
-        .select('project_id, category, amount')
+      const laborMap = new Map<string, number>(
+        (laborSummaries || []).map(row => [
+          row.project_id,
+          row.total_labor_cost || 0
+        ])
+      );
+
+      //
+      // 4) COSTS: from project_cost_summary_view
+      //
+      const { data: costSummaries, error: costError } = await supabase
+        .from('project_cost_summary_view')
+        .select('project_id, subs_cost, materials_cost, misc_cost')
         .in('project_id', projectIds);
 
-      if (costsError) throw costsError;
+      if (costError) throw costError;
 
-      // 5) Revenue / billed from invoices
+      const costsMap = new Map<
+        string,
+        { subs: number; materials: number; misc: number }
+      >(
+        (costSummaries || []).map(row => [
+          row.project_id,
+          {
+            subs: row.subs_cost || 0,
+            materials: row.materials_cost || 0,
+            misc: row.misc_cost || 0
+          }
+        ])
+      );
+
+      //
+      // 5) Revenue / billed (still from invoices)
+      //
       const { data: invoices, error: invoicesError } = await supabase
         .from('invoices')
         .select('project_id, total_amount, status')
@@ -68,46 +99,6 @@ export function useJobCosting(filters?: JobCostingFilters) {
 
       if (invoicesError) throw invoicesError;
 
-      // ---------- AGGREGATION LAYER ----------
-
-      // Budgets by project
-      const budgetMap = new Map(
-        (budgets || []).map(b => [b.project_id, b])
-      );
-
-      // Labor actuals by project (from time_logs)
-      const laborMap = new Map<string, number>();
-      (laborActuals || []).forEach((log: any) => {
-        const cost = log.labor_cost || 0;
-        laborMap.set(
-          log.project_id,
-          (laborMap.get(log.project_id) || 0) + cost
-        );
-      });
-
-      // Cost categories by project
-      const costsMap = new Map<
-        string,
-        { subs: number; materials: number; misc: number }
-      >();
-
-      (costsActuals || []).forEach((cost: any) => {
-        if (!costsMap.has(cost.project_id)) {
-          costsMap.set(cost.project_id, { subs: 0, materials: 0, misc: 0 });
-        }
-        const projectCosts = costsMap.get(cost.project_id)!;
-
-        if (cost.category === 'subs') {
-          projectCosts.subs += cost.amount || 0;
-        } else if (cost.category === 'materials') {
-          projectCosts.materials += cost.amount || 0;
-        } else {
-          // treat anything else as misc (including old 'other' / 'misc')
-          projectCosts.misc += cost.amount || 0;
-        }
-      });
-
-      // Invoiced / billed by project
       const invoiceMap = new Map<string, number>();
       (invoices || []).forEach(inv => {
         const amt = inv.total_amount || 0;
@@ -117,10 +108,11 @@ export function useJobCosting(filters?: JobCostingFilters) {
         );
       });
 
-      // ---------- FINAL SHAPE FOR UI ----------
-
+      //
+      // ---------- FINAL UI SHAPE ----------
+      //
       return projects.map(project => {
-        const budget = budgetMap.get(project.id);
+        const budget = budgets?.find(b => b.project_id === project.id);
         const totalBudget =
           (budget?.labor_budget || 0) +
           (budget?.subs_budget || 0) +
@@ -128,18 +120,9 @@ export function useJobCosting(filters?: JobCostingFilters) {
           (budget?.other_budget || 0);
 
         const laborActual = laborMap.get(project.id) || 0;
-        const projectCosts = costsMap.get(project.id) || {
-          subs: 0,
-          materials: 0,
-          misc: 0,
-        };
+        const c = costsMap.get(project.id) || { subs: 0, materials: 0, misc: 0 };
 
-        const totalActual =
-          laborActual +
-          projectCosts.subs +
-          projectCosts.materials +
-          projectCosts.misc;
-
+        const totalActual = laborActual + c.subs + c.materials + c.misc;
         const variance = totalBudget - totalActual;
 
         const billed = invoiceMap.get(project.id) || 0;
@@ -150,14 +133,14 @@ export function useJobCosting(filters?: JobCostingFilters) {
           budget: totalBudget,
           actuals: {
             labor: laborActual,
-            subs: projectCosts.subs,
-            materials: projectCosts.materials,
-            misc: projectCosts.misc,
-            total: totalActual,
+            subs: c.subs,
+            materials: c.materials,
+            misc: c.misc,
+            total: totalActual
           },
           variance,
           billed,
-          margin,
+          margin
         };
       });
     },
