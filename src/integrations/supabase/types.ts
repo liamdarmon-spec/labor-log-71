@@ -5272,6 +5272,24 @@ export type Database = {
           },
         ]
       }
+      global_financial_summary_view: {
+        Row: {
+          labor_actual: number | null
+          labor_unpaid: number | null
+          materials_actual: number | null
+          materials_unpaid: number | null
+          misc_actual: number | null
+          misc_unpaid: number | null
+          profit: number | null
+          retention_held: number | null
+          revenue: number | null
+          subs_actual: number | null
+          subs_unpaid: number | null
+          total_costs: number | null
+          total_outstanding: number | null
+        }
+        Relationships: []
+      }
       labor_actuals_by_cost_code: {
         Row: {
           actual_cost: number | null
@@ -5573,6 +5591,81 @@ export type Database = {
         }
         Relationships: []
       }
+      project_cost_summary_view: {
+        Row: {
+          company_id: string | null
+          cost_entry_count: number | null
+          materials_cost: number | null
+          materials_unpaid: number | null
+          misc_cost: number | null
+          misc_unpaid: number | null
+          paid_cost: number | null
+          project_id: string | null
+          project_name: string | null
+          subs_cost: number | null
+          subs_unpaid: number | null
+          total_cost: number | null
+          unpaid_cost: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "costs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "material_actuals_by_project"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "costs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_budget_vs_actual_view"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "costs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_costs_view"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "costs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_dashboard_view"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "costs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_labor_summary"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "costs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "projects_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "projects_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_payroll_summary"
+            referencedColumns: ["company_id"]
+          },
+        ]
+      }
       project_costs_view: {
         Row: {
           category: string | null
@@ -5722,6 +5815,79 @@ export type Database = {
           worker_count: number | null
         }
         Relationships: []
+      }
+      project_labor_summary_view: {
+        Row: {
+          company_id: string | null
+          paid_hours: number | null
+          paid_labor_cost: number | null
+          project_id: string | null
+          project_name: string | null
+          time_log_count: number | null
+          total_hours: number | null
+          total_labor_cost: number | null
+          unpaid_hours: number | null
+          unpaid_labor_cost: number | null
+          worker_count: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_logs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_logs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_payroll_summary"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "time_logs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "material_actuals_by_project"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "time_logs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_budget_vs_actual_view"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "time_logs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_costs_view"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "time_logs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_dashboard_view"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "time_logs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_labor_summary"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "time_logs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       project_schedule_view: {
         Row: {
