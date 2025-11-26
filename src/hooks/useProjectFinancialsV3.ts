@@ -29,6 +29,15 @@ interface ProjectFinancialsV3 {
   percentComplete: number;
 }
 
+function normalizeCostCategory(raw: string | null | undefined) {
+  const c = (raw || "").toLowerCase().trim();
+  if (c.startsWith("sub")) return "subs" as const;
+  if (c.startsWith("mat")) return "materials" as const;
+  if (c.startsWith("misc")) return "misc" as const;
+  // Everything else gets treated as misc for now
+  return "misc" as const;
+}
+
 /**
  * Project-level financials that match the job-costing view.
  * Uses canonical labor (time_logs) and the costs + invoices tables.
@@ -90,15 +99,15 @@ export function useProjectFinancialsV3(projectId: string) {
 
       (costs || []).forEach((c: any) => {
         const amount = Number(c.amount || 0);
-        const category = (c.category as string | undefined)?.toLowerCase();
+        const cat = normalizeCostCategory(c.category);
 
-        if (category === "subs") {
+        if (cat === "subs") {
           subsActual += amount;
           if (c.status === "unpaid") subsUnpaid += amount;
-        } else if (category === "materials") {
+        } else if (cat === "materials") {
           materialsActual += amount;
           if (c.status === "unpaid") materialsUnpaid += amount;
-        } else if (category === "misc") {
+        } else if (cat === "misc") {
           miscActual += amount;
         }
       });
