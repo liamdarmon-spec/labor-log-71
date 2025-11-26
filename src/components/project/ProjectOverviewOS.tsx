@@ -28,7 +28,7 @@ export function ProjectOverviewOS({ projectId }: ProjectOverviewOSProps) {
   const weekStart = format(startOfWeek(new Date()), 'yyyy-MM-dd');
   const weekEnd = format(endOfWeek(new Date()), 'yyyy-MM-dd');
 
-  // PROJECT HEALTH: Schedule Status
+  // PROJECT HEALTH: Schedule Status - using time_logs (canonical)
   const { data: scheduleHealth } = useQuery({
     queryKey: ['schedule-health', projectId],
     queryFn: async () => {
@@ -38,8 +38,9 @@ export function ProjectOverviewOS({ projectId }: ProjectOverviewOSProps) {
         .eq('project_id', projectId)
         .lt('scheduled_date', today);
       
+      // Use time_logs instead of daily_logs
       const { data: logs } = await supabase
-        .from('daily_logs')
+        .from('time_logs')
         .select('date')
         .eq('project_id', projectId)
         .lt('date', today);
@@ -57,7 +58,7 @@ export function ProjectOverviewOS({ projectId }: ProjectOverviewOSProps) {
     },
   });
 
-  // PROJECT HEALTH: Budget Status
+  // PROJECT HEALTH: Budget Status - using time_logs and costs (canonical)
   const { data: budgetHealth } = useQuery({
     queryKey: ['budget-health', projectId],
     queryFn: async () => {
@@ -70,39 +71,39 @@ export function ProjectOverviewOS({ projectId }: ProjectOverviewOSProps) {
       const totalBudget = (budget?.labor_budget || 0) + (budget?.subs_budget || 0) + 
                           (budget?.materials_budget || 0) + (budget?.other_budget || 0);
 
-      // Calculate labor actual
-      const { data: logs } = await supabase
-        .from('daily_logs')
-        .select('hours_worked, worker_id')
+      // Calculate labor actual from time_logs (canonical)
+      const { data: laborLogs } = await supabase
+        .from('time_logs')
+        .select('labor_cost')
         .eq('project_id', projectId);
 
-      const workerIds = [...new Set(logs?.map(l => l.worker_id) || [])];
-      const { data: workers } = await supabase
-        .from('workers')
-        .select('id, hourly_rate')
-        .in('id', workerIds);
+      const laborActual = laborLogs?.reduce((sum, log) => sum + (log.labor_cost || 0), 0) || 0;
 
-      const workerRateMap = new Map(workers?.map(w => [w.id, w.hourly_rate]) || []);
-      const laborActual = logs?.reduce((sum, log) => {
-        const rate = workerRateMap.get(log.worker_id) || 0;
-        return sum + ((log.hours_worked || 0) * rate);
-      }, 0) || 0;
+      // Get materials actual from costs table (canonical)
+      const { data: materialsCosts } = await supabase
+        .from('costs')
+        .select('amount')
+        .eq('project_id', projectId)
+        .eq('category', 'materials');
+      const materialsActual = materialsCosts?.reduce((sum, c) => sum + (c.amount || 0), 0) || 0;
 
-      // Get materials actual
-      const { data: materials } = await supabase
-        .from('material_receipts')
-        .select('total')
-        .eq('project_id', projectId);
-      const materialsActual = materials?.reduce((sum, m) => sum + (m.total || 0), 0) || 0;
+      // Get subs actual from costs table (canonical)
+      const { data: subsCosts } = await supabase
+        .from('costs')
+        .select('amount')
+        .eq('project_id', projectId)
+        .eq('category', 'subs');
+      const subsActual = subsCosts?.reduce((sum, c) => sum + (c.amount || 0), 0) || 0;
 
-      // Get subs actual
-      const { data: subInvoices } = await supabase
-        .from('sub_invoices')
-        .select('total')
-        .eq('project_id', projectId);
-      const subsActual = subInvoices?.reduce((sum, s) => sum + (s.total || 0), 0) || 0;
+      // Get misc actual from costs table
+      const { data: miscCosts } = await supabase
+        .from('costs')
+        .select('amount')
+        .eq('project_id', projectId)
+        .eq('category', 'misc');
+      const miscActual = miscCosts?.reduce((sum, c) => sum + (c.amount || 0), 0) || 0;
 
-      const totalActual = laborActual + subsActual + materialsActual;
+      const totalActual = laborActual + subsActual + materialsActual + miscActual;
       const percentUsed = totalBudget > 0 ? (totalActual / totalBudget) * 100 : 0;
 
       let status: 'healthy' | 'warning' | 'danger' = 'healthy';
@@ -119,36 +120,28 @@ export function ProjectOverviewOS({ projectId }: ProjectOverviewOSProps) {
     },
   });
 
-  // PROJECT HEALTH: Labor Status
+  // PROJECT HEALTH: Labor Status - using time_logs (canonical)
   const { data: laborHealth } = useQuery({
     queryKey: ['labor-health', projectId, weekStart],
     queryFn: async () => {
+      // Use time_logs instead of daily_logs
       const { data: weekLogs } = await supabase
-        .from('daily_logs')
-        .select('hours_worked, payment_status, worker_id')
+        .from('time_logs')
+        .select('hours_worked, labor_cost, payment_status')
         .eq('project_id', projectId)
         .gte('date', weekStart)
         .lte('date', weekEnd);
 
       const weekHours = weekLogs?.reduce((sum, l) => sum + (l.hours_worked || 0), 0) || 0;
 
+      // Get unpaid labor from time_logs
       const { data: unpaidLogs } = await supabase
-        .from('daily_logs')
-        .select('hours_worked, worker_id')
+        .from('time_logs')
+        .select('labor_cost')
         .eq('project_id', projectId)
-        .eq('payment_status', 'unpaid');
+        .neq('payment_status', 'paid');
 
-      const workerIds = [...new Set(unpaidLogs?.map(l => l.worker_id) || [])];
-      const { data: workers } = await supabase
-        .from('workers')
-        .select('id, hourly_rate')
-        .in('id', workerIds);
-
-      const workerRateMap = new Map(workers?.map(w => [w.id, w.hourly_rate]) || []);
-      const unpaidAmount = unpaidLogs?.reduce((sum, log) => {
-        const rate = workerRateMap.get(log.worker_id) || 0;
-        return sum + ((log.hours_worked || 0) * rate);
-      }, 0) || 0;
+      const unpaidAmount = unpaidLogs?.reduce((sum, log) => sum + (log.labor_cost || 0), 0) || 0;
 
       return { weekHours, unpaidAmount, hasUnpaid: unpaidAmount > 0 };
     },
@@ -203,7 +196,7 @@ export function ProjectOverviewOS({ projectId }: ProjectOverviewOSProps) {
     },
   });
 
-  // This Week Data
+  // This Week Data - using time_logs (canonical)
   const { data: weekData } = useQuery({
     queryKey: ['week-data', projectId, weekStart],
     queryFn: async () => {
@@ -214,8 +207,9 @@ export function ProjectOverviewOS({ projectId }: ProjectOverviewOSProps) {
           .eq('project_id', projectId)
           .gte('scheduled_date', weekStart)
           .lte('scheduled_date', weekEnd),
+        // Use time_logs instead of daily_logs
         supabase
-          .from('daily_logs')
+          .from('time_logs')
           .select('hours_worked')
           .eq('project_id', projectId)
           .gte('date', weekStart)
@@ -229,7 +223,7 @@ export function ProjectOverviewOS({ projectId }: ProjectOverviewOSProps) {
     },
   });
 
-  // Budget by Category
+  // Budget by Category - using time_logs and costs (canonical)
   const { data: budgetByCategory } = useQuery({
     queryKey: ['budget-by-category', projectId],
     queryFn: async () => {
@@ -239,35 +233,23 @@ export function ProjectOverviewOS({ projectId }: ProjectOverviewOSProps) {
         .eq('project_id', projectId)
         .single();
 
-      // Get actuals - same logic as budgetHealth but broken down
-      const { data: logs } = await supabase
-        .from('daily_logs')
-        .select('hours_worked, worker_id')
+      // Get labor actuals from time_logs (canonical)
+      const { data: laborLogs } = await supabase
+        .from('time_logs')
+        .select('labor_cost')
         .eq('project_id', projectId);
 
-      const workerIds = [...new Set(logs?.map(l => l.worker_id) || [])];
-      const { data: workers } = await supabase
-        .from('workers')
-        .select('id, hourly_rate')
-        .in('id', workerIds);
+      const laborActual = laborLogs?.reduce((sum, log) => sum + (log.labor_cost || 0), 0) || 0;
 
-      const workerRateMap = new Map(workers?.map(w => [w.id, w.hourly_rate]) || []);
-      const laborActual = logs?.reduce((sum, log) => {
-        const rate = workerRateMap.get(log.worker_id) || 0;
-        return sum + ((log.hours_worked || 0) * rate);
-      }, 0) || 0;
-
-      const { data: materials } = await supabase
-        .from('material_receipts')
-        .select('total')
+      // Get all non-labor costs from costs table (canonical)
+      const { data: allCosts } = await supabase
+        .from('costs')
+        .select('amount, category')
         .eq('project_id', projectId);
-      const materialsActual = materials?.reduce((sum, m) => sum + (m.total || 0), 0) || 0;
 
-      const { data: subInvoices } = await supabase
-        .from('sub_invoices')
-        .select('total')
-        .eq('project_id', projectId);
-      const subsActual = subInvoices?.reduce((sum, s) => sum + (s.total || 0), 0) || 0;
+      const materialsActual = allCosts?.filter(c => c.category === 'materials').reduce((sum, c) => sum + (c.amount || 0), 0) || 0;
+      const subsActual = allCosts?.filter(c => c.category === 'subs').reduce((sum, c) => sum + (c.amount || 0), 0) || 0;
+      const otherActual = allCosts?.filter(c => c.category === 'misc' || c.category === 'equipment' || c.category === 'other').reduce((sum, c) => sum + (c.amount || 0), 0) || 0;
 
       return {
         labor: {
@@ -287,58 +269,50 @@ export function ProjectOverviewOS({ projectId }: ProjectOverviewOSProps) {
         },
         other: {
           budget: budget?.other_budget || 0,
-          actual: 0,
-          variance: budget?.other_budget || 0,
+          actual: otherActual,
+          variance: (budget?.other_budget || 0) - otherActual,
         },
       };
     },
   });
 
-  // Workforce Snapshot (last 7 days)
+  // Workforce Snapshot (last 7 days) - using time_logs (canonical)
   const { data: workforceSnapshot } = useQuery({
     queryKey: ['workforce-snapshot', projectId],
     queryFn: async () => {
       const sevenDaysAgo = format(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd');
       
+      // Use time_logs instead of daily_logs
       const { data: logs } = await supabase
-        .from('daily_logs')
-        .select('worker_id, hours_worked, payment_status')
+        .from('time_logs')
+        .select('worker_id, hours_worked, labor_cost, payment_status')
         .eq('project_id', projectId)
         .gte('date', sevenDaysAgo);
 
-      const workerStats = new Map<string, { hours: number; unpaid: number }>();
+      const workerStats = new Map<string, { hours: number; unpaidAmount: number }>();
       logs?.forEach(log => {
-        const current = workerStats.get(log.worker_id) || { hours: 0, unpaid: 0 };
+        const current = workerStats.get(log.worker_id) || { hours: 0, unpaidAmount: 0 };
         current.hours += log.hours_worked || 0;
+        if (log.payment_status !== 'paid') {
+          current.unpaidAmount += log.labor_cost || 0;
+        }
         workerStats.set(log.worker_id, current);
       });
 
       const workerIds = Array.from(workerStats.keys());
+      if (workerIds.length === 0) return [];
+
       const { data: workers } = await supabase
         .from('workers')
         .select('id, name, trade, hourly_rate')
         .in('id', workerIds);
 
-      const { data: unpaidLogs } = await supabase
-        .from('daily_logs')
-        .select('worker_id, hours_worked')
-        .eq('project_id', projectId)
-        .eq('payment_status', 'unpaid')
-        .in('worker_id', workerIds);
-
-      const unpaidByWorker = new Map<string, number>();
-      unpaidLogs?.forEach(log => {
-        const current = unpaidByWorker.get(log.worker_id) || 0;
-        unpaidByWorker.set(log.worker_id, current + (log.hours_worked || 0));
-      });
-
       const enriched = workers?.map(w => {
         const stats = workerStats.get(w.id);
-        const unpaidHours = unpaidByWorker.get(w.id) || 0;
         return {
           ...w,
           totalHours: stats?.hours || 0,
-          unpaidAmount: unpaidHours * (w.hourly_rate || 0),
+          unpaidAmount: stats?.unpaidAmount || 0,
         };
       }) || [];
 
@@ -697,7 +671,7 @@ export function ProjectOverviewOS({ projectId }: ProjectOverviewOSProps) {
               <TableHeader>
                 <TableRow>
                   <TableHead>Worker</TableHead>
-                  <TableHead>Company</TableHead>
+                  <TableHead>Trade</TableHead>
                   <TableHead className="text-right">Hours</TableHead>
                   <TableHead className="text-right">Unpaid</TableHead>
                 </TableRow>
@@ -708,11 +682,10 @@ export function ProjectOverviewOS({ projectId }: ProjectOverviewOSProps) {
                     <TableCell>
                       <div>
                         <p className="font-medium">{worker.name}</p>
-                        <p className="text-xs text-muted-foreground">{worker.trade}</p>
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline">{worker.companies?.name || 'N/A'}</Badge>
+                      <Badge variant="outline">{worker.trade || 'N/A'}</Badge>
                     </TableCell>
                     <TableCell className="text-right font-medium">{worker.totalHours.toFixed(1)}h</TableCell>
                     <TableCell className="text-right">

@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 export default function FinancialsOverview() {
   const navigate = useNavigate();
 
-  // Fetch overview data
+  // Fetch overview data - using time_logs and costs (canonical)
   const { data: overview, isLoading } = useQuery({
     queryKey: ['financial-overview'],
     queryFn: async () => {
@@ -22,23 +22,23 @@ export default function FinancialsOverview() {
         sum + (b.labor_budget || 0) + (b.subs_budget || 0) + (b.materials_budget || 0) + (b.other_budget || 0), 0
       );
 
-      // Fetch labor actuals
+      // Fetch labor actuals from time_logs (canonical) - use labor_cost directly
       const { data: laborLogs } = await supabase
-        .from('daily_logs')
-        .select('hours_worked, workers!inner(hourly_rate)');
+        .from('time_logs')
+        .select('labor_cost, payment_status');
 
-      const laborActual = (laborLogs || []).reduce((sum, log: any) => 
-        sum + (log.hours_worked * (log.workers?.hourly_rate || 0)), 0
+      const laborActual = (laborLogs || []).reduce((sum, log) => 
+        sum + (log.labor_cost || 0), 0
       );
 
-      // Fetch other costs
+      // Fetch other costs from costs table (canonical)
       const { data: costs } = await supabase
         .from('costs')
         .select('category, amount, status, date_incurred');
 
-      const subsActual = (costs || []).filter(c => c.category === 'subs').reduce((sum, c) => sum + c.amount, 0);
-      const materialsActual = (costs || []).filter(c => c.category === 'materials').reduce((sum, c) => sum + c.amount, 0);
-      const miscActual = (costs || []).filter(c => c.category === 'misc').reduce((sum, c) => sum + c.amount, 0);
+      const subsActual = (costs || []).filter(c => c.category === 'subs').reduce((sum, c) => sum + (c.amount || 0), 0);
+      const materialsActual = (costs || []).filter(c => c.category === 'materials').reduce((sum, c) => sum + (c.amount || 0), 0);
+      const miscActual = (costs || []).filter(c => c.category === 'misc' || c.category === 'equipment').reduce((sum, c) => sum + (c.amount || 0), 0);
 
       const totalActual = laborActual + subsActual + materialsActual + miscActual;
       const variance = totalBudget - totalActual;
@@ -46,8 +46,10 @@ export default function FinancialsOverview() {
       // Last 30 days costs
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      const recentCosts = (costs || []).filter(c => new Date(c.date_incurred) >= thirtyDaysAgo);
-      const cashOutflow = recentCosts.reduce((sum, c) => sum + c.amount, 0);
+      const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
+      
+      const recentCosts = (costs || []).filter(c => c.date_incurred >= thirtyDaysAgoStr);
+      const cashOutflow = recentCosts.reduce((sum, c) => sum + (c.amount || 0), 0);
 
       // Fetch invoices for AR
       const { data: invoices } = await supabase
@@ -55,22 +57,17 @@ export default function FinancialsOverview() {
         .select('total_amount, status, issue_date')
         .neq('status', 'void');
 
-      const recentInvoices = (invoices || []).filter(i => new Date(i.issue_date) >= thirtyDaysAgo);
+      const recentInvoices = (invoices || []).filter(i => i.issue_date >= thirtyDaysAgoStr);
       const cashInflow = recentInvoices.reduce((sum, i) => sum + (i.total_amount || 0), 0);
 
       // Unpaid costs
-      const unpaidCosts = (costs || []).filter(c => c.status === 'unpaid').reduce((sum, c) => sum + c.amount, 0);
+      const unpaidCosts = (costs || []).filter(c => c.status === 'unpaid').reduce((sum, c) => sum + (c.amount || 0), 0);
       const unpaidInvoices = (invoices || []).filter(i => i.status !== 'paid').reduce((sum, i) => sum + (i.total_amount || 0), 0);
 
-      // Unpaid labor
-      const { data: unpaidLabor } = await supabase
-        .from('daily_logs')
-        .select('hours_worked, workers!inner(hourly_rate)')
-        .eq('payment_status', 'unpaid');
-
-      const unpaidLaborTotal = (unpaidLabor || []).reduce((sum, log: any) => 
-        sum + (log.hours_worked * (log.workers?.hourly_rate || 0)), 0
-      );
+      // Unpaid labor from time_logs (canonical)
+      const unpaidLaborTotal = (laborLogs || [])
+        .filter(log => log.payment_status !== 'paid')
+        .reduce((sum, log) => sum + (log.labor_cost || 0), 0);
 
       return {
         totalBudget,

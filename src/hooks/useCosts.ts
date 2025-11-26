@@ -50,6 +50,13 @@ function invalidateFinancialQueries(queryClient: QueryClient) {
   queryClient.invalidateQueries({ queryKey: ['job-costing'] });
   queryClient.invalidateQueries({ queryKey: ['financial-summary'] });
   queryClient.invalidateQueries({ queryKey: ['global-financials'] });
+  queryClient.invalidateQueries({ queryKey: ['financial-overview'] });
+
+  // Project overview queries (for ProjectOverviewOS)
+  queryClient.invalidateQueries({ queryKey: ['budget-health'] });
+  queryClient.invalidateQueries({ queryKey: ['budget-by-category'] });
+  queryClient.invalidateQueries({ queryKey: ['labor-health'] });
+  queryClient.invalidateQueries({ queryKey: ['workforce-snapshot'] });
 }
 
 export function useCosts(filters?: CostFilters) {

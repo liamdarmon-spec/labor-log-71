@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { DollarSign, FileText, Receipt, Users, Package, BarChart3, TrendingUp, CreditCard, AlertTriangle, Building2 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useGlobalFinancials } from '@/hooks/useProjectFinancialsV2';
+import { useGlobalFinancials } from '@/hooks/useGlobalFinancials';
 import { FinancialKPICard } from '@/components/financials/FinancialKPICard';
 import { UnifiedPaymentsPanelV2 } from '@/components/financials/UnifiedPaymentsPanelV2';
 import { FinancialSearchBar } from '@/components/financials/FinancialSearchBar';
