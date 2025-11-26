@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, QueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface Cost {
@@ -32,6 +32,22 @@ interface CostFilters {
   vendorType?: string;
   projectId?: string;
   status?: string;
+}
+
+function invalidateFinancialQueries(queryClient: QueryClient) {
+  // AP-level
+  queryClient.invalidateQueries({ queryKey: ['costs'] });
+  queryClient.invalidateQueries({ queryKey: ['costs-summary'] });
+
+  // Project-level financials
+  queryClient.invalidateQueries({ queryKey: ['project-budget-ledger'] });
+  queryClient.invalidateQueries({ queryKey: ['project-financials-v3'] });
+  queryClient.invalidateQueries({ queryKey: ['project-financials-v2'] });
+  queryClient.invalidateQueries({ queryKey: ['project-financials-snapshot'] });
+
+  // Cross-project dashboards
+  queryClient.invalidateQueries({ queryKey: ['job-costing'] });
+  queryClient.invalidateQueries({ queryKey: ['financial-summary'] });
 }
 
 export function useCosts(filters?: CostFilters) {
@@ -98,21 +114,6 @@ export function useCosts(filters?: CostFilters) {
   });
 }
 
-function invalidateFinancialQueries(queryClient: ReturnType<typeof useQueryClient>) {
-  // AP-level views
-  queryClient.invalidateQueries({ queryKey: ['costs'] });
-  queryClient.invalidateQueries({ queryKey: ['costs-summary'] });
-  queryClient.invalidateQueries({ queryKey: ['job-costing'] });
-
-  // Project-level financial views (any project)
-  queryClient.invalidateQueries({ queryKey: ['project-budget-ledger'] });
-  queryClient.invalidateQueries({ queryKey: ['project-financials-v3'] });
-  queryClient.invalidateQueries({ queryKey: ['project-financials-v2'] });
-
-  // Global summary
-  queryClient.invalidateQueries({ queryKey: ['financial-summary'] });
-}
-
 export function useCreateCost() {
   const queryClient = useQueryClient();
 
@@ -177,6 +178,7 @@ export function useCostsSummary(filters?: CostFilters) {
   return useQuery({
     queryKey: ['costs-summary', filters],
     queryFn: async () => {
+      // Build query with proper join for company filtering
       let query = supabase
         .from('costs')
         .select(
@@ -216,6 +218,7 @@ export function useCostsSummary(filters?: CostFilters) {
 
       const costs = data || [];
 
+      // Single-pass aggregation
       let totalCosts = 0;
       let unpaidCosts = 0;
       let paidCosts = 0;
@@ -229,17 +232,16 @@ export function useCostsSummary(filters?: CostFilters) {
 
       costs.forEach((c: any) => {
         const amount = c.amount || 0;
-        const cat = (c.category || '').toLowerCase().trim();
-
         totalCosts += amount;
+
         if (c.status === 'unpaid') unpaidCosts += amount;
         else if (c.status === 'paid') paidCosts += amount;
 
-        if (cat.startsWith('lab')) byCategory.labor += amount;
-        else if (cat.startsWith('sub')) byCategory.subs += amount;
-        else if (cat.startsWith('mat')) byCategory.materials += amount;
-        else if (cat.startsWith('equip')) byCategory.equipment += amount;
-        else byCategory.misc += amount;
+        if (c.category === 'labor') byCategory.labor += amount;
+        else if (c.category === 'subs') byCategory.subs += amount;
+        else if (c.category === 'materials') byCategory.materials += amount;
+        else if (c.category === 'equipment') byCategory.equipment += amount;
+        else if (c.category === 'misc') byCategory.misc += amount;
       });
 
       return {
