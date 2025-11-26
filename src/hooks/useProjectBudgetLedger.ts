@@ -32,12 +32,11 @@ export interface BudgetLedgerSummary {
  * Sources:
  *  - Budget:        project_budget_lines
  *  - Labor actuals: time_logs (canonical labor table)
- *  - Subs actuals:  sub_logs
- *  - Materials:     costs (category = 'materials')
+ *  - Subs:          sub_logs  (legacy) + costs(category='subs')
+ *  - Materials:     costs(category='materials')
+ *  - Misc:          costs(other categories)
  *
- * Rules:
- *  - "UNASSIGNED" only appears when there is truly no cost_code_id.
- *  - Unpaid labor = sum of labor_cost where payment_status !== 'paid'.
+ * costs is the primary AP table; sub_logs is just a legacy fallback.
  */
 export function useProjectBudgetLedger(projectId: string) {
   return useQuery({
@@ -49,7 +48,7 @@ export function useProjectBudgetLedger(projectId: string) {
         { data: budgetLines, error: budgetError },
         { data: timeLogs, error: timeError },
         { data: subLogs, error: subError },
-        { data: materialCosts, error: materialError },
+        { data: costs, error: costsError },
       ] = await Promise.all([
         supabase
           .from("project_budget_lines")
@@ -64,22 +63,23 @@ export function useProjectBudgetLedger(projectId: string) {
           )
           .eq("project_id", projectId),
 
+        // legacy subs (fallback only)
         supabase
           .from("sub_logs")
           .select("id, project_id, cost_code_id, amount")
           .eq("project_id", projectId),
 
+        // canonical AP: ALL non-labor costs
         supabase
           .from("costs")
           .select("id, project_id, cost_code_id, amount, category")
-          .eq("project_id", projectId)
-          .eq("category", "materials"),
+          .eq("project_id", projectId),
       ]);
 
       if (budgetError) throw budgetError;
       if (timeError) throw timeError;
       if (subError) throw subError;
-      if (materialError) throw materialError;
+      if (costsError) throw costsError;
 
       // ---------- 2) COST CODE METADATA ----------
       const costCodeIds = new Set<string>();
@@ -93,7 +93,7 @@ export function useProjectBudgetLedger(projectId: string) {
       (subLogs || []).forEach((l: any) => {
         if (l.cost_code_id) costCodeIds.add(l.cost_code_id);
       });
-      (materialCosts || []).forEach((c: any) => {
+      (costs || []).forEach((c: any) => {
         if (c.cost_code_id) costCodeIds.add(c.cost_code_id);
       });
 
@@ -190,22 +190,29 @@ export function useProjectBudgetLedger(projectId: string) {
         }
       });
 
-      // ---------- 6) SUBS ACTUALS (sub_logs) ----------
+      // ---------- 6) LEGACY SUBS FROM sub_logs (fallback) ----------
       (subLogs || []).forEach((log: any) => {
         const ledgerLine = ensureLine(log.cost_code_id, "subs");
         const amount = Number(log.amount || 0);
 
+        // treat as subs
         ledgerLine.category = "subs";
         ledgerLine.actualAmount += amount;
         ledgerLine.variance = ledgerLine.budgetAmount - ledgerLine.actualAmount;
       });
 
-      // ---------- 7) MATERIALS ACTUALS (costs) ----------
-      (materialCosts || []).forEach((cost: any) => {
-        const ledgerLine = ensureLine(cost.cost_code_id, "materials");
-        const amount = Number(cost.amount || 0);
+      // ---------- 7) CANONICAL AP COSTS FROM costs ----------
+      (costs || []).forEach((c: any) => {
+        const rawCategory = (c.category as string | undefined)?.toLowerCase() || "misc";
+        const amount = Number(c.amount || 0);
 
-        ledgerLine.category = "materials";
+        let category: string;
+        if (rawCategory === "subs") category = "subs";
+        else if (rawCategory === "materials") category = "materials";
+        else category = "misc";
+
+        const ledgerLine = ensureLine(c.cost_code_id, category);
+        ledgerLine.category = category;
         ledgerLine.actualAmount += amount;
         ledgerLine.variance = ledgerLine.budgetAmount - ledgerLine.actualAmount;
       });
