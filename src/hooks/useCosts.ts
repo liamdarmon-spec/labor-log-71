@@ -60,6 +60,7 @@ function invalidateFinancialQueries(queryClient: QueryClient, projectId?: string
     queryClient.invalidateQueries({ queryKey: ['budget-by-category', projectId] });
     queryClient.invalidateQueries({ queryKey: ['labor-health', projectId] });
     queryClient.invalidateQueries({ queryKey: ['workforce-snapshot', projectId] });
+    queryClient.invalidateQueries({ queryKey: ['unified-project-budget', projectId] });
   }
 
   // Cross-project dashboards
