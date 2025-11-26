@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchProjectBudgetLedger } from './useProjectBudgetLedger';
 
 export interface ProjectFinancialsV3 {
   budget: {
@@ -21,97 +22,114 @@ export interface ProjectFinancialsV3 {
     subs: number;
     materials: number;
     misc: number;
+    total: number;
   };
   invoicing: {
     billed: number;
     retentionHeld: number;
   };
-  variance: number;
-  margin: number;
-  percentComplete: number;
+  variance: number;        // budget - actual
+  margin: number;          // billed - actual
+  percentComplete: number; // actual / budget
 }
 
 /**
- * Project-level financials aligned with Job Costing + global views.
- *
- * Reads from:
- * - project_budgets
+ * Project-level financials aligned with:
  * - project_labor_summary_view
  * - project_cost_summary_view
  * - project_revenue_summary_view
+ * - project_budgets / project_budget_lines
  */
 export function useProjectFinancialsV3(projectId: string) {
-  return useQuery({
+  return useQuery<ProjectFinancialsV3>({
     queryKey: ['project-financials-v3', projectId],
     enabled: !!projectId,
     queryFn: async () => {
-      // 1) Budget by category
-      const { data: budget, error: budgetError } = await supabase
-        .from('project_budgets')
-        .select('labor_budget, subs_budget, materials_budget, other_budget')
-        .eq('project_id', projectId)
-        .maybeSingle();
+      if (!projectId) throw new Error('projectId is required');
 
+      // Run everything in parallel
+      const [
+        budgetLedger,
+        { data: laborRow, error: laborError },
+        { data: costRow, error: costError },
+        { data: revenueRow, error: revenueError },
+        { data: invoices, error: invoiceError },
+        { data: budgetRow, error: budgetError },
+      ] = await Promise.all([
+        fetchProjectBudgetLedger(projectId),
+        supabase
+          .from('project_labor_summary_view')
+          .select('*')
+          .eq('project_id', projectId)
+          .maybeSingle(),
+        supabase
+          .from('project_cost_summary_view')
+          .select('*')
+          .eq('project_id', projectId)
+          .maybeSingle(),
+        supabase
+          .from('project_revenue_summary_view')
+          .select('*')
+          .eq('project_id', projectId)
+          .maybeSingle(),
+        supabase
+          .from('invoices')
+          .select('total_amount, status, retention_amount')
+          .eq('project_id', projectId)
+          .neq('status', 'void'),
+        supabase
+          .from('project_budgets')
+          .select('labor_budget, subs_budget, materials_budget, other_budget')
+          .eq('project_id', projectId)
+          .maybeSingle(),
+      ]);
+
+      if (laborError) throw laborError;
+      if (costError) throw costError;
+      if (revenueError) throw revenueError;
+      if (invoiceError) throw invoiceError;
       if (budgetError) throw budgetError;
 
-      const laborBudget = budget?.labor_budget ?? 0;
-      const subsBudget = budget?.subs_budget ?? 0;
-      const materialsBudget = budget?.materials_budget ?? 0;
-      const otherBudget = budget?.other_budget ?? 0;
+      const laborActual = laborRow?.total_labor_cost || 0;
+      const laborUnpaid = laborRow?.unpaid_labor_cost || 0;
+
+      const subsActual = costRow?.subs_cost || 0;
+      const subsUnpaid = costRow?.subs_unpaid || 0;
+
+      const materialsActual = costRow?.materials_cost || 0;
+      const materialsUnpaid = costRow?.materials_unpaid || 0;
+
+      const miscActual = costRow?.misc_cost || 0;
+      const miscUnpaid = costRow?.misc_unpaid || 0;
+
+      const billed = revenueRow?.billed_amount || 0;
+
+      const retentionHeld =
+        (invoices || []).reduce(
+          (sum, inv: any) => sum + (inv.retention_amount || 0),
+          0
+        ) || 0;
+
+      const laborBudget = budgetRow?.labor_budget || 0;
+      const subsBudget = budgetRow?.subs_budget || 0;
+      const materialsBudget = budgetRow?.materials_budget || 0;
+      const otherBudget = budgetRow?.other_budget || 0;
+
       const totalBudget =
         laborBudget + subsBudget + materialsBudget + otherBudget;
 
-      // 2) Labor actuals from canonical labor summary view
-      const { data: laborView, error: laborError } = await supabase
-        .from('project_labor_summary_view')
-        .select('*')
-        .eq('project_id', projectId)
-        .maybeSingle();
+      const totalActual =
+        laborActual + subsActual + materialsActual + miscActual;
 
-      if (laborError) throw laborError;
+      const totalUnpaid =
+        laborUnpaid + subsUnpaid + materialsUnpaid + miscUnpaid;
 
-      const laborActual = laborView?.total_labor_cost ?? 0;
-      const laborUnpaid = laborView?.unpaid_labor_cost ?? 0;
-
-      // 3) Non-labor costs from cost summary view
-      const { data: costView, error: costError } = await supabase
-        .from('project_cost_summary_view')
-        .select('*')
-        .eq('project_id', projectId)
-        .maybeSingle();
-
-      if (costError) throw costError;
-
-      const subsActual = costView?.subs_cost ?? 0;
-      const materialsActual = costView?.materials_cost ?? 0;
-      const miscActual = costView?.misc_cost ?? 0;
-
-      const subsUnpaid = costView?.subs_unpaid ?? 0;
-      const materialsUnpaid = costView?.materials_unpaid ?? 0;
-      const miscUnpaid = costView?.misc_unpaid ?? 0;
-
-      // 4) Revenue / billed from revenue summary view
-      const { data: revenueView, error: revenueError } = await supabase
-        .from('project_revenue_summary_view')
-        .select('*')
-        .eq('project_id', projectId)
-        .maybeSingle();
-
-      if (revenueError) throw revenueError;
-
-      const billed = revenueView?.billed_amount ?? 0;
-
-      // 5) Rollups
-      const totalActual = laborActual + subsActual + materialsActual + miscActual;
       const variance = totalBudget - totalActual;
       const margin = billed - totalActual;
       const percentComplete =
         totalBudget > 0 ? (totalActual / totalBudget) * 100 : 0;
 
-      // You explicitly parked retention / SOV logic for now
-      const retentionHeld = 0;
-
-      const result: ProjectFinancialsV3 = {
+      const financials: ProjectFinancialsV3 = {
         budget: {
           labor: laborBudget,
           subs: subsBudget,
@@ -131,6 +149,7 @@ export function useProjectFinancialsV3(projectId: string) {
           subs: subsUnpaid,
           materials: materialsUnpaid,
           misc: miscUnpaid,
+          total: totalUnpaid,
         },
         invoicing: {
           billed,
@@ -141,7 +160,7 @@ export function useProjectFinancialsV3(projectId: string) {
         percentComplete,
       };
 
-      return result;
+      return financials;
     },
   });
 }
