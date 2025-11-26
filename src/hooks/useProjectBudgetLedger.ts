@@ -144,6 +144,31 @@ export function useProjectBudgetLedger(projectId: string) {
         }
       });
 
+      // 2b) COLLECT ALL COST CODE IDS FROM ACTUALS AND FETCH METADATA
+      const costCodeIds = new Set<string>();
+      safeLaborLogs.forEach((log: any) => log.cost_code_id && costCodeIds.add(log.cost_code_id));
+      safeSubLogs.forEach((log: any) => log.cost_code_id && costCodeIds.add(log.cost_code_id));
+      safeCosts.forEach((cost: any) => cost.cost_code_id && costCodeIds.add(cost.cost_code_id));
+
+      // Fetch cost code metadata for any IDs not already in budget lines
+      const missingCostCodeIds = Array.from(costCodeIds).filter(id => !costCodeMeta.has(id));
+      if (missingCostCodeIds.length > 0) {
+        const { data: costCodesData } = await supabase
+          .from("cost_codes")
+          .select("id, code, name, category")
+          .in("id", missingCostCodeIds);
+
+        costCodesData?.forEach((cc: any) => {
+          if (!costCodeMeta.has(cc.id)) {
+            costCodeMeta.set(cc.id, {
+              code: cc.code || "MISC",
+              name: cc.name || "Miscellaneous",
+              category: normalizeCategory(cc.category),
+            });
+          }
+        });
+      }
+
       // 3) LEDGER MAP (PER COST CODE)
       const ledgerMap = new Map<string, CostCodeLedgerLine>();
 
