@@ -113,9 +113,11 @@ export function useCreateCost() {
       return data;
     },
     onSuccess: () => {
+      // AP-level views
       queryClient.invalidateQueries({ queryKey: ['costs'] });
       queryClient.invalidateQueries({ queryKey: ['costs-summary'] });
       queryClient.invalidateQueries({ queryKey: ['job-costing'] });
+      // Project-level financial views (ledger, summary, etc.)
       queryClient.invalidateQueries({ queryKey: ['project-budget-ledger'] });
     },
   });
@@ -139,6 +141,7 @@ export function useUpdateCost() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['costs'] });
       queryClient.invalidateQueries({ queryKey: ['costs-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['job-costing'] });
       queryClient.invalidateQueries({ queryKey: ['project-budget-ledger'] });
     },
   });
@@ -159,6 +162,7 @@ export function useDeleteCost() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['costs'] });
       queryClient.invalidateQueries({ queryKey: ['costs-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['job-costing'] });
       queryClient.invalidateQueries({ queryKey: ['project-budget-ledger'] });
     },
   });
