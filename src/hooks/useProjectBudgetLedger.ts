@@ -28,14 +28,30 @@ export interface BudgetLedgerSummary {
   };
 }
 
-// Normalize arbitrary category strings into our 4 canonical buckets
+/**
+ * Normalize arbitrary category strings into exactly 4 canonical buckets.
+ * This MUST match the category logic in useProjectFinancialsV3:
+ *   - 'subs' → subs
+ *   - 'materials' → materials
+ *   - 'misc' | 'equipment' | 'other' | null → misc
+ *   - labor always comes from time_logs (not costs table)
+ */
 function normalizeCategory(raw: string | null | undefined): LedgerCategory {
-  const c = (raw || "").toLowerCase().trim();
+  const v = (raw || "").toLowerCase().trim();
 
-  if (c.startsWith("lab")) return "labor";        // labor, labour, etc.
-  if (c.startsWith("sub")) return "subs";         // subs, subcontractor, etc.
-  if (c.startsWith("mat")) return "materials";    // material, materials, etc.
-  // everything else → misc (other, equipment, etc.)
+  // Labor (from time_logs, but cost_codes may have labor category)
+  if (v.startsWith("lab")) return "labor";
+
+  // Subs - exact match or prefix
+  if (v === "subs" || v.startsWith("sub")) return "subs";
+
+  // Materials - exact match or prefix
+  if (v === "materials" || v.startsWith("mat")) return "materials";
+
+  // Misc - explicit matches
+  if (["misc", "equipment", "other"].includes(v)) return "misc";
+
+  // Default fallback for null, empty, or unknown categories
   return "misc";
 }
 
