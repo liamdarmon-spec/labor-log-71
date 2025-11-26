@@ -99,7 +99,7 @@ export function ProjectHeader({ projectId, projectName, clientName, address, sta
                   <div>
                     <p className="text-sm text-muted-foreground">Total Labor Cost</p>
                     <p className="text-2xl font-bold">
-                      ${stats?.totalLaborCost.toLocaleString() || 0}
+                      ${stats?.laborActual.toLocaleString() || 0}
                     </p>
                     <p className="text-xs text-muted-foreground">Incurred to date</p>
                   </div>
