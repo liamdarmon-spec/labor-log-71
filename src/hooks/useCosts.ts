@@ -116,6 +116,7 @@ export function useCreateCost() {
       queryClient.invalidateQueries({ queryKey: ['costs'] });
       queryClient.invalidateQueries({ queryKey: ['costs-summary'] });
       queryClient.invalidateQueries({ queryKey: ['job-costing'] });
+      queryClient.invalidateQueries({ queryKey: ['project-budget-ledger'] });
     },
   });
 }
@@ -138,6 +139,7 @@ export function useUpdateCost() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['costs'] });
       queryClient.invalidateQueries({ queryKey: ['costs-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['project-budget-ledger'] });
     },
   });
 }
@@ -157,6 +159,7 @@ export function useDeleteCost() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['costs'] });
       queryClient.invalidateQueries({ queryKey: ['costs-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['project-budget-ledger'] });
     },
   });
 }
