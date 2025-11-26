@@ -58,7 +58,7 @@ function normalizeCategory(raw?: string | null): BudgetCategory {
 
 export function useUnifiedProjectBudget(projectId: string) {
   return useQuery({
-    queryKey: ['unified_project_budget', projectId],
+    queryKey: ['unified-project-budget', projectId],
     queryFn: async () => {
       // 1. Fetch all budget lines with cost codes
       const { data: budgetLines, error: budgetError } = await supabase
