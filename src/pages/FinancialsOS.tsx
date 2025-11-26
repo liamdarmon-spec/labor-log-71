@@ -4,7 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DollarSign, TrendingUp, Briefcase, BarChart3 } from 'lucide-react';
-import { useGlobalFinancials } from '@/hooks/useProjectFinancialsV2';
+import { useGlobalFinancials } from '@/hooks/useGlobalFinancials';
 import { useProjects } from '@/hooks/useProjects';
 import { useNavigate } from 'react-router-dom';
 
