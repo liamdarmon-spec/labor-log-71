@@ -47,7 +47,11 @@ export interface BudgetSummary {
   other_variance: number;
 }
 
-// Normalize category to canonical values
+// ---------------------
+// CATEGORY HELPERS
+// ---------------------
+
+// Generic string → category
 function normalizeCategory(raw?: string | null): BudgetCategory {
   const value = (raw || '').toLowerCase().trim();
   if (value.startsWith('lab')) return 'labor';
@@ -56,16 +60,32 @@ function normalizeCategory(raw?: string | null): BudgetCategory {
   return 'misc';
 }
 
-// Create composite key for cost code + category
+// For BUDGET LINES: trust cost code suffix first (-L, -S, -M)
+// This fixes APPL-M being treated as Subs even though it's Materials.
+function normalizeCategoryFromLine(line: any): BudgetCategory {
+  const code = (line.cost_codes?.code || '').toUpperCase().trim();
+  if (code.endsWith('-L')) return 'labor';
+  if (code.endsWith('-S')) return 'subs';
+  if (code.endsWith('-M')) return 'materials';
+
+  // fallback to whatever label is stored
+  return normalizeCategory(line.category);
+}
+
+// Composite key so same cost code can have multiple categories
 function makeKey(costCodeId: string | null, category: BudgetCategory): string {
   return `${costCodeId || 'unassigned'}:${category}`;
 }
+
+// ---------------------
+// MAIN HOOK
+// ---------------------
 
 export function useUnifiedProjectBudget(projectId: string) {
   return useQuery({
     queryKey: ['unified-project-budget', projectId],
     queryFn: async () => {
-      // 1. Fetch all budget lines with cost codes
+      // 1) Budget lines + cost codes
       const { data: budgetLines, error: budgetError } = await supabase
         .from('project_budget_lines')
         .select(`
@@ -78,7 +98,7 @@ export function useUnifiedProjectBudget(projectId: string) {
 
       if (budgetError) throw budgetError;
 
-      // 2. Fetch labor actuals from time_logs (canonical)
+      // 2) Labor actuals from time_logs (canonical)
       const { data: laborLogs, error: laborError } = await supabase
         .from('time_logs')
         .select(`
@@ -98,7 +118,7 @@ export function useUnifiedProjectBudget(projectId: string) {
 
       if (laborError) throw laborError;
 
-      // 3. Fetch ALL non-labor costs from costs table in one query (canonical)
+      // 3) ALL non-labor costs from costs (canonical)
       const { data: allCosts, error: costsError } = await supabase
         .from('costs')
         .select(`
@@ -117,14 +137,14 @@ export function useUnifiedProjectBudget(projectId: string) {
 
       if (costsError) throw costsError;
 
-      // 4. Build cost code ledger with actuals using composite keys (cost_code_id:category)
+      // 4) Build cost-code ledger using composite key (cost_code_id + category)
       const costCodeMap = new Map<string, CostCodeBudgetLine>();
 
-      // Initialize from budget lines - use composite key
+      // 4a) Seed from budget lines
       budgetLines?.forEach(line => {
-        const category = normalizeCategory(line.category);
+        const category = normalizeCategoryFromLine(line); // <<< IMPORTANT
         const key = makeKey(line.cost_code_id, category);
-        
+
         if (!costCodeMap.has(key)) {
           costCodeMap.set(key, {
             cost_code_id: line.cost_code_id,
@@ -147,11 +167,11 @@ export function useUnifiedProjectBudget(projectId: string) {
         }
       });
 
-      // Add labor actuals from time_logs - always category 'labor'
+      // 4b) Labor actuals
       laborLogs?.forEach((log: any) => {
         const category: BudgetCategory = 'labor';
         const key = makeKey(log.cost_code_id, category);
-        
+
         if (!costCodeMap.has(key)) {
           costCodeMap.set(key, {
             cost_code_id: log.cost_code_id,
@@ -168,31 +188,34 @@ export function useUnifiedProjectBudget(projectId: string) {
           });
         }
         const entry = costCodeMap.get(key)!;
-        // Use labor_cost if available, otherwise compute from hours * rate
-        const amount = log.labor_cost ?? (log.hours_worked * (log.hourly_rate || 0));
+        const amount =
+          log.labor_cost ?? (log.hours_worked * (log.hourly_rate || 0));
+
         entry.actual_amount += amount;
         entry.actual_hours = (entry.actual_hours || 0) + log.hours_worked;
         entry.details.push({
           id: log.id,
           type: 'labor',
           date: log.date,
-          description: log.notes || `${log.workers?.name || 'Worker'} - ${log.hours_worked}h`,
+          description:
+            log.notes || `${log.workers?.name || 'Worker'} - ${log.hours_worked}h`,
           amount,
           hours: log.hours_worked,
           worker_name: log.workers?.name,
         });
       });
 
-      // Add non-labor costs - use their actual category from costs table
+      // 4c) Non-labor costs (subs, materials, misc)
       allCosts?.forEach((cost: any) => {
         const category = normalizeCategory(cost.category);
         const key = makeKey(cost.cost_code_id, category);
-        
+
         if (!costCodeMap.has(key)) {
           costCodeMap.set(key, {
             cost_code_id: cost.cost_code_id,
             code: cost.cost_codes?.code || 'N/A',
-            description: cost.cost_codes?.name || `Unassigned ${category}`,
+            description:
+              cost.cost_codes?.name || `Unassigned ${category}`,
             category,
             budget_amount: 0,
             budget_hours: null,
@@ -215,19 +238,26 @@ export function useUnifiedProjectBudget(projectId: string) {
         });
       });
 
-      // Calculate variance for each line
+      // 5) Finalize lines + variance
       const costCodeLines = Array.from(costCodeMap.values()).map(line => ({
         ...line,
         variance: line.budget_amount - line.actual_amount,
       }));
 
-      // 5. Calculate summary totals including unpaid labor
-      const unpaidLaborAmount = (laborLogs || []).reduce((sum: number, log: any) => {
-        if (log.payment_status === 'unpaid') {
-          return sum + (log.labor_cost ?? (log.hours_worked * (log.hourly_rate || 0)));
-        }
-        return sum;
-      }, 0);
+      // 6) Summary totals (plus unpaid labor)
+      const unpaidLaborAmount = (laborLogs || []).reduce(
+        (sum: number, log: any) => {
+          if (log.payment_status === 'unpaid') {
+            return (
+              sum +
+              (log.labor_cost ??
+                (log.hours_worked * (log.hourly_rate || 0)))
+            );
+          }
+          return sum;
+        },
+        0
+      );
 
       const summary: BudgetSummary = {
         total_budget: 0,
@@ -275,7 +305,8 @@ export function useUnifiedProjectBudget(projectId: string) {
       summary.total_variance = summary.total_budget - summary.total_actual;
       summary.labor_variance = summary.labor_budget - summary.labor_actual;
       summary.subs_variance = summary.subs_budget - summary.subs_actual;
-      summary.materials_variance = summary.materials_budget - summary.materials_actual;
+      summary.materials_variance =
+        summary.materials_budget - summary.materials_actual;
       summary.other_variance = summary.other_budget - summary.other_actual;
 
       return {
