@@ -98,6 +98,21 @@ export function useCosts(filters?: CostFilters) {
   });
 }
 
+function invalidateFinancialQueries(queryClient: ReturnType<typeof useQueryClient>) {
+  // AP-level views
+  queryClient.invalidateQueries({ queryKey: ['costs'] });
+  queryClient.invalidateQueries({ queryKey: ['costs-summary'] });
+  queryClient.invalidateQueries({ queryKey: ['job-costing'] });
+
+  // Project-level financial views (any project)
+  queryClient.invalidateQueries({ queryKey: ['project-budget-ledger'] });
+  queryClient.invalidateQueries({ queryKey: ['project-financials-v3'] });
+  queryClient.invalidateQueries({ queryKey: ['project-financials-v2'] });
+
+  // Global summary
+  queryClient.invalidateQueries({ queryKey: ['financial-summary'] });
+}
+
 export function useCreateCost() {
   const queryClient = useQueryClient();
 
@@ -113,12 +128,7 @@ export function useCreateCost() {
       return data;
     },
     onSuccess: () => {
-      // AP-level views
-      queryClient.invalidateQueries({ queryKey: ['costs'] });
-      queryClient.invalidateQueries({ queryKey: ['costs-summary'] });
-      queryClient.invalidateQueries({ queryKey: ['job-costing'] });
-      // Project-level financial views (ledger, summary, etc.)
-      queryClient.invalidateQueries({ queryKey: ['project-budget-ledger'] });
+      invalidateFinancialQueries(queryClient);
     },
   });
 }
@@ -139,10 +149,7 @@ export function useUpdateCost() {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['costs'] });
-      queryClient.invalidateQueries({ queryKey: ['costs-summary'] });
-      queryClient.invalidateQueries({ queryKey: ['job-costing'] });
-      queryClient.invalidateQueries({ queryKey: ['project-budget-ledger'] });
+      invalidateFinancialQueries(queryClient);
     },
   });
 }
@@ -160,10 +167,7 @@ export function useDeleteCost() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['costs'] });
-      queryClient.invalidateQueries({ queryKey: ['costs-summary'] });
-      queryClient.invalidateQueries({ queryKey: ['job-costing'] });
-      queryClient.invalidateQueries({ queryKey: ['project-budget-ledger'] });
+      invalidateFinancialQueries(queryClient);
     },
   });
 }
@@ -173,7 +177,6 @@ export function useCostsSummary(filters?: CostFilters) {
   return useQuery({
     queryKey: ['costs-summary', filters],
     queryFn: async () => {
-      // Build query with proper join for company filtering
       let query = supabase
         .from('costs')
         .select(
@@ -213,7 +216,6 @@ export function useCostsSummary(filters?: CostFilters) {
 
       const costs = data || [];
 
-      // Single-pass aggregation
       let totalCosts = 0;
       let unpaidCosts = 0;
       let paidCosts = 0;
@@ -227,16 +229,17 @@ export function useCostsSummary(filters?: CostFilters) {
 
       costs.forEach((c: any) => {
         const amount = c.amount || 0;
-        totalCosts += amount;
+        const cat = (c.category || '').toLowerCase().trim();
 
+        totalCosts += amount;
         if (c.status === 'unpaid') unpaidCosts += amount;
         else if (c.status === 'paid') paidCosts += amount;
 
-        if (c.category === 'labor') byCategory.labor += amount;
-        else if (c.category === 'subs') byCategory.subs += amount;
-        else if (c.category === 'materials') byCategory.materials += amount;
-        else if (c.category === 'equipment') byCategory.equipment += amount;
-        else if (c.category === 'misc') byCategory.misc += amount;
+        if (cat.startsWith('lab')) byCategory.labor += amount;
+        else if (cat.startsWith('sub')) byCategory.subs += amount;
+        else if (cat.startsWith('mat')) byCategory.materials += amount;
+        else if (cat.startsWith('equip')) byCategory.equipment += amount;
+        else byCategory.misc += amount;
       });
 
       return {
