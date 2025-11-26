@@ -1,16 +1,18 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
+export type LedgerCategory = "labor" | "subs" | "materials" | "misc";
+
 export interface CostCodeLedgerLine {
   costCodeId: string | null;
   costCode: string;
   costCodeName: string;
-  category: string;              // 'labor' | 'subs' | 'materials' | 'misc'
+  category: LedgerCategory;
   budgetAmount: number;
   budgetHours: number | null;
   actualAmount: number;
   actualHours: number | null;
-  variance: number;              // budget - actual
+  variance: number;
 }
 
 export interface BudgetLedgerSummary {
@@ -26,50 +28,89 @@ export interface BudgetLedgerSummary {
   };
 }
 
-/**
- * Canonical project budget/actual ledger.
- *
- * Sources:
- *  - Budget:        project_budget_lines
- *  - Labor actuals: time_logs (canonical labor table)
- *  - Subs:          sub_logs  (legacy) + costs(category='subs')
- *  - Materials:     costs(category='materials')
- *  - Misc:          costs(other categories)
- *
- * costs is the primary AP table; sub_logs is just a legacy fallback.
- */
+// Normalize any weird category strings into our 4 canonical buckets
+function normalizeCategory(raw: string | null | undefined): LedgerCategory {
+  const c = (raw || "").toLowerCase().trim();
+
+  if (c.startsWith("lab")) return "labor";        // labor, Labour, etc.
+  if (c.startsWith("sub")) return "subs";         // subs, subcontract, etc.
+  if (c.startsWith("mat")) return "materials";    // material, materials, etc.
+  // everything else → misc (other, equipment, random typos)
+  return "misc";
+}
+
 export function useProjectBudgetLedger(projectId: string) {
   return useQuery({
     queryKey: ["project-budget-ledger", projectId],
-    enabled: !!projectId,
     queryFn: async () => {
-      // ---------- 1) RAW DATA ----------
+      if (!projectId) {
+        return {
+          ledgerLines: [] as CostCodeLedgerLine[],
+          summary: {
+            totalBudget: 0,
+            totalActual: 0,
+            totalVariance: 0,
+            unpaidLabor: 0,
+            byCategory: {
+              labor: { budget: 0, actual: 0, variance: 0 },
+              subs: { budget: 0, actual: 0, variance: 0 },
+              materials: { budget: 0, actual: 0, variance: 0 },
+              misc: { budget: 0, actual: 0, variance: 0 },
+            },
+          } as BudgetLedgerSummary,
+        };
+      }
+
+      // 1) FETCH ALL THE RAW DATA IN PARALLEL
       const [
         { data: budgetLines, error: budgetError },
-        { data: timeLogs, error: timeError },
+        { data: laborLogs, error: laborError },
         { data: subLogs, error: subError },
-        { data: costs, error: costsError },
+        { data: allCosts, error: costsError },
       ] = await Promise.all([
+        // Budget lines
         supabase
           .from("project_budget_lines")
-          .select("id, project_id, cost_code_id, category, budget_amount, budget_hours")
-          .eq("project_id", projectId),
-
-        // CANONICAL labor table
-        supabase
-          .from("time_logs")
           .select(
-            "id, project_id, cost_code_id, hours_worked, worker_id, payment_status, labor_cost, hourly_rate"
+            `
+            id,
+            project_id,
+            cost_code_id,
+            category,
+            budget_amount,
+            budget_hours,
+            cost_codes (
+              id,
+              code,
+              name,
+              category
+            )
+          `
           )
           .eq("project_id", projectId),
 
-        // legacy subs (fallback only)
+        // LABOR: canonical table = time_logs
+        supabase
+          .from("time_logs")
+          .select(
+            `
+            id,
+            project_id,
+            cost_code_id,
+            hours_worked,
+            labor_cost,
+            payment_status
+          `
+          )
+          .eq("project_id", projectId),
+
+        // Legacy subs table (backwards compat only). New subs should come through costs.
         supabase
           .from("sub_logs")
           .select("id, project_id, cost_code_id, amount")
           .eq("project_id", projectId),
 
-        // canonical AP: ALL non-labor costs
+        // ALL non-labor costs (subs, materials, misc, equipment, etc.)
         supabase
           .from("costs")
           .select("id, project_id, cost_code_id, amount, category")
@@ -77,149 +118,143 @@ export function useProjectBudgetLedger(projectId: string) {
       ]);
 
       if (budgetError) throw budgetError;
-      if (timeError) throw timeError;
+      if (laborError) throw laborError;
       if (subError) throw subError;
       if (costsError) throw costsError;
 
-      // ---------- 2) COST CODE METADATA ----------
-      const costCodeIds = new Set<string>();
+      const safeBudgetLines = budgetLines || [];
+      const safeLaborLogs = laborLogs || [];
+      const safeSubLogs = subLogs || [];
+      const safeCosts = allCosts || [];
 
-      (budgetLines || []).forEach((l: any) => {
-        if (l.cost_code_id) costCodeIds.add(l.cost_code_id);
-      });
-      (timeLogs || []).forEach((l: any) => {
-        if (l.cost_code_id) costCodeIds.add(l.cost_code_id);
-      });
-      (subLogs || []).forEach((l: any) => {
-        if (l.cost_code_id) costCodeIds.add(l.cost_code_id);
-      });
-      (costs || []).forEach((c: any) => {
-        if (c.cost_code_id) costCodeIds.add(c.cost_code_id);
-      });
-
-      let costCodeMap = new Map<
+      // 2) BUILD COST CODE META FROM BUDGET LINES (for names/codes)
+      const costCodeMeta = new Map<
         string,
-        { code: string; name: string; category: string | null }
+        { code: string; name: string; category: LedgerCategory }
       >();
 
-      if (costCodeIds.size > 0) {
-        const { data: costCodes, error: ccError } = await supabase
-          .from("cost_codes")
-          .select("id, code, name, category")
-          .in("id", Array.from(costCodeIds));
+      safeBudgetLines.forEach((line: any) => {
+        const cc = line.cost_codes;
+        if (line.cost_code_id && cc) {
+          costCodeMeta.set(line.cost_code_id, {
+            code: cc.code || "MISC",
+            name: cc.name || "Miscellaneous",
+            category: normalizeCategory(line.category || cc.category),
+          });
+        }
+      });
 
-        if (ccError) throw ccError;
-
-        costCodeMap = new Map(
-          (costCodes || []).map((cc: any) => [
-            cc.id,
-            {
-              code: cc.code,
-              name: cc.name,
-              category: cc.category ?? null,
-            },
-          ])
-        );
-      }
-
-      // ---------- 3) LEDGER MAP HELPERS ----------
+      // 3) LEDGER MAP (PER COST CODE)
       const ledgerMap = new Map<string, CostCodeLedgerLine>();
 
-      const ensureLine = (
+      const getKey = (costCodeId: string | null) =>
+        costCodeId ?? "unassigned";
+
+      const getOrCreateLine = (
         costCodeId: string | null,
-        fallbackCategory: string
+        defaultCategory: LedgerCategory
       ): CostCodeLedgerLine => {
-        const key = costCodeId ?? "unassigned";
+        const key = getKey(costCodeId);
         let line = ledgerMap.get(key);
-        if (line) return line;
 
-        const meta = costCodeId ? costCodeMap.get(costCodeId) : undefined;
-        const rawCategory =
-          (meta?.category as string | undefined) || fallbackCategory;
-        const category = rawCategory.toLowerCase() || "misc";
+        if (!line) {
+          const meta = costCodeId ? costCodeMeta.get(costCodeId) : null;
+          const normalized = meta
+            ? meta.category
+            : defaultCategory;
 
-        line = {
-          costCodeId,
-          costCode: meta?.code || "UNASSIGNED",
-          costCodeName: meta?.name || "Unassigned",
-          category,
-          budgetAmount: 0,
-          budgetHours: null,
-          actualAmount: 0,
-          actualHours: null,
-          variance: 0,
-        };
+          line = {
+            costCodeId,
+            costCode: meta?.code || (costCodeId ? "MISC" : "UNASSIGNED"),
+            costCodeName:
+              meta?.name || (costCodeId ? "Miscellaneous" : "Unassigned"),
+            category: normalized,
+            budgetAmount: 0,
+            budgetHours: null,
+            actualAmount: 0,
+            actualHours: null,
+            variance: 0,
+          };
 
-        ledgerMap.set(key, line);
+          ledgerMap.set(key, line);
+        }
+
         return line;
       };
 
-      // ---------- 4) BUDGET LINES ----------
-      (budgetLines || []).forEach((line: any) => {
-        const category = (line.category as string | undefined)?.toLowerCase() || "misc";
-        const ledgerLine = ensureLine(line.cost_code_id, category);
+      // 4) SEED LEDGER WITH BUDGET LINES
+      safeBudgetLines.forEach((line: any) => {
+        const costCodeId = line.cost_code_id as string | null;
+        const meta = costCodeId ? costCodeMeta.get(costCodeId) : null;
+        const category = normalizeCategory(
+          line.category || meta?.category || null
+        );
+        const key = getKey(costCodeId);
 
-        ledgerLine.category = category;
-        ledgerLine.budgetAmount += Number(line.budget_amount || 0);
-        if (line.budget_hours != null) {
-          ledgerLine.budgetHours =
-            (ledgerLine.budgetHours || 0) + Number(line.budget_hours || 0);
-        }
-        ledgerLine.variance = ledgerLine.budgetAmount - ledgerLine.actualAmount;
+        const budgetAmount = Number(line.budget_amount || 0);
+        const budgetHours =
+          line.budget_hours !== null && line.budget_hours !== undefined
+            ? Number(line.budget_hours)
+            : null;
+
+        ledgerMap.set(key, {
+          costCodeId,
+          costCode: meta?.code || (costCodeId ? "MISC" : "UNASSIGNED"),
+          costCodeName:
+            meta?.name || (costCodeId ? "Miscellaneous" : "Unassigned"),
+          category,
+          budgetAmount,
+          budgetHours,
+          actualAmount: 0,
+          actualHours: budgetHours !== null ? 0 : null,
+          variance: budgetAmount, // initial = full budget
+        });
       });
 
-      // ---------- 5) LABOR ACTUALS (time_logs) ----------
-      let unpaidLabor = 0;
-
-      (timeLogs || []).forEach((log: any) => {
-        const ledgerLine = ensureLine(log.cost_code_id, "labor");
-
+      // 5) LABOR ACTUALS (time_logs)
+      safeLaborLogs.forEach((log: any) => {
+        const costCodeId = log.cost_code_id as string | null;
         const hours = Number(log.hours_worked || 0);
-        const explicitCost =
-          log.labor_cost != null ? Number(log.labor_cost) : null;
-        const rate = Number(log.hourly_rate || 0);
-        const cost = explicitCost != null ? explicitCost : hours * rate;
+        const cost = Number(log.labor_cost || 0);
 
-        ledgerLine.category = "labor";
-        ledgerLine.actualAmount += cost;
-        ledgerLine.actualHours = (ledgerLine.actualHours || 0) + hours;
-        ledgerLine.variance = ledgerLine.budgetAmount - ledgerLine.actualAmount;
-
-        if (log.payment_status !== "paid") {
-          unpaidLabor += cost;
+        const line = getOrCreateLine(costCodeId, "labor");
+        line.category = "labor"; // labor always overrides category
+        line.actualAmount += cost;
+        if (line.actualHours !== null) {
+          line.actualHours = (line.actualHours || 0) + hours;
+        } else {
+          // if no budget hours, still track actual hours
+          line.actualHours = hours;
         }
+        line.variance = line.budgetAmount - line.actualAmount;
       });
 
-      // ---------- 6) LEGACY SUBS FROM sub_logs (fallback) ----------
-      (subLogs || []).forEach((log: any) => {
-        const ledgerLine = ensureLine(log.cost_code_id, "subs");
+      // 6) LEGACY SUB LOGS (backwards compat)
+      safeSubLogs.forEach((log: any) => {
+        const costCodeId = log.cost_code_id as string | null;
         const amount = Number(log.amount || 0);
 
-        // treat as subs
-        ledgerLine.category = "subs";
-        ledgerLine.actualAmount += amount;
-        ledgerLine.variance = ledgerLine.budgetAmount - ledgerLine.actualAmount;
+        const line = getOrCreateLine(costCodeId, "subs");
+        line.category = "subs";
+        line.actualAmount += amount;
+        line.variance = line.budgetAmount - line.actualAmount;
       });
 
-      // ---------- 7) CANONICAL AP COSTS FROM costs ----------
-      (costs || []).forEach((c: any) => {
-        const rawCategory = (c.category as string | undefined)?.toLowerCase() || "misc";
-        const amount = Number(c.amount || 0);
+      // 7) ALL NON-LABOR COSTS FROM costs TABLE (canonical AP)
+      safeCosts.forEach((cost: any) => {
+        const costCodeId = cost.cost_code_id as string | null;
+        const category = normalizeCategory(cost.category);
+        const amount = Number(cost.amount || 0);
 
-        let category: string;
-        if (rawCategory === "subs") category = "subs";
-        else if (rawCategory === "materials") category = "materials";
-        else category = "misc";
-
-        const ledgerLine = ensureLine(c.cost_code_id, category);
-        ledgerLine.category = category;
-        ledgerLine.actualAmount += amount;
-        ledgerLine.variance = ledgerLine.budgetAmount - ledgerLine.actualAmount;
+        const line = getOrCreateLine(costCodeId, category);
+        line.category = category; // override with actual category from AP
+        line.actualAmount += amount;
+        line.variance = line.budgetAmount - line.actualAmount;
       });
 
       const ledgerLines = Array.from(ledgerMap.values());
 
-      // ---------- 8) SUMMARY ----------
+      // 8) SUMMARY CALCULATIONS
       const totalBudget = ledgerLines.reduce(
         (sum, line) => sum + line.budgetAmount,
         0
@@ -230,17 +265,26 @@ export function useProjectBudgetLedger(projectId: string) {
       );
       const totalVariance = totalBudget - totalActual;
 
-      const rollUp = (category: string) =>
-        ledgerLines
-          .filter((l) => l.category === category)
-          .reduce(
-            (acc, l) => ({
-              budget: acc.budget + l.budgetAmount,
-              actual: acc.actual + l.actualAmount,
-              variance: acc.variance + (l.budgetAmount - l.actualAmount),
-            }),
-            { budget: 0, actual: 0, variance: 0 }
-          );
+      // Unpaid labor from time_logs
+      const unpaidLabor =
+        safeLaborLogs.reduce((sum, log: any) => {
+          if (log.payment_status === "unpaid") {
+            return sum + Number(log.labor_cost || 0);
+          }
+          return sum;
+        }, 0) || 0;
+
+      const sumCategory = (cat: LedgerCategory) =>
+        ledgerLines.reduce(
+          (acc, line) => {
+            if (line.category !== cat) return acc;
+            acc.budget += line.budgetAmount;
+            acc.actual += line.actualAmount;
+            acc.variance += line.variance;
+            return acc;
+          },
+          { budget: 0, actual: 0, variance: 0 }
+        );
 
       const summary: BudgetLedgerSummary = {
         totalBudget,
@@ -248,10 +292,10 @@ export function useProjectBudgetLedger(projectId: string) {
         totalVariance,
         unpaidLabor,
         byCategory: {
-          labor: rollUp("labor"),
-          subs: rollUp("subs"),
-          materials: rollUp("materials"),
-          misc: rollUp("misc"),
+          labor: sumCategory("labor"),
+          subs: sumCategory("subs"),
+          materials: sumCategory("materials"),
+          misc: sumCategory("misc"),
         },
       };
 
