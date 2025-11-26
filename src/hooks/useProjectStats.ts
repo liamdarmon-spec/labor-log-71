@@ -1,71 +1,85 @@
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-
-export interface ProjectStats {
-  totalLaborHours: number;
-  totalLaborCost: number;
-  unpaidLaborAmount: number;
-  budgetTotal: number;
-  actualTotal: number;
-  variance: number;
-}
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 
 export function useProjectStats(projectId: string) {
   return useQuery({
     queryKey: ['project-stats', projectId],
+    enabled: !!projectId,
     queryFn: async () => {
-      // Get budget data
-      const { data: budget } = await supabase
+      const { data: budgetRow } = await supabase
         .from('project_budgets')
         .select('labor_budget, subs_budget, materials_budget, other_budget')
         .eq('project_id', projectId)
-        .single();
+        .maybeSingle();
 
-      // Get labor actuals
+      const budgetTotal =
+        (budgetRow?.labor_budget || 0) +
+        (budgetRow?.subs_budget || 0) +
+        (budgetRow?.materials_budget || 0) +
+        (budgetRow?.other_budget || 0);
+
       const { data: laborLogs } = await supabase
-        .from('daily_logs')
-        .select('hours_worked, worker_id, paid_amount, payment_status')
+        .from('time_logs')
+        .select('hours_worked, labor_cost, hourly_rate, payment_status')
         .eq('project_id', projectId);
 
-      // Get worker rates for cost calculation
-      const workerIds = [...new Set(laborLogs?.map(log => log.worker_id) || [])];
-      const { data: workers } = await supabase
-        .from('workers')
-        .select('id, hourly_rate')
-        .in('id', workerIds);
+      const totalLaborHours =
+        laborLogs?.reduce((sum, log) => sum + Number(log.hours_worked || 0), 0) || 0;
 
-      const workerRateMap = new Map(workers?.map(w => [w.id, w.hourly_rate]) || []);
+      const laborActual =
+        laborLogs?.reduce((sum, log) => {
+          const cost =
+            log.labor_cost ??
+            (Number(log.hours_worked || 0) * Number(log.hourly_rate || 0));
+          return sum + cost;
+        }, 0) || 0;
 
-      const totalLaborHours = laborLogs?.reduce((sum, log) => sum + (log.hours_worked || 0), 0) || 0;
-      const totalLaborCost = laborLogs?.reduce((sum, log) => {
-        const rate = workerRateMap.get(log.worker_id) || 0;
-        return sum + ((log.hours_worked || 0) * rate);
-      }, 0) || 0;
+      const unpaidLaborAmount =
+        laborLogs?.reduce((sum, log) => {
+          if (log.payment_status !== 'paid') {
+            const cost =
+              log.labor_cost ??
+              (Number(log.hours_worked || 0) * Number(log.hourly_rate || 0));
+            return sum + cost;
+          }
+          return sum;
+        }, 0) || 0;
 
-      const unpaidLaborAmount = laborLogs?.reduce((sum, log) => {
-        if (log.payment_status === 'unpaid') {
-          const rate = workerRateMap.get(log.worker_id) || 0;
-          return sum + ((log.hours_worked || 0) * rate);
-        }
-        return sum;
-      }, 0) || 0;
+      const { data: allCosts } = await supabase
+        .from('costs')
+        .select('amount, category')
+        .eq('project_id', projectId);
 
-      const budgetTotal = (budget?.labor_budget || 0) + 
-                         (budget?.subs_budget || 0) + 
-                         (budget?.materials_budget || 0) + 
-                         (budget?.other_budget || 0);
+      let subsActual = 0;
+      let materialsActual = 0;
+      let miscActual = 0;
 
-      const actualTotal = totalLaborCost; // For now, just labor. Will expand in future phases
-      const variance = budgetTotal - actualTotal;
+      (allCosts || []).forEach((c) => {
+        const amount = Number(c.amount || 0);
+        const cat = (c.category || '').toLowerCase();
+        if (cat === 'subs') subsActual += amount;
+        else if (cat === 'materials') materialsActual += amount;
+        else if (
+          cat === 'misc' ||
+          cat === 'equipment' ||
+          cat === 'other' ||
+          !cat
+        ) miscActual += amount;
+      });
+
+      const actualTotal =
+        laborActual + subsActual + materialsActual + miscActual;
 
       return {
-        totalLaborHours,
-        totalLaborCost,
-        unpaidLaborAmount,
         budgetTotal,
+        totalLaborHours,
+        laborActual,
+        subsActual,
+        materialsActual,
+        miscActual,
         actualTotal,
-        variance,
-      } as ProjectStats;
+        unpaidLaborAmount,
+      };
     },
   });
 }

@@ -29,8 +29,8 @@ export function UnifiedCostCodeLedger({
   const [sortColumn, setSortColumn] = useState<keyof CostCodeBudgetLine>('code');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
-  const toggleRow = (costCodeId: string | null) => {
-    const key = costCodeId || 'unassigned';
+  const toggleRow = (costCodeId: string | null, category: BudgetCategory) => {
+    const key = `${costCodeId || 'unassigned'}:${category}`;
     const newExpanded = new Set(expandedRows);
     if (newExpanded.has(key)) {
       newExpanded.delete(key);
@@ -158,7 +158,7 @@ export function UnifiedCostCodeLedger({
             </TableRow>
           ) : (
             filteredLines.map((line) => {
-              const key = line.cost_code_id || 'unassigned';
+              const key = `${line.cost_code_id || 'unassigned'}:${line.category}`;
               const isExpanded = expandedRows.has(key);
               const varianceColor = line.variance >= 0 
                 ? 'text-green-600 dark:text-green-400' 
@@ -169,7 +169,7 @@ export function UnifiedCostCodeLedger({
                   <TableRow 
                     key={key}
                     className="cursor-pointer hover:bg-muted/30"
-                    onClick={() => toggleRow(line.cost_code_id)}
+                    onClick={() => toggleRow(line.cost_code_id, line.category)}
                   >
                     <TableCell>
                       {line.details.length > 0 && (
