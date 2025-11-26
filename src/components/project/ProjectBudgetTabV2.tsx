@@ -22,7 +22,7 @@ import {
   BarChart3
 } from 'lucide-react';
 import { useUnifiedProjectBudget } from '@/hooks/useUnifiedProjectBudget';
-import { useProjectFinancialsSnapshot, useRecalculateProjectFinancials, useCostEntries } from '@/hooks/useProjectFinancials';
+import { useProjectFinancialsSnapshot, useRecalculateProjectFinancials } from '@/hooks/useProjectFinancials';
 import { Skeleton } from '@/components/ui/skeleton';
 
 interface ProjectBudgetTabV2Props {
@@ -32,7 +32,6 @@ interface ProjectBudgetTabV2Props {
 export function ProjectBudgetTabV2({ projectId }: ProjectBudgetTabV2Props) {
   const { data: budgetData, isLoading: budgetLoading } = useUnifiedProjectBudget(projectId);
   const { data: snapshot, isLoading: snapshotLoading } = useProjectFinancialsSnapshot(projectId);
-  const { data: costEntries } = useCostEntries(projectId);
   const recalculate = useRecalculateProjectFinancials();
 
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
