@@ -34,17 +34,32 @@ interface CostFilters {
   status?: string;
 }
 
-function invalidateFinancialQueries(queryClient: QueryClient) {
-  // AP-level
+/**
+ * Invalidate all financial queries after cost mutations.
+ * When projectId is known, also invalidate project-specific queries for immediate UI updates.
+ */
+function invalidateFinancialQueries(queryClient: QueryClient, projectId?: string) {
+  // AP-level (broad invalidation)
   queryClient.invalidateQueries({ queryKey: ['costs'] });
   queryClient.invalidateQueries({ queryKey: ['costs-summary'] });
 
-  // Project-level financials
+  // Project-level financials (broad + targeted if projectId known)
   queryClient.invalidateQueries({ queryKey: ['project-budget-ledger'] });
   queryClient.invalidateQueries({ queryKey: ['project-financials-v3'] });
   queryClient.invalidateQueries({ queryKey: ['project-financials-v2'] });
   queryClient.invalidateQueries({ queryKey: ['project-financials-snapshot'] });
   queryClient.invalidateQueries({ queryKey: ['project-financials'] });
+
+  // Targeted per-project invalidations when projectId is available
+  if (projectId) {
+    queryClient.invalidateQueries({ queryKey: ['project-budget-ledger', projectId] });
+    queryClient.invalidateQueries({ queryKey: ['project-financials-v3', projectId] });
+    queryClient.invalidateQueries({ queryKey: ['project-financials-v2', projectId] });
+    queryClient.invalidateQueries({ queryKey: ['budget-health', projectId] });
+    queryClient.invalidateQueries({ queryKey: ['budget-by-category', projectId] });
+    queryClient.invalidateQueries({ queryKey: ['labor-health', projectId] });
+    queryClient.invalidateQueries({ queryKey: ['workforce-snapshot', projectId] });
+  }
 
   // Cross-project dashboards
   queryClient.invalidateQueries({ queryKey: ['job-costing'] });
@@ -52,7 +67,7 @@ function invalidateFinancialQueries(queryClient: QueryClient) {
   queryClient.invalidateQueries({ queryKey: ['global-financials'] });
   queryClient.invalidateQueries({ queryKey: ['financial-overview'] });
 
-  // Project overview queries (for ProjectOverviewOS)
+  // Project overview queries (broad - for any open project pages)
   queryClient.invalidateQueries({ queryKey: ['budget-health'] });
   queryClient.invalidateQueries({ queryKey: ['budget-by-category'] });
   queryClient.invalidateQueries({ queryKey: ['labor-health'] });
@@ -137,8 +152,9 @@ export function useCreateCost() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
-      invalidateFinancialQueries(queryClient);
+    onSuccess: (data) => {
+      // Pass projectId for targeted invalidation
+      invalidateFinancialQueries(queryClient, data?.project_id);
     },
   });
 }
@@ -158,8 +174,9 @@ export function useUpdateCost() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
-      invalidateFinancialQueries(queryClient);
+    onSuccess: (data) => {
+      // Pass projectId for targeted invalidation
+      invalidateFinancialQueries(queryClient, data?.project_id);
     },
   });
 }
@@ -168,16 +185,18 @@ export function useDeleteCost() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (id: string) => {
+    mutationFn: async ({ id, projectId }: { id: string; projectId?: string }) => {
       const { error } = await supabase
         .from('costs')
         .delete()
         .eq('id', id);
 
       if (error) throw error;
+      return { projectId };
     },
-    onSuccess: () => {
-      invalidateFinancialQueries(queryClient);
+    onSuccess: (data) => {
+      // Pass projectId for targeted invalidation
+      invalidateFinancialQueries(queryClient, data?.projectId);
     },
   });
 }
