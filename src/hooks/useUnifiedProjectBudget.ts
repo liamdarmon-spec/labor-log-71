@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
-export type BudgetCategory = 'labor' | 'subs' | 'materials' | 'other';
+export type BudgetCategory = 'labor' | 'subs' | 'materials' | 'misc';
 
 export interface ActualEntry {
   id: string;
@@ -47,11 +47,20 @@ export interface BudgetSummary {
   other_variance: number;
 }
 
+// Normalize category to canonical values
+function normalizeCategory(raw?: string | null): BudgetCategory {
+  const value = (raw || '').toLowerCase().trim();
+  if (value.startsWith('lab')) return 'labor';
+  if (value.startsWith('sub')) return 'subs';
+  if (value.startsWith('mat')) return 'materials';
+  return 'misc';
+}
+
 export function useUnifiedProjectBudget(projectId: string) {
   return useQuery({
     queryKey: ['unified_project_budget', projectId],
     queryFn: async () => {
-      // 1. Fetch all budget lines
+      // 1. Fetch all budget lines with cost codes
       const { data: budgetLines, error: budgetError } = await supabase
         .from('project_budget_lines')
         .select(`
@@ -64,51 +73,94 @@ export function useUnifiedProjectBudget(projectId: string) {
 
       if (budgetError) throw budgetError;
 
-      // 2. Fetch labor actuals (daily_logs)
+      // 2. Fetch labor actuals from time_logs (canonical)
       const { data: laborLogs, error: laborError } = await supabase
-        .from('daily_logs')
+        .from('time_logs')
         .select(`
           id,
           date,
           hours_worked,
+          labor_cost,
+          hourly_rate,
           notes,
           cost_code_id,
           payment_status,
-          workers (name, hourly_rate)
+          workers (name)
         `)
         .eq('project_id', projectId)
         .order('date', { ascending: false });
 
       if (laborError) throw laborError;
 
-      // 3. Fetch sub actuals (sub_logs)
-      const { data: subLogs, error: subError } = await supabase
-        .from('sub_logs')
+      // 3. Fetch subs actuals from costs table (canonical)
+      const { data: subsCosts, error: subsError } = await supabase
+        .from('costs')
         .select(`
           id,
-          date,
+          date_incurred,
           amount,
           description,
           cost_code_id,
-          subs (name)
+          vendor_id,
+          status
         `)
         .eq('project_id', projectId)
-        .order('date', { ascending: false });
+        .eq('category', 'subs')
+        .order('date_incurred', { ascending: false });
 
-      if (subError) throw subError;
+      if (subsError) throw subsError;
 
-      // 4. Build cost code ledger with actuals
+      // 4. Fetch materials actuals from costs table (canonical)
+      const { data: materialsCosts, error: materialsError } = await supabase
+        .from('costs')
+        .select(`
+          id,
+          date_incurred,
+          amount,
+          description,
+          cost_code_id,
+          vendor_id,
+          status
+        `)
+        .eq('project_id', projectId)
+        .eq('category', 'materials')
+        .order('date_incurred', { ascending: false });
+
+      if (materialsError) throw materialsError;
+
+      // 5. Fetch misc/other actuals from costs table (canonical)
+      const { data: miscCosts, error: miscError } = await supabase
+        .from('costs')
+        .select(`
+          id,
+          date_incurred,
+          amount,
+          description,
+          cost_code_id,
+          vendor_id,
+          category,
+          status
+        `)
+        .eq('project_id', projectId)
+        .or('category.in.(misc,equipment,other),category.is.null')
+        .order('date_incurred', { ascending: false });
+
+      if (miscError) throw miscError;
+
+      // 6. Build cost code ledger with actuals
       const costCodeMap = new Map<string, CostCodeBudgetLine>();
 
       // Initialize from budget lines
       budgetLines?.forEach(line => {
         const key = line.cost_code_id || 'unassigned';
+        const category = normalizeCategory(line.category);
+        
         if (!costCodeMap.has(key)) {
           costCodeMap.set(key, {
             cost_code_id: line.cost_code_id,
             code: line.cost_codes?.code || 'N/A',
             description: line.cost_codes?.name || line.description || 'Unassigned',
-            category: line.category as BudgetCategory,
+            category,
             budget_amount: 0,
             budget_hours: null,
             actual_amount: 0,
@@ -119,13 +171,13 @@ export function useUnifiedProjectBudget(projectId: string) {
           });
         }
         const entry = costCodeMap.get(key)!;
-        entry.budget_amount += line.budget_amount;
+        entry.budget_amount += line.budget_amount || 0;
         if (line.budget_hours) {
           entry.budget_hours = (entry.budget_hours || 0) + line.budget_hours;
         }
       });
 
-      // Add labor actuals
+      // Add labor actuals from time_logs
       laborLogs?.forEach((log: any) => {
         const key = log.cost_code_id || 'unassigned';
         if (!costCodeMap.has(key)) {
@@ -144,7 +196,8 @@ export function useUnifiedProjectBudget(projectId: string) {
           });
         }
         const entry = costCodeMap.get(key)!;
-        const amount = log.hours_worked * (log.workers?.hourly_rate || 0);
+        // Use labor_cost if available, otherwise compute from hours * rate
+        const amount = log.labor_cost ?? (log.hours_worked * (log.hourly_rate || 0));
         entry.actual_amount += amount;
         entry.actual_hours = (entry.actual_hours || 0) + log.hours_worked;
         entry.details.push({
@@ -158,12 +211,12 @@ export function useUnifiedProjectBudget(projectId: string) {
         });
       });
 
-      // Add sub actuals
-      subLogs?.forEach((log: any) => {
-        const key = log.cost_code_id || 'unassigned';
+      // Add subs actuals from costs table
+      subsCosts?.forEach((cost: any) => {
+        const key = cost.cost_code_id || 'unassigned';
         if (!costCodeMap.has(key)) {
           costCodeMap.set(key, {
-            cost_code_id: log.cost_code_id,
+            cost_code_id: cost.cost_code_id,
             code: 'N/A',
             description: 'Unassigned Subs',
             category: 'subs',
@@ -177,14 +230,74 @@ export function useUnifiedProjectBudget(projectId: string) {
           });
         }
         const entry = costCodeMap.get(key)!;
-        entry.actual_amount += log.amount;
+        entry.actual_amount += cost.amount || 0;
         entry.details.push({
-          id: log.id,
+          id: cost.id,
           type: 'subs',
-          date: log.date,
-          description: log.description || `${log.subs?.name || 'Subcontractor'}`,
-          amount: log.amount,
-          vendor_name: log.subs?.name,
+          date: cost.date_incurred,
+          description: cost.description || 'Subcontractor cost',
+          amount: cost.amount || 0,
+          vendor_name: cost.vendor_id,
+        });
+      });
+
+      // Add materials actuals from costs table
+      materialsCosts?.forEach((cost: any) => {
+        const key = cost.cost_code_id || 'unassigned';
+        if (!costCodeMap.has(key)) {
+          costCodeMap.set(key, {
+            cost_code_id: cost.cost_code_id,
+            code: 'N/A',
+            description: 'Unassigned Materials',
+            category: 'materials',
+            budget_amount: 0,
+            budget_hours: null,
+            actual_amount: 0,
+            actual_hours: null,
+            variance: 0,
+            is_allowance: false,
+            details: [],
+          });
+        }
+        const entry = costCodeMap.get(key)!;
+        entry.actual_amount += cost.amount || 0;
+        entry.details.push({
+          id: cost.id,
+          type: 'materials',
+          date: cost.date_incurred,
+          description: cost.description || 'Material cost',
+          amount: cost.amount || 0,
+          vendor_name: cost.vendor_id,
+        });
+      });
+
+      // Add misc actuals from costs table
+      miscCosts?.forEach((cost: any) => {
+        const key = cost.cost_code_id || 'unassigned';
+        if (!costCodeMap.has(key)) {
+          costCodeMap.set(key, {
+            cost_code_id: cost.cost_code_id,
+            code: 'N/A',
+            description: 'Unassigned Misc',
+            category: 'misc',
+            budget_amount: 0,
+            budget_hours: null,
+            actual_amount: 0,
+            actual_hours: null,
+            variance: 0,
+            is_allowance: false,
+            details: [],
+          });
+        }
+        const entry = costCodeMap.get(key)!;
+        entry.actual_amount += cost.amount || 0;
+        entry.details.push({
+          id: cost.id,
+          type: 'misc',
+          date: cost.date_incurred,
+          description: cost.description || 'Miscellaneous cost',
+          amount: cost.amount || 0,
+          vendor_name: cost.vendor_id,
         });
       });
 
@@ -194,10 +307,10 @@ export function useUnifiedProjectBudget(projectId: string) {
         variance: line.budget_amount - line.actual_amount,
       }));
 
-      // 5. Calculate summary totals including unpaid labor
+      // 7. Calculate summary totals including unpaid labor
       const unpaidLaborAmount = (laborLogs || []).reduce((sum: number, log: any) => {
         if (log.payment_status === 'unpaid') {
-          return sum + (log.hours_worked * (log.workers?.hourly_rate || 0));
+          return sum + (log.labor_cost ?? (log.hours_worked * (log.hourly_rate || 0)));
         }
         return sum;
       }, 0);
@@ -238,7 +351,7 @@ export function useUnifiedProjectBudget(projectId: string) {
             summary.materials_budget += line.budget_amount;
             summary.materials_actual += line.actual_amount;
             break;
-          case 'other':
+          case 'misc':
             summary.other_budget += line.budget_amount;
             summary.other_actual += line.actual_amount;
             break;

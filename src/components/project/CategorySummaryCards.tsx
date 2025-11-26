@@ -38,7 +38,7 @@ export const CategorySummaryCards = ({ summary, selectedCategory, onCategorySele
       color: 'orange',
     },
     {
-      id: 'other' as const,
+      id: 'misc' as const,
       label: 'Misc',
       icon: MoreHorizontal,
       budget: summary.other_budget,
