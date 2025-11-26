@@ -44,10 +44,12 @@ function invalidateFinancialQueries(queryClient: QueryClient) {
   queryClient.invalidateQueries({ queryKey: ['project-financials-v3'] });
   queryClient.invalidateQueries({ queryKey: ['project-financials-v2'] });
   queryClient.invalidateQueries({ queryKey: ['project-financials-snapshot'] });
+  queryClient.invalidateQueries({ queryKey: ['project-financials'] });
 
   // Cross-project dashboards
   queryClient.invalidateQueries({ queryKey: ['job-costing'] });
   queryClient.invalidateQueries({ queryKey: ['financial-summary'] });
+  queryClient.invalidateQueries({ queryKey: ['global-financials'] });
 }
 
 export function useCosts(filters?: CostFilters) {

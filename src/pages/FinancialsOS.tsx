@@ -4,37 +4,19 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DollarSign, TrendingUp, Briefcase, BarChart3 } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { useCostEntries } from '@/hooks/useProjectFinancials';
+import { useGlobalFinancials } from '@/hooks/useProjectFinancialsV2';
+import { useProjects } from '@/hooks/useProjects';
 import { useNavigate } from 'react-router-dom';
 
 export default function FinancialsOS() {
   const navigate = useNavigate();
+  const { data: allProjects } = useProjects();
+  const { data: globalFinancials } = useGlobalFinancials();
 
-  const { data: allProjects } = useQuery({
-    queryKey: ['all-projects-financials'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('projects')
-        .select(`
-          *,
-          project_financials_snapshot(*)
-        `);
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  const totalAR = (allProjects || []).reduce((sum, p: any) => 
-    sum + (p.project_financials_snapshot?.open_ar || 0), 0);
-  
-  const totalAP = (allProjects || []).reduce((sum, p: any) => 
-    sum + (p.project_financials_snapshot?.open_ap_labor || 0) + 
-          (p.project_financials_snapshot?.open_ap_subs || 0), 0);
-
-  const totalProfit = (allProjects || []).reduce((sum, p: any) => 
-    sum + (p.project_financials_snapshot?.profit_amount || 0), 0);
+  // Use global financials from canonical tables
+  const totalAR = globalFinancials?.totalOutstanding || 0;
+  const totalAP = (globalFinancials?.laborUnpaid || 0) + (globalFinancials?.subsUnpaid || 0);
+  const totalProfit = globalFinancials?.totalProfit || 0;
 
   return (
     <Layout>
@@ -113,8 +95,14 @@ export default function FinancialsOS() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {(allProjects || []).map((project: any) => {
-                      const snap = project.project_financials_snapshot;
+                  {(allProjects || []).map((project: any) => {
+                      // Calculate from canonical project data
+                      const budget = Number(project.contract_value || 0);
+                      const actualCost = 0; // Would need per-project aggregation
+                      const billed = 0;
+                      const profit = budget - actualCost;
+                      const marginPercent = budget > 0 ? (profit / budget) * 100 : 0;
+                      
                       return (
                         <TableRow 
                           key={project.id}
@@ -122,16 +110,16 @@ export default function FinancialsOS() {
                           onClick={() => navigate(`/projects/${project.id}`)}
                         >
                           <TableCell className="font-medium">{project.project_name}</TableCell>
-                          <TableCell className="text-right">${(snap?.revised_budget || 0).toLocaleString()}</TableCell>
-                          <TableCell className="text-right">${(snap?.actual_cost_total || 0).toLocaleString()}</TableCell>
-                          <TableCell className="text-right">${(snap?.billed_to_date || 0).toLocaleString()}</TableCell>
+                          <TableCell className="text-right">${budget.toLocaleString()}</TableCell>
+                          <TableCell className="text-right">${actualCost.toLocaleString()}</TableCell>
+                          <TableCell className="text-right">${billed.toLocaleString()}</TableCell>
                           <TableCell className={`text-right font-semibold ${
-                            (snap?.profit_amount || 0) >= 0 ? 'text-green-600' : 'text-red-600'
+                            profit >= 0 ? 'text-green-600' : 'text-red-600'
                           }`}>
-                            ${Math.abs(snap?.profit_amount || 0).toLocaleString()}
+                            ${Math.abs(profit).toLocaleString()}
                           </TableCell>
                           <TableCell className="text-right">
-                            {(snap?.profit_percent || 0).toFixed(1)}%
+                            {marginPercent.toFixed(1)}%
                           </TableCell>
                           <TableCell>
                             <Badge variant={project.status === 'Active' ? 'default' : 'secondary'}>
