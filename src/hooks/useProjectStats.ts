@@ -1,16 +1,30 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
+interface ProjectStats {
+  budgetTotal: number;
+  actualTotal: number;
+  laborActual: number;
+  totalLaborHours: number;
+  unpaidLaborAmount: number;
+  subsActual: number;
+  materialsActual: number;
+  miscActual: number;
+}
+
 export function useProjectStats(projectId: string) {
-  return useQuery({
+  return useQuery<ProjectStats>({
     queryKey: ['project-stats', projectId],
     enabled: !!projectId,
     queryFn: async () => {
-      const { data: budgetRow } = await supabase
+      // ---- BUDGET ----
+      const { data: budgetRow, error: budgetError } = await supabase
         .from('project_budgets')
         .select('labor_budget, subs_budget, materials_budget, other_budget')
         .eq('project_id', projectId)
         .maybeSingle();
+
+      if (budgetError) throw budgetError;
 
       const budgetTotal =
         (budgetRow?.labor_budget || 0) +
@@ -18,13 +32,19 @@ export function useProjectStats(projectId: string) {
         (budgetRow?.materials_budget || 0) +
         (budgetRow?.other_budget || 0);
 
-      const { data: laborLogs } = await supabase
+      // ---- LABOR (time_logs – canonical) ----
+      const { data: laborLogs, error: laborError } = await supabase
         .from('time_logs')
         .select('hours_worked, labor_cost, hourly_rate, payment_status')
         .eq('project_id', projectId);
 
+      if (laborError) throw laborError;
+
       const totalLaborHours =
-        laborLogs?.reduce((sum, log) => sum + Number(log.hours_worked || 0), 0) || 0;
+        laborLogs?.reduce(
+          (sum, log) => sum + Number(log.hours_worked || 0),
+          0
+        ) || 0;
 
       const laborActual =
         laborLogs?.reduce((sum, log) => {
@@ -45,10 +65,13 @@ export function useProjectStats(projectId: string) {
           return sum;
         }, 0) || 0;
 
-      const { data: allCosts } = await supabase
+      // ---- NON-LABOR COSTS (costs – canonical) ----
+      const { data: allCosts, error: costsError } = await supabase
         .from('costs')
         .select('amount, category')
         .eq('project_id', projectId);
+
+      if (costsError) throw costsError;
 
       let subsActual = 0;
       let materialsActual = 0;
@@ -57,6 +80,7 @@ export function useProjectStats(projectId: string) {
       (allCosts || []).forEach((c) => {
         const amount = Number(c.amount || 0);
         const cat = (c.category || '').toLowerCase();
+
         if (cat === 'subs') subsActual += amount;
         else if (cat === 'materials') materialsActual += amount;
         else if (
@@ -64,7 +88,9 @@ export function useProjectStats(projectId: string) {
           cat === 'equipment' ||
           cat === 'other' ||
           !cat
-        ) miscActual += amount;
+        ) {
+          miscActual += amount;
+        }
       });
 
       const actualTotal =
@@ -72,13 +98,13 @@ export function useProjectStats(projectId: string) {
 
       return {
         budgetTotal,
-        totalLaborHours,
+        actualTotal,
         laborActual,
+        totalLaborHours,
+        unpaidLaborAmount,
         subsActual,
         materialsActual,
         miscActual,
-        actualTotal,
-        unpaidLaborAmount,
       };
     },
   });
