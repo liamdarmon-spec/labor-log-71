@@ -1,7 +1,10 @@
 import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { UnifiedPaymentsPanelV2 } from '@/components/financials/UnifiedPaymentsPanelV2';
-import { LaborPayRunsPanel } from '@/components/payments/LaborPayRunsPanel';
+import { UnpaidLaborTabV2 } from '@/components/payments/UnpaidLaborTabV2';
+import { LaborPayRunsTabV2 } from '@/components/payments/LaborPayRunsTabV2';
+import { SubPaymentsTab } from '@/components/financials/SubPaymentsTab';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Construction } from 'lucide-react';
 
 export default function PaymentsCenterTab() {
   const [activeTab, setActiveTab] = useState('unpaid-labor');
@@ -28,7 +31,7 @@ export default function PaymentsCenterTab() {
             <p className="text-sm text-muted-foreground">
               All unpaid time logs grouped by worker and project. Select logs and create a pay run.
             </p>
-            <LaborPayRunsPanel />
+            <UnpaidLaborTabV2 />
           </div>
         </TabsContent>
 
@@ -37,7 +40,7 @@ export default function PaymentsCenterTab() {
             <p className="text-sm text-muted-foreground">
               Historical labor payment runs and their status
             </p>
-            <UnifiedPaymentsPanelV2 defaultView="labor-pay-runs" />
+            <LaborPayRunsTabV2 />
           </div>
         </TabsContent>
 
@@ -46,7 +49,7 @@ export default function PaymentsCenterTab() {
             <p className="text-sm text-muted-foreground">
               Unpaid subcontractor costs grouped by sub, project, and cost code. Includes retention tracking.
             </p>
-            <UnifiedPaymentsPanelV2 defaultView="sub-payments" />
+            <SubPaymentsTab />
           </div>
         </TabsContent>
 
@@ -55,7 +58,19 @@ export default function PaymentsCenterTab() {
             <p className="text-sm text-muted-foreground">
               Material and equipment vendor payments
             </p>
-            <UnifiedPaymentsPanelV2 defaultView="vendor-payments" />
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Construction className="h-5 w-5" />
+                  Vendor Payments
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground">
+                  Vendor payment tracking coming soon. Use the Costs tab to manage material and equipment costs.
+                </p>
+              </CardContent>
+            </Card>
           </div>
         </TabsContent>
       </Tabs>
