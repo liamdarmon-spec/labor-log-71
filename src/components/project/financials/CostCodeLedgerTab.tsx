@@ -51,8 +51,8 @@ export function CostCodeLedgerTab({ projectId, filterCategory }: CostCodeLedgerT
     return matchesSearch && matchesCategory;
   });
 
-  const toggleRow = (costCodeId: string | null) => {
-    const id = costCodeId || 'unassigned';
+  const toggleRow = (costCodeId: string | null, category: string) => {
+    const id = `${costCodeId || 'unassigned'}:${category}`;
     const newExpanded = new Set(expandedRows);
     if (newExpanded.has(id)) {
       newExpanded.delete(id);
@@ -140,21 +140,22 @@ export function CostCodeLedgerTab({ projectId, filterCategory }: CostCodeLedgerT
                 <TableBody>
                   {filteredLines
                     .sort((a, b) => a.category.localeCompare(b.category))
-                    .map((line, index) => {
+                    .map((line) => {
                       const percentUsed = line.budgetAmount > 0 ? (line.actualAmount / line.budgetAmount) * 100 : 0;
                       const isOverBudget = percentUsed > 100;
-                      const isExpanded = expandedRows.has(line.costCodeId || 'unassigned');
+                      const compositeKey = `${line.costCodeId || 'unassigned'}:${line.category}`;
+                      const isExpanded = expandedRows.has(compositeKey);
 
                       return (
                         <TableRow 
-                          key={line.costCodeId || `unassigned-${index}`} 
+                          key={compositeKey} 
                           className={`${isOverBudget ? 'bg-red-50' : ''} hover:bg-muted/50`}
                         >
                           <TableCell>
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => toggleRow(line.costCodeId)}
+                              onClick={() => toggleRow(line.costCodeId, line.category)}
                               className="h-8 w-8 p-0"
                             >
                               {isExpanded ? (

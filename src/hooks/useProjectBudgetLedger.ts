@@ -195,28 +195,26 @@ export function useProjectBudgetLedger(projectId: string) {
       // 4) LEDGER MAP PER COST CODE
       const ledgerMap = new Map<string, CostCodeLedgerLine>();
 
-      const getKey = (costCodeId: string | null) =>
-        costCodeId ?? "unassigned";
+      // COMPOSITE KEY: costCodeId:category to allow same cost code in multiple categories
+      const getKey = (costCodeId: string | null, category: LedgerCategory) =>
+        `${costCodeId ?? "unassigned"}:${category}`;
 
       const getOrCreateLine = (
         costCodeId: string | null,
-        defaultCategory: LedgerCategory
+        category: LedgerCategory
       ): CostCodeLedgerLine => {
-        const key = getKey(costCodeId);
+        const key = getKey(costCodeId, category);
         let line = ledgerMap.get(key);
 
         if (!line) {
           const meta = costCodeId ? costCodeMeta.get(costCodeId) : null;
-          const normalized = meta
-            ? meta.category
-            : defaultCategory;
 
           line = {
             costCodeId,
             costCode: meta?.code || (costCodeId ? "MISC" : "UNASSIGNED"),
             costCodeName:
               meta?.name || (costCodeId ? "Miscellaneous" : "Unassigned"),
-            category: normalized,
+            category, // Use the passed category, not meta.category
             budgetAmount: 0,
             budgetHours: null,
             actualAmount: 0,
@@ -230,7 +228,7 @@ export function useProjectBudgetLedger(projectId: string) {
         return line;
       };
 
-      // 5) SEED LEDGER WITH BUDGET LINES
+      // 5) SEED LEDGER WITH BUDGET LINES (using composite key)
       safeBudgetLines.forEach((line: any) => {
         const costCodeId = line.cost_code_id as string | null;
         const meta = costCodeId ? costCodeMeta.get(costCodeId) : null;
@@ -239,7 +237,7 @@ export function useProjectBudgetLedger(projectId: string) {
         const category = normalizeCategory(
           meta?.category || line.category || null
         );
-        const key = getKey(costCodeId);
+        const key = getKey(costCodeId, category);
 
         const budgetAmount = Number(line.budget_amount || 0);
         const budgetHours =
@@ -261,14 +259,13 @@ export function useProjectBudgetLedger(projectId: string) {
         });
       });
 
-      // 6) LABOR ACTUALS (time_logs)
+      // 6) LABOR ACTUALS (time_logs) - always category "labor"
       safeLaborLogs.forEach((log: any) => {
         const costCodeId = log.cost_code_id as string | null;
         const hours = Number(log.hours_worked || 0);
         const cost = Number(log.labor_cost || 0);
 
         const line = getOrCreateLine(costCodeId, "labor");
-        line.category = "labor";
         line.actualAmount += cost;
         if (line.actualHours !== null) {
           line.actualHours = (line.actualHours || 0) + hours;
@@ -278,25 +275,23 @@ export function useProjectBudgetLedger(projectId: string) {
         line.variance = line.budgetAmount - line.actualAmount;
       });
 
-      // 7) LEGACY SUB LOGS
+      // 7) LEGACY SUB LOGS - always category "subs"
       safeSubLogs.forEach((log: any) => {
         const costCodeId = log.cost_code_id as string | null;
         const amount = Number(log.amount || 0);
 
         const line = getOrCreateLine(costCodeId, "subs");
-        line.category = "subs";
         line.actualAmount += amount;
         line.variance = line.budgetAmount - line.actualAmount;
       });
 
-      // 8) ALL NON-LABOR COSTS FROM costs TABLE
+      // 8) ALL NON-LABOR COSTS FROM costs TABLE - uses cost.category
       safeCosts.forEach((cost: any) => {
         const costCodeId = cost.cost_code_id as string | null;
         const category = normalizeCategory(cost.category);
         const amount = Number(cost.amount || 0);
 
         const line = getOrCreateLine(costCodeId, category);
-        line.category = category;
         line.actualAmount += amount;
         line.variance = line.budgetAmount - line.actualAmount;
       });
