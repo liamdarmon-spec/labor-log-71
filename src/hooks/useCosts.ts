@@ -43,6 +43,7 @@ function invalidateFinancialQueries(queryClient: QueryClient, projectId?: string
   queryClient.invalidateQueries({ queryKey: ['costs'] });
   queryClient.invalidateQueries({ queryKey: ['costs-summary'] });
   queryClient.invalidateQueries({ queryKey: ['unified-project-budget'] });
+  queryClient.invalidateQueries({ queryKey: ['project-stats'] }); 
 
   // Project-level financials (broad + targeted if projectId known)
   queryClient.invalidateQueries({ queryKey: ['project-budget-ledger'] });
