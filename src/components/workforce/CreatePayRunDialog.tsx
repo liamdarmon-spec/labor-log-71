@@ -1,423 +1,552 @@
-/**
- * LABOR PAY RUN SYSTEM - CREATE DIALOG
- * 
- * Two-step wizard for creating labor pay runs:
- * 
- * STEP 1: Select filters
- *   - Date range (start/end)
- *   - Payer company (optional)
- *   - Worker/project filters (optional, via props)
- * 
- * STEP 2: Select time logs
- *   - Query time_logs WHERE payment_status = 'unpaid'
- *   - EXCLUDE logs already in labor_pay_run_items (prevents double-payment)
- *   - Display grouped by worker → project
- *   - User selects which logs to include via checkboxes
- * 
- * ON SUBMIT:
- *   - Insert labor_pay_runs (status = 'draft')
- *   - Insert labor_pay_run_items for each selected log
- *   - Invalidate queries to refresh UI
- * 
- * TRIGGER FLOW:
- *   - When pay run is marked 'paid', mark_time_logs_paid_on_pay_run() 
- *     automatically updates time_logs.payment_status and paid_amount
- */
+// src/components/workforce/CreatePayRunDialog.tsx
+//
+// Canonical Pay Run creation wizard.
+// - Reads unpaid logs via useUnpaidTimeLogs (time_logs_with_meta_view)
+// - Creates labor_pay_runs + labor_pay_run_items
+// - Designed for high volume (2k+ logs/day)
 
 import { useState, useMemo } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
-import { Checkbox } from '@/components/ui/checkbox';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
-import { Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
-import { format } from 'date-fns';
 
-interface CreatePayRunDialogProps {
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Skeleton } from '@/components/ui/skeleton';
+import { DatePickerWithPresets } from '@/components/ui/date-picker-with-presets';
+import { Badge } from '@/components/ui/badge';
+
+import { format, subDays } from 'date-fns';
+import { toast } from 'sonner';
+import { DollarSign } from 'lucide-react';
+
+import { useUnpaidTimeLogs } from '@/hooks/useUnpaidTimeLogs';
+
+type CreatePayRunDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSuccess: () => void;
-  defaultDateRangeStart?: string;
-  defaultDateRangeEnd?: string;
-  defaultCompanyId?: string;
-  defaultWorkerId?: string;
-  defaultProjectId?: string;
-}
+  onSuccess?: () => void;
+};
 
-interface TimeLogWithDetails {
-  id: string;
-  date: string;
-  hours_worked: number;
-  labor_cost: number;
-  hourly_rate: number;
-  worker_id: string;
-  project_id: string;
-  worker: { name: string };
-  project: { project_name: string };
-}
-
-export function CreatePayRunDialog({ 
-  open, 
-  onOpenChange, 
+export function CreatePayRunDialog({
+  open,
+  onOpenChange,
   onSuccess,
-  defaultDateRangeStart,
-  defaultDateRangeEnd,
-  defaultCompanyId,
-  defaultWorkerId,
-  defaultProjectId,
 }: CreatePayRunDialogProps) {
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-  const [step, setStep] = useState<1 | 2>(1);
-  const [dateRangeStart, setDateRangeStart] = useState(defaultDateRangeStart || '');
-  const [dateRangeEnd, setDateRangeEnd] = useState(defaultDateRangeEnd || '');
-  const [payerCompanyId, setPayerCompanyId] = useState<string>(defaultCompanyId || 'none');
-  const [selectedLogIds, setSelectedLogIds] = useState<Set<string>>(new Set());
+  // -----------------------
+  // Filters / local state
+  // -----------------------
+  const [startDate, setStartDate] = useState<Date>(() => subDays(new Date(), 7));
+  const [endDate, setEndDate] = useState<Date>(() => new Date());
+  const [payerCompanyId, setPayerCompanyId] = useState<string>('all');
+  const [projectId, setProjectId] = useState<string>('all');
+  const [workerId, setWorkerId] = useState<string>('all');
 
-  // Fetch companies
-  const { data: companies } = useQuery({
-    queryKey: ['companies'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('companies')
-        .select('*')
-        .order('name');
-      if (error) throw error;
-      return data;
-    },
-  });
+  const [selectedLogIds, setSelectedLogIds] = useState<Set<string>>(
+    () => new Set()
+  );
 
-  // Fetch unpaid time logs (only when step 2)
-  // CRITICAL: Exclude time_logs already linked to existing pay runs to prevent double-payment
-  const { data: timeLogs, isLoading: logsLoading } = useQuery({
-    queryKey: ['unpaid-time-logs', dateRangeStart, dateRangeEnd, defaultWorkerId, defaultProjectId],
-    queryFn: async () => {
-      if (!dateRangeStart || !dateRangeEnd) return [];
-      
-      // First, get all time_log_ids that are already in pay run items
-      const { data: existingItems, error: itemsError } = await supabase
-        .from('labor_pay_run_items')
-        .select('time_log_id');
+  // -----------------------
+  // Companies & Projects (for filters)
+  // -----------------------
+  const { data: companies } = useCompaniesForPayroll();
+  const { data: projects } = useProjectsForPayroll();
+  const { data: workers } = useWorkersForPayroll();
 
-      if (itemsError) throw itemsError;
+  const filters = useMemo(
+    () => ({
+      startDate: format(startDate, 'yyyy-MM-dd'),
+      endDate: format(endDate, 'yyyy-MM-dd'),
+      companyId: payerCompanyId === 'all' ? undefined : payerCompanyId,
+      projectId: projectId === 'all' ? undefined : projectId,
+      workerId: workerId === 'all' ? undefined : workerId,
+    }),
+    [startDate, endDate, payerCompanyId, projectId, workerId]
+  );
 
-      const excludedIds = new Set(existingItems?.map(item => item.time_log_id) || []);
+  // -----------------------
+  // Unpaid time logs (canonical)
+  // -----------------------
+  const { data: unpaidLogs, isLoading } = useUnpaidTimeLogs(filters);
 
-      let query = supabase
-        .from('time_logs')
-        .select(`
-          *,
-          worker:workers(name),
-          project:projects(project_name)
-        `)
-        .eq('payment_status', 'unpaid')
-        .gte('date', dateRangeStart)
-        .lte('date', dateRangeEnd);
+  // Reset selections whenever filters change
+  const visibleLogs = unpaidLogs || [];
+  const allVisibleIds = useMemo(
+    () => visibleLogs.map((log) => log.id),
+    [visibleLogs]
+  );
 
-      // Apply optional worker filter
-      if (defaultWorkerId) {
-        query = query.eq('worker_id', defaultWorkerId);
-      }
+  const totalHours = useMemo(
+    () =>
+      visibleLogs.reduce(
+        (sum, log) => sum + Number(log.hours_worked || 0),
+        0
+      ),
+    [visibleLogs]
+  );
 
-      // Apply optional project filter
-      if (defaultProjectId) {
-        query = query.eq('project_id', defaultProjectId);
-      }
+  const totalAmount = useMemo(
+    () =>
+      visibleLogs.reduce(
+        (sum, log) => sum + Number(log.labor_cost || 0),
+        0
+      ),
+    [visibleLogs]
+  );
 
-      query = query
-        .order('worker_id')
-        .order('project_id')
-        .order('date');
+  const selectedLogs = useMemo(
+    () => visibleLogs.filter((log) => selectedLogIds.has(log.id)),
+    [visibleLogs, selectedLogIds]
+  );
 
-      const { data, error } = await query;
-      if (error) throw error;
+  const selectedAmount = useMemo(
+    () =>
+      selectedLogs.reduce(
+        (sum, log) => sum + Number(log.labor_cost || 0),
+        0
+      ),
+    [selectedLogs]
+  );
 
-      // Filter out time logs that are already in pay runs
-      const filteredData = (data || []).filter(log => !excludedIds.has(log.id));
-      
-      return filteredData as TimeLogWithDetails[];
-    },
-    enabled: step === 2 && !!dateRangeStart && !!dateRangeEnd,
-  });
+  const selectedCount = selectedLogs.length;
 
-  // Group time logs by worker and project
-  const groupedLogs = useMemo(() => {
-    if (!timeLogs) return new Map();
-    
-    const groups = new Map<string, Map<string, TimeLogWithDetails[]>>();
-    
-    timeLogs.forEach(log => {
-      if (!groups.has(log.worker_id)) {
-        groups.set(log.worker_id, new Map());
-      }
-      const workerProjects = groups.get(log.worker_id)!;
-      if (!workerProjects.has(log.project_id)) {
-        workerProjects.set(log.project_id, []);
-      }
-      workerProjects.get(log.project_id)!.push(log);
-    });
-    
-    return groups;
-  }, [timeLogs]);
-
-  // Calculate totals for selected logs
-  const selectedTotals = useMemo(() => {
-    if (!timeLogs) return { hours: 0, amount: 0 };
-    
-    const selected = timeLogs.filter(log => selectedLogIds.has(log.id));
-    return {
-      hours: selected.reduce((sum, log) => sum + log.hours_worked, 0),
-      amount: selected.reduce((sum, log) => sum + log.labor_cost, 0),
-    };
-  }, [timeLogs, selectedLogIds]);
-
-  const createPayRun = useMutation({
+  // -----------------------
+  // Mutations
+  // -----------------------
+  const createPayRunMutation = useMutation({
     mutationFn: async () => {
-      if (selectedLogIds.size === 0) {
-        throw new Error('No time logs selected');
+      if (selectedLogs.length === 0) {
+        throw new Error('Select at least one time log');
       }
 
-      const selectedLogs = timeLogs!.filter(log => selectedLogIds.has(log.id));
+      const dateRangeStart = format(startDate, 'yyyy-MM-dd');
+      const dateRangeEnd = format(endDate, 'yyyy-MM-dd');
 
-      // Insert pay run
+      // 1) Create labor_pay_runs record
       const { data: payRun, error: payRunError } = await supabase
         .from('labor_pay_runs')
         .insert({
           date_range_start: dateRangeStart,
           date_range_end: dateRangeEnd,
-          status: 'draft',
-          total_hours: selectedTotals.hours,
-          total_amount: selectedTotals.amount,
-          payer_company_id: payerCompanyId && payerCompanyId !== 'none' ? payerCompanyId : null,
+          payer_company_id: payerCompanyId === 'all' ? null : payerCompanyId,
+          // You can later support per-worker payee companies; for now null.
           payee_company_id: null,
+          total_amount: selectedAmount,
+          status: 'draft',
         })
         .select()
         .single();
 
-      if (payRunError) throw payRunError;
+      if (payRunError) {
+        console.error('Error creating pay run:', payRunError);
+        throw payRunError;
+      }
 
-      // Insert pay run items
-      const items = selectedLogs.map(log => ({
+      // 2) Insert labor_pay_run_items for each selected log
+      const itemsPayload = selectedLogs.map((log) => ({
         pay_run_id: payRun.id,
         time_log_id: log.id,
-        worker_id: log.worker_id,
-        hours: log.hours_worked,
-        rate: log.labor_cost && log.hours_worked ? log.labor_cost / log.hours_worked : 0,
-        amount: log.labor_cost,
+        amount: Number(log.labor_cost || 0),
       }));
 
       const { error: itemsError } = await supabase
         .from('labor_pay_run_items')
-        .insert(items);
+        .insert(itemsPayload);
 
-      if (itemsError) throw itemsError;
+      if (itemsError) {
+        console.error('Error creating pay run items:', itemsError);
+        throw itemsError;
+      }
 
       return payRun;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['labor-pay-runs'] });
-      queryClient.invalidateQueries({ queryKey: ['unpaid-time-logs'] });
-      queryClient.invalidateQueries({ queryKey: ['workforce-unpaid-summary'] });
-      queryClient.invalidateQueries({ queryKey: ['time-logs'] });
-      toast({
-        title: 'Pay run created',
-        description: 'Labor pay run created successfully',
-      });
-      handleClose();
-      onSuccess();
+      toast.success('Pay run created from unpaid time logs');
+      setSelectedLogIds(new Set());
+      onSuccess?.();
     },
-    onError: (error: Error) => {
-      toast({
-        title: 'Error',
-        description: error.message,
-        variant: 'destructive',
-      });
+    onError: (error: any) => {
+      console.error(error);
+      toast.error(
+        error?.message || 'Failed to create pay run. Please try again.'
+      );
     },
   });
 
-  const handleClose = () => {
-    setStep(1);
-    setDateRangeStart(defaultDateRangeStart || '');
-    setDateRangeEnd(defaultDateRangeEnd || '');
-    setPayerCompanyId(defaultCompanyId || 'none');
-    setSelectedLogIds(new Set());
-    onOpenChange(false);
+  // -----------------------
+  // Handlers
+  // -----------------------
+  const toggleLog = (id: string, checked: boolean | string) => {
+    const next = new Set(selectedLogIds);
+    if (checked) next.add(id);
+    else next.delete(id);
+    setSelectedLogIds(next);
   };
 
-  const handleNext = () => {
-    if (!dateRangeStart || !dateRangeEnd) {
-      toast({
-        title: 'Missing information',
-        description: 'Please select both start and end dates',
-        variant: 'destructive',
-      });
-      return;
-    }
-    setStep(2);
-  };
-
-  const toggleLogSelection = (logId: string) => {
-    const newSelection = new Set(selectedLogIds);
-    if (newSelection.has(logId)) {
-      newSelection.delete(logId);
+  const toggleSelectAll = (checked: boolean | string) => {
+    if (checked) {
+      setSelectedLogIds(new Set(allVisibleIds));
     } else {
-      newSelection.add(logId);
-    }
-    setSelectedLogIds(newSelection);
-  };
-
-  const toggleSelectAll = () => {
-    if (!timeLogs) return;
-    if (selectedLogIds.size === timeLogs.length) {
       setSelectedLogIds(new Set());
-    } else {
-      setSelectedLogIds(new Set(timeLogs.map(log => log.id)));
     }
   };
 
+  const handleClose = (openState: boolean) => {
+    if (!openState) {
+      // Reset state on close for clean next use
+      setSelectedLogIds(new Set());
+    }
+    onOpenChange(openState);
+  };
+
+  // -----------------------
+  // Render
+  // -----------------------
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-5xl">
         <DialogHeader>
-          <DialogTitle>
-            {step === 1 ? 'New Pay Run - Step 1: Date Range & Company' : 'New Pay Run - Step 2: Select Time Logs'}
-          </DialogTitle>
+          <DialogTitle>Create Labor Pay Run</DialogTitle>
+          <DialogDescription>
+            Select a date range and unpaid time logs to batch into a pay run.
+            Payment status will flip to <span className="font-semibold">paid</span> only when you mark the pay run as paid.
+          </DialogDescription>
         </DialogHeader>
 
-        {step === 1 ? (
-          <div className="space-y-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="start-date">Start Date</Label>
-                <Input
-                  id="start-date"
-                  type="date"
-                  value={dateRangeStart}
-                  onChange={(e) => setDateRangeStart(e.target.value)}
-                />
+        {/* TOP FILTER + SUMMARY */}
+        <div className="grid gap-4 md:grid-cols-[2fr,1fr]">
+          {/* Filters */}
+          <Card className="border-dashed">
+            <CardContent className="pt-4 space-y-4">
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="space-y-1">
+                  <Label>Date range start</Label>
+                  <DatePickerWithPresets
+                    date={startDate}
+                    onDateChange={(date) => date && setStartDate(date)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>Date range end</Label>
+                  <DatePickerWithPresets
+                    date={endDate}
+                    onDateChange={(date) => date && setEndDate(date)}
+                  />
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="end-date">End Date</Label>
-                <Input
-                  id="end-date"
-                  type="date"
-                  value={dateRangeEnd}
-                  onChange={(e) => setDateRangeEnd(e.target.value)}
-                />
-              </div>
-            </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="payer-company">Payer Company (Optional)</Label>
-              <Select value={payerCompanyId} onValueChange={setPayerCompanyId}>
-                <SelectTrigger id="payer-company">
-                  <SelectValue placeholder="Select company or leave blank" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">No Company</SelectItem>
-                  {companies?.map(company => (
-                    <SelectItem key={company.id} value={company.id}>
-                      {company.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-4 py-4">
-            {logsLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="w-6 h-6 animate-spin" />
+              <div className="grid gap-3 md:grid-cols-3">
+                <div className="space-y-1">
+                  <Label>Payer company</Label>
+                  <Select
+                    value={payerCompanyId}
+                    onValueChange={setPayerCompanyId}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="All companies" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Companies</SelectItem>
+                      {companies?.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1">
+                  <Label>Project</Label>
+                  <Select value={projectId} onValueChange={setProjectId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All projects" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Projects</SelectItem>
+                      {projects?.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.project_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1">
+                  <Label>Worker</Label>
+                  <Select value={workerId} onValueChange={setWorkerId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All workers" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Workers</SelectItem>
+                      {workers?.map((w) => (
+                        <SelectItem key={w.id} value={w.id}>
+                          {w.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-            ) : !timeLogs || timeLogs.length === 0 ? (
-              <div className="text-center py-12">
-                <p className="text-muted-foreground">No unpaid time logs found in this date range</p>
+            </CardContent>
+          </Card>
+
+          {/* Summary card */}
+          <Card>
+            <CardContent className="pt-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <DollarSign className="h-5 w-5 text-muted-foreground" />
+                <span className="font-semibold">Summary</span>
+              </div>
+              {isLoading ? (
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-4 w-32" />
+                </div>
+              ) : (
+                <div className="space-y-1 text-sm">
+                  <p>
+                    Visible unpaid logs:{' '}
+                    <span className="font-semibold">
+                      {visibleLogs.length.toLocaleString()}
+                    </span>
+                  </p>
+                  <p>
+                    Total hours:{' '}
+                    <span className="font-semibold">
+                      {totalHours.toFixed(1)}h
+                    </span>
+                  </p>
+                  <p>
+                    Total unpaid amount:{' '}
+                    <span className="font-semibold">
+                      ${totalAmount.toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
+                    </span>
+                  </p>
+                  <hr className="my-2" />
+                  <p>
+                    Selected logs:{' '}
+                    <span className="font-semibold">
+                      {selectedCount.toLocaleString()}
+                    </span>
+                  </p>
+                  <p>
+                    Selected amount:{' '}
+                    <span className="font-semibold text-emerald-600">
+                      ${selectedAmount.toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
+                    </span>
+                  </p>
+                  {selectedCount === 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      Tip: Use “Select all” below to pull every unpaid log in
+                      this range into one run.
+                    </p>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* LOG TABLE */}
+        <Card className="mt-4">
+          <CardContent className="pt-4">
+            {isLoading ? (
+              <Skeleton className="h-64" />
+            ) : visibleLogs.length === 0 ? (
+              <div className="py-10 text-center text-sm text-muted-foreground">
+                No unpaid time logs found for this range / filters.
               </div>
             ) : (
-              <>
+              <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-3">
                     <Checkbox
-                      checked={selectedLogIds.size === timeLogs.length}
+                      checked={
+                        selectedLogIds.size > 0 &&
+                        selectedLogIds.size === allVisibleIds.length
+                      }
                       onCheckedChange={toggleSelectAll}
+                      id="select-all-logs"
                     />
-                    <Label>Select All ({timeLogs.length} logs)</Label>
+                    <Label
+                      htmlFor="select-all-logs"
+                      className="text-sm font-medium"
+                    >
+                      Select all ({allVisibleIds.length})
+                    </Label>
                   </div>
-                  <div className="text-sm text-muted-foreground">
-                    Selected: {selectedLogIds.size} logs · {selectedTotals.hours.toFixed(1)}h · ${selectedTotals.amount.toFixed(2)}
-                  </div>
+                  <Badge variant="outline">
+                    {selectedCount} selected · $
+                    {selectedAmount.toLocaleString(undefined, {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}
+                  </Badge>
                 </div>
 
-                <div className="border rounded-lg divide-y max-h-96 overflow-y-auto">
-                  {Array.from(groupedLogs.entries()).map(([workerId, projects]) => {
-                    const firstLog = Array.from(projects.values())[0][0];
-                    return (
-                      <div key={workerId} className="p-4">
-                        <h4 className="font-semibold mb-2">{firstLog.worker.name}</h4>
-                        {Array.from(projects.entries()).map(([projectId, logs]) => (
-                          <div key={projectId} className="ml-4 mb-2">
-                            <h5 className="font-medium text-sm text-muted-foreground mb-1">
-                              {logs[0].project.project_name}
-                            </h5>
-                            <div className="space-y-1">
-                              {logs.map(log => (
-                                <div key={log.id} className="flex items-center gap-2 text-sm">
-                                  <Checkbox
-                                    checked={selectedLogIds.has(log.id)}
-                                    onCheckedChange={() => toggleLogSelection(log.id)}
-                                  />
-                                  <span>{format(new Date(log.date), 'MMM d, yyyy')}</span>
-                                  <span className="text-muted-foreground">·</span>
-                                  <span>{log.hours_worked}h</span>
-                                  <span className="text-muted-foreground">·</span>
-                                  <span>${(log.labor_cost && log.hours_worked ? log.labor_cost / log.hours_worked : 0).toFixed(2)}/hr</span>
-                                  <span className="text-muted-foreground">·</span>
-                                  <span className="font-medium">${log.labor_cost.toFixed(2)}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    );
-                  })}
-                </div>
-              </>
+                <ScrollArea className="h-72 border rounded-md">
+                  <table className="w-full text-sm">
+                    <thead className="sticky top-0 bg-background border-b">
+                      <tr className="text-left text-xs text-muted-foreground">
+                        <th className="w-[40px] px-3 py-2"></th>
+                        <th className="px-3 py-2">Date</th>
+                        <th className="px-3 py-2">Worker</th>
+                        <th className="px-3 py-2">Project</th>
+                        <th className="px-3 py-2">Company</th>
+                        <th className="px-3 py-2 text-right">Hours</th>
+                        <th className="px-3 py-2 text-right">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {visibleLogs.map((log) => (
+                        <tr
+                          key={log.id}
+                          className="border-b last:border-0 hover:bg-muted/40"
+                        >
+                          <td className="px-3 py-2">
+                            <Checkbox
+                              checked={selectedLogIds.has(log.id)}
+                              onCheckedChange={(checked) =>
+                                toggleLog(log.id, checked)
+                              }
+                            />
+                          </td>
+                          <td className="px-3 py-2 whitespace-nowrap">
+                            {log.date
+                              ? new Date(log.date).toLocaleDateString()
+                              : '-'}
+                          </td>
+                          <td className="px-3 py-2">{log.worker_name}</td>
+                          <td className="px-3 py-2">{log.project_name}</td>
+                          <td className="px-3 py-2 text-xs text-muted-foreground">
+                            {log.company_name || '—'}
+                          </td>
+                          <td className="px-3 py-2 text-right">
+                            {Number(log.hours_worked || 0).toFixed(1)}
+                          </td>
+                          <td className="px-3 py-2 text-right">
+                            ${Number(log.labor_cost || 0).toLocaleString(
+                              undefined,
+                              {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                              }
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </ScrollArea>
+              </div>
             )}
-          </div>
-        )}
+          </CardContent>
+        </Card>
 
-        <DialogFooter>
-          {step === 1 ? (
-            <>
-              <Button variant="outline" onClick={handleClose}>Cancel</Button>
-              <Button onClick={handleNext}>
-                Next
-                <ChevronRight className="w-4 h-4 ml-2" />
-              </Button>
-            </>
-          ) : (
-            <>
-              <Button variant="outline" onClick={() => setStep(1)}>
-                <ChevronLeft className="w-4 h-4 mr-2" />
-                Back
-              </Button>
-              <Button 
-                onClick={() => createPayRun.mutate()}
-                disabled={selectedLogIds.size === 0 || createPayRun.isPending}
-              >
-                {createPayRun.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                Create Pay Run
-              </Button>
-            </>
-          )}
-        </DialogFooter>
+        {/* FOOTER ACTIONS */}
+        <div className="flex items-center justify-between pt-2">
+          <p className="text-xs text-muted-foreground">
+            Pay run will be created in <span className="font-semibold">draft</span> status.
+            When you later mark it as <span className="font-semibold">paid</span>, the trigger will update{' '}
+            <code>time_logs.payment_status = 'paid'</code>.
+          </p>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => handleClose(false)}
+              disabled={createPayRunMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => createPayRunMutation.mutate()}
+              disabled={
+                createPayRunMutation.isPending || selectedLogs.length === 0
+              }
+            >
+              {createPayRunMutation.isPending
+                ? 'Creating...'
+                : `Create Pay Run (${selectedLogs.length})`}
+            </Button>
+          </div>
+        </div>
       </DialogContent>
     </Dialog>
   );
+}
+
+// -----------------------
+// Small helper hooks
+// -----------------------
+
+function useCompaniesForPayroll() {
+  return useQuery({
+    queryKey: ['payroll-companies'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('companies')
+        .select('id, name')
+        .order('name');
+
+      if (error) throw error;
+      return data || [];
+    },
+  });
+}
+
+function useProjectsForPayroll() {
+  return useQuery({
+    queryKey: ['payroll-projects'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('projects')
+        .select('id, project_name')
+        .order('project_name');
+
+      if (error) throw error;
+      return data || [];
+    },
+  });
+}
+
+function useWorkersForPayroll() {
+  return useQuery({
+    queryKey: ['payroll-workers'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('workers')
+        .select('id, name')
+        .eq('active', true)
+        .order('name');
+
+      if (error) throw error;
+      return data || [];
+    },
+  });
 }
