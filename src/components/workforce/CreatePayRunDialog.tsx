@@ -6,7 +6,7 @@
 // - Designed for high volume (2k+ logs/day)
 
 import { useState, useMemo } from 'react';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
 import {
@@ -42,21 +42,33 @@ type CreatePayRunDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
+  defaultDateRangeStart?: string;
+  defaultDateRangeEnd?: string;
+  defaultCompanyId?: string;
+  defaultWorkerId?: string;
 };
 
 export function CreatePayRunDialog({
   open,
   onOpenChange,
   onSuccess,
+  defaultDateRangeStart,
+  defaultDateRangeEnd,
+  defaultCompanyId,
+  defaultWorkerId,
 }: CreatePayRunDialogProps) {
   // -----------------------
   // Filters / local state
   // -----------------------
-  const [startDate, setStartDate] = useState<Date>(() => subDays(new Date(), 7));
-  const [endDate, setEndDate] = useState<Date>(() => new Date());
-  const [payerCompanyId, setPayerCompanyId] = useState<string>('all');
+  const [startDate, setStartDate] = useState<Date>(() => 
+    defaultDateRangeStart ? new Date(defaultDateRangeStart) : subDays(new Date(), 7)
+  );
+  const [endDate, setEndDate] = useState<Date>(() => 
+    defaultDateRangeEnd ? new Date(defaultDateRangeEnd) : new Date()
+  );
+  const [payerCompanyId, setPayerCompanyId] = useState<string>(defaultCompanyId || 'all');
   const [projectId, setProjectId] = useState<string>('all');
-  const [workerId, setWorkerId] = useState<string>('all');
+  const [workerId, setWorkerId] = useState<string>(defaultWorkerId || 'all');
 
   const [selectedLogIds, setSelectedLogIds] = useState<Set<string>>(
     () => new Set()
@@ -83,10 +95,10 @@ export function CreatePayRunDialog({
   // -----------------------
   // Unpaid time logs (canonical)
   // -----------------------
-  const { data: unpaidLogs, isLoading } = useUnpaidTimeLogs(filters);
+  const { data, isLoading } = useUnpaidTimeLogs(filters);
 
   // Reset selections whenever filters change
-  const visibleLogs = unpaidLogs || [];
+  const visibleLogs = data?.logs || [];
   const allVisibleIds = useMemo(
     () => visibleLogs.map((log) => log.id),
     [visibleLogs]
