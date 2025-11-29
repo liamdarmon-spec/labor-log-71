@@ -54,28 +54,40 @@ export function ProjectBudgetTabV2({ projectId }: ProjectBudgetTabV2Props) {
     );
   }
 
-  const summary = budgetData.summary ?? {};
+  const summary = budgetData?.summary ?? {
+    total_budget: 0,
+    total_actual: 0,
+    total_variance: 0,
+    labor_budget: 0,
+    labor_actual: 0,
+    labor_variance: 0,
+    labor_unpaid: 0,
+    subs_budget: 0,
+    subs_actual: 0,
+    subs_variance: 0,
+    materials_budget: 0,
+    materials_actual: 0,
+    materials_variance: 0,
+    other_budget: 0,
+    other_actual: 0,
+    other_variance: 0,
+  };
 
   // Per-category budgets
-  const laborBudget = summary.labor_budget ?? 0;
-  const subsBudget = summary.subs_budget ?? 0;
-  const materialsBudget = summary.materials_budget ?? 0;
-  const otherBudget = summary.other_budget ?? 0;
+  const laborBudget = summary.labor_budget;
+  const subsBudget = summary.subs_budget;
+  const materialsBudget = summary.materials_budget;
+  const otherBudget = summary.other_budget;
 
-  // Per-category actuals (fall back to 0 if not present)
-  const laborActual = summary.labor_actual ?? 0;
-  const subsActual = summary.subs_actual ?? 0;
-  const materialsActual = summary.materials_actual ?? 0;
-  const otherActual = summary.other_actual ?? 0;
+  // Per-category actuals
+  const laborActual = summary.labor_actual;
+  const subsActual = summary.subs_actual;
+  const materialsActual = summary.materials_actual;
+  const otherActual = summary.other_actual;
 
-  // Totals (prefer explicit totals if the hook provides them, otherwise sum categories)
-  const baseline =
-    summary.total_budget ??
-    laborBudget + subsBudget + materialsBudget + otherBudget;
-
-  const actual =
-    summary.total_actual ??
-    laborActual + subsActual + materialsActual + otherActual;
+  // Totals
+  const baseline = summary.total_budget;
+  const actual = summary.total_actual;
 
   const remaining = baseline - actual;
   const variance = actual - baseline;

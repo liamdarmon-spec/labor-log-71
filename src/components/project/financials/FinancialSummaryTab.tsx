@@ -8,7 +8,7 @@ interface FinancialSummaryTabProps {
 }
 
 export function FinancialSummaryTab({ projectId }: FinancialSummaryTabProps) {
-  const { data, isLoading } = useProjectBudgetLedger(projectId);
+  const { summary, isLoading } = useProjectBudgetLedger(projectId);
 
   if (isLoading) {
     return (
@@ -24,34 +24,33 @@ export function FinancialSummaryTab({ projectId }: FinancialSummaryTabProps) {
     );
   }
 
-  if (!data) return null;
+  if (!summary) return null;
 
-  const { summary } = data;
-  const percentConsumed = summary.totalBudget > 0 ? (summary.totalActual / summary.totalBudget) * 100 : 0;
+  const percentConsumed = summary.total_budget > 0 ? (summary.total_actual / summary.total_budget) * 100 : 0;
   const isOverBudget = percentConsumed > 100;
 
   const metrics = [
     {
       label: 'Total Budget',
-      value: summary.totalBudget,
+      value: summary.total_budget,
       icon: DollarSign,
       color: 'text-primary',
       bgColor: 'bg-primary/10',
     },
     {
       label: 'Actual Cost',
-      value: summary.totalActual,
+      value: summary.total_actual,
       icon: TrendingUp,
       color: 'text-blue-600',
       bgColor: 'bg-blue-50',
     },
     {
       label: 'Variance',
-      value: Math.abs(summary.totalVariance),
-      icon: summary.totalVariance >= 0 ? TrendingUp : TrendingDown,
-      color: summary.totalVariance >= 0 ? 'text-green-600' : 'text-red-600',
-      bgColor: summary.totalVariance >= 0 ? 'bg-green-50' : 'bg-red-50',
-      subLabel: summary.totalVariance >= 0 ? 'Under Budget' : 'Over Budget',
+      value: Math.abs(summary.total_variance),
+      icon: summary.total_variance >= 0 ? TrendingUp : TrendingDown,
+      color: summary.total_variance >= 0 ? 'text-green-600' : 'text-red-600',
+      bgColor: summary.total_variance >= 0 ? 'bg-green-50' : 'bg-red-50',
+      subLabel: summary.total_variance >= 0 ? 'Under Budget' : 'Over Budget',
     },
     {
       label: 'Percent Consumed',
@@ -64,27 +63,27 @@ export function FinancialSummaryTab({ projectId }: FinancialSummaryTabProps) {
     },
     {
       label: 'Unpaid Labor',
-      value: summary.unpaidLabor,
+      value: summary.labor_unpaid,
       icon: CreditCard,
-      color: summary.unpaidLabor > 0 ? 'text-orange-600' : 'text-muted-foreground',
-      bgColor: summary.unpaidLabor > 0 ? 'bg-orange-50' : 'bg-muted/50',
-      subLabel: summary.unpaidLabor > 0 ? 'Requires Payment' : 'All Paid',
+      color: summary.labor_unpaid > 0 ? 'text-orange-600' : 'text-muted-foreground',
+      bgColor: summary.labor_unpaid > 0 ? 'bg-orange-50' : 'bg-muted/50',
+      subLabel: summary.labor_unpaid > 0 ? 'Requires Payment' : 'All Paid',
     },
     {
       label: 'Labor Spend',
-      value: summary.byCategory.labor.actual,
+      value: summary.labor_actual,
       icon: DollarSign,
       color: 'text-blue-600',
       bgColor: 'bg-blue-50',
-      subLabel: `${summary.byCategory.labor.budget > 0 ? ((summary.byCategory.labor.actual / summary.byCategory.labor.budget) * 100).toFixed(0) : 0}% of budget`,
+      subLabel: `${summary.labor_budget > 0 ? ((summary.labor_actual / summary.labor_budget) * 100).toFixed(0) : 0}% of budget`,
     },
     {
       label: 'Material Spend',
-      value: summary.byCategory.materials.actual,
+      value: summary.materials_actual,
       icon: Package,
       color: 'text-purple-600',
       bgColor: 'bg-purple-50',
-      subLabel: `${summary.byCategory.materials.budget > 0 ? ((summary.byCategory.materials.actual / summary.byCategory.materials.budget) * 100).toFixed(0) : 0}% of budget`,
+      subLabel: `${summary.materials_budget > 0 ? ((summary.materials_actual / summary.materials_budget) * 100).toFixed(0) : 0}% of budget`,
     },
   ];
 
