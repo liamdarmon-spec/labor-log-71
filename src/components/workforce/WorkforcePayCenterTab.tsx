@@ -2,14 +2,39 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Users, DollarSign, Clock, TrendingUp, CheckCircle2, FileCheck } from 'lucide-react';
+import {
+  Users,
+  DollarSign,
+  Clock,
+  TrendingUp,
+  CheckCircle2,
+  FileCheck,
+} from 'lucide-react';
 import { format, subDays } from 'date-fns';
 import { CreatePayRunDialog } from './CreatePayRunDialog';
 import { useNavigate } from 'react-router-dom';
@@ -24,139 +49,131 @@ interface UnpaidSummary {
   item_count: number;
 }
 
+/**
+ * WorkforcePayCenterTab
+ *
+ * Dashboard view on top of canonical time logs:
+ * - Reads from time_logs_with_meta_view (NOT raw time_logs)
+ * - Aggregates by worker or project
+ * - Shows unpaid + paid metrics
+ * - Hands off creation of pay runs to CreatePayRunDialog (which uses useUnpaidTimeLogs)
+ */
 export function WorkforcePayCenterTab() {
   const navigate = useNavigate();
+
   const [dateRange, setDateRange] = useState('7');
   const [selectedCompany, setSelectedCompany] = useState<string>('all');
   const [groupBy, setGroupBy] = useState<'worker' | 'project'>('worker');
-  const [paymentStatus, setPaymentStatus] = useState<'unpaid' | 'paid' | 'all'>('unpaid');
+  const [paymentStatus, setPaymentStatus] = useState<'unpaid' | 'paid' | 'all'>(
+    'unpaid'
+  );
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [payRunDialogOpen, setPayRunDialogOpen] = useState(false);
   const [payRunWorkerFilter, setPayRunWorkerFilter] = useState<string | undefined>();
 
-  // Fetch companies
+  const startDate = format(
+    subDays(new Date(), parseInt(dateRange, 10)),
+    'yyyy-MM-dd'
+  );
+  const endDate = format(new Date(), 'yyyy-MM-dd');
+
+  // ---------------------------
+  // Companies
+  // ---------------------------
   const { data: companies } = useQuery({
     queryKey: ['companies'],
     queryFn: async () => {
-      const { data } = await supabase.from('companies').select('id, name').order('name');
+      const { data, error } = await supabase
+        .from('companies')
+        .select('id, name')
+        .order('name');
+      if (error) throw error;
       return data || [];
     },
   });
 
-  // Fetch aggregated summary using SQL (filtered by payment status)
+  // ---------------------------
+  // Aggregated labor summary (worker/project)
+  // Reads from time_logs_with_meta_view
+  // ---------------------------
   const { data: laborSummary, isLoading: summaryLoading } = useQuery({
-    queryKey: ['workforce-labor-summary', dateRange, selectedCompany, groupBy, paymentStatus],
+    queryKey: [
+      'workforce-labor-summary-v2',
+      dateRange,
+      selectedCompany,
+      groupBy,
+      paymentStatus,
+    ],
     queryFn: async () => {
-      const startDate = format(subDays(new Date(), parseInt(dateRange)), 'yyyy-MM-dd');
-      const endDate = format(new Date(), 'yyyy-MM-dd');
+      let query = supabase
+        .from('time_logs_with_meta_view')
+        .select(
+          groupBy === 'worker'
+            ? 'worker_id, worker_name, company_id, company_name, hours_worked, labor_cost, payment_status'
+            : 'project_id, project_name, company_id, company_name, hours_worked, labor_cost, payment_status'
+        )
+        .gte('date', startDate)
+        .lte('date', endDate);
 
-      if (groupBy === 'worker') {
-        // Aggregate by worker using RPC or view
-        let query = supabase
-          .from('time_logs')
-          .select(`
-            worker_id,
-            workers!inner(name, hourly_rate),
-            projects!inner(company_id, companies(name)),
-            hours_worked,
-            labor_cost,
-            payment_status
-          `)
-          .gte('date', startDate)
-          .lte('date', endDate);
-
-        // Apply payment status filter
-        if (paymentStatus !== 'all') {
-          query = query.eq('payment_status', paymentStatus);
-        }
-
-        if (selectedCompany !== 'all') {
-          query = query.eq('projects.company_id', selectedCompany);
-        }
-
-        const { data: logs, error } = await query;
-        if (error) throw error;
-
-        // Group by worker in application (since complex aggregation with joins is tricky in Supabase)
-        const grouped = logs?.reduce((acc: any, log: any) => {
-          const workerId = log.worker_id;
-          if (!acc[workerId]) {
-            acc[workerId] = {
-              id: workerId,
-              name: log.workers?.name || 'Unknown',
-              company_id: log.projects?.company_id || '',
-              company_name: log.projects?.companies?.name || 'Unknown',
-              total_hours: 0,
-              total_amount: 0,
-              item_count: 0,
-            };
-          }
-          acc[workerId].total_hours += log.hours_worked;
-          acc[workerId].total_amount += log.labor_cost || 0;
-          acc[workerId].item_count += 1;
-          return acc;
-        }, {});
-
-        return Object.values(grouped || {}) as UnpaidSummary[];
-      } else {
-        // Aggregate by project
-        let query = supabase
-          .from('time_logs')
-          .select(`
-            project_id,
-            projects!inner(project_name, company_id, companies(name)),
-            workers!inner(hourly_rate),
-            hours_worked,
-            labor_cost,
-            payment_status
-          `)
-          .gte('date', startDate)
-          .lte('date', endDate);
-
-        // Apply payment status filter
-        if (paymentStatus !== 'all') {
-          query = query.eq('payment_status', paymentStatus);
-        }
-
-        if (selectedCompany !== 'all') {
-          query = query.eq('projects.company_id', selectedCompany);
-        }
-
-        const { data: logs, error } = await query;
-        if (error) throw error;
-
-        const grouped = logs?.reduce((acc: any, log: any) => {
-          const projectId = log.project_id;
-          if (!acc[projectId]) {
-            acc[projectId] = {
-              id: projectId,
-              name: log.projects?.project_name || 'Unknown',
-              company_id: log.projects?.company_id || '',
-              company_name: log.projects?.companies?.name || 'Unknown',
-              total_hours: 0,
-              total_amount: 0,
-              item_count: 0,
-            };
-          }
-          acc[projectId].total_hours += log.hours_worked;
-          acc[projectId].total_amount += log.labor_cost || 0;
-          acc[projectId].item_count += 1;
-          return acc;
-        }, {});
-
-        return Object.values(grouped || {}) as UnpaidSummary[];
+      // Payment status filter
+      if (paymentStatus !== 'all') {
+        query = query.eq('payment_status', paymentStatus);
       }
+
+      // Company filter
+      if (selectedCompany !== 'all') {
+        query = query.eq('company_id', selectedCompany);
+      }
+
+      const { data: logs, error } = await query;
+      if (error) throw error;
+
+      const grouped = (logs || []).reduce((acc: any, log: any) => {
+        const key =
+          groupBy === 'worker' ? log.worker_id ?? 'unknown' : log.project_id ?? 'unknown';
+
+        if (!acc[key]) {
+          if (groupBy === 'worker') {
+            acc[key] = {
+              id: key,
+              name: log.worker_name || 'Unknown',
+              company_id: log.company_id || '',
+              company_name: log.company_name || 'Unknown',
+              total_hours: 0,
+              total_amount: 0,
+              item_count: 0,
+            };
+          } else {
+            acc[key] = {
+              id: key,
+              name: log.project_name || 'Unknown',
+              company_id: log.company_id || '',
+              company_name: log.company_name || 'Unknown',
+              total_hours: 0,
+              total_amount: 0,
+              item_count: 0,
+            };
+          }
+        }
+
+        acc[key].total_hours += Number(log.hours_worked || 0);
+        acc[key].total_amount += Number(log.labor_cost || 0);
+        acc[key].item_count += 1;
+
+        return acc;
+      }, {});
+
+      return Object.values(grouped || {}) as UnpaidSummary[];
     },
   });
 
-  // Fetch recent pay runs in this period
+  // ---------------------------
+  // Recent pay runs in this period
+  // ---------------------------
   const { data: recentPayRuns } = useQuery({
     queryKey: ['workforce-recent-pay-runs', dateRange, selectedCompany],
     queryFn: async () => {
-      const startDate = format(subDays(new Date(), parseInt(dateRange)), 'yyyy-MM-dd');
-      const endDate = format(new Date(), 'yyyy-MM-dd');
-
       let query = supabase
         .from('labor_pay_runs')
         .select('id, created_at, payment_date, status, total_amount, total_hours')
@@ -175,32 +192,31 @@ export function WorkforcePayCenterTab() {
     },
   });
 
-  // Fetch detail logs for selected worker/project
+  // ---------------------------
+  // Detail logs for selected worker/project
+  // Reads from time_logs_with_meta_view
+  // ---------------------------
   const { data: detailLogs } = useQuery({
-    queryKey: ['workforce-detail-logs', selectedId, groupBy, dateRange, selectedCompany, paymentStatus],
+    queryKey: [
+      'workforce-detail-logs-v2',
+      selectedId,
+      groupBy,
+      dateRange,
+      selectedCompany,
+      paymentStatus,
+    ],
     queryFn: async () => {
       if (!selectedId) return [];
 
-      const startDate = format(subDays(new Date(), parseInt(dateRange)), 'yyyy-MM-dd');
-      const endDate = format(new Date(), 'yyyy-MM-dd');
-
       let query = supabase
-        .from('time_logs')
-        .select(`
-          id,
-          date,
-          hours_worked,
-          labor_cost,
-          payment_status,
-          notes,
-          workers(name, hourly_rate),
-          projects(project_name, companies(name))
-        `)
+        .from('time_logs_with_meta_view')
+        .select(
+          'id, date, hours_worked, labor_cost, payment_status, notes, worker_name, project_name, company_name'
+        )
         .gte('date', startDate)
         .lte('date', endDate)
         .order('date', { ascending: false });
 
-      // Apply payment status filter
       if (paymentStatus !== 'all') {
         query = query.eq('payment_status', paymentStatus);
       }
@@ -212,7 +228,7 @@ export function WorkforcePayCenterTab() {
       }
 
       if (selectedCompany !== 'all') {
-        query = query.eq('projects.company_id', selectedCompany);
+        query = query.eq('company_id', selectedCompany);
       }
 
       const { data, error } = await query;
@@ -222,32 +238,39 @@ export function WorkforcePayCenterTab() {
     enabled: !!selectedId && drawerOpen,
   });
 
-  // Fetch paid metrics for the same period
+  // ---------------------------
+  // Paid metrics (paid logs + pay run count)
+  // ---------------------------
   const { data: paidMetrics } = useQuery({
-    queryKey: ['workforce-paid-metrics', dateRange, selectedCompany],
+    queryKey: ['workforce-paid-metrics-v2', dateRange, selectedCompany],
     queryFn: async () => {
-      const startDate = format(subDays(new Date(), parseInt(dateRange)), 'yyyy-MM-dd');
-      const endDate = format(new Date(), 'yyyy-MM-dd');
-
-      // Query paid time_logs
+      // Paid logs summary from view
       let logsQuery = supabase
-        .from('time_logs')
-        .select('hours_worked, labor_cost, projects!inner(company_id)')
+        .from('time_logs_with_meta_view')
+        .select('hours_worked, labor_cost, company_id')
         .eq('payment_status', 'paid')
         .gte('date', startDate)
         .lte('date', endDate);
 
       if (selectedCompany !== 'all') {
-        logsQuery = logsQuery.eq('projects.company_id', selectedCompany);
+        logsQuery = logsQuery.eq('company_id', selectedCompany);
       }
 
       const { data: paidLogs, error: logsError } = await logsQuery;
       if (logsError) throw logsError;
 
-      const paidHours = paidLogs?.reduce((sum, log) => sum + (log.hours_worked || 0), 0) || 0;
-      const paidAmount = paidLogs?.reduce((sum, log) => sum + (log.labor_cost || 0), 0) || 0;
+      const paidHours =
+        paidLogs?.reduce(
+          (sum, log) => sum + Number(log.hours_worked || 0),
+          0
+        ) || 0;
+      const paidAmount =
+        paidLogs?.reduce(
+          (sum, log) => sum + Number(log.labor_cost || 0),
+          0
+        ) || 0;
 
-      // Count pay runs with payment_date in range and status = 'paid'
+      // Pay run count
       let payRunsQuery = supabase
         .from('labor_pay_runs')
         .select('id', { count: 'exact', head: true })
@@ -270,25 +293,46 @@ export function WorkforcePayCenterTab() {
     },
   });
 
-  // Calculate totals from filtered data
-  const totalHours = laborSummary?.reduce((sum, item) => sum + item.total_hours, 0) || 0;
-  const totalAmount = laborSummary?.reduce((sum, item) => sum + item.total_amount, 0) || 0;
-  const totalLogs = laborSummary?.reduce((sum, item) => sum + item.item_count, 0) || 0;
-  const totalWorkers = new Set(laborSummary?.map(item => item.id) || []).size;
+  // ---------------------------
+  // Derived totals
+  // ---------------------------
+  const totalHours =
+    laborSummary?.reduce((sum, item) => sum + item.total_hours, 0) || 0;
+  const totalAmount =
+    laborSummary?.reduce((sum, item) => sum + item.total_amount, 0) || 0;
+  const totalLogs =
+    laborSummary?.reduce((sum, item) => sum + item.item_count, 0) || 0;
+  const totalWorkers = new Set(
+    laborSummary?.map((item) => item.id) || []
+  ).size;
 
-  // Calculate unpaid-specific totals for cards
-  const totalUnpaidHours = laborSummary?.filter(() => paymentStatus === 'unpaid' || paymentStatus === 'all')
-    .reduce((sum, item) => sum + item.total_hours, 0) || 0;
-  const totalUnpaidAmount = laborSummary?.filter(() => paymentStatus === 'unpaid' || paymentStatus === 'all')
-    .reduce((sum, item) => sum + item.total_amount, 0) || 0;
-  const totalUnpaidLogs = laborSummary?.filter(() => paymentStatus === 'unpaid' || paymentStatus === 'all')
-    .reduce((sum, item) => sum + item.item_count, 0) || 0;
-  const totalUnpaidWorkers = paymentStatus === 'unpaid' || paymentStatus === 'all' 
-    ? new Set(laborSummary?.map(item => item.id) || []).size 
-    : 0;
+  // These "unpaid" metrics follow existing behavior:
+  // they reflect whatever set is currently loaded when paymentStatus is 'unpaid' or 'all'.
+  const totalUnpaidHours =
+    laborSummary?.filter(
+      () => paymentStatus === 'unpaid' || paymentStatus === 'all'
+    ).reduce((sum, item) => sum + item.total_hours, 0) || 0;
 
-  const selectedSummary = laborSummary?.find(s => s.id === selectedId);
+  const totalUnpaidAmount =
+    laborSummary?.filter(
+      () => paymentStatus === 'unpaid' || paymentStatus === 'all'
+    ).reduce((sum, item) => sum + item.total_amount, 0) || 0;
 
+  const totalUnpaidLogs =
+    laborSummary?.filter(
+      () => paymentStatus === 'unpaid' || paymentStatus === 'all'
+    ).reduce((sum, item) => sum + item.item_count, 0) || 0;
+
+  const totalUnpaidWorkers =
+    paymentStatus === 'unpaid' || paymentStatus === 'all'
+      ? new Set(laborSummary?.map((item) => item.id) || []).size
+      : 0;
+
+  const selectedSummary = laborSummary?.find((s) => s.id === selectedId);
+
+  // ---------------------------
+  // Handlers
+  // ---------------------------
   const handleViewDetails = (id: string) => {
     setSelectedId(id);
     setDrawerOpen(true);
@@ -300,12 +344,14 @@ export function WorkforcePayCenterTab() {
   };
 
   const handlePayRunSuccess = () => {
-    // Reset state and close drawer
     setPayRunDialogOpen(false);
     setPayRunWorkerFilter(undefined);
     setDrawerOpen(false);
   };
 
+  // ---------------------------
+  // Render
+  // ---------------------------
   if (summaryLoading) {
     return <Skeleton className="h-96" />;
   }
@@ -335,19 +381,27 @@ export function WorkforcePayCenterTab() {
               </SelectContent>
             </Select>
 
-            <Select value={selectedCompany} onValueChange={setSelectedCompany}>
+            <Select
+              value={selectedCompany}
+              onValueChange={setSelectedCompany}
+            >
               <SelectTrigger className="w-[180px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Companies</SelectItem>
-                {companies?.map(company => (
-                  <SelectItem key={company.id} value={company.id}>{company.name}</SelectItem>
+                {companies?.map((company) => (
+                  <SelectItem key={company.id} value={company.id}>
+                    {company.name}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
 
-            <Tabs value={groupBy} onValueChange={(v) => setGroupBy(v as any)}>
+            <Tabs
+              value={groupBy}
+              onValueChange={(v) => setGroupBy(v as 'worker' | 'project')}
+            >
               <TabsList>
                 <TabsTrigger value="worker">By Worker</TabsTrigger>
                 <TabsTrigger value="project">By Project</TabsTrigger>
@@ -357,34 +411,46 @@ export function WorkforcePayCenterTab() {
         </CardContent>
       </Card>
 
-      {/* Recent Pay Runs in this period */}
+      {/* Recent Pay Runs */}
       {recentPayRuns && recentPayRuns.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Recent Pay Runs in this period</CardTitle>
+            <CardTitle className="text-base">
+              Recent Pay Runs in this period
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              {recentPayRuns.map((run) => (
+              {recentPayRuns.map((run: any) => (
                 <div
                   key={run.id}
                   className="flex items-center justify-between p-3 rounded-lg border hover:bg-accent cursor-pointer"
                   onClick={() => navigate('/workforce?tab=pay-runs')}
                 >
                   <div className="flex items-center gap-3">
-                    <Badge variant={run.status === 'paid' ? 'default' : 'secondary'}>
+                    <Badge
+                      variant={
+                        run.status === 'paid' ? 'default' : 'secondary'
+                      }
+                    >
                       {run.status}
                     </Badge>
                     <div>
                       <p className="text-sm font-medium">
-                        {run.payment_date ? format(new Date(run.payment_date), 'MMM d, yyyy') : 'Draft'}
+                        {run.payment_date
+                          ? format(new Date(run.payment_date), 'MMM d, yyyy')
+                          : 'Draft'}
                       </p>
-                      <p className="text-xs text-muted-foreground">
-                        {run.total_hours.toFixed(1)}h
-                      </p>
+                      {typeof run.total_hours === 'number' && (
+                        <p className="text-xs text-muted-foreground">
+                          {run.total_hours.toFixed(1)}h
+                        </p>
+                      )}
                     </div>
                   </div>
-                  <p className="text-sm font-semibold">${run.total_amount.toLocaleString()}</p>
+                  <p className="text-sm font-semibold">
+                    ${Number(run.total_amount || 0).toLocaleString()}
+                  </p>
                 </div>
               ))}
             </div>
@@ -404,15 +470,19 @@ export function WorkforcePayCenterTab() {
             <p className="text-2xl font-bold">{totalUnpaidLogs}</p>
           </CardContent>
         </Card>
+
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-2 text-muted-foreground mb-1">
               <TrendingUp className="h-4 w-4" />
               <span className="text-sm">Hours (Unpaid)</span>
             </div>
-            <p className="text-2xl font-bold text-blue-600">{totalUnpaidHours.toFixed(1)}h</p>
+            <p className="text-2xl font-bold text-blue-600">
+              {totalUnpaidHours.toFixed(1)}h
+            </p>
           </CardContent>
         </Card>
+
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-2 text-muted-foreground mb-1">
@@ -424,6 +494,7 @@ export function WorkforcePayCenterTab() {
             </p>
           </CardContent>
         </Card>
+
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-2 text-muted-foreground mb-1">
@@ -447,6 +518,7 @@ export function WorkforcePayCenterTab() {
             <p className="text-xs text-muted-foreground mt-1">this period</p>
           </CardContent>
         </Card>
+
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-2 text-muted-foreground mb-1">
@@ -461,7 +533,8 @@ export function WorkforcePayCenterTab() {
                 onClick={() => navigate('/workforce?tab=pay-runs')}
                 className="text-xs text-primary hover:underline mt-1 cursor-pointer"
               >
-                via {paidMetrics.payRunCount} pay run{paidMetrics.payRunCount !== 1 ? 's' : ''}
+                via {paidMetrics.payRunCount} pay run
+                {paidMetrics.payRunCount !== 1 ? 's' : ''}
               </button>
             )}
           </CardContent>
@@ -474,7 +547,12 @@ export function WorkforcePayCenterTab() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <CardTitle>Labor Summary</CardTitle>
-              <Tabs value={paymentStatus} onValueChange={(v) => setPaymentStatus(v as any)}>
+              <Tabs
+                value={paymentStatus}
+                onValueChange={(v) =>
+                  setPaymentStatus(v as 'unpaid' | 'paid' | 'all')
+                }
+              >
                 <TabsList>
                   <TabsTrigger value="unpaid">Unpaid</TabsTrigger>
                   <TabsTrigger value="paid">Paid</TabsTrigger>
@@ -482,11 +560,13 @@ export function WorkforcePayCenterTab() {
                 </TabsList>
               </Tabs>
             </div>
-            {laborSummary && laborSummary.length > 0 && paymentStatus === 'unpaid' && (
-              <Button onClick={() => handleOpenPaymentDialog()}>
-                Create Payment
-              </Button>
-            )}
+            {laborSummary &&
+              laborSummary.length > 0 &&
+              paymentStatus === 'unpaid' && (
+                <Button onClick={() => handleOpenPaymentDialog()}>
+                  Create Payment
+                </Button>
+              )}
           </div>
         </CardHeader>
         <CardContent>
@@ -494,26 +574,36 @@ export function WorkforcePayCenterTab() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>{groupBy === 'worker' ? 'Worker' : 'Project'}</TableHead>
+                  <TableHead>
+                    {groupBy === 'worker' ? 'Worker' : 'Project'}
+                  </TableHead>
                   <TableHead>Company</TableHead>
                   <TableHead className="text-right">Hours</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
                   <TableHead className="text-right">Logs</TableHead>
-                  <TableHead></TableHead>
+                  <TableHead />
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {laborSummary.map((item) => (
                   <TableRow key={item.id}>
-                    <TableCell className="font-medium">{item.name}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{item.company_name}</Badge>
+                    <TableCell className="font-medium">
+                      {item.name}
                     </TableCell>
-                    <TableCell className="text-right">{item.total_hours.toFixed(1)}h</TableCell>
+                    <TableCell>
+                      <Badge variant="outline">
+                        {item.company_name || 'Unknown'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {item.total_hours.toFixed(1)}h
+                    </TableCell>
                     <TableCell className="text-right font-semibold">
                       ${item.total_amount.toLocaleString()}
                     </TableCell>
-                    <TableCell className="text-right">{item.item_count}</TableCell>
+                    <TableCell className="text-right">
+                      {item.item_count}
+                    </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Button
@@ -523,16 +613,19 @@ export function WorkforcePayCenterTab() {
                         >
                           View Details
                         </Button>
-                        {groupBy === 'worker' && paymentStatus === 'unpaid' && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleOpenPaymentDialog(item.id)}
-                          >
-                            <DollarSign className="h-3 w-3 mr-1" />
-                            Pay
-                          </Button>
-                        )}
+                        {groupBy === 'worker' &&
+                          paymentStatus === 'unpaid' && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() =>
+                                handleOpenPaymentDialog(item.id)
+                              }
+                            >
+                              <DollarSign className="h-3 w-3 mr-1" />
+                              Pay
+                            </Button>
+                          )}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -543,11 +636,13 @@ export function WorkforcePayCenterTab() {
             <div className="py-12 text-center text-muted-foreground">
               <DollarSign className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p className="text-lg font-medium mb-2">
-                {paymentStatus === 'unpaid' ? 'All caught up!' : 'No records found'}
+                {paymentStatus === 'unpaid'
+                  ? 'All caught up!'
+                  : 'No records found'}
               </p>
               <p className="text-sm">
-                {paymentStatus === 'unpaid' 
-                  ? 'No unpaid labor for this period' 
+                {paymentStatus === 'unpaid'
+                  ? 'No unpaid labor for this period'
                   : `No ${paymentStatus} labor for this period`}
               </p>
             </div>
@@ -563,15 +658,16 @@ export function WorkforcePayCenterTab() {
         </CardContent>
       </Card>
 
-      {/* Worker Details Drawer */}
+      {/* Worker/Project Details Drawer */}
       <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
         <SheetContent className="sm:max-w-xl overflow-y-auto">
           <SheetHeader>
             <SheetTitle>
-              {groupBy === 'worker' ? 'Worker' : 'Project'} Details - {selectedSummary?.name}
+              {groupBy === 'worker' ? 'Worker' : 'Project'} Details -{' '}
+              {selectedSummary?.name}
             </SheetTitle>
           </SheetHeader>
-          
+
           {selectedSummary && (
             <div className="mt-6 space-y-6">
               {/* Summary */}
@@ -580,7 +676,9 @@ export function WorkforcePayCenterTab() {
                   <div className="grid grid-cols-3 gap-4">
                     <div>
                       <p className="text-sm text-muted-foreground">Logs</p>
-                      <p className="text-xl font-bold">{selectedSummary.item_count}</p>
+                      <p className="text-xl font-bold">
+                        {selectedSummary.item_count}
+                      </p>
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Hours</p>
@@ -602,36 +700,46 @@ export function WorkforcePayCenterTab() {
               <div className="space-y-3">
                 <h4 className="font-semibold">Individual Time Logs</h4>
                 {detailLogs?.map((log: any) => {
-                  const amount = log.labor_cost || 0;
+                  const amount = Number(log.labor_cost || 0);
                   return (
                     <Card key={log.id}>
                       <CardContent className="pt-4">
                         <div className="flex items-start justify-between mb-2">
                           <div>
                             <p className="font-medium">
-                              {format(new Date(log.date), 'MMM d, yyyy')}
+                              {log.date
+                                ? format(new Date(log.date), 'MMM d, yyyy')
+                                : '-'}
                             </p>
                             <p className="text-sm text-muted-foreground">
-                              {groupBy === 'worker' 
-                                ? log.projects?.project_name 
-                                : log.workers?.name}
+                              {groupBy === 'worker'
+                                ? log.project_name
+                                : log.worker_name}
                             </p>
-                            <Badge 
-                              variant={log.payment_status === 'paid' ? 'default' : 'secondary'}
+                            <Badge
+                              variant={
+                                log.payment_status === 'paid'
+                                  ? 'default'
+                                  : 'secondary'
+                              }
                               className="mt-1"
                             >
                               {log.payment_status}
                             </Badge>
                           </div>
                           <div className="text-right">
-                            <p className="font-semibold">${amount.toFixed(2)}</p>
+                            <p className="font-semibold">
+                              ${amount.toFixed(2)}
+                            </p>
                             <p className="text-sm text-muted-foreground">
-                              {log.hours_worked}h
+                              {Number(log.hours_worked || 0)}h
                             </p>
                           </div>
                         </div>
                         {log.notes && (
-                          <p className="text-xs text-muted-foreground mt-2">{log.notes}</p>
+                          <p className="text-xs text-muted-foreground mt-2">
+                            {log.notes}
+                          </p>
                         )}
                       </CardContent>
                     </Card>
@@ -641,10 +749,12 @@ export function WorkforcePayCenterTab() {
 
               {/* Action Button */}
               {groupBy === 'worker' && paymentStatus === 'unpaid' && (
-                <Button 
-                  className="w-full" 
+                <Button
+                  className="w-full"
                   size="lg"
-                  onClick={() => handleOpenPaymentDialog(selectedId || undefined)}
+                  onClick={() =>
+                    handleOpenPaymentDialog(selectedId || undefined)
+                  }
                 >
                   Create Payment for {selectedSummary.name}
                 </Button>
@@ -654,14 +764,16 @@ export function WorkforcePayCenterTab() {
         </SheetContent>
       </Sheet>
 
-      {/* Pay Run Creation Dialog */}
+      {/* Pay Run Creation Dialog – canonical wizard */}
       <CreatePayRunDialog
         open={payRunDialogOpen}
         onOpenChange={setPayRunDialogOpen}
         onSuccess={handlePayRunSuccess}
-        defaultDateRangeStart={format(subDays(new Date(), parseInt(dateRange)), 'yyyy-MM-dd')}
-        defaultDateRangeEnd={format(new Date(), 'yyyy-MM-dd')}
-        defaultCompanyId={selectedCompany !== 'all' ? selectedCompany : undefined}
+        defaultDateRangeStart={startDate}
+        defaultDateRangeEnd={endDate}
+        defaultCompanyId={
+          selectedCompany !== 'all' ? selectedCompany : undefined
+        }
         defaultWorkerId={payRunWorkerFilter}
       />
     </div>
