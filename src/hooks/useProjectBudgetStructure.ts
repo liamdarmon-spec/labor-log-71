@@ -219,18 +219,19 @@ export function useProjectBudgetStructure(projectId: string | undefined) {
     }) => {
       const { data, error } = await supabase
         .from('project_budget_lines')
-        .insert({
+        .insert([{
           project_id: payload.project_id,
           project_budget_id: payload.project_budget_id,
           group_id: payload.group_id,
           scope_type: 'base',
           line_type: payload.line_type,
+          category: payload.line_type,
           qty: 1,
           unit_cost: 0,
           budget_amount: 0,
           description_internal: '',
           description_client: '',
-        })
+        }])
         .select('*')
         .single();
 
