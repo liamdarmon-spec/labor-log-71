@@ -1,7 +1,12 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { format } from "date-fns";
-import { Card } from "@/components/ui/card";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -11,33 +16,26 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useUnifiedProjectBudget } from "@/hooks/useUnifiedProjectBudget";
-import { supabase } from "@/integrations/supabase/client";
+import { format } from "date-fns";
+import { EstimateDetailsSheet } from "@/components/project/EstimateDetailsSheet";
 
 interface BudgetDetailTableProps {
   projectId: string;
 }
 
-// Helper: generate a stable unique key for each budget line
-// Works whether useUnifiedProjectBudget returns an id or just cost_code_id+category
-const getLineKey = (line: any) => {
-  if (line.id) return String(line.id);
-  const codePart = line.cost_code_id || "unassigned";
-  const catPart = line.category || "uncat";
-  return `${codePart}::${catPart}`;
-};
+type CategoryFilter = "all" | "labor" | "subs" | "materials" | "misc";
 
 export function BudgetDetailTable({ projectId }: BudgetDetailTableProps) {
   const { data, isLoading, refetch } = useUnifiedProjectBudget(projectId);
   const budgetLines = data?.costCodeLines || [];
-  const [selectedLineKey, setSelectedLineKey] = useState<string | null>(null);
+
+  const [selectedLine, setSelectedLine] = useState<string | null>(null);
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
+  const [viewEstimateId, setViewEstimateId] = useState<string | null>(null);
 
   // Listen for budget updates from estimates
   useEffect(() => {
@@ -49,8 +47,25 @@ export function BudgetDetailTable({ projectId }: BudgetDetailTableProps) {
   }, [refetch]);
 
   const selectedBudgetLine = budgetLines.find(
-    (line: any) => getLineKey(line) === selectedLineKey
+    (line) => line.cost_code_id === selectedLine
   );
+
+  // Fetch project budget header to get baseline_estimate_id
+  const { data: projectBudget } = useQuery({
+    queryKey: ["project_budget_header", projectId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("project_budgets")
+        .select("id, baseline_estimate_id")
+        .eq("project_id", projectId)
+        .maybeSingle();
+
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const baselineEstimateId = projectBudget?.baseline_estimate_id || null;
 
   const { data: timeLogs } = useQuery({
     queryKey: [
@@ -77,7 +92,7 @@ export function BudgetDetailTable({ projectId }: BudgetDetailTableProps) {
       if (error) throw error;
       return data;
     },
-    enabled: !!selectedBudgetLine?.cost_code_id,
+    enabled: !!selectedLine && !!selectedBudgetLine?.cost_code_id,
   });
 
   if (isLoading) {
@@ -88,116 +103,167 @@ export function BudgetDetailTable({ projectId }: BudgetDetailTableProps) {
     return (
       <Card className="p-6">
         <p className="text-center text-muted-foreground">
-          No budget lines available. Create an estimate and accept it as the
-          budget baseline to get started.
+          No budget lines available. Create an estimate and accept it as the budget baseline to get started.
         </p>
       </Card>
     );
   }
 
+  const visibleLines =
+    categoryFilter === "all"
+      ? budgetLines
+      : budgetLines.filter((line) => line.category === categoryFilter);
+
   return (
     <>
-      <div className="mb-3">
-        <p className="text-sm text-muted-foreground">
-          💡 Actuals are currently tracked for <strong>Labor</strong> category
-          only. Subs, Materials, and Other categories will show budget only.
-        </p>
-      </div>
       <Card>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Cost Code</TableHead>
-              <TableHead>Category</TableHead>
-              <TableHead className="text-right">Budget Hours</TableHead>
-              <TableHead className="text-right">Actual Hours</TableHead>
-              <TableHead className="text-right">Hours Δ</TableHead>
-              <TableHead className="text-right">Budget Amount</TableHead>
-              <TableHead className="text-right">Actual Amount</TableHead>
-              <TableHead className="text-right">Amount Δ</TableHead>
-              <TableHead>Allowance</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {budgetLines.map((line: any) => {
-              const key = getLineKey(line);
-              const hoursDelta =
-                (line.actual_hours || 0) - (line.budget_hours || 0);
-              const amountDelta =
-                (line.actual_amount || 0) - (line.budget_amount || 0);
+        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <CardTitle className="text-base sm:text-lg">
+              Cost Code Ledger
+            </CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Click a row to see time logs and details. Filter by category below.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="hidden sm:flex items-center gap-1 text-xs text-muted-foreground">
+              <span className="inline-flex h-2 w-2 rounded-full bg-destructive" />
+              <span>Over budget</span>
+              <span className="inline-flex h-2 w-2 rounded-full bg-green-600" />
+              <span>Under budget</span>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={!baselineEstimateId}
+              onClick={() => baselineEstimateId && setViewEstimateId(baselineEstimateId)}
+            >
+              View Baseline Estimate
+            </Button>
+          </div>
+        </CardHeader>
 
-              return (
-                <TableRow
-                  key={key}
-                  className="cursor-pointer hover:bg-muted/50"
-                  onClick={() => setSelectedLineKey(key)}
-                >
-                  <TableCell className="font-medium">
-                    {line.code && line.description
-                      ? `${line.code} - ${line.description}`
-                      : "No Code"}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="capitalize">
-                      {line.category}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {typeof line.budget_hours === "number"
-                      ? line.budget_hours.toFixed(1)
-                      : "—"}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {line.category === "labor" && line.actual_hours
-                      ? line.actual_hours.toFixed(1)
-                      : "—"}
-                  </TableCell>
-                  <TableCell
-                    className={`text-right ${
-                      hoursDelta > 0
-                        ? "text-destructive"
-                        : hoursDelta < 0
-                        ? "text-green-600"
-                        : ""
-                    }`}
+        <CardContent>
+          {/* Category filter */}
+          <div className="mb-3 flex flex-wrap gap-2">
+            {(
+              [
+                { key: "all", label: "All" },
+                { key: "labor", label: "Labor" },
+                { key: "subs", label: "Subs" },
+                { key: "materials", label: "Materials" },
+                { key: "misc", label: "Other" },
+              ] as { key: CategoryFilter; label: string }[]
+            ).map((cat) => (
+              <Button
+                key={cat.key}
+                size="sm"
+                variant={categoryFilter === cat.key ? "default" : "outline"}
+                onClick={() => setCategoryFilter(cat.key)}
+              >
+                {cat.label}
+              </Button>
+            ))}
+          </div>
+
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Cost Code</TableHead>
+                <TableHead>Category</TableHead>
+                <TableHead className="text-right">Budget Hours</TableHead>
+                <TableHead className="text-right">Actual Hours</TableHead>
+                <TableHead className="text-right">Hours Δ</TableHead>
+                <TableHead className="text-right">Budget Amount</TableHead>
+                <TableHead className="text-right">Actual Amount</TableHead>
+                <TableHead className="text-right">Amount Δ</TableHead>
+                <TableHead>Allowance</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {visibleLines.map((line) => {
+                const hoursDelta =
+                  (line.actual_hours || 0) - (line.budget_hours || 0);
+                const amountDelta =
+                  (line.actual_amount || 0) - (line.budget_amount || 0);
+
+                return (
+                  <TableRow
+                    key={line.cost_code_id || `unassigned-${line.category}`}
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => setSelectedLine(line.cost_code_id || "")}
                   >
-                    {line.category === "labor" && hoursDelta !== 0
-                      ? (hoursDelta > 0 ? "+" : "") + hoursDelta.toFixed(1)
-                      : "—"}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    ${(line.budget_amount || 0).toFixed(2)}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {line.category === "labor"
-                      ? `$${(line.actual_amount || 0).toFixed(2)}`
-                      : "—"}
-                  </TableCell>
-                  <TableCell
-                    className={`text-right ${
-                      amountDelta > 0
-                        ? "text-destructive"
-                        : amountDelta < 0
-                        ? "text-green-600"
-                        : ""
-                    }`}
-                  >
-                    {line.category === "labor" && amountDelta !== 0
-                      ? (amountDelta > 0 ? "+$" : "-$") +
-                        Math.abs(amountDelta).toFixed(2)
-                      : "—"}
-                  </TableCell>
-                  <TableCell>{line.is_allowance ? "✓" : ""}</TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+                    <TableCell className="font-medium">
+                      {line.code && line.description
+                        ? `${line.code} - ${line.description}`
+                        : "No Code"}
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant="outline"
+                        className="capitalize"
+                      >
+                        {line.category === "misc" ? "other" : line.category}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {line.budget_hours?.toFixed(1) || "—"}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {line.category === "labor" && line.actual_hours
+                        ? line.actual_hours.toFixed(1)
+                        : "—"}
+                    </TableCell>
+                    <TableCell
+                      className={`text-right ${
+                        hoursDelta > 0
+                          ? "text-destructive"
+                          : hoursDelta < 0
+                          ? "text-green-600"
+                          : ""
+                      }`}
+                    >
+                      {line.category === "labor" && hoursDelta !== 0
+                        ? (hoursDelta > 0 ? "+" : "") + hoursDelta.toFixed(1)
+                        : "—"}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      ${(line.budget_amount || 0).toFixed(2)}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {line.category === "labor"
+                        ? `$${(line.actual_amount || 0).toFixed(2)}`
+                        : "—"}
+                    </TableCell>
+                    <TableCell
+                      className={`text-right ${
+                        amountDelta > 0
+                          ? "text-destructive"
+                          : amountDelta < 0
+                          ? "text-green-600"
+                          : ""
+                      }`}
+                    >
+                      {line.category === "labor" && amountDelta !== 0
+                        ? `${amountDelta > 0 ? "+$" : "-$"}${Math.abs(
+                            amountDelta
+                          ).toFixed(2)}`
+                        : "—"}
+                    </TableCell>
+                    <TableCell>{line.is_allowance ? "✓" : ""}</TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </CardContent>
       </Card>
 
+      {/* Cost-code drill-down: time logs for that cost code */}
       <Sheet
-        open={!!selectedLineKey}
-        onOpenChange={(open) => !open && setSelectedLineKey(null)}
+        open={!!selectedLine}
+        onOpenChange={(open) => !open && setSelectedLine(null)}
       >
         <SheetContent className="w-[600px] sm:max-w-[600px]">
           <SheetHeader>
@@ -213,17 +279,13 @@ export function BudgetDetailTable({ projectId }: BudgetDetailTableProps) {
               <Card className="p-4">
                 <p className="text-sm text-muted-foreground">Budget Hours</p>
                 <p className="text-2xl font-bold">
-                  {typeof selectedBudgetLine?.budget_hours === "number"
-                    ? selectedBudgetLine.budget_hours.toFixed(1)
-                    : "—"}
+                  {selectedBudgetLine?.budget_hours?.toFixed(1) || "—"}
                 </p>
               </Card>
-              <Card className="p-4">
+            <Card className="p-4">
                 <p className="text-sm text-muted-foreground">Actual Hours</p>
                 <p className="text-2xl font-bold">
-                  {typeof selectedBudgetLine?.actual_hours === "number"
-                    ? selectedBudgetLine.actual_hours.toFixed(1)
-                    : "0.0"}
+                  {selectedBudgetLine?.actual_hours?.toFixed(1) || "0.0"}
                 </p>
               </Card>
             </div>
@@ -259,6 +321,15 @@ export function BudgetDetailTable({ projectId }: BudgetDetailTableProps) {
           </div>
         </SheetContent>
       </Sheet>
+
+      {/* Baseline estimate drill-down from the budget side */}
+      <EstimateDetailsSheet
+        estimateId={viewEstimateId}
+        open={!!viewEstimateId}
+        onOpenChange={(open) => {
+          if (!open) setViewEstimateId(null);
+        }}
+      />
     </>
   );
 }
