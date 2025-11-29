@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -13,6 +13,7 @@ import { Users, DollarSign, Clock, TrendingUp, CheckCircle2, FileCheck } from 'l
 import { format, subDays } from 'date-fns';
 import { CreatePayRunDialog } from './CreatePayRunDialog';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 
 interface UnpaidSummary {
   id: string;
@@ -26,6 +27,8 @@ interface UnpaidSummary {
 
 export function WorkforcePayCenterTab() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+
   const [dateRange, setDateRange] = useState('7');
   const [selectedCompany, setSelectedCompany] = useState<string>('all');
   const [groupBy, setGroupBy] = useState<'worker' | 'project'>('worker');
@@ -35,7 +38,41 @@ export function WorkforcePayCenterTab() {
   const [payRunDialogOpen, setPayRunDialogOpen] = useState(false);
   const [payRunWorkerFilter, setPayRunWorkerFilter] = useState<string | undefined>();
 
-  // Fetch companies
+  // ==============
+  // Mutations
+  // ==============
+  const markPayRunPaid = useMutation({
+    mutationFn: async (payRunId: string) => {
+      const today = new Date();
+      const paymentDate = format(today, 'yyyy-MM-dd');
+
+      const { error } = await supabase
+        .from('labor_pay_runs')
+        .update({
+          status: 'paid',
+          payment_date: paymentDate,
+        })
+        .eq('id', payRunId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      // Trigger DB trigger that flips time_logs.payment_status → already handled.
+      // Here we just refresh the UI.
+      queryClient.invalidateQueries({ queryKey: ['workforce-recent-pay-runs'] });
+      queryClient.invalidateQueries({ queryKey: ['workforce-paid-metrics'] });
+      queryClient.invalidateQueries({ queryKey: ['workforce-labor-summary'] });
+      toast.success('Pay run marked as paid');
+    },
+    onError: (err: any) => {
+      console.error('Error marking pay run as paid:', err);
+      toast.error(err?.message || 'Failed to mark pay run as paid');
+    },
+  });
+
+  // ==============
+  // Companies
+  // ==============
   const { data: companies } = useQuery({
     queryKey: ['companies'],
     queryFn: async () => {
@@ -44,7 +81,9 @@ export function WorkforcePayCenterTab() {
     },
   });
 
-  // Fetch aggregated summary using SQL (filtered by payment status)
+  // ==============
+  // Labor Summary (unpaid/paid/all)
+  // ==============
   const { data: laborSummary, isLoading: summaryLoading } = useQuery({
     queryKey: ['workforce-labor-summary', dateRange, selectedCompany, groupBy, paymentStatus],
     queryFn: async () => {
@@ -52,7 +91,6 @@ export function WorkforcePayCenterTab() {
       const endDate = format(new Date(), 'yyyy-MM-dd');
 
       if (groupBy === 'worker') {
-        // Aggregate by worker
         let query = supabase
           .from('time_logs')
           .select(`
@@ -66,7 +104,6 @@ export function WorkforcePayCenterTab() {
           .gte('date', startDate)
           .lte('date', endDate);
 
-        // Apply payment status filter
         if (paymentStatus !== 'all') {
           query = query.eq('payment_status', paymentStatus);
         }
@@ -99,7 +136,6 @@ export function WorkforcePayCenterTab() {
 
         return Object.values(grouped || {}) as UnpaidSummary[];
       } else {
-        // Aggregate by project
         let query = supabase
           .from('time_logs')
           .select(`
@@ -113,7 +149,6 @@ export function WorkforcePayCenterTab() {
           .gte('date', startDate)
           .lte('date', endDate);
 
-        // Apply payment status filter
         if (paymentStatus !== 'all') {
           query = query.eq('payment_status', paymentStatus);
         }
@@ -149,7 +184,9 @@ export function WorkforcePayCenterTab() {
     },
   });
 
-  // Fetch recent pay runs in this period
+  // ==============
+  // Recent Pay Runs
+  // ==============
   const { data: recentPayRuns } = useQuery({
     queryKey: ['workforce-recent-pay-runs', dateRange, selectedCompany],
     queryFn: async () => {
@@ -174,7 +211,9 @@ export function WorkforcePayCenterTab() {
     },
   });
 
-  // Fetch detail logs for selected worker/project
+  // ==============
+  // Detail Logs Drawer
+  // ==============
   const { data: detailLogs } = useQuery({
     queryKey: ['workforce-detail-logs', selectedId, groupBy, dateRange, selectedCompany, paymentStatus],
     queryFn: async () => {
@@ -199,7 +238,6 @@ export function WorkforcePayCenterTab() {
         .lte('date', endDate)
         .order('date', { ascending: false });
 
-      // Apply payment status filter
       if (paymentStatus !== 'all') {
         query = query.eq('payment_status', paymentStatus);
       }
@@ -221,14 +259,15 @@ export function WorkforcePayCenterTab() {
     enabled: !!selectedId && drawerOpen,
   });
 
-  // Fetch paid metrics for the same period
+  // ==============
+  // Paid metrics
+  // ==============
   const { data: paidMetrics } = useQuery({
     queryKey: ['workforce-paid-metrics', dateRange, selectedCompany],
     queryFn: async () => {
       const startDate = format(subDays(new Date(), parseInt(dateRange)), 'yyyy-MM-dd');
       const endDate = format(new Date(), 'yyyy-MM-dd');
 
-      // Query paid time_logs
       let logsQuery = supabase
         .from('time_logs')
         .select('hours_worked, labor_cost, projects!inner(company_id)')
@@ -246,7 +285,6 @@ export function WorkforcePayCenterTab() {
       const paidHours = paidLogs?.reduce((sum, log) => sum + (log.hours_worked || 0), 0) || 0;
       const paidAmount = paidLogs?.reduce((sum, log) => sum + (log.labor_cost || 0), 0) || 0;
 
-      // Count pay runs with payment_date in range and status = 'paid'
       let payRunsQuery = supabase
         .from('labor_pay_runs')
         .select('id', { count: 'exact', head: true })
@@ -269,22 +307,30 @@ export function WorkforcePayCenterTab() {
     },
   });
 
-  // Calculate totals from filtered data
+  // ==============
+  // Totals / derived
+  // ==============
   const totalHours = laborSummary?.reduce((sum, item) => sum + item.total_hours, 0) || 0;
   const totalAmount = laborSummary?.reduce((sum, item) => sum + item.total_amount, 0) || 0;
   const totalLogs = laborSummary?.reduce((sum, item) => sum + item.item_count, 0) || 0;
   const totalWorkers = new Set(laborSummary?.map(item => item.id) || []).size;
 
-  // Calculate unpaid-specific totals for cards
-  const totalUnpaidHours = laborSummary?.filter(() => paymentStatus === 'unpaid' || paymentStatus === 'all')
-    .reduce((sum, item) => sum + item.total_hours, 0) || 0;
-  const totalUnpaidAmount = laborSummary?.filter(() => paymentStatus === 'unpaid' || paymentStatus === 'all')
-    .reduce((sum, item) => sum + item.total_amount, 0) || 0;
-  const totalUnpaidLogs = laborSummary?.filter(() => paymentStatus === 'unpaid' || paymentStatus === 'all')
-    .reduce((sum, item) => sum + item.item_count, 0) || 0;
-  const totalUnpaidWorkers = paymentStatus === 'unpaid' || paymentStatus === 'all' 
-    ? new Set(laborSummary?.map(item => item.id) || []).size 
-    : 0;
+  const totalUnpaidHours =
+    laborSummary?.filter(() => paymentStatus === 'unpaid' || paymentStatus === 'all')
+      .reduce((sum, item) => sum + item.total_hours, 0) || 0;
+
+  const totalUnpaidAmount =
+    laborSummary?.filter(() => paymentStatus === 'unpaid' || paymentStatus === 'all')
+      .reduce((sum, item) => sum + item.total_amount, 0) || 0;
+
+  const totalUnpaidLogs =
+    laborSummary?.filter(() => paymentStatus === 'unpaid' || paymentStatus === 'all')
+      .reduce((sum, item) => sum + item.item_count, 0) || 0;
+
+  const totalUnpaidWorkers =
+    paymentStatus === 'unpaid' || paymentStatus === 'all'
+      ? new Set(laborSummary?.map(item => item.id) || []).size
+      : 0;
 
   const selectedSummary = laborSummary?.find(s => s.id === selectedId);
 
@@ -299,10 +345,11 @@ export function WorkforcePayCenterTab() {
   };
 
   const handlePayRunSuccess = () => {
-    // Reset state and close drawer
     setPayRunDialogOpen(false);
     setPayRunWorkerFilter(undefined);
     setDrawerOpen(false);
+    // Pay runs created as draft – metrics stay "unpaid" until we mark paid.
+    queryClient.invalidateQueries({ queryKey: ['workforce-recent-pay-runs'] });
   };
 
   if (summaryLoading) {
@@ -356,7 +403,7 @@ export function WorkforcePayCenterTab() {
         </CardContent>
       </Card>
 
-      {/* Recent Pay Runs in this period */}
+      {/* Recent Pay Runs */}
       {recentPayRuns && recentPayRuns.length > 0 && (
         <Card>
           <CardHeader>
@@ -366,6 +413,7 @@ export function WorkforcePayCenterTab() {
             <div className="space-y-2">
               {recentPayRuns.map((run: any) => {
                 const hours = run.total_hours ?? 0;
+                const isPaid = run.status === 'paid';
                 return (
                   <div
                     key={run.id}
@@ -373,21 +421,39 @@ export function WorkforcePayCenterTab() {
                     onClick={() => navigate('/workforce?tab=pay-runs')}
                   >
                     <div className="flex items-center gap-3">
-                      <Badge variant={run.status === 'paid' ? 'default' : 'secondary'}>
+                      <Badge variant={isPaid ? 'default' : 'secondary'}>
                         {run.status}
                       </Badge>
                       <div>
                         <p className="text-sm font-medium">
-                          {run.payment_date ? format(new Date(run.payment_date), 'MMM d, yyyy') : 'Draft'}
+                          {run.payment_date
+                            ? format(new Date(run.payment_date), 'MMM d, yyyy')
+                            : 'Draft'}
                         </p>
                         <p className="text-xs text-muted-foreground">
                           {hours.toFixed(1)}h
                         </p>
                       </div>
                     </div>
-                    <p className="text-sm font-semibold">
-                      ${(run.total_amount || 0).toLocaleString()}
-                    </p>
+                    <div className="flex items-center gap-3">
+                      <p className="text-sm font-semibold">
+                        ${(run.total_amount || 0).toLocaleString()}
+                      </p>
+                      {!isPaid && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (!markPayRunPaid.isPending) {
+                              markPayRunPaid.mutate(run.id);
+                            }
+                          }}
+                        >
+                          {markPayRunPaid.isPending ? 'Marking…' : 'Mark paid'}
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 );
               })}
@@ -396,9 +462,9 @@ export function WorkforcePayCenterTab() {
         </Card>
       )}
 
-      {/* Summary Stats - 6 Cards */}
+      {/* Summary Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-        {/* UNPAID METRICS */}
+        {/* Unpaid */}
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-2 text-muted-foreground mb-1">
@@ -414,7 +480,9 @@ export function WorkforcePayCenterTab() {
               <TrendingUp className="h-4 w-4" />
               <span className="text-sm">Hours (Unpaid)</span>
             </div>
-            <p className="text-2xl font-bold text-blue-600">{totalUnpaidHours.toFixed(1)}h</p>
+            <p className="text-2xl font-bold text-blue-600">
+              {totalUnpaidHours.toFixed(1)}h
+            </p>
           </CardContent>
         </Card>
         <Card>
@@ -438,7 +506,7 @@ export function WorkforcePayCenterTab() {
           </CardContent>
         </Card>
 
-        {/* PAID METRICS */}
+        {/* Paid */}
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-2 text-muted-foreground mb-1">
@@ -513,7 +581,9 @@ export function WorkforcePayCenterTab() {
                     <TableCell>
                       <Badge variant="outline">{item.company_name}</Badge>
                     </TableCell>
-                    <TableCell className="text-right">{item.total_hours.toFixed(1)}h</TableCell>
+                    <TableCell className="text-right">
+                      {item.total_hours.toFixed(1)}h
+                    </TableCell>
                     <TableCell className="text-right font-semibold">
                       ${item.total_amount.toLocaleString()}
                     </TableCell>
@@ -550,8 +620,8 @@ export function WorkforcePayCenterTab() {
                 {paymentStatus === 'unpaid' ? 'All caught up!' : 'No records found'}
               </p>
               <p className="text-sm">
-                {paymentStatus === 'unpaid' 
-                  ? 'No unpaid labor for this period' 
+                {paymentStatus === 'unpaid'
+                  ? 'No unpaid labor for this period'
                   : `No ${paymentStatus} labor for this period`}
               </p>
             </div>
@@ -575,7 +645,7 @@ export function WorkforcePayCenterTab() {
               {groupBy === 'worker' ? 'Worker' : 'Project'} Details - {selectedSummary?.name}
             </SheetTitle>
           </SheetHeader>
-          
+
           {selectedSummary && (
             <div className="mt-6 space-y-6">
               {/* Summary */}
@@ -616,11 +686,11 @@ export function WorkforcePayCenterTab() {
                               {format(new Date(log.date), 'MMM d, yyyy')}
                             </p>
                             <p className="text-sm text-muted-foreground">
-                              {groupBy === 'worker' 
-                                ? log.projects?.project_name 
+                              {groupBy === 'worker'
+                                ? log.projects?.project_name
                                 : log.workers?.name}
                             </p>
-                            <Badge 
+                            <Badge
                               variant={log.payment_status === 'paid' ? 'default' : 'secondary'}
                               className="mt-1"
                             >
@@ -645,8 +715,8 @@ export function WorkforcePayCenterTab() {
 
               {/* Action Button */}
               {groupBy === 'worker' && paymentStatus === 'unpaid' && (
-                <Button 
-                  className="w-full" 
+                <Button
+                  className="w-full"
                   size="lg"
                   onClick={() => handleOpenPaymentDialog(selectedId || undefined)}
                 >
