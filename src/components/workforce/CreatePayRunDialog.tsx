@@ -60,10 +60,10 @@ export function CreatePayRunDialog({
   // -----------------------
   // Filters / local state
   // -----------------------
-  const [startDate, setStartDate] = useState<Date>(() => 
+  const [startDate, setStartDate] = useState<Date>(() =>
     defaultDateRangeStart ? new Date(defaultDateRangeStart) : subDays(new Date(), 7)
   );
-  const [endDate, setEndDate] = useState<Date>(() => 
+  const [endDate, setEndDate] = useState<Date>(() =>
     defaultDateRangeEnd ? new Date(defaultDateRangeEnd) : new Date()
   );
   const [payerCompanyId, setPayerCompanyId] = useState<string>(defaultCompanyId || 'all');
@@ -75,7 +75,7 @@ export function CreatePayRunDialog({
   );
 
   // -----------------------
-  // Companies & Projects (for filters)
+  // Companies, Projects, Workers (filters)
   // -----------------------
   const { data: companies } = useCompaniesForPayroll();
   const { data: projects } = useProjectsForPayroll();
@@ -97,7 +97,6 @@ export function CreatePayRunDialog({
   // -----------------------
   const { data, isLoading } = useUnpaidTimeLogs(filters);
 
-  // Reset selections whenever filters change
   const visibleLogs = data?.logs || [];
   const allVisibleIds = useMemo(
     () => visibleLogs.map((log) => log.id),
@@ -136,6 +135,15 @@ export function CreatePayRunDialog({
     [selectedLogs]
   );
 
+  const selectedHours = useMemo(
+    () =>
+      selectedLogs.reduce(
+        (sum, log) => sum + Number(log.hours_worked || 0),
+        0
+      ),
+    [selectedLogs]
+  );
+
   const selectedCount = selectedLogs.length;
 
   // -----------------------
@@ -160,6 +168,7 @@ export function CreatePayRunDialog({
           // You can later support per-worker payee companies; for now null.
           payee_company_id: null,
           total_amount: selectedAmount,
+          total_hours: selectedHours,
           status: 'draft',
         })
         .select()
@@ -365,6 +374,12 @@ export function CreatePayRunDialog({
                     </span>
                   </p>
                   <p>
+                    Selected hours:{' '}
+                    <span className="font-semibold">
+                      {selectedHours.toFixed(1)}h
+                    </span>
+                  </p>
+                  <p>
                     Selected amount:{' '}
                     <span className="font-semibold text-emerald-600">
                       ${selectedAmount.toLocaleString(undefined, {
@@ -414,7 +429,7 @@ export function CreatePayRunDialog({
                     </Label>
                   </div>
                   <Badge variant="outline">
-                    {selectedCount} selected · $
+                    {selectedCount} selected · {selectedHours.toFixed(1)}h · $
                     {selectedAmount.toLocaleString(undefined, {
                       minimumFractionDigits: 2,
                       maximumFractionDigits: 2,
