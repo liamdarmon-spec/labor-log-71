@@ -2179,64 +2179,156 @@ export type Database = {
           },
         ]
       }
+      project_budget_groups: {
+        Row: {
+          client_visible: boolean
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          project_budget_id: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          client_visible?: boolean
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          project_budget_id: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          client_visible?: boolean
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          project_budget_id?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_budget_groups_project_budget_id_fkey"
+            columns: ["project_budget_id"]
+            isOneToOne: false
+            referencedRelation: "project_budgets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_budget_lines: {
         Row: {
           actual_cost: number | null
           actual_hours: number | null
+          allowance_cap: number | null
           budget_amount: number
           budget_hours: number | null
           category: string
+          change_order_id: string | null
+          client_visible: boolean
           cost_code_id: string | null
           created_at: string | null
           description: string | null
+          description_client: string | null
+          description_internal: string | null
           estimated_cost: number | null
           estimated_hours: number | null
           forecast_at_completion: number | null
+          group_id: string | null
           id: string
+          internal_notes: string | null
           is_allowance: boolean | null
+          is_optional: boolean
+          line_type: string | null
+          markup_pct: number | null
           percent_complete: number | null
+          project_budget_id: string | null
           project_id: string
+          qty: number
+          scope_type: string
+          sort_order: number
           source_estimate_id: string | null
+          tax_pct: number | null
+          unit: string | null
+          unit_cost: number
           updated_at: string | null
           variance: number | null
         }
         Insert: {
           actual_cost?: number | null
           actual_hours?: number | null
+          allowance_cap?: number | null
           budget_amount?: number
           budget_hours?: number | null
           category: string
+          change_order_id?: string | null
+          client_visible?: boolean
           cost_code_id?: string | null
           created_at?: string | null
           description?: string | null
+          description_client?: string | null
+          description_internal?: string | null
           estimated_cost?: number | null
           estimated_hours?: number | null
           forecast_at_completion?: number | null
+          group_id?: string | null
           id?: string
+          internal_notes?: string | null
           is_allowance?: boolean | null
+          is_optional?: boolean
+          line_type?: string | null
+          markup_pct?: number | null
           percent_complete?: number | null
+          project_budget_id?: string | null
           project_id: string
+          qty?: number
+          scope_type?: string
+          sort_order?: number
           source_estimate_id?: string | null
+          tax_pct?: number | null
+          unit?: string | null
+          unit_cost?: number
           updated_at?: string | null
           variance?: number | null
         }
         Update: {
           actual_cost?: number | null
           actual_hours?: number | null
+          allowance_cap?: number | null
           budget_amount?: number
           budget_hours?: number | null
           category?: string
+          change_order_id?: string | null
+          client_visible?: boolean
           cost_code_id?: string | null
           created_at?: string | null
           description?: string | null
+          description_client?: string | null
+          description_internal?: string | null
           estimated_cost?: number | null
           estimated_hours?: number | null
           forecast_at_completion?: number | null
+          group_id?: string | null
           id?: string
+          internal_notes?: string | null
           is_allowance?: boolean | null
+          is_optional?: boolean
+          line_type?: string | null
+          markup_pct?: number | null
           percent_complete?: number | null
+          project_budget_id?: string | null
           project_id?: string
+          qty?: number
+          scope_type?: string
+          sort_order?: number
           source_estimate_id?: string | null
+          tax_pct?: number | null
+          unit?: string | null
+          unit_cost?: number
           updated_at?: string | null
           variance?: number | null
         }
@@ -2253,6 +2345,20 @@ export type Database = {
             columns: ["cost_code_id"]
             isOneToOne: false
             referencedRelation: "cost_codes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_budget_lines_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "project_budget_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_budget_lines_project_budget_id_fkey"
+            columns: ["project_budget_id"]
+            isOneToOne: false
+            referencedRelation: "project_budgets"
             referencedColumns: ["id"]
           },
           {
@@ -2310,33 +2416,48 @@ export type Database = {
         Row: {
           baseline_estimate_id: string | null
           created_at: string | null
+          default_markup_pct: number | null
+          default_tax_pct: number | null
           id: string
           labor_budget: number | null
           materials_budget: number | null
+          name: string
+          notes: string | null
           other_budget: number | null
           project_id: string
+          status: string
           subs_budget: number | null
           updated_at: string | null
         }
         Insert: {
           baseline_estimate_id?: string | null
           created_at?: string | null
+          default_markup_pct?: number | null
+          default_tax_pct?: number | null
           id?: string
           labor_budget?: number | null
           materials_budget?: number | null
+          name?: string
+          notes?: string | null
           other_budget?: number | null
           project_id: string
+          status?: string
           subs_budget?: number | null
           updated_at?: string | null
         }
         Update: {
           baseline_estimate_id?: string | null
           created_at?: string | null
+          default_markup_pct?: number | null
+          default_tax_pct?: number | null
           id?: string
           labor_budget?: number | null
           materials_budget?: number | null
+          name?: string
+          notes?: string | null
           other_budget?: number | null
           project_id?: string
+          status?: string
           subs_budget?: number | null
           updated_at?: string | null
         }
