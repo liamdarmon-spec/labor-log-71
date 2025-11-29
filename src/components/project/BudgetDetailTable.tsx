@@ -8,7 +8,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { useBudgetLinesWithActuals } from "@/hooks/useProjectBudgetLines";
+import { useUnifiedProjectBudget } from "@/hooks/useUnifiedProjectBudget";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useState, useEffect } from "react";
@@ -21,7 +21,8 @@ interface BudgetDetailTableProps {
 }
 
 export function BudgetDetailTable({ projectId }: BudgetDetailTableProps) {
-  const { data: budgetLines, isLoading, refetch } = useBudgetLinesWithActuals(projectId);
+  const { data, isLoading, refetch } = useUnifiedProjectBudget(projectId);
+  const budgetLines = data?.costCodeLines || [];
   const [selectedLine, setSelectedLine] = useState<string | null>(null);
 
   // Listen for budget updates from estimates
@@ -33,7 +34,7 @@ export function BudgetDetailTable({ projectId }: BudgetDetailTableProps) {
     return () => window.removeEventListener('budget-updated', handleBudgetUpdate);
   }, [refetch]);
 
-  const selectedBudgetLine = budgetLines?.find(line => line.id === selectedLine);
+  const selectedBudgetLine = budgetLines.find(line => line.cost_code_id === selectedLine);
 
   const { data: timeLogs } = useQuery({
     queryKey: ['time_logs_by_cost_code', projectId, selectedBudgetLine?.cost_code_id],
@@ -61,7 +62,7 @@ export function BudgetDetailTable({ projectId }: BudgetDetailTableProps) {
     return <Skeleton className="h-96" />;
   }
 
-  if (!budgetLines || budgetLines.length === 0) {
+  if (budgetLines.length === 0) {
     return (
       <Card className="p-6">
         <p className="text-center text-muted-foreground">
@@ -95,31 +96,31 @@ export function BudgetDetailTable({ projectId }: BudgetDetailTableProps) {
           </TableHeader>
           <TableBody>
             {budgetLines.map((line) => {
-              const hoursDelta = line.actual_hours - (line.budget_hours || 0);
-              const amountDelta = line.actual_cost - line.budget_amount;
+              const hoursDelta = (line.actual_hours || 0) - (line.budget_hours || 0);
+              const amountDelta = (line.actual_amount || 0) - (line.budget_amount || 0);
               
               return (
             <TableRow 
-              key={line.id}
+              key={line.cost_code_id || `unassigned-${line.category}`}
               className="cursor-pointer hover:bg-muted/50"
-              onClick={() => setSelectedLine(line.id)}
+              onClick={() => setSelectedLine(line.cost_code_id || '')}
             >
               <TableCell className="font-medium">
-                {line.cost_codes ? `${line.cost_codes.code} - ${line.cost_codes.name}` : 'No Code'}
+                {line.code && line.description ? `${line.code} - ${line.description}` : 'No Code'}
               </TableCell>
               <TableCell>
                 <Badge variant="outline" className="capitalize">{line.category}</Badge>
               </TableCell>
               <TableCell className="text-right">{line.budget_hours?.toFixed(1) || '—'}</TableCell>
               <TableCell className="text-right">
-                {line.category === 'labor' ? line.actual_hours.toFixed(1) : '—'}
+                {line.category === 'labor' && line.actual_hours ? line.actual_hours.toFixed(1) : '—'}
               </TableCell>
               <TableCell className={`text-right ${hoursDelta > 0 ? 'text-destructive' : hoursDelta < 0 ? 'text-green-600' : ''}`}>
                 {line.category === 'labor' && hoursDelta !== 0 ? (hoursDelta > 0 ? '+' : '') + hoursDelta.toFixed(1) : '—'}
               </TableCell>
-              <TableCell className="text-right">${line.budget_amount.toFixed(2)}</TableCell>
+              <TableCell className="text-right">${(line.budget_amount || 0).toFixed(2)}</TableCell>
               <TableCell className="text-right">
-                {line.category === 'labor' ? `$${line.actual_cost.toFixed(2)}` : '—'}
+                {line.category === 'labor' ? `$${(line.actual_amount || 0).toFixed(2)}` : '—'}
               </TableCell>
               <TableCell className={`text-right ${amountDelta > 0 ? 'text-destructive' : amountDelta < 0 ? 'text-green-600' : ''}`}>
                 {line.category === 'labor' && amountDelta !== 0 ? (amountDelta > 0 ? '+$' : '-$') + Math.abs(amountDelta).toFixed(2) : '—'}
@@ -136,8 +137,8 @@ export function BudgetDetailTable({ projectId }: BudgetDetailTableProps) {
         <SheetContent className="w-[600px] sm:max-w-[600px]">
           <SheetHeader>
             <SheetTitle>
-              {selectedBudgetLine?.cost_codes ? 
-                `${selectedBudgetLine.cost_codes.code} - ${selectedBudgetLine.cost_codes.name}` : 
+              {selectedBudgetLine?.code && selectedBudgetLine?.description ? 
+                `${selectedBudgetLine.code} - ${selectedBudgetLine.description}` : 
                 'Cost Code Details'
               }
             </SheetTitle>
@@ -151,7 +152,7 @@ export function BudgetDetailTable({ projectId }: BudgetDetailTableProps) {
               </Card>
               <Card className="p-4">
                 <p className="text-sm text-muted-foreground">Actual Hours</p>
-                <p className="text-2xl font-bold">{selectedBudgetLine?.actual_hours.toFixed(1)}</p>
+                <p className="text-2xl font-bold">{selectedBudgetLine?.actual_hours?.toFixed(1) || '0.0'}</p>
               </Card>
             </div>
 

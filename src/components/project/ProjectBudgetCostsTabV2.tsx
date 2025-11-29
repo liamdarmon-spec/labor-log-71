@@ -11,7 +11,7 @@ interface ProjectBudgetCostsTabV2Props {
 }
 
 export function ProjectBudgetCostsTabV2({ projectId }: ProjectBudgetCostsTabV2Props) {
-  const { data, isLoading } = useProjectBudgetLedger(projectId);
+  const { ledger, summary, isLoading } = useProjectBudgetLedger(projectId);
 
   if (isLoading) {
     return (
@@ -30,9 +30,9 @@ export function ProjectBudgetCostsTabV2({ projectId }: ProjectBudgetCostsTabV2Pr
     );
   }
 
-  if (!data) return null;
+  if (!summary) return null;
 
-  const { ledgerLines, summary } = data;
+  const ledgerLines = ledger || [];
 
   const getVarianceColor = (variance: number) => {
     if (variance < 0) return 'text-red-600';
@@ -54,7 +54,7 @@ export function ProjectBudgetCostsTabV2({ projectId }: ProjectBudgetCostsTabV2Pr
           <CardContent className="p-6">
             <div className="space-y-2">
               <p className="text-sm text-muted-foreground">Total Budget</p>
-              <p className="text-3xl font-bold">${summary.totalBudget.toLocaleString()}</p>
+              <p className="text-3xl font-bold">${summary.total_budget.toLocaleString()}</p>
             </div>
           </CardContent>
         </Card>
@@ -63,7 +63,7 @@ export function ProjectBudgetCostsTabV2({ projectId }: ProjectBudgetCostsTabV2Pr
           <CardContent className="p-6">
             <div className="space-y-2">
               <p className="text-sm text-muted-foreground">Actual Cost</p>
-              <p className="text-3xl font-bold">${summary.totalActual.toLocaleString()}</p>
+              <p className="text-3xl font-bold">${summary.total_actual.toLocaleString()}</p>
             </div>
           </CardContent>
         </Card>
@@ -73,26 +73,26 @@ export function ProjectBudgetCostsTabV2({ projectId }: ProjectBudgetCostsTabV2Pr
             <div className="space-y-2">
               <p className="text-sm text-muted-foreground">Variance</p>
               <div className="flex items-center gap-2">
-                <p className={`text-3xl font-bold ${getVarianceColor(summary.totalVariance)}`}>
-                  ${Math.abs(summary.totalVariance).toLocaleString()}
+                <p className={`text-3xl font-bold ${getVarianceColor(summary.total_variance)}`}>
+                  ${Math.abs(summary.total_variance).toLocaleString()}
                 </p>
-                {getVarianceIcon(summary.totalVariance)}
+                {getVarianceIcon(summary.total_variance)}
               </div>
               <p className="text-xs text-muted-foreground">
-                {summary.totalVariance >= 0 ? 'Under budget' : 'Over budget'}
+                {summary.total_variance >= 0 ? 'Under budget' : 'Over budget'}
               </p>
             </div>
           </CardContent>
         </Card>
 
-        <Card className={summary.unpaidLabor > 0 ? 'border-orange-200 bg-orange-50' : ''}>
+        <Card className={summary.labor_unpaid > 0 ? 'border-orange-200 bg-orange-50' : ''}>
           <CardContent className="p-6">
             <div className="space-y-2">
               <p className="text-sm text-muted-foreground">Unpaid Labor</p>
               <p className="text-3xl font-bold text-orange-600">
-                ${summary.unpaidLabor.toLocaleString()}
+                ${summary.labor_unpaid.toLocaleString()}
               </p>
-              {summary.unpaidLabor > 0 && (
+              {summary.labor_unpaid > 0 && (
                 <p className="text-xs text-orange-600">Requires payment</p>
               )}
             </div>
@@ -110,10 +110,15 @@ export function ProjectBudgetCostsTabV2({ projectId }: ProjectBudgetCostsTabV2Pr
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            {(['labor', 'subs', 'materials', 'misc'] as const).map((category) => {
-              const data = summary.byCategory[category];
-              const percentUsed = data.budget > 0 ? (data.actual / data.budget) * 100 : 0;
-              const isAlert = percentUsed > 90 && data.budget > 0;
+          {(['labor', 'subs', 'materials', 'misc'] as const).map((category) => {
+              const categoryKey = category === 'misc' ? 'other' : category;
+              const catData = {
+                budget: summary[`${categoryKey}_budget` as keyof typeof summary] as number || 0,
+                actual: summary[`${categoryKey}_actual` as keyof typeof summary] as number || 0,
+                variance: summary[`${categoryKey}_variance` as keyof typeof summary] as number || 0,
+              };
+              const percentUsed = catData.budget > 0 ? (catData.actual / catData.budget) * 100 : 0;
+              const isAlert = percentUsed > 90 && catData.budget > 0;
 
               return (
                 <Card key={category} className={isAlert ? 'border-orange-200 bg-orange-50' : ''}>
@@ -122,19 +127,19 @@ export function ProjectBudgetCostsTabV2({ projectId }: ProjectBudgetCostsTabV2Pr
                     <div className="space-y-2">
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Budget:</span>
-                        <span className="font-medium">${data.budget.toLocaleString()}</span>
+                        <span className="font-medium">${catData.budget.toLocaleString()}</span>
                       </div>
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Actual:</span>
-                        <span className="font-medium">${data.actual.toLocaleString()}</span>
+                        <span className="font-medium">${catData.actual.toLocaleString()}</span>
                       </div>
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Variance:</span>
-                        <span className={`font-medium ${getVarianceColor(data.variance)}`}>
-                          ${Math.abs(data.variance).toLocaleString()}
+                        <span className={`font-medium ${getVarianceColor(catData.variance)}`}>
+                          ${Math.abs(catData.variance).toLocaleString()}
                         </span>
                       </div>
-                      {data.budget > 0 && (
+                      {catData.budget > 0 && (
                         <div className="pt-2 border-t">
                           <div className="flex justify-between items-center text-xs">
                             <span className="text-muted-foreground">Used:</span>
@@ -182,32 +187,32 @@ export function ProjectBudgetCostsTabV2({ projectId }: ProjectBudgetCostsTabV2Pr
               <TableBody>
                 {ledgerLines
                   .sort((a, b) => a.category.localeCompare(b.category))
-                  .map((line, index) => {
-                    const percentUsed = line.budgetAmount > 0 ? (line.actualAmount / line.budgetAmount) * 100 : 0;
-                    const isOverBudget = percentUsed > 100;
+                    .map((line, index) => {
+                      const percentUsed = line.budget_amount > 0 ? (line.actual_amount / line.budget_amount) * 100 : 0;
+                      const isOverBudget = percentUsed > 100;
 
                     return (
-                      <TableRow key={line.costCodeId || `unassigned-${index}`} className={isOverBudget ? 'bg-orange-50' : ''}>
-                        <TableCell className="font-mono font-medium">{line.costCode}</TableCell>
-                        <TableCell>{line.costCodeName}</TableCell>
+                      <TableRow key={line.cost_code_id || `unassigned-${index}`} className={isOverBudget ? 'bg-orange-50' : ''}>
+                        <TableCell className="font-mono font-medium">{line.code}</TableCell>
+                        <TableCell>{line.description}</TableCell>
                         <TableCell>
                           <Badge variant="outline" className="capitalize">
                             {line.category}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right font-medium">
-                          ${line.budgetAmount.toLocaleString()}
-                          {line.budgetHours && (
+                          ${(line.budget_amount || 0).toLocaleString()}
+                          {line.budget_hours && (
                             <span className="text-xs text-muted-foreground ml-1">
-                              ({line.budgetHours}h)
+                              ({line.budget_hours}h)
                             </span>
                           )}
                         </TableCell>
                         <TableCell className="text-right font-medium">
-                          ${line.actualAmount.toLocaleString()}
-                          {line.actualHours && (
+                          ${(line.actual_amount || 0).toLocaleString()}
+                          {line.actual_hours && (
                             <span className="text-xs text-muted-foreground ml-1">
-                              ({line.actualHours}h)
+                              ({line.actual_hours}h)
                             </span>
                           )}
                         </TableCell>
@@ -220,7 +225,7 @@ export function ProjectBudgetCostsTabV2({ projectId }: ProjectBudgetCostsTabV2Pr
                           )}
                         </TableCell>
                         <TableCell className="text-right">
-                          {line.budgetAmount > 0 ? (
+                          {line.budget_amount > 0 ? (
                             <span className={isOverBudget ? 'text-orange-600 font-medium' : ''}>
                               {percentUsed.toFixed(0)}%
                             </span>

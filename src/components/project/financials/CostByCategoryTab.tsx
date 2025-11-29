@@ -11,7 +11,7 @@ interface CostByCategoryTabProps {
 }
 
 export function CostByCategoryTab({ projectId, onViewDetails }: CostByCategoryTabProps) {
-  const { data, isLoading } = useProjectBudgetLedger(projectId);
+  const { summary, isLoading } = useProjectBudgetLedger(projectId);
 
   if (isLoading) {
     return (
@@ -27,9 +27,7 @@ export function CostByCategoryTab({ projectId, onViewDetails }: CostByCategoryTa
     );
   }
 
-  if (!data) return null;
-
-  const { summary } = data;
+  if (!summary) return null;
 
   const categories = [
     {
@@ -77,9 +75,14 @@ export function CostByCategoryTab({ projectId, onViewDetails }: CostByCategoryTa
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {categories.map((category) => {
-          const data = summary.byCategory[category.key];
-          const percentUsed = data.budget > 0 ? (data.actual / data.budget) * 100 : 0;
-          const isAlert = percentUsed > 90 && data.budget > 0;
+          const categoryKey = category.key === 'misc' ? 'other' : category.key;
+          const catData = {
+            budget: summary[`${categoryKey}_budget` as keyof typeof summary] as number || 0,
+            actual: summary[`${categoryKey}_actual` as keyof typeof summary] as number || 0,
+            variance: summary[`${categoryKey}_variance` as keyof typeof summary] as number || 0,
+          };
+          const percentUsed = catData.budget > 0 ? (catData.actual / catData.budget) * 100 : 0;
+          const isAlert = percentUsed > 90 && catData.budget > 0;
           const isOver = percentUsed > 100;
           const Icon = category.icon;
 
@@ -113,25 +116,25 @@ export function CostByCategoryTab({ projectId, onViewDetails }: CostByCategoryTa
                     <div className="flex justify-between items-baseline">
                       <span className="text-sm text-muted-foreground">Budget</span>
                       <span className="text-2xl font-bold">
-                        ${data.budget.toLocaleString()}
+                        ${catData.budget.toLocaleString()}
                       </span>
                     </div>
                     <div className="flex justify-between items-baseline">
                       <span className="text-sm text-muted-foreground">Actual</span>
                       <span className={`text-2xl font-bold ${isOver ? 'text-red-600' : category.color}`}>
-                        ${data.actual.toLocaleString()}
+                        ${catData.actual.toLocaleString()}
                       </span>
                     </div>
                     <div className="flex justify-between items-baseline pt-3 border-t">
                       <span className="text-sm text-muted-foreground">Variance</span>
-                      <span className={`text-xl font-bold ${data.variance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        ${Math.abs(data.variance).toLocaleString()}
+                      <span className={`text-xl font-bold ${catData.variance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        ${Math.abs(catData.variance).toLocaleString()}
                       </span>
                     </div>
                   </div>
 
                   {/* Progress Bar */}
-                  {data.budget > 0 && (
+                  {catData.budget > 0 && (
                     <div className="space-y-2">
                       <div className="flex justify-between items-center text-sm">
                         <span className="text-muted-foreground">Consumed</span>
