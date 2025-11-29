@@ -481,8 +481,7 @@ function EstimateDetail({ estimate, onClose }: EstimateDetailProps) {
                   {items.map((item) => {
                     const qty = Number(item.quantity || 0);
                     const unitPrice = Number(item.unit_price || 0);
-                    const lineTotal =
-                      item.line_total ?? qty * unitPrice ?? 0;
+                    const lineTotal = item.line_total ?? (qty * unitPrice);
 
                     return (
                       <TableRow key={item.id}>
