@@ -21,7 +21,7 @@ import { format, isFuture, parseISO } from "date-fns";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, ExternalLink } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useCostCodes } from "@/hooks/useCostCodes";
+import { CostCodeSelect } from "@/components/cost-codes/CostCodeSelect";
 import { useQueryClient } from "@tanstack/react-query";
 
 interface ScheduledShift {
@@ -71,8 +71,6 @@ export function EditScheduleDialog({ open, onOpenChange, schedule, onSuccess }: 
   const [hasTimeLog, setHasTimeLog] = useState(false);
   const [timeLogId, setTimeLogId] = useState<string | null>(null);
   const [isLocked, setIsLocked] = useState(false);
-
-  const { data: laborCostCodes } = useCostCodes('labor');
 
   const [formData, setFormData] = useState({
     worker_id: "",
@@ -293,25 +291,14 @@ export function EditScheduleDialog({ open, onOpenChange, schedule, onSuccess }: 
             </Select>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="cost_code">Cost Code</Label>
-            <Select
-              value={formData.cost_code_id}
-              onValueChange={(value) => setFormData({ ...formData, cost_code_id: value })}
-              disabled={isLocked}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select cost code (optional)" />
-              </SelectTrigger>
-              <SelectContent>
-                {laborCostCodes?.map((code) => (
-                  <SelectItem key={code.id} value={code.id}>
-                    {code.code} - {code.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <CostCodeSelect
+            value={formData.cost_code_id}
+            onChange={(value) => setFormData({ ...formData, cost_code_id: value })}
+            label="Cost Code"
+            required={false}
+            disabled={isLocked}
+            placeholder="Select cost code (optional)"
+          />
 
           <div className="space-y-2">
             <Label htmlFor="hours">Hours *</Label>

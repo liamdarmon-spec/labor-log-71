@@ -21,6 +21,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Trash2, AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { CostCodeSelect } from '@/components/cost-codes/CostCodeSelect';
 
 interface Project {
   id: string;
@@ -30,12 +31,6 @@ interface Project {
 
 interface Trade {
   id: string;
-  name: string;
-}
-
-interface CostCode {
-  id: string;
-  code: string;
   name: string;
 }
 
@@ -71,7 +66,6 @@ export function SplitTimeLogDialog({
   const { toast } = useToast();
   const [projects, setProjects] = useState<Project[]>([]);
   const [trades, setTrades] = useState<Trade[]>([]);
-  const [costCodes, setCostCodes] = useState<CostCode[]>([]);
   const [entries, setEntries] = useState<ProjectEntry[]>([
     { project_id: originalProjectId, trade_id: '', cost_code_id: '', hours: originalHours.toString(), notes: '' }
   ]);
@@ -84,15 +78,13 @@ export function SplitTimeLogDialog({
   }, [isOpen]);
 
   const fetchData = async () => {
-    const [projectsData, tradesData, costCodesData] = await Promise.all([
+    const [projectsData, tradesData] = await Promise.all([
       supabase.from('projects').select('id, project_name, client_name').eq('status', 'Active'),
-      supabase.from('trades').select('id, name'),
-      supabase.from('cost_codes').select('id, code, name').eq('is_active', true)
+      supabase.from('trades').select('id, name')
     ]);
 
     if (projectsData.data) setProjects(projectsData.data);
     if (tradesData.data) setTrades(tradesData.data);
-    if (costCodesData.data) setCostCodes(costCodesData.data);
   };
 
   const addEntry = () => {
@@ -235,24 +227,13 @@ export function SplitTimeLogDialog({
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label>Cost Code</Label>
-                  <Select
-                    value={entry.cost_code_id}
-                    onValueChange={(value) => updateEntry(index, 'cost_code_id', value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select cost code" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {costCodes.map(cc => (
-                        <SelectItem key={cc.id} value={cc.id}>
-                          {cc.code} - {cc.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                <CostCodeSelect
+                  value={entry.cost_code_id}
+                  onChange={(value) => updateEntry(index, 'cost_code_id', value)}
+                  label="Cost Code"
+                  required={false}
+                  placeholder="Select cost code (optional)"
+                />
 
                 <div className="space-y-2">
                   <Label>Hours Worked *</Label>
