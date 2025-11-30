@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { getUnassignedCostCodeId } from '@/lib/costCodes';
 
 export type BudgetCategory = 'labor' | 'subs' | 'materials' | 'other';
 
@@ -217,6 +218,8 @@ export function useProjectBudgetStructure(projectId: string | undefined) {
       group_id: string | null;
       line_type: BudgetCategory;
     }) => {
+      const unassignedId = await getUnassignedCostCodeId();
+      
       const { data, error } = await supabase
         .from('project_budget_lines')
         .insert([{
@@ -231,6 +234,7 @@ export function useProjectBudgetStructure(projectId: string | undefined) {
           budget_amount: 0,
           description_internal: '',
           description_client: '',
+          cost_code_id: unassignedId,
         }])
         .select('*')
         .single();

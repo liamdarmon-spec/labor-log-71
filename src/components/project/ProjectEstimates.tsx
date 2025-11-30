@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { Plus, Trash2, FileText, CheckCircle2, TrendingUp } from 'lucide-react';
 import { format } from 'date-fns';
+import { getUnassignedCostCodeId } from '@/lib/costCodes';
 
 interface Estimate {
   id: string;
@@ -129,6 +130,8 @@ export const ProjectEstimates = ({ projectId }: { projectId: string }) => {
 
       if (estimateError) throw estimateError;
 
+      const unassignedId = await getUnassignedCostCodeId();
+
       const itemsToInsert = lineItems.map(item => ({
         estimate_id: estimate.id,
         description: item.description,
@@ -136,6 +139,7 @@ export const ProjectEstimates = ({ projectId }: { projectId: string }) => {
         unit: item.unit,
         unit_price: Number(item.unit_price),
         line_total: item.line_total,
+        cost_code_id: unassignedId,
       }));
 
       const { error: itemsError } = await supabase

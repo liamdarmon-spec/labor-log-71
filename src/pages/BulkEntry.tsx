@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Calendar, Save, UserCheck } from 'lucide-react';
 import { z } from 'zod';
+import { getUnassignedCostCodeId } from '@/lib/costCodes';
 
 interface Worker {
   id: string;
@@ -161,12 +162,15 @@ const BulkEntry = () => {
     setLoading(true);
 
     try {
+      const unassignedId = await getUnassignedCostCodeId();
+      
       const logsToInsert = validEntries.map(entry => ({
         date,
         worker_id: entry.worker_id,
         project_id: entry.project_id,
         hours_worked: parseFloat(entry.hours_worked),
         notes: entry.notes || null,
+        cost_code_id: unassignedId,
       }));
 
       const { error } = await supabase.from('daily_logs').insert(logsToInsert);

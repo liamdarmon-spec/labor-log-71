@@ -204,7 +204,7 @@ export function BudgetDetailTable({ projectId }: BudgetDetailTableProps) {
                         variant="outline"
                         className="capitalize"
                       >
-                        {line.category === "misc" ? "other" : line.category}
+                        {line.category}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">

@@ -507,7 +507,7 @@ export type Database = {
           amount: number
           category: string
           company_id: string | null
-          cost_code_id: string | null
+          cost_code_id: string
           created_at: string | null
           date_incurred: string
           description: string
@@ -527,7 +527,7 @@ export type Database = {
           amount?: number
           category: string
           company_id?: string | null
-          cost_code_id?: string | null
+          cost_code_id: string
           created_at?: string | null
           date_incurred?: string
           description: string
@@ -547,7 +547,7 @@ export type Database = {
           amount?: number
           category?: string
           company_id?: string | null
-          cost_code_id?: string | null
+          cost_code_id?: string
           created_at?: string | null
           date_incurred?: string
           description?: string
@@ -754,7 +754,7 @@ export type Database = {
       }
       daily_logs: {
         Row: {
-          cost_code_id: string | null
+          cost_code_id: string
           created_at: string | null
           created_by: string | null
           date: string
@@ -771,7 +771,7 @@ export type Database = {
           worker_id: string
         }
         Insert: {
-          cost_code_id?: string | null
+          cost_code_id: string
           created_at?: string | null
           created_by?: string | null
           date?: string
@@ -788,7 +788,7 @@ export type Database = {
           worker_id: string
         }
         Update: {
-          cost_code_id?: string | null
+          cost_code_id?: string
           created_at?: string | null
           created_by?: string | null
           date?: string
@@ -1357,7 +1357,7 @@ export type Database = {
         Row: {
           area_name: string | null
           category: string | null
-          cost_code_id: string | null
+          cost_code_id: string
           created_at: string | null
           description: string
           estimate_id: string
@@ -1374,7 +1374,7 @@ export type Database = {
         Insert: {
           area_name?: string | null
           category?: string | null
-          cost_code_id?: string | null
+          cost_code_id: string
           created_at?: string | null
           description: string
           estimate_id: string
@@ -1391,7 +1391,7 @@ export type Database = {
         Update: {
           area_name?: string | null
           category?: string | null
-          cost_code_id?: string | null
+          cost_code_id?: string
           created_at?: string | null
           description?: string
           estimate_id?: string
@@ -2230,7 +2230,7 @@ export type Database = {
           category: string
           change_order_id: string | null
           client_visible: boolean
-          cost_code_id: string | null
+          cost_code_id: string
           created_at: string | null
           description: string | null
           description_client: string | null
@@ -2267,7 +2267,7 @@ export type Database = {
           category: string
           change_order_id?: string | null
           client_visible?: boolean
-          cost_code_id?: string | null
+          cost_code_id: string
           created_at?: string | null
           description?: string | null
           description_client?: string | null
@@ -2304,7 +2304,7 @@ export type Database = {
           category?: string
           change_order_id?: string | null
           client_visible?: boolean
-          cost_code_id?: string | null
+          cost_code_id?: string
           created_at?: string | null
           description?: string | null
           description_client?: string | null
@@ -3777,7 +3777,7 @@ export type Database = {
       scope_block_cost_items: {
         Row: {
           category: string
-          cost_code_id: string | null
+          cost_code_id: string
           created_at: string | null
           description: string
           id: string
@@ -3794,7 +3794,7 @@ export type Database = {
         }
         Insert: {
           category: string
-          cost_code_id?: string | null
+          cost_code_id: string
           created_at?: string | null
           description: string
           id?: string
@@ -3811,7 +3811,7 @@ export type Database = {
         }
         Update: {
           category?: string
-          cost_code_id?: string | null
+          cost_code_id?: string
           created_at?: string | null
           description?: string
           id?: string
@@ -4735,7 +4735,7 @@ export type Database = {
       time_logs: {
         Row: {
           company_id: string | null
-          cost_code_id: string | null
+          cost_code_id: string
           created_at: string | null
           created_by: string | null
           date: string
@@ -4755,7 +4755,7 @@ export type Database = {
         }
         Insert: {
           company_id?: string | null
-          cost_code_id?: string | null
+          cost_code_id: string
           created_at?: string | null
           created_by?: string | null
           date?: string
@@ -4775,7 +4775,7 @@ export type Database = {
         }
         Update: {
           company_id?: string | null
-          cost_code_id?: string | null
+          cost_code_id?: string
           created_at?: string | null
           created_by?: string | null
           date?: string

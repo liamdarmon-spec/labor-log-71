@@ -11,6 +11,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useWorkersSimple } from '@/hooks/useWorkers';
 import { useProjectsSimple } from '@/hooks/useProjects';
 import { useTradesSimple } from '@/hooks/useTrades';
+import { getUnassignedCostCodeId } from '@/lib/costCodes';
 
 interface ArchivedLog {
   id: string;
@@ -97,6 +98,8 @@ export const ArchivedLogsTab = () => {
   const handleRestore = async (log: ArchivedLog) => {
     if (!confirm('Restore this time entry back to active logs?')) return;
 
+    const unassignedId = await getUnassignedCostCodeId();
+
     // Restore to daily_logs
     const { error: insertError } = await supabase
       .from('daily_logs')
@@ -107,6 +110,7 @@ export const ArchivedLogsTab = () => {
         worker_id: log.worker_id,
         project_id: log.project_id,
         trade_id: log.trade_id,
+        cost_code_id: unassignedId,
       });
 
     if (insertError) {

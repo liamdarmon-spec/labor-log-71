@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Calendar, Clock, FileText, Plus, Trash2 } from 'lucide-react';
 import { z } from 'zod';
+import { getUnassignedCostCodeId } from '@/lib/costCodes';
 
 const jobEntrySchema = z.object({
   project_id: z.string().trim().nonempty({ message: 'Please select a project' }),
@@ -212,6 +213,8 @@ const DailyLog = () => {
       setLoading(true);
 
       // Create log entries for each job
+      const unassignedId = await getUnassignedCostCodeId();
+      
       const logsToInsert = isFullDay 
         ? [{
             date: validatedData.date,
@@ -219,6 +222,7 @@ const DailyLog = () => {
             project_id: jobEntries[0].project_id,
             hours_worked: 8,
             notes: validatedData.notes || null,
+            cost_code_id: unassignedId,
           }]
         : jobEntries.map(entry => ({
             date: validatedData.date,
@@ -226,6 +230,7 @@ const DailyLog = () => {
             project_id: entry.project_id,
             hours_worked: parseFloat(entry.hours_worked),
             notes: validatedData.notes || null,
+            cost_code_id: unassignedId,
           }));
 
       const { error } = await supabase.from('daily_logs').insert(logsToInsert);
