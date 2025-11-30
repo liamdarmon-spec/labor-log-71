@@ -24,11 +24,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { Loader2, User, Users, Trash2, Plus, Briefcase, Calendar as CalendarIcon, AlertCircle } from "lucide-react";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useCostCodes } from "@/hooks/useCostCodes";
+import { CostCodeSelect } from "@/components/cost-codes/CostCodeSelect";
 import { useQueryClient } from "@tanstack/react-query";
 
 interface Worker {
@@ -95,12 +95,10 @@ export function AddToScheduleDialog({
   const [selectedWorker, setSelectedWorker] = useState("");
   const [selectedProject, setSelectedProject] = useState("");
   const [selectedTrade, setSelectedTrade] = useState("");
-  const [selectedCostCode, setSelectedCostCode] = useState("");
+  const [selectedCostCode, setSelectedCostCode] = useState<string>("");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(defaultDate || new Date());
   const [hours, setHours] = useState("");
   const [notes, setNotes] = useState("");
-
-  const { data: laborCostCodes } = useCostCodes('labor');
 
   // Multiple workers form
   const [bulkDate, setBulkDate] = useState<Date | undefined>(defaultDate || new Date());
@@ -211,12 +209,6 @@ export function AddToScheduleDialog({
     const worker = workers.find(w => w.id === workerId);
     if (worker?.trade_id) {
       setSelectedTrade(worker.trade_id);
-      
-      // Auto-select cost code based on trade
-      const defaultCode = laborCostCodes?.find(cc => cc.default_trade_id === worker.trade_id);
-      if (defaultCode) {
-        setSelectedCostCode(defaultCode.id);
-      }
     }
 
     // Check for existing bookings on selected date
@@ -499,18 +491,18 @@ export function AddToScheduleDialog({
 
     setLoading(true);
 
-    const { data: userData } = await supabase.auth.getUser();
+    const dueDate = meetingTime 
+      ? `${format(meetingDate, "yyyy-MM-dd")}T${meetingTime}:00`
+      : format(meetingDate, "yyyy-MM-dd");
 
     const { error } = await supabase.from("project_todos").insert({
       title: meetingTitle,
-      project_id: meetingProject,
-      task_type: meetingType,
-      due_date: format(meetingDate, "yyyy-MM-dd"),
-      assigned_worker_id: meetingAssignee || null,
       description: meetingNotes || null,
-      status: 'open',
-      priority: 'medium',
-      created_by: userData.user?.id
+      status: "pending",
+      due_date: dueDate,
+      assigned_worker_id: meetingAssignee || null,
+      task_type: meetingType,
+      project_id: meetingProject
     });
 
     setLoading(false);
@@ -518,7 +510,7 @@ export function AddToScheduleDialog({
     if (error) {
       toast({
         title: "Error",
-        description: "Failed to create meeting",
+        description: "Failed to create meeting/inspection",
         variant: "destructive"
       });
       return;
@@ -526,13 +518,12 @@ export function AddToScheduleDialog({
 
     toast({
       title: "Success",
-      description: `${meetingType === 'meeting' ? 'Meeting' : 'Inspection'} created successfully`
+      description: `${meetingType === 'meeting' ? 'Meeting' : 'Inspection'} scheduled successfully`
     });
 
     if (addAnother) {
       setMeetingTitle("");
       setMeetingTime("");
-      setMeetingAssignee("");
       setMeetingNotes("");
       onScheduleCreated();
     } else {
@@ -546,6 +537,7 @@ export function AddToScheduleDialog({
     setSelectedWorker("");
     setSelectedProject("");
     setSelectedTrade("");
+    setSelectedCostCode("");
     setSelectedDate(new Date());
     setHours("");
     setNotes("");
@@ -556,142 +548,76 @@ export function AddToScheduleDialog({
     setSubDate(new Date());
     setSubHours("8");
     setSubNotes("");
-    setMeetingTitle("");
-    setMeetingProject("");
     setMeetingDate(new Date());
     setMeetingTime("");
+    setMeetingTitle("");
+    setMeetingProject("");
     setMeetingAssignee("");
     setMeetingType('meeting');
     setMeetingNotes("");
     setAddAnother(false);
     setWorkerBookingWarnings({});
     setSubBookingWarning(false);
-    const initialEntries: Record<string, WorkerProjectEntry[]> = {};
-    workers.forEach(worker => {
-      initialEntries[worker.id] = [{
-        id: crypto.randomUUID(),
-        project_id: "",
-        trade_id: worker.trade_id || "",
-        hours: "8"
-      }];
-    });
-    setWorkerProjectEntries(initialEntries);
   };
-
-  const activeWorkerCount = workers.filter(w => !excludedWorkers.has(w.id)).length;
-  const selectedWorkerData = workers.find(w => w.id === selectedWorker);
-  const selectedSubData = subs.find(s => s.id === selectedSub);
-
-  // Count how many shifts will be created in bulk mode
-  const bulkShiftCount = workers.filter(w => !excludedWorkers.has(w.id))
-    .reduce((count, worker) => {
-      const entries = workerProjectEntries[worker.id] || [];
-      return count + entries.filter(e => e.project_id && e.hours && parseFloat(e.hours) > 0).length;
-    }, 0);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center justify-between">
-            <span>Add to Schedule</span>
-            <div className="text-sm font-normal text-muted-foreground flex items-center gap-2">
-              <kbd className="px-2 py-1 text-xs bg-muted rounded">W</kbd>
-              <kbd className="px-2 py-1 text-xs bg-muted rounded">S</kbd>
-              <kbd className="px-2 py-1 text-xs bg-muted rounded">M</kbd>
-            </div>
-          </DialogTitle>
+          <DialogTitle>Add to Schedule</DialogTitle>
         </DialogHeader>
 
-        {/* Context Bar */}
-        {(defaultProjectName || defaultDate) && (
-          <div className="flex items-center gap-4 px-4 py-2 bg-muted/50 rounded-lg text-sm">
-            {defaultProjectName && (
-              <div className="flex items-center gap-2">
-                <Briefcase className="h-4 w-4 text-muted-foreground" />
-                <span className="text-muted-foreground">Project:</span>
-                <span className="font-medium">{defaultProjectName}</span>
-              </div>
-            )}
-            {defaultDate && (
-              <div className="flex items-center gap-2">
-                <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-                <span className="text-muted-foreground">Date:</span>
-                <span className="font-medium">{format(defaultDate, 'MMM d, yyyy')}</span>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Mode Selector */}
-        <Tabs value={mode} onValueChange={(v) => setMode(v as ScheduleMode)} className="w-full mb-4">
+        <Tabs value={mode} onValueChange={(v) => setMode(v as ScheduleMode)}>
           <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="workers" className="flex items-center gap-2">
-              <Users className="h-4 w-4" />
+            <TabsTrigger value="workers">
+              <User className="w-4 h-4 mr-2" />
               Workers
             </TabsTrigger>
-            <TabsTrigger value="subs" className="flex items-center gap-2">
-              <Briefcase className="h-4 w-4" />
+            <TabsTrigger value="subs">
+              <Users className="w-4 h-4 mr-2" />
               Subs
             </TabsTrigger>
-            <TabsTrigger value="meetings" className="flex items-center gap-2">
-              <CalendarIcon className="h-4 w-4" />
+            <TabsTrigger value="meetings">
+              <CalendarIcon className="w-4 h-4 mr-2" />
               Meetings
             </TabsTrigger>
           </TabsList>
-        </Tabs>
 
-        {/* Workers Mode */}
-        {mode === 'workers' && (
-          <Tabs value={bulkEntryMode} onValueChange={(v) => setBulkEntryMode(v as 'single' | 'bulk')} className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="single" className="flex items-center gap-2">
-                <User className="h-4 w-4" />
+          <TabsContent value="workers" className="space-y-4">
+            <div className="flex gap-2 mb-4">
+              <Button
+                type="button"
+                variant={bulkEntryMode === 'single' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setBulkEntryMode('single')}
+              >
+                <User className="w-4 h-4 mr-2" />
                 Single Worker
-              </TabsTrigger>
-              <TabsTrigger value="bulk" className="flex items-center gap-2">
-                <Users className="h-4 w-4" />
-                Multiple Workers
-              </TabsTrigger>
-            </TabsList>
+              </Button>
+              <Button
+                type="button"
+                variant={bulkEntryMode === 'bulk' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setBulkEntryMode('bulk')}
+              >
+                <Users className="w-4 h-4 mr-2" />
+                Bulk Entry
+              </Button>
+            </div>
 
-            <TabsContent value="single">
-              <form onSubmit={handleSingleSubmit} className="space-y-6">
-                {/* Date & Project Section */}
-                <div className="space-y-4 p-4 border rounded-lg bg-muted/20">
-                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Date & Project</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="date">Date *</Label>
-                      <DatePickerWithPresets
-                        date={selectedDate}
-                        onDateChange={setSelectedDate}
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="project">Project *</Label>
-                      <Select value={selectedProject} onValueChange={setSelectedProject}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select project" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {projects.map((project) => (
-                            <SelectItem key={project.id} value={project.id}>
-                              {project.project_name} - {project.client_name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Worker Selection Section */}
-                <div className="space-y-4 p-4 border rounded-lg bg-muted/20">
-                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Worker Selection</h3>
+            {bulkEntryMode === 'single' ? (
+              <form onSubmit={handleSingleSubmit} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="worker">Worker *</Label>
+                    <Label>Date *</Label>
+                    <DatePickerWithPresets
+                      date={selectedDate}
+                      onDateChange={setSelectedDate}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Worker *</Label>
                     <Select value={selectedWorker} onValueChange={handleWorkerChange}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select worker" />
@@ -699,309 +625,247 @@ export function AddToScheduleDialog({
                       <SelectContent>
                         {workers.map((worker) => (
                           <SelectItem key={worker.id} value={worker.id}>
-                            {worker.name} - {worker.trade}
+                            {worker.name}
+                            {workerBookingWarnings[worker.id] && (
+                              <Badge variant="secondary" className="ml-2">Already scheduled</Badge>
+                            )}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
-                    {selectedWorkerData && (
-                      <p className="text-xs text-muted-foreground">
-                        Default trade: {selectedWorkerData.trade}
-                      </p>
-                    )}
-                    {workerBookingWarnings[selectedWorker] && selectedDate && (
-                      <Alert variant="default" className="mt-2">
-                        <AlertCircle className="h-4 w-4" />
-                        <AlertDescription className="flex flex-col gap-2">
-                          <div className="text-xs">
-                            This worker already has shifts on this day. Click to review the full day.
-                          </div>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="w-fit gap-2"
-                            onClick={() => {
-                              // Open a day detail view - we'd need to pass this as a prop
-                              // For now, just inform the user
-                              toast({
-                                title: "Worker Conflict",
-                                description: "This worker already has shifts scheduled on this date"
-                              });
-                            }}
-                          >
-                            View Day Schedule
-                          </Button>
-                        </AlertDescription>
-                      </Alert>
-                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Project *</Label>
+                    <Select value={selectedProject} onValueChange={setSelectedProject}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select project" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {projects.map((project) => (
+                          <SelectItem key={project.id} value={project.id}>
+                            {project.project_name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Hours *</Label>
+                    <Input
+                      type="number"
+                      step="0.5"
+                      min="0"
+                      value={hours}
+                      onChange={(e) => setHours(e.target.value)}
+                      placeholder="8"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Trade</Label>
+                    <Select value={selectedTrade} onValueChange={setSelectedTrade}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select trade (optional)" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {trades.map((trade) => (
+                          <SelectItem key={trade.id} value={trade.id}>
+                            {trade.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <CostCodeSelect
+                      value={selectedCostCode}
+                      onChange={(value) => setSelectedCostCode(value)}
+                      label="Cost Code"
+                      required={false}
+                      placeholder="Select cost code (optional)"
+                    />
                   </div>
                 </div>
 
-                {/* Shift Details Section */}
-                <div className="space-y-4 p-4 border rounded-lg bg-muted/20">
-                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Shift Details</h3>
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="trade">Trade</Label>
-                      <Select value={selectedTrade} onValueChange={setSelectedTrade}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select trade (optional)" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {trades.map((trade) => (
-                            <SelectItem key={trade.id} value={trade.id}>
-                              {trade.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <p className="text-xs text-muted-foreground">Auto-filled from worker's default trade</p>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="cost_code">Cost Code</Label>
-                      <Select value={selectedCostCode} onValueChange={setSelectedCostCode}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select cost code (optional)" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {laborCostCodes?.map((code) => (
-                            <SelectItem key={code.id} value={code.id}>
-                              {code.code} - {code.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <p className="text-xs text-muted-foreground">For budget tracking and cost analysis</p>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="hours">Scheduled Hours *</Label>
-                      <Input
-                        id="hours"
-                        type="number"
-                        step="0.5"
-                        min="0"
-                        max="24"
-                        value={hours}
-                        onChange={(e) => setHours(e.target.value)}
-                        placeholder="8"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="notes">Notes</Label>
-                      <Textarea
-                        id="notes"
-                        value={notes}
-                        onChange={(e) => setNotes(e.target.value)}
-                        placeholder="Optional notes"
-                        rows={3}
-                      />
-                    </div>
-                  </div>
+                <div className="space-y-2">
+                  <Label>Notes</Label>
+                  <Textarea
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Add any notes..."
+                    rows={3}
+                  />
                 </div>
 
-                {/* Add Another Checkbox */}
                 <div className="flex items-center space-x-2">
-                  <Checkbox 
-                    id="add-another" 
+                  <Checkbox
+                    id="add-another"
                     checked={addAnother}
                     onCheckedChange={(checked) => setAddAnother(checked as boolean)}
                   />
-                  <label
-                    htmlFor="add-another"
-                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                  >
-                    Keep modal open to add another shift
-                  </label>
+                  <Label htmlFor="add-another" className="text-sm">
+                    Add another after saving
+                  </Label>
                 </div>
 
-                <div className="flex gap-2 justify-end pt-4 border-t">
+                <div className="flex gap-2 justify-end">
                   <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                     Cancel
                   </Button>
                   <Button type="submit" disabled={loading}>
-                    {loading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Creating...
-                      </>
-                    ) : (
-                      "Create Shift"
-                    )}
+                    {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                    Schedule Worker
                   </Button>
                 </div>
               </form>
-            </TabsContent>
-
-            <TabsContent value="bulk">
-              <form onSubmit={handleBulkSubmit} className="space-y-6">
+            ) : (
+              <form onSubmit={handleBulkSubmit} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="bulk-date">Date *</Label>
-                  <DatePickerWithPresets
-                    date={bulkDate}
-                    onDateChange={setBulkDate}
-                  />
+                  <Label>Date for All *</Label>
+                  <DatePickerWithPresets date={bulkDate} onDateChange={setBulkDate} />
                 </div>
 
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <Label>Configure Workers ({activeWorkerCount} active)</Label>
-                  </div>
+                  {workers.map((worker) => {
+                    const isExcluded = excludedWorkers.has(worker.id);
+                    const entries = workerProjectEntries[worker.id] || [];
 
-                  <div className="space-y-2 max-h-96 overflow-y-auto">
-                    {workers.map((worker) => {
-                      const isExcluded = excludedWorkers.has(worker.id);
-                      const entries = workerProjectEntries[worker.id] || [];
-
-                      return (
-                        <Card key={worker.id} className={`p-4 ${isExcluded ? "opacity-50" : ""}`}>
-                          <div className="space-y-3">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-3 flex-1">
-                                <h4 className="font-medium">{worker.name}</h4>
-                                <span className="text-sm text-muted-foreground">{worker.trade}</span>
-                              </div>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleToggleWorker(worker.id)}
-                              >
-                                {isExcluded ? <Plus className="h-4 w-4" /> : <Trash2 className="h-4 w-4" />}
-                              </Button>
+                    return (
+                      <Card key={worker.id} className={isExcluded ? 'opacity-50' : ''}>
+                        <CardContent className="pt-4 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Checkbox
+                                checked={!isExcluded}
+                                onCheckedChange={() => handleToggleWorker(worker.id)}
+                              />
+                              <Label className="font-medium">{worker.name}</Label>
+                              <Badge variant="secondary">{worker.trade}</Badge>
                             </div>
-
-                            {!isExcluded && (
-                              <div className="space-y-3">
-                                {entries.map((entry, index) => (
-                                  <div key={entry.id} className="space-y-2">
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                                      <div className="space-y-2">
-                                        <Label className="text-xs">Project *</Label>
-                                        <Select
-                                          value={entry.project_id}
-                                          onValueChange={(value) => updateProjectEntry(worker.id, entry.id, "project_id", value)}
-                                        >
-                                          <SelectTrigger className="h-9">
-                                            <SelectValue placeholder="Select" />
-                                          </SelectTrigger>
-                                          <SelectContent>
-                                            {projects.map((project) => (
-                                              <SelectItem key={project.id} value={project.id}>
-                                                {project.project_name}
-                                              </SelectItem>
-                                            ))}
-                                          </SelectContent>
-                                        </Select>
-                                      </div>
-
-                                      <div className="space-y-2">
-                                        <Label className="text-xs">Trade</Label>
-                                        <Select
-                                          value={entry.trade_id}
-                                          onValueChange={(value) => updateProjectEntry(worker.id, entry.id, "trade_id", value)}
-                                        >
-                                          <SelectTrigger className="h-9">
-                                            <SelectValue placeholder="Select" />
-                                          </SelectTrigger>
-                                          <SelectContent>
-                                            {trades.map((trade) => (
-                                              <SelectItem key={trade.id} value={trade.id}>
-                                                {trade.name}
-                                              </SelectItem>
-                                            ))}
-                                          </SelectContent>
-                                        </Select>
-                                      </div>
-
-                                      <div className="space-y-2">
-                                        <Label className="text-xs">Hours *</Label>
-                                        <div className="flex gap-2">
-                                          <Input
-                                            type="number"
-                                            step="0.5"
-                                            min="0"
-                                            max="24"
-                                            className="h-9"
-                                            value={entry.hours}
-                                            onChange={(e) => updateProjectEntry(worker.id, entry.id, "hours", e.target.value)}
-                                            placeholder="8"
-                                          />
-                                          {entries.length > 1 && (
-                                            <Button
-                                              type="button"
-                                              variant="ghost"
-                                              size="icon"
-                                              className="h-9 w-9"
-                                              onClick={() => removeProjectEntry(worker.id, entry.id)}
-                                            >
-                                              <Trash2 className="h-4 w-4" />
-                                            </Button>
-                                          )}
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </div>
-                                ))}
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => addProjectEntry(worker.id)}
-                                  className="w-full"
-                                >
-                                  <Plus className="h-4 w-4 mr-2" />
-                                  Add Another Project
-                                </Button>
-                              </div>
-                            )}
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => addProjectEntry(worker.id)}
+                              disabled={isExcluded}
+                            >
+                              <Plus className="w-4 h-4 mr-1" />
+                              Add Project
+                            </Button>
                           </div>
-                        </Card>
-                      );
-                    })}
-                  </div>
+
+                          {!isExcluded && entries.map((entry, idx) => (
+                            <div key={entry.id} className="grid grid-cols-12 gap-2 items-end">
+                              <div className="col-span-5">
+                                <Label className="text-xs">Project</Label>
+                                <Select
+                                  value={entry.project_id}
+                                  onValueChange={(val) => updateProjectEntry(worker.id, entry.id, 'project_id', val)}
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {projects.map((p) => (
+                                      <SelectItem key={p.id} value={p.id}>{p.project_name}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+
+                              <div className="col-span-3">
+                                <Label className="text-xs">Trade</Label>
+                                <Select
+                                  value={entry.trade_id}
+                                  onValueChange={(val) => updateProjectEntry(worker.id, entry.id, 'trade_id', val)}
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Trade" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {trades.map((t) => (
+                                      <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+
+                              <div className="col-span-2">
+                                <Label className="text-xs">Hours</Label>
+                                <Input
+                                  type="number"
+                                  step="0.5"
+                                  value={entry.hours}
+                                  onChange={(e) => updateProjectEntry(worker.id, entry.id, 'hours', e.target.value)}
+                                  placeholder="8"
+                                />
+                              </div>
+
+                              <div className="col-span-2 flex items-end">
+                                {entries.length > 1 && (
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => removeProjectEntry(worker.id, entry.id)}
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
                 </div>
 
-                <div className="flex gap-2 justify-end pt-4 border-t">
+                <div className="flex gap-2 justify-end">
                   <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                     Cancel
                   </Button>
                   <Button type="submit" disabled={loading}>
-                    {loading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Creating...
-                      </>
-                    ) : (
-                      `Create ${bulkShiftCount} Shift${bulkShiftCount !== 1 ? 's' : ''}`
-                    )}
+                    {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                    Schedule All
                   </Button>
                 </div>
               </form>
-            </TabsContent>
-          </Tabs>
-        )}
+            )}
+          </TabsContent>
 
-        {/* Subs Mode */}
-        {mode === 'subs' && (
-          <form onSubmit={handleSubSubmit} className="space-y-6">
-            {/* Date & Project Section */}
-            <div className="space-y-4 p-4 border rounded-lg bg-muted/20">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Date & Project</h3>
+          <TabsContent value="subs">
+            <form onSubmit={handleSubSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="sub-date">Date *</Label>
-                  <DatePickerWithPresets
-                    date={subDate}
-                    onDateChange={setSubDate}
-                  />
+                  <Label>Date *</Label>
+                  <DatePickerWithPresets date={subDate} onDateChange={setSubDate} />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="sub-project">Project *</Label>
+                  <Label>Subcontractor *</Label>
+                  <Select value={selectedSub} onValueChange={handleSubChange}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select subcontractor" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {subs.map((sub) => (
+                        <SelectItem key={sub.id} value={sub.id}>
+                          {sub.name}
+                          {subBookingWarning && selectedSub === sub.id && (
+                            <Badge variant="secondary" className="ml-2">Already scheduled</Badge>
+                          )}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Project *</Label>
                   <Select value={subProject} onValueChange={setSubProject}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select project" />
@@ -1009,57 +873,16 @@ export function AddToScheduleDialog({
                     <SelectContent>
                       {projects.map((project) => (
                         <SelectItem key={project.id} value={project.id}>
-                          {project.project_name} - {project.client_name}
+                          {project.project_name}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
-              </div>
-            </div>
 
-            {/* Subcontractor Section */}
-            <div className="space-y-4 p-4 border rounded-lg bg-muted/20">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Subcontractor</h3>
-              <div className="space-y-2">
-                <Label htmlFor="sub">Sub *</Label>
-                <Select value={selectedSub} onValueChange={handleSubChange}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select sub" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {subs.map((sub) => (
-                      <SelectItem key={sub.id} value={sub.id}>
-                        {sub.name} {sub.company_name ? `(${sub.company_name})` : ''} {sub.trade ? `- ${sub.trade}` : ''}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {selectedSubData && (
-                  <div className="text-xs text-muted-foreground space-y-1 mt-2">
-                    {selectedSubData.trade && <p>Trade: {selectedSubData.trade}</p>}
-                    {selectedSubData.company_name && <p>Company: {selectedSubData.company_name}</p>}
-                  </div>
-                )}
-                {subBookingWarning && (
-                  <Alert variant="default" className="mt-2">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription className="text-xs">
-                      This sub already has a schedule on this date
-                    </AlertDescription>
-                  </Alert>
-                )}
-              </div>
-            </div>
-
-            {/* Shift Details Section */}
-            <div className="space-y-4 p-4 border rounded-lg bg-muted/20">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Shift Details</h3>
-              <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="sub-hours">Scheduled Hours *</Label>
+                  <Label>Hours *</Label>
                   <Input
-                    id="sub-hours"
                     type="number"
                     step="0.5"
                     min="0"
@@ -1068,190 +891,146 @@ export function AddToScheduleDialog({
                     placeholder="8"
                   />
                 </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="sub-notes">Notes</Label>
-                  <Textarea
-                    id="sub-notes"
-                    value={subNotes}
-                    onChange={(e) => setSubNotes(e.target.value)}
-                    placeholder="Optional notes"
-                    rows={3}
-                  />
-                </div>
               </div>
-            </div>
 
-            {/* Add Another Checkbox */}
-            <div className="flex items-center space-x-2">
-              <Checkbox 
-                id="add-another-sub" 
-                checked={addAnother}
-                onCheckedChange={(checked) => setAddAnother(checked as boolean)}
-              />
-              <label
-                htmlFor="add-another-sub"
-                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-              >
-                Keep modal open to add another sub schedule
-              </label>
-            </div>
-
-            <div className="flex gap-2 justify-end pt-4 border-t">
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={loading}>
-                {loading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Creating...
-                  </>
-                ) : (
-                  "Create Sub Schedule"
-                )}
-              </Button>
-            </div>
-          </form>
-        )}
-
-        {/* Meetings Mode */}
-        {mode === 'meetings' && (
-          <form onSubmit={handleMeetingSubmit} className="space-y-6">
-            {/* Meeting Details Section */}
-            <div className="space-y-4 p-4 border rounded-lg bg-muted/20">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Meeting Details</h3>
-              <div className="space-y-4">
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="col-span-2 space-y-2">
-                    <Label htmlFor="meeting-date">Date *</Label>
-                    <DatePickerWithPresets
-                      date={meetingDate}
-                      onDateChange={setMeetingDate}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="meeting-time">Time</Label>
-                    <Input
-                      id="meeting-time"
-                      type="time"
-                      value={meetingTime}
-                      onChange={(e) => setMeetingTime(e.target.value)}
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="meeting-title">Title *</Label>
-                  <Input
-                    id="meeting-title"
-                    value={meetingTitle}
-                    onChange={(e) => setMeetingTitle(e.target.value)}
-                    placeholder="e.g., City inspection, Client walkthrough"
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="meeting-type">Type *</Label>
-                  <Select value={meetingType} onValueChange={(v) => setMeetingType(v as 'meeting' | 'inspection')}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="meeting">Meeting</SelectItem>
-                      <SelectItem value="inspection">Inspection</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </div>
-
-            {/* Project & Assignee Section */}
-            <div className="space-y-4 p-4 border rounded-lg bg-muted/20">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Project & Assignee</h3>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="meeting-project">Project *</Label>
-                  <Select value={meetingProject} onValueChange={setMeetingProject} required>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select project" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {projects.map((project) => (
-                        <SelectItem key={project.id} value={project.id}>
-                          {project.project_name} - {project.client_name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="meeting-assignee">Assignee</Label>
-                  <Select value={meetingAssignee} onValueChange={setMeetingAssignee}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select worker (optional)" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {workers.map((worker) => (
-                        <SelectItem key={worker.id} value={worker.id}>
-                          {worker.name} - {worker.trade}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </div>
-
-            {/* Notes Section */}
-            <div className="space-y-4 p-4 border rounded-lg bg-muted/20">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Notes</h3>
               <div className="space-y-2">
+                <Label>Notes</Label>
                 <Textarea
-                  id="meeting-notes"
-                  value={meetingNotes}
-                  onChange={(e) => setMeetingNotes(e.target.value)}
-                  placeholder="Meeting details, agenda items, etc."
+                  value={subNotes}
+                  onChange={(e) => setSubNotes(e.target.value)}
+                  placeholder="Add any notes..."
                   rows={3}
                 />
               </div>
-            </div>
 
-            {/* Add Another Checkbox */}
-            <div className="flex items-center space-x-2">
-              <Checkbox 
-                id="add-another-meeting" 
-                checked={addAnother}
-                onCheckedChange={(checked) => setAddAnother(checked as boolean)}
-              />
-              <label
-                htmlFor="add-another-meeting"
-                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-              >
-                Keep modal open to add another {meetingType}
-              </label>
-            </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="add-another-sub"
+                  checked={addAnother}
+                  onCheckedChange={(checked) => setAddAnother(checked as boolean)}
+                />
+                <Label htmlFor="add-another-sub" className="text-sm">
+                  Add another after saving
+                </Label>
+              </div>
 
-            <div className="flex gap-2 justify-end pt-4 border-t">
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={loading}>
-                {loading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Creating...
-                  </>
-                ) : (
-                  `Create ${meetingType === 'meeting' ? 'Meeting' : 'Inspection'}`
-                )}
-              </Button>
-            </div>
-          </form>
-        )}
+              <div className="flex gap-2 justify-end">
+                <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={loading}>
+                  {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                  Schedule Sub
+                </Button>
+              </div>
+            </form>
+          </TabsContent>
+
+          <TabsContent value="meetings">
+            <form onSubmit={handleMeetingSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label>Type *</Label>
+                <Select value={meetingType} onValueChange={(v: any) => setMeetingType(v)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="meeting">Meeting</SelectItem>
+                    <SelectItem value="inspection">Inspection</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Date *</Label>
+                  <DatePickerWithPresets date={meetingDate} onDateChange={setMeetingDate} />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Time (optional)</Label>
+                  <Input
+                    type="time"
+                    value={meetingTime}
+                    onChange={(e) => setMeetingTime(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Title *</Label>
+                <Input
+                  value={meetingTitle}
+                  onChange={(e) => setMeetingTitle(e.target.value)}
+                  placeholder="e.g., Client walkthrough"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Project *</Label>
+                <Select value={meetingProject} onValueChange={setMeetingProject}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select project" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {projects.map((project) => (
+                      <SelectItem key={project.id} value={project.id}>
+                        {project.project_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Assignee (optional)</Label>
+                <Select value={meetingAssignee} onValueChange={setMeetingAssignee}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Assign to..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {workers.map((worker) => (
+                      <SelectItem key={worker.id} value={worker.id}>
+                        {worker.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Notes</Label>
+                <Textarea
+                  value={meetingNotes}
+                  onChange={(e) => setMeetingNotes(e.target.value)}
+                  placeholder="Add any notes..."
+                  rows={3}
+                />
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="add-another-meeting"
+                  checked={addAnother}
+                  onCheckedChange={(checked) => setAddAnother(checked as boolean)}
+                />
+                <Label htmlFor="add-another-meeting" className="text-sm">
+                  Add another after saving
+                </Label>
+              </div>
+
+              <div className="flex gap-2 justify-end">
+                <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={loading}>
+                  {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                  Schedule {meetingType === 'meeting' ? 'Meeting' : 'Inspection'}
+                </Button>
+              </div>
+            </form>
+          </TabsContent>
+        </Tabs>
       </DialogContent>
     </Dialog>
   );
