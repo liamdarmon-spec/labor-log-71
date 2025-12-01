@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { UnitSelect } from "@/components/shared/UnitSelect";
 import {
   Select,
   SelectContent,
@@ -269,12 +270,12 @@ export function ScopeBlockEditor({
                           />
                         </td>
                         <td className="px-3 py-2">
-                          <Input
+                          <UnitSelect
                             value={item.unit}
-                            onChange={(e) =>
+                            onChange={(value) =>
                               updateCostItem.mutate({
                                 id: item.id,
-                                unit: e.target.value,
+                                unit: value,
                               })
                             }
                             className="h-8"

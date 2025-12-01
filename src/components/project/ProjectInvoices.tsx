@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { UnitSelect } from '@/components/shared/UnitSelect';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -275,10 +276,10 @@ export const ProjectInvoices = ({ projectId }: { projectId: string }) => {
                         />
                       </div>
                       <div className="col-span-2">
-                        <Input
+                        <UnitSelect
                           placeholder="Unit"
                           value={item.unit}
-                          onChange={(e) => updateLineItem(index, 'unit', e.target.value)}
+                          onChange={(value) => updateLineItem(index, 'unit', value)}
                         />
                       </div>
                       <div className="col-span-2">

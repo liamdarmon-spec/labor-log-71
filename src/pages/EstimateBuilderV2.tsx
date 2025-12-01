@@ -2,7 +2,7 @@
 import { useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 
 import {
   Card,
@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { UnitSelect } from "@/components/shared/UnitSelect";
 import {
   Table,
   TableBody,
@@ -96,10 +97,15 @@ const normalizeCategory = (raw: string | null) => {
   return "other";
 };
 
-export function EstimateBuilderV2({ estimateId, projectId }: EstimateBuilderProps) {
+export function EstimateBuilderV2() {
+  const { estimateId } = useParams<{ estimateId: string }>();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+
+  if (!estimateId) {
+    return <div>No estimate ID provided</div>;
+  }
 
   /* 1) Load estimate + blocks + items */
 
@@ -114,6 +120,8 @@ export function EstimateBuilderV2({ estimateId, projectId }: EstimateBuilderProp
 
       if (estError) throw estError;
       if (!estimate) throw new Error("Estimate not found");
+
+      const projectId = estimate.project_id;
 
       const { data: blocks, error: blocksError } = await supabase
         .from("scope_blocks")
@@ -154,6 +162,7 @@ export function EstimateBuilderV2({ estimateId, projectId }: EstimateBuilderProp
 
   const estimate = data?.estimate;
   const scopeBlocks = data?.scopeBlocks || [];
+  const projectId = estimate?.project_id;
 
   /* 2) Helpers: totals */
 
@@ -341,12 +350,6 @@ export function EstimateBuilderV2({ estimateId, projectId }: EstimateBuilderProp
       toast({
         title: "Budget baseline set",
         description: "This estimate is now the active project budget.",
-        action: {
-          label: "View Budget",
-          onClick: () => {
-            navigate(`/projects/${projectId}?tab=budget`);
-          },
-        },
       });
     },
     onError: (err: any) => {
@@ -580,14 +583,14 @@ export function EstimateBuilderV2({ estimateId, projectId }: EstimateBuilderProp
                             }
                           />
                         </TableCell>
-                        <TableCell className="w-[80px]">
-                          <Input
+                        <TableCell className="w-[100px]">
+                          <UnitSelect
                             className="h-8 text-xs"
-                            placeholder="ea"
-                            value={item.unit ?? ""}
-                            onChange={(e) =>
+                            placeholder="Unit"
+                            value={item.unit}
+                            onChange={(value) =>
                               handleItemFieldChange(item.id, {
-                                unit: e.target.value || null,
+                                unit: value || null,
                               })
                             }
                           />
@@ -669,3 +672,5 @@ export function EstimateBuilderV2({ estimateId, projectId }: EstimateBuilderProp
     </div>
   );
 }
+
+export default EstimateBuilderV2;
