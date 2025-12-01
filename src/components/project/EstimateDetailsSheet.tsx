@@ -19,12 +19,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { FileText, CheckCircle2, Star, Edit3 } from "lucide-react";
+import { FileText, CheckCircle2, Star, Edit3, BarChart3 } from "lucide-react";
 import { format } from "date-fns";
 import { useNavigate } from "react-router-dom";
 
 interface EstimateDetailsSheetProps {
   estimateId: string | null;
+  projectId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
@@ -72,6 +73,7 @@ interface LegacyEstimateItem {
 
 export function EstimateDetailsSheet({
   estimateId,
+  projectId,
   open,
   onOpenChange,
 }: EstimateDetailsSheetProps) {
@@ -227,6 +229,12 @@ export function EstimateDetailsSheet({
     navigate(`/estimates/${estimateId}`);
   };
 
+  const handleOpenBudgetTracking = () => {
+    onOpenChange(false);
+    // 👉 Adjust this route if your project financials path is different
+    navigate(`/projects/${projectId}/financials`);
+  };
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full sm:max-w-3xl overflow-y-auto">
@@ -270,7 +278,16 @@ export function EstimateDetailsSheet({
                       )
                     : "—"}
                 </span>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleOpenBudgetTracking}
+                    className="gap-1"
+                  >
+                    <BarChart3 className="h-4 w-4" />
+                    View Budget Tracking
+                  </Button>
                   <Button
                     variant="outline"
                     size="sm"
