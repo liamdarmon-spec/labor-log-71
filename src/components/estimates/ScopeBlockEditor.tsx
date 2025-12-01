@@ -233,7 +233,6 @@ export function ScopeBlockEditor({
                         <td className="px-3 py-2">
                           <CostCodeSelect
                             value={item.cost_code_id}
-                            category={item.category}
                             required
                             onChange={(val) =>
                               updateCostItem.mutate({

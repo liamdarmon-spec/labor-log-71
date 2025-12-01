@@ -564,7 +564,6 @@ export function EditTimeEntryDialog({
                     <Label className="text-xs">Cost Code *</Label>
                     <CostCodeSelect
                       value={alloc.cost_code_id}
-                      category="labor"
                       required
                       onChange={(val) =>
                         handleUpdateAllocation(

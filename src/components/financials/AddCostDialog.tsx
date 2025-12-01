@@ -262,7 +262,6 @@ export function AddCostDialog({ open, onOpenChange }: AddCostDialogProps) {
                     <FormControl>
                       <CostCodeSelect
                         value={field.value || null}
-                        category={costCodeCategory}
                         required
                         onChange={(val) =>
                           field.onChange(val ?? "")
