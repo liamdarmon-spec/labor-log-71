@@ -10,6 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
+import { UnitSelect } from '@/components/shared/UnitSelect';
 import {
   Select,
   SelectContent,
@@ -242,15 +243,14 @@ export function ProjectBudgetBuilderTab({
                 disabled={disabled}
               />
             </div>
-            <div className="w-20">
-              <Input
-                value={draft.unit ?? ''}
-                onChange={(e) =>
-                  handleChange(line.id, 'unit', e.target.value as any)
+            <div className="w-24">
+              <UnitSelect
+                value={draft.unit}
+                onChange={(value) =>
+                  handleChange(line.id, 'unit', value as any)
                 }
                 className="h-8 text-xs"
                 placeholder="Unit"
-                disabled={disabled}
               />
             </div>
             <div className="w-28">

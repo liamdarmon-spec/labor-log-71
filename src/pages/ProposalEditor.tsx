@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { UnitSelect } from '@/components/shared/UnitSelect';
 import { useToast } from '@/hooks/use-toast';
 import {
   ArrowLeft,
@@ -355,10 +356,10 @@ export default function ProposalEditor() {
                           />
                         </TableCell>
                         <TableCell>
-                          <Input
+                          <UnitSelect
                             value={item.display_unit || ''}
-                            onChange={(e) =>
-                              updateItem(section.id, item.id, 'display_unit', e.target.value)
+                            onChange={(value) =>
+                              updateItem(section.id, item.id, 'display_unit', value)
                             }
                           />
                         </TableCell>
