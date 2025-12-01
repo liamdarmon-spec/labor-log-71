@@ -180,12 +180,6 @@ export default function EstimateBuilderV2() {
                 Approve
               </Button>
             )}
-            <Button
-              variant="outline"
-              onClick={() => navigate(`/estimates/${estimateId}/settings`)}
-            >
-              <Settings className="w-4 h-4" />
-            </Button>
           </div>
         </div>
 
