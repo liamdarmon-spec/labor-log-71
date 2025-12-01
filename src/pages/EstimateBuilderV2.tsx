@@ -2,7 +2,7 @@
 import { useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 import {
   Card,
@@ -13,7 +13,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { UnitSelect } from "@/components/shared/UnitSelect";
 import {
   Table,
   TableBody,
@@ -89,6 +88,18 @@ const CATEGORY_OPTIONS = [
   { value: "other", label: "Other" },
 ];
 
+const UNIT_OPTIONS = [
+  { value: "ea", label: "Each" },
+  { value: "lf", label: "Linear Ft" },
+  { value: "sf", label: "Square Ft" },
+  { value: "sy", label: "Square Yd" },
+  { value: "cf", label: "Cubic Ft" },
+  { value: "day", label: "Day" },
+  { value: "hr", label: "Hour" },
+  { value: "wk", label: "Week" },
+  { value: "ls", label: "Lump Sum" },
+];
+
 const normalizeCategory = (raw: string | null) => {
   const v = (raw || "").toLowerCase();
   if (v.startsWith("lab")) return "labor";
@@ -97,15 +108,20 @@ const normalizeCategory = (raw: string | null) => {
   return "other";
 };
 
-export function EstimateBuilderV2() {
-  const { estimateId } = useParams<{ estimateId: string }>();
+const normalizeUnit = (raw: string | null) => {
+  const v = (raw || "").toLowerCase();
+  if (!v) return "ea";
+  const valid = UNIT_OPTIONS.map((u) => u.value);
+  return valid.includes(v as any) ? v : "ea";
+};
+
+export function EstimateBuilderV2({
+  estimateId,
+  projectId,
+}: EstimateBuilderProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-
-  if (!estimateId) {
-    return <div>No estimate ID provided</div>;
-  }
 
   /* 1) Load estimate + blocks + items */
 
@@ -120,8 +136,6 @@ export function EstimateBuilderV2() {
 
       if (estError) throw estError;
       if (!estimate) throw new Error("Estimate not found");
-
-      const projectId = estimate.project_id;
 
       const { data: blocks, error: blocksError } = await supabase
         .from("scope_blocks")
@@ -162,7 +176,6 @@ export function EstimateBuilderV2() {
 
   const estimate = data?.estimate;
   const scopeBlocks = data?.scopeBlocks || [];
-  const projectId = estimate?.project_id;
 
   /* 2) Helpers: totals */
 
@@ -234,7 +247,9 @@ export function EstimateBuilderV2() {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["estimate-builder", estimateId] });
+      queryClient.invalidateQueries({
+        queryKey: ["estimate-builder", estimateId],
+      });
     },
     onError: (err: any) => {
       console.error("Failed to add cost item", err);
@@ -263,10 +278,8 @@ export function EstimateBuilderV2() {
           .maybeSingle<Pick<ScopeBlockCostItem, "quantity" | "unit_price">>();
 
         if (getErr) throw getErr;
-        const quantity =
-          (patch.quantity ?? existing?.quantity ?? 0) || 0;
-        const unit_price =
-          (patch.unit_price ?? existing?.unit_price ?? 0) || 0;
+        const quantity = (patch.quantity ?? existing?.quantity ?? 0) || 0;
+        const unit_price = (patch.unit_price ?? existing?.unit_price ?? 0) || 0;
         newPatch.line_total = quantity * unit_price;
       }
 
@@ -278,7 +291,9 @@ export function EstimateBuilderV2() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["estimate-builder", estimateId] });
+      queryClient.invalidateQueries({
+        queryKey: ["estimate-builder", estimateId],
+      });
     },
     onError: (err: any) => {
       console.error("Failed to update item", err);
@@ -304,7 +319,9 @@ export function EstimateBuilderV2() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["estimate-builder", estimateId] });
+      queryClient.invalidateQueries({
+        queryKey: ["estimate-builder", estimateId],
+      });
       toast({ title: "Draft saved", description: "Estimate totals updated." });
     },
     onError: (err: any) => {
@@ -334,22 +351,31 @@ export function EstimateBuilderV2() {
       if (estErr) throw estErr;
 
       // 2) Sync to budget via RPC
-      const { error: rpcErr } = await supabase.rpc(
-        "sync_estimate_to_budget",
-        { p_estimate_id: estimateId }
-      );
+      const { error: rpcErr } = await supabase.rpc("sync_estimate_to_budget", {
+        p_estimate_id: estimateId,
+      });
       if (rpcErr) throw rpcErr;
 
       // 3) Notify budget views
       window.dispatchEvent(new Event("budget-updated"));
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["estimate-builder", estimateId] });
-      queryClient.invalidateQueries({ queryKey: ["project_budget_header", projectId] });
+      queryClient.invalidateQueries({
+        queryKey: ["estimate-builder", estimateId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["project_budget_header", projectId],
+      });
 
       toast({
         title: "Budget baseline set",
         description: "This estimate is now the active project budget.",
+        action: {
+          label: "View Budget",
+          onClick: () => {
+            navigate(`/projects/${projectId}?tab=budget`);
+          },
+        },
       });
     },
     onError: (err: any) => {
@@ -453,14 +479,15 @@ export function EstimateBuilderV2() {
         </div>
       </div>
 
-      {/* Small helper strip about groups/items */}
+      {/* Helper strip about groups/items */}
       <Card>
         <CardContent className="py-3">
           <p className="text-xs text-muted-foreground">
-            Use <span className="font-medium">groups / sections</span> (e.g. Tile,
-            Demo, Framing) and add <span className="font-medium">cost items</span>{" "}
-            inside each group for labor, subs, and materials. Each row pulls into
-            your project budget by cost code.
+            Use <span className="font-medium">groups / sections</span> (e.g.
+            Tile, Demo, Framing) and add{" "}
+            <span className="font-medium">cost items</span> inside each group
+            for labor, subs, and materials. Each row pulls into your project
+            budget by cost code.
           </p>
         </CardContent>
       </Card>
@@ -521,115 +548,150 @@ export function EstimateBuilderV2() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {items.map((item) => (
-                      <TableRow key={item.id}>
-                        <TableCell className="w-[120px]">
-                          <Select
-                            value={normalizeCategory(item.category)}
-                            onValueChange={(val) =>
-                              handleItemFieldChange(item.id, { category: val })
-                            }
-                          >
-                            <SelectTrigger className="h-8 text-xs">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {CATEGORY_OPTIONS.map((opt) => (
-                                <SelectItem
-                                  key={opt.value}
-                                  value={opt.value}
-                                >
-                                  {opt.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </TableCell>
-                        <TableCell className="w-[200px]">
-                          <CostCodeSelect
-                            value={item.cost_code_id}
-                            required
-                            onChange={(val) =>
-                              handleItemFieldChange(item.id, {
-                                cost_code_id: val ?? undefined,
-                              })
-                            }
-                          />
-                        </TableCell>
-                        <TableCell className="max-w-[260px]">
-                          <Input
-                            className="h-8 text-sm"
-                            placeholder="Describe the work or material…"
-                            value={item.description}
-                            onChange={(e) =>
-                              handleItemFieldChange(item.id, {
-                                description: e.target.value,
-                              })
-                            }
-                          />
-                        </TableCell>
-                        <TableCell className="text-right w-[80px]">
-                          <Input
-                            type="number"
-                            className="h-8 text-right text-xs"
-                            placeholder="Qty"
-                            value={formatNumberInputValue(item.quantity)}
-                            onChange={(e) =>
-                              handleItemFieldChange(item.id, {
-                                quantity: e.target.value === ""
-                                  ? null
-                                  : Number(e.target.value || 0),
-                              })
-                            }
-                          />
-                        </TableCell>
-                        <TableCell className="w-[100px]">
-                          <UnitSelect
-                            className="h-8 text-xs"
-                            placeholder="Unit"
-                            value={item.unit}
-                            onChange={(value) =>
-                              handleItemFieldChange(item.id, {
-                                unit: value || null,
-                              })
-                            }
-                          />
-                        </TableCell>
-                        <TableCell className="text-right w-[110px]">
-                          <Input
-                            type="number"
-                            className="h-8 text-right text-xs"
-                            placeholder="Rate"
-                            value={formatNumberInputValue(item.unit_price)}
-                            onChange={(e) =>
-                              handleItemFieldChange(item.id, {
-                                unit_price: e.target.value === ""
-                                  ? null
-                                  : Number(e.target.value || 0),
-                              })
-                            }
-                          />
-                        </TableCell>
-                        <TableCell className="text-right w-[110px]">
-                          <Input
-                            type="number"
-                            className="h-8 text-right text-xs"
-                            placeholder="0"
-                            value={formatNumberInputValue(item.markup_percent)}
-                            onChange={(e) =>
-                              handleItemFieldChange(item.id, {
-                                markup_percent: e.target.value === ""
-                                  ? null
-                                  : Number(e.target.value || 0),
-                              })
-                            }
-                          />
-                        </TableCell>
-                        <TableCell className="text-right w-[120px] text-sm font-semibold">
-                          {displayLineTotal(item)}
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {items.map((item) => {
+                      const currentUnit = normalizeUnit(item.unit);
+                      const currentCategory = normalizeCategory(
+                        item.category
+                      );
+
+                      return (
+                        <TableRow key={item.id}>
+                          <TableCell className="w-[120px]">
+                            <Select
+                              value={currentCategory}
+                              onValueChange={(val) =>
+                                handleItemFieldChange(item.id, {
+                                  category: val,
+                                })
+                              }
+                            >
+                              <SelectTrigger className="h-8 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {CATEGORY_OPTIONS.map((opt) => (
+                                  <SelectItem
+                                    key={opt.value}
+                                    value={opt.value}
+                                  >
+                                    {opt.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                          <TableCell className="w-[200px]">
+                            <CostCodeSelect
+                              value={item.cost_code_id}
+                              required
+                              onChange={(val) =>
+                                handleItemFieldChange(item.id, {
+                                  cost_code_id: val ?? undefined,
+                                })
+                              }
+                            />
+                          </TableCell>
+                          <TableCell className="max-w-[260px]">
+                            <Input
+                              className="h-8 text-sm"
+                              placeholder="Describe the work or material…"
+                              value={item.description}
+                              onChange={(e) =>
+                                handleItemFieldChange(item.id, {
+                                  description: e.target.value,
+                                })
+                              }
+                            />
+                          </TableCell>
+                          <TableCell className="text-right w-[80px]">
+                            <Input
+                              type="number"
+                              inputMode="decimal"
+                              step="0.01"
+                              min={0}
+                              className="h-8 text-right text-xs"
+                              placeholder="Qty"
+                              value={formatNumberInputValue(item.quantity)}
+                              onChange={(e) =>
+                                handleItemFieldChange(item.id, {
+                                  quantity:
+                                    e.target.value === ""
+                                      ? null
+                                      : Number(e.target.value || 0),
+                                })
+                              }
+                            />
+                          </TableCell>
+                          <TableCell className="w-[100px]">
+                            <Select
+                              value={currentUnit}
+                              onValueChange={(val) =>
+                                handleItemFieldChange(item.id, {
+                                  unit: val,
+                                })
+                              }
+                            >
+                              <SelectTrigger className="h-8 text-xs">
+                                <SelectValue placeholder="Unit" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {UNIT_OPTIONS.map((opt) => (
+                                  <SelectItem
+                                    key={opt.value}
+                                    value={opt.value}
+                                  >
+                                    {opt.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                          <TableCell className="text-right w-[110px]">
+                            <Input
+                              type="number"
+                              inputMode="decimal"
+                              step="0.01"
+                              min={0}
+                              className="h-8 text-right text-xs"
+                              placeholder="Rate"
+                              value={formatNumberInputValue(item.unit_price)}
+                              onChange={(e) =>
+                                handleItemFieldChange(item.id, {
+                                  unit_price:
+                                    e.target.value === ""
+                                      ? null
+                                      : Number(e.target.value || 0),
+                                })
+                              }
+                            />
+                          </TableCell>
+                          <TableCell className="text-right w-[110px]">
+                            <Input
+                              type="number"
+                              inputMode="decimal"
+                              step="0.01"
+                              min={0}
+                              className="h-8 text-right text-xs"
+                              placeholder="0"
+                              value={formatNumberInputValue(
+                                item.markup_percent
+                              )}
+                              onChange={(e) =>
+                                handleItemFieldChange(item.id, {
+                                  markup_percent:
+                                    e.target.value === ""
+                                      ? null
+                                      : Number(e.target.value || 0),
+                                })
+                              }
+                            />
+                          </TableCell>
+                          <TableCell className="text-right w-[120px] text-sm font-semibold">
+                            {displayLineTotal(item)}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
 
                     <TableRow>
                       <TableCell colSpan={8}>
@@ -646,7 +708,10 @@ export function EstimateBuilderV2() {
                     </TableRow>
 
                     <TableRow>
-                      <TableCell colSpan={7} className="text-right font-medium align-top">
+                      <TableCell
+                        colSpan={7}
+                        className="text-right font-medium align-top"
+                      >
                         <div className="space-y-1">
                           <div>Section Total:</div>
                           <div className="text-[11px] text-muted-foreground">
@@ -672,5 +737,3 @@ export function EstimateBuilderV2() {
     </div>
   );
 }
-
-export default EstimateBuilderV2;
