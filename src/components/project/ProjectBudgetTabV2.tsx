@@ -2,9 +2,9 @@ import { useState } from 'react';
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
+  CardDescription,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -31,19 +31,25 @@ import {
   CheckCircle,
   RefreshCw,
   BarChart3,
+  ChevronDown,
+  ChevronRight,
 } from 'lucide-react';
 import { useUnifiedProjectBudget } from '@/hooks/useUnifiedProjectBudget';
 import { useRecalculateProjectFinancials } from '@/hooks/useProjectFinancials';
 import { Skeleton } from '@/components/ui/skeleton';
+import { cn } from '@/lib/utils';
 
 interface ProjectBudgetTabV2Props {
   projectId: string;
 }
 
+type BudgetTabValue = 'all' | 'labor' | 'subs' | 'materials' | 'other';
+
 export function ProjectBudgetTabV2({ projectId }: ProjectBudgetTabV2Props) {
   const { data: budgetData, isLoading } = useUnifiedProjectBudget(projectId);
   const recalculate = useRecalculateProjectFinancials();
-  const [tabValue, setTabValue] = useState<'all' | 'labor' | 'subs' | 'materials' | 'other'>('all');
+  const [tabValue, setTabValue] = useState<BudgetTabValue>('all');
+  const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
 
   if (isLoading || !budgetData) {
     return (
@@ -85,12 +91,12 @@ export function ProjectBudgetTabV2({ projectId }: ProjectBudgetTabV2Props) {
   const materialsActual = summary.materials_actual;
   const otherActual = summary.other_actual;
 
-  // Totals
+  // Totals (for now: Budget vs Actual; ledger uses Total Cost for variance)
   const baseline = summary.total_budget;
   const actual = summary.total_actual;
 
   const remaining = baseline - actual;
-  const variance = baseline - actual; // positive = under budget
+  const variance = baseline - actual; // summary variance still Budget - Actual
   const variancePercent = baseline > 0 ? (variance / baseline) * 100 : 0;
   const percentConsumed = baseline > 0 ? (actual / baseline) * 100 : 0;
 
@@ -129,86 +135,209 @@ export function ProjectBudgetTabV2({ projectId }: ProjectBudgetTabV2Props) {
     recalculate.mutate(projectId);
   };
 
-  const filteredLines = budgetData.costCodeLines.filter((line) => {
+  const filteredLines = budgetData.costCodeLines.filter((line: any) => {
     if (tabValue === 'all') return true;
     return line.category === tabValue;
   });
+
+  const formatMoney = (value: number) =>
+    `$${value.toLocaleString(undefined, {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    })}`;
+
+  const renderDetailsRow = (line: any) => {
+    const details = line.details || [];
+    if (!details.length) {
+      return (
+        <div className="text-xs text-muted-foreground py-2">
+          No underlying transactions yet for this cost code.
+        </div>
+      );
+    }
+
+    return (
+      <div className="py-2">
+        <div className="text-xs font-semibold mb-2">
+          Transactions ({details.length})
+        </div>
+        <div className="border rounded-md overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/60">
+                <TableHead className="text-xs">Date</TableHead>
+                <TableHead className="text-xs">Type</TableHead>
+                <TableHead className="text-xs">Description</TableHead>
+                <TableHead className="text-xs text-right">Amount</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {details.map((entry: any, idx: number) => (
+                <TableRow key={entry.id || idx}>
+                  <TableCell className="text-xs">
+                    {entry.date
+                      ? new Date(entry.date).toLocaleDateString()
+                      : '—'}
+                  </TableCell>
+                  <TableCell className="text-xs capitalize">
+                    {entry.type || 'entry'}
+                  </TableCell>
+                  <TableCell className="text-xs">
+                    {entry.description || '—'}
+                  </TableCell>
+                  <TableCell className="text-xs text-right">
+                    {formatMoney(entry.amount ?? 0)}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
+    );
+  };
 
   const renderLedgerTable = () => (
     <div className="border rounded-lg">
       <Table>
         <TableHeader>
           <TableRow>
+            <TableHead className="w-8" />
             <TableHead>Code</TableHead>
             <TableHead>Description</TableHead>
             <TableHead>Category</TableHead>
             <TableHead className="text-right">Budget</TableHead>
-            <TableHead className="text-right">Actual</TableHead>
+            <TableHead className="text-right">Actuals</TableHead>
+            <TableHead className="text-right">Committed</TableHead>
+            <TableHead className="text-right">Total Cost</TableHead>
             <TableHead className="text-right">Variance</TableHead>
+            <TableHead className="text-right">EAC</TableHead>
             <TableHead className="text-right">% Used</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {filteredLines && filteredLines.length > 0 ? (
-            filteredLines.map((line) => {
-              const actualCost = line.actual_amount ?? 0;
+            filteredLines.map((line: any) => {
+              const rowKey =
+                line.cost_code_id ||
+                `${line.code || 'NO-CODE'}-${line.category || 'other'}`;
+
               const budgetAmount = line.budget_amount ?? 0;
-              const lineVariance = budgetAmount - actualCost; // positive = under budget
+              const actualCost = line.actual_amount ?? 0;
+              const committedAmount = (line as any).committed_amount ?? 0;
+              const totalCost = actualCost + committedAmount;
+
+              // For ledger variance, we use Budget - Total Cost
+              const lineVariance = budgetAmount - totalCost;
+
+              // EAC: PM forecast > explicit eac > Total Cost
+              const pmForecast = (line as any).pm_forecast;
+              const eac =
+                pmForecast ??
+                (line as any).eac ??
+                totalCost;
+
               const percentUsed =
-                budgetAmount > 0 ? (actualCost / budgetAmount) * 100 : 0;
+                budgetAmount > 0 ? (totalCost / budgetAmount) * 100 : 0;
+
+              const isOverBudget = lineVariance < 0;
+              const isExpanded = expandedRowId === rowKey;
 
               return (
-                <TableRow
-                  key={line.cost_code_id || `${line.code}-${line.category}`}
-                >
-                  <TableCell className="font-mono text-sm">
-                    {line.code || 'N/A'}
-                  </TableCell>
-                  <TableCell>
-                    {line.description || 'Unnamed'}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="secondary" className="capitalize">
-                      {line.category}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    ${budgetAmount.toLocaleString()}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    ${actualCost.toLocaleString()}
-                  </TableCell>
-                  <TableCell
-                    className={`text-right ${
-                      lineVariance < 0 ? 'text-red-600' : 'text-green-600'
-                    }`}
+                <>
+                  <TableRow
+                    key={rowKey}
+                    className={cn(
+                      'cursor-pointer hover:bg-muted/50',
+                      isExpanded && 'bg-muted/60'
+                    )}
+                    onClick={() =>
+                      setExpandedRowId((prev) =>
+                        prev === rowKey ? null : rowKey
+                      )
+                    }
                   >
-                    {lineVariance < 0 ? '-' : '+'}$
-                    {Math.abs(lineVariance).toLocaleString()}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <span
-                        className={
-                          percentUsed > 90
-                            ? 'text-red-600 font-semibold'
-                            : ''
-                        }
-                      >
-                        {percentUsed.toFixed(1)}%
-                      </span>
-                      {percentUsed > 90 && (
-                        <AlertTriangle className="w-4 h-4 text-red-600" />
+                    <TableCell className="align-middle">
+                      {isExpanded ? (
+                        <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                      ) : (
+                        <ChevronRight className="w-4 h-4 text-muted-foreground" />
                       )}
-                    </div>
-                  </TableCell>
-                </TableRow>
+                    </TableCell>
+                    <TableCell className="font-mono text-sm">
+                      {line.code || 'N/A'}
+                    </TableCell>
+                    <TableCell>
+                      {line.description || 'Unnamed'}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="secondary" className="capitalize">
+                        {line.category}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {formatMoney(budgetAmount)}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {formatMoney(actualCost)}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {formatMoney(committedAmount)}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {formatMoney(totalCost)}
+                    </TableCell>
+                    <TableCell
+                      className={cn(
+                        'text-right',
+                        isOverBudget ? 'text-red-600' : 'text-green-600'
+                      )}
+                    >
+                      {isOverBudget ? '-' : '+'}
+                      {formatMoney(Math.abs(lineVariance))}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex flex-col items-end">
+                        <span className="font-medium">
+                          {formatMoney(eac)}
+                        </span>
+                        {pmForecast != null && (
+                          <span className="text-[10px] text-muted-foreground">
+                            PM Forecast
+                          </span>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <span
+                          className={cn(
+                            percentUsed > 90 && 'text-red-600 font-semibold'
+                          )}
+                        >
+                          {percentUsed.toFixed(1)}%
+                        </span>
+                        {percentUsed > 90 && (
+                          <AlertTriangle className="w-4 h-4 text-red-600" />
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+
+                  {isExpanded && (
+                    <TableRow>
+                      <TableCell colSpan={11} className="bg-muted/40">
+                        {renderDetailsRow(line)}
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </>
               );
             })
           ) : (
             <TableRow>
               <TableCell
-                colSpan={7}
+                colSpan={11}
                 className="text-center py-8 text-muted-foreground"
               >
                 No budget lines found. Sync an estimate to create a budget.
@@ -233,7 +362,7 @@ export function ProjectBudgetTabV2({ projectId }: ProjectBudgetTabV2Props) {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              ${baseline.toLocaleString()}
+              {formatMoney(baseline)}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               Sum of all budget lines
@@ -250,7 +379,7 @@ export function ProjectBudgetTabV2({ projectId }: ProjectBudgetTabV2Props) {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              ${actual.toLocaleString()}
+              {formatMoney(actual)}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               {percentConsumed.toFixed(1)}% of budget
@@ -271,11 +400,12 @@ export function ProjectBudgetTabV2({ projectId }: ProjectBudgetTabV2Props) {
           </CardHeader>
           <CardContent>
             <div
-              className={`text-2xl font-bold ${
-                remaining < 0 ? 'text-red-600' : ''
-              }`}
+              className={cn(
+                'text-2xl font-bold',
+                remaining < 0 && 'text-red-600'
+              )}
             >
-              ${remaining.toLocaleString()}
+              {formatMoney(remaining)}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               {baseline > 0 ? ((remaining / baseline) * 100).toFixed(1) : 0}% left
@@ -296,11 +426,12 @@ export function ProjectBudgetTabV2({ projectId }: ProjectBudgetTabV2Props) {
           </CardHeader>
           <CardContent>
             <div
-              className={`text-2xl font-bold ${
+              className={cn(
+                'text-2xl font-bold',
                 variance < 0 ? 'text-red-600' : 'text-green-600'
-              }`}
+              )}
             >
-              ${Math.abs(variance).toLocaleString()}
+              {formatMoney(Math.abs(variance))}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               {variance < 0 ? 'Over' : 'Under'} by{' '}
@@ -325,9 +456,10 @@ export function ProjectBudgetTabV2({ projectId }: ProjectBudgetTabV2Props) {
               disabled={recalculate.isPending}
             >
               <RefreshCw
-                className={`w-4 h-4 mr-2 ${
-                  recalculate.isPending ? 'animate-spin' : ''
-                }`}
+                className={cn(
+                  'w-4 h-4 mr-2',
+                  recalculate.isPending && 'animate-spin'
+                )}
               />
               Recalculate
             </Button>
@@ -356,18 +488,18 @@ export function ProjectBudgetTabV2({ projectId }: ProjectBudgetTabV2Props) {
                     </div>
                     <div className="text-right">
                       <div className="font-semibold">
-                        ${cat.actual.toLocaleString()} / $
-                        {cat.budget.toLocaleString()}
+                        {formatMoney(cat.actual)} / {formatMoney(cat.budget)}
                       </div>
                       <div
-                        className={`text-sm ${
+                        className={cn(
+                          'text-sm',
                           catVariance < 0
                             ? 'text-red-600'
                             : 'text-muted-foreground'
-                        }`}
+                        )}
                       >
-                        {catVariance < 0 ? '-' : '+'}$
-                        {Math.abs(catVariance).toLocaleString()} (
+                        {catVariance < 0 ? '-' : '+'}
+                        {formatMoney(Math.abs(catVariance))} (
                         {catPercent.toFixed(1)}%)
                       </div>
                     </div>
@@ -383,18 +515,18 @@ export function ProjectBudgetTabV2({ projectId }: ProjectBudgetTabV2Props) {
         </CardContent>
       </Card>
 
-      {/* Cost Code Ledger – unified, tab-filtered */}
+      {/* Cost Code Ledger – unified, tab-filtered, 4-point variance + EAC */}
       <Card>
         <CardHeader>
           <CardTitle>Cost Code Ledger</CardTitle>
-          <CardDescription>Detailed breakdown by cost code</CardDescription>
+          <CardDescription>
+            Budget, Actuals, Committed, Total Cost, Variance & EAC
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <Tabs
             value={tabValue}
-            onValueChange={(val) =>
-              setTabValue(val as 'all' | 'labor' | 'subs' | 'materials' | 'other')
-            }
+            onValueChange={(val) => setTabValue(val as BudgetTabValue)}
             className="w-full"
           >
             <TabsList>
