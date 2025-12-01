@@ -1,3 +1,4 @@
+// DEPRECATED: replaced by ProjectEstimatesV3 - do not use this component
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card } from '@/components/ui/card';

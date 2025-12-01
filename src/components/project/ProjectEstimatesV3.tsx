@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { FileText, Eye, Star, Zap, Edit3 } from "lucide-react";
+import { FileText, Star, Zap, Edit3 } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { CreateEstimateDialog } from "./CreateEstimateDialog";
