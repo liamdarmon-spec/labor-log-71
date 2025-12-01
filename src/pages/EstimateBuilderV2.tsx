@@ -1,5 +1,5 @@
 // src/components/estimates/EstimateBuilderV2.tsx
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
@@ -115,6 +115,16 @@ const normalizeUnit = (raw: string | null) => {
   return valid.includes(v as any) ? v : "ea";
 };
 
+// local drafts for numeric fields so typing is instant
+type NumberDrafts = Record<
+  string,
+  {
+    quantity?: string;
+    unit_price?: string;
+    markup_percent?: string;
+  }
+>;
+
 export function EstimateBuilderV2({
   estimateId,
   projectId,
@@ -122,6 +132,7 @@ export function EstimateBuilderV2({
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const [numberDrafts, setNumberDrafts] = useState<NumberDrafts>({});
 
   /* 1) Load estimate + blocks + items */
 
@@ -336,7 +347,6 @@ export function EstimateBuilderV2({
 
   const saveAndSetBudgetMutation = useMutation({
     mutationFn: async () => {
-      // 1) Update estimate as accepted + budget source with correct totals
       const { error: estErr } = await supabase
         .from("estimates")
         .update({
@@ -350,13 +360,11 @@ export function EstimateBuilderV2({
 
       if (estErr) throw estErr;
 
-      // 2) Sync to budget via RPC
       const { error: rpcErr } = await supabase.rpc("sync_estimate_to_budget", {
         p_estimate_id: estimateId,
       });
       if (rpcErr) throw rpcErr;
 
-      // 3) Notify budget views
       window.dispatchEvent(new Event("budget-updated"));
     },
     onSuccess: () => {
@@ -388,16 +396,7 @@ export function EstimateBuilderV2({
     },
   });
 
-  /* 4) Rendering */
-
-  if (isLoading || !estimate) {
-    return (
-      <div className="space-y-4">
-        <Skeleton className="h-24 w-full" />
-        <Skeleton className="h-64 w-full" />
-      </div>
-    );
-  }
+  /* 4) Helpers for field changes */
 
   const handleAddCostItem = (blockId: string) => {
     addCostItemMutation.mutate(blockId);
@@ -421,6 +420,64 @@ export function EstimateBuilderV2({
     }
     return <span>{formatMoney(item.line_total || 0)}</span>;
   };
+
+  // local draft helpers for numeric fields
+  const getDraftNumber = (
+    item: ScopeBlockCostItem,
+    key: keyof NumberDrafts[string]
+  ) => {
+    const draft = numberDrafts[item.id]?.[key];
+    if (draft !== undefined) return draft;
+    const base =
+      key === "quantity"
+        ? item.quantity
+        : key === "unit_price"
+        ? item.unit_price
+        : item.markup_percent;
+    return base !== null && base !== undefined ? String(base) : "";
+  };
+
+  const setDraftNumber = (
+    itemId: string,
+    key: keyof NumberDrafts[string],
+    value: string
+  ) => {
+    setNumberDrafts((prev) => ({
+      ...prev,
+      [itemId]: {
+        ...(prev[itemId] || {}),
+        [key]: value,
+      },
+    }));
+  };
+
+  const commitDraftNumber = (
+    itemId: string,
+    key: keyof NumberDrafts[string],
+    value: string
+  ) => {
+    const numericValue =
+      value === "" ? null : (Number.isNaN(Number(value)) ? null : Number(value));
+
+    if (key === "quantity") {
+      handleItemFieldChange(itemId, { quantity: numericValue as any });
+    } else if (key === "unit_price") {
+      handleItemFieldChange(itemId, { unit_price: numericValue as any });
+    } else if (key === "markup_percent") {
+      handleItemFieldChange(itemId, { markup_percent: numericValue as any });
+    }
+  };
+
+  /* 5) Rendering */
+
+  if (isLoading || !estimate) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-24 w-full" />
+        <Skeleton className="h-64 w-full" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -554,6 +611,13 @@ export function EstimateBuilderV2({
                         item.category
                       );
 
+                      const qtyDraft = getDraftNumber(item, "quantity");
+                      const rateDraft = getDraftNumber(item, "unit_price");
+                      const markupDraft = getDraftNumber(
+                        item,
+                        "markup_percent"
+                      );
+
                       return (
                         <TableRow key={item.id}>
                           <TableCell className="w-[120px]">
@@ -611,15 +675,26 @@ export function EstimateBuilderV2({
                               min={0}
                               className="h-8 text-right text-xs"
                               placeholder="Qty"
-                              value={formatNumberInputValue(item.quantity)}
+                              value={qtyDraft}
                               onChange={(e) =>
-                                handleItemFieldChange(item.id, {
-                                  quantity:
-                                    e.target.value === ""
-                                      ? null
-                                      : Number(e.target.value || 0),
-                                })
+                                setDraftNumber(
+                                  item.id,
+                                  "quantity",
+                                  e.target.value
+                                )
                               }
+                              onBlur={(e) =>
+                                commitDraftNumber(
+                                  item.id,
+                                  "quantity",
+                                  e.target.value
+                                )
+                              }
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  (e.target as HTMLInputElement).blur();
+                                }
+                              }}
                             />
                           </TableCell>
                           <TableCell className="w-[100px]">
@@ -654,15 +729,26 @@ export function EstimateBuilderV2({
                               min={0}
                               className="h-8 text-right text-xs"
                               placeholder="Rate"
-                              value={formatNumberInputValue(item.unit_price)}
+                              value={rateDraft}
                               onChange={(e) =>
-                                handleItemFieldChange(item.id, {
-                                  unit_price:
-                                    e.target.value === ""
-                                      ? null
-                                      : Number(e.target.value || 0),
-                                })
+                                setDraftNumber(
+                                  item.id,
+                                  "unit_price",
+                                  e.target.value
+                                )
                               }
+                              onBlur={(e) =>
+                                commitDraftNumber(
+                                  item.id,
+                                  "unit_price",
+                                  e.target.value
+                                )
+                              }
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  (e.target as HTMLInputElement).blur();
+                                }
+                              }}
                             />
                           </TableCell>
                           <TableCell className="text-right w-[110px]">
@@ -673,17 +759,26 @@ export function EstimateBuilderV2({
                               min={0}
                               className="h-8 text-right text-xs"
                               placeholder="0"
-                              value={formatNumberInputValue(
-                                item.markup_percent
-                              )}
+                              value={markupDraft}
                               onChange={(e) =>
-                                handleItemFieldChange(item.id, {
-                                  markup_percent:
-                                    e.target.value === ""
-                                      ? null
-                                      : Number(e.target.value || 0),
-                                })
+                                setDraftNumber(
+                                  item.id,
+                                  "markup_percent",
+                                  e.target.value
+                                )
                               }
+                              onBlur={(e) =>
+                                commitDraftNumber(
+                                  item.id,
+                                  "markup_percent",
+                                  e.target.value
+                                )
+                              }
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  (e.target as HTMLInputElement).blur();
+                                }
+                              }}
                             />
                           </TableCell>
                           <TableCell className="text-right w-[120px] text-sm font-semibold">
