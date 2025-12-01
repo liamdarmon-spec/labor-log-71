@@ -1,19 +1,27 @@
 import { Card, CardContent } from '@/components/ui/card';
-import { DollarSign, TrendingUp, TrendingDown, AlertCircle, CreditCard, Package } from 'lucide-react';
-import { useProjectBudgetLedger } from '@/hooks/useProjectBudgetLedger';
+import {
+  DollarSign,
+  TrendingUp,
+  TrendingDown,
+  AlertCircle,
+  CreditCard,
+  Package,
+} from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useUnifiedProjectBudget } from '@/hooks/useUnifiedProjectBudget';
 
 interface FinancialSummaryTabProps {
   projectId: string;
 }
 
 export function FinancialSummaryTab({ projectId }: FinancialSummaryTabProps) {
-  const { summary, isLoading } = useProjectBudgetLedger(projectId);
+  const { data, isLoading } = useUnifiedProjectBudget(projectId);
+  const summary = data?.summary;
 
-  if (isLoading) {
+  if (isLoading || !summary) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {[1, 2, 3, 4, 5, 6, 7].map(i => (
+        {[1, 2, 3, 4, 5, 6, 7].map((i) => (
           <Card key={i}>
             <CardContent className="p-6">
               <Skeleton className="h-24" />
@@ -24,9 +32,10 @@ export function FinancialSummaryTab({ projectId }: FinancialSummaryTabProps) {
     );
   }
 
-  if (!summary) return null;
-
-  const percentConsumed = summary.total_budget > 0 ? (summary.total_actual / summary.total_budget) * 100 : 0;
+  const percentConsumed =
+    summary.total_budget > 0
+      ? (summary.total_actual / summary.total_budget) * 100
+      : 0;
   const isOverBudget = percentConsumed > 100;
 
   const metrics = [
@@ -46,8 +55,9 @@ export function FinancialSummaryTab({ projectId }: FinancialSummaryTabProps) {
     },
     {
       label: 'Variance',
+      // unified summary.total_variance = total_budget - total_actual
       value: Math.abs(summary.total_variance),
-      icon: summary.total_variance >= 0 ? TrendingUp : TrendingDown,
+      icon: summary.total_variance >= 0 ? TrendingDown : TrendingUp,
       color: summary.total_variance >= 0 ? 'text-green-600' : 'text-red-600',
       bgColor: summary.total_variance >= 0 ? 'bg-green-50' : 'bg-red-50',
       subLabel: summary.total_variance >= 0 ? 'Under Budget' : 'Over Budget',
@@ -65,9 +75,14 @@ export function FinancialSummaryTab({ projectId }: FinancialSummaryTabProps) {
       label: 'Unpaid Labor',
       value: summary.labor_unpaid,
       icon: CreditCard,
-      color: summary.labor_unpaid > 0 ? 'text-orange-600' : 'text-muted-foreground',
-      bgColor: summary.labor_unpaid > 0 ? 'bg-orange-50' : 'bg-muted/50',
-      subLabel: summary.labor_unpaid > 0 ? 'Requires Payment' : 'All Paid',
+      color:
+        summary.labor_unpaid > 0
+          ? 'text-orange-600'
+          : 'text-muted-foreground',
+      bgColor:
+        summary.labor_unpaid > 0 ? 'bg-orange-50' : 'bg-muted/50',
+      subLabel:
+        summary.labor_unpaid > 0 ? 'Requires Payment' : 'All Paid',
     },
     {
       label: 'Labor Spend',
@@ -75,7 +90,11 @@ export function FinancialSummaryTab({ projectId }: FinancialSummaryTabProps) {
       icon: DollarSign,
       color: 'text-blue-600',
       bgColor: 'bg-blue-50',
-      subLabel: `${summary.labor_budget > 0 ? ((summary.labor_actual / summary.labor_budget) * 100).toFixed(0) : 0}% of budget`,
+      subLabel: `${
+        summary.labor_budget > 0
+          ? ((summary.labor_actual / summary.labor_budget) * 100).toFixed(0)
+          : 0
+      }% of budget`,
     },
     {
       label: 'Material Spend',
@@ -83,7 +102,11 @@ export function FinancialSummaryTab({ projectId }: FinancialSummaryTabProps) {
       icon: Package,
       color: 'text-purple-600',
       bgColor: 'bg-purple-50',
-      subLabel: `${summary.materials_budget > 0 ? ((summary.materials_actual / summary.materials_budget) * 100).toFixed(0) : 0}% of budget`,
+      subLabel: `${
+        summary.materials_budget > 0
+          ? ((summary.materials_actual / summary.materials_budget) * 100).toFixed(0)
+          : 0
+      }% of budget`,
     },
   ];
 
@@ -100,8 +123,8 @@ export function FinancialSummaryTab({ projectId }: FinancialSummaryTabProps) {
         {metrics.map((metric, index) => {
           const Icon = metric.icon;
           return (
-            <Card 
-              key={index} 
+            <Card
+              key={index}
               className="overflow-hidden border-border/50 hover:border-primary/50 transition-all duration-300 hover:shadow-lg"
             >
               <CardContent className="p-6">
@@ -114,11 +137,21 @@ export function FinancialSummaryTab({ projectId }: FinancialSummaryTabProps) {
                   <p className="text-sm font-medium text-muted-foreground">
                     {metric.label}
                   </p>
-                  <p className={`text-3xl font-bold ${metric.color} tracking-tight`}>
+                  <p
+                    className={`text-3xl font-bold ${metric.color} tracking-tight`}
+                  >
                     {metric.suffix ? (
-                      <>{metric.value}{metric.suffix}</>
+                      <>
+                        {metric.value}
+                        {metric.suffix}
+                      </>
                     ) : (
-                      <>${typeof metric.value === 'number' ? metric.value.toLocaleString() : metric.value}</>
+                      <>
+                        $
+                        {typeof metric.value === 'number'
+                          ? metric.value.toLocaleString()
+                          : metric.value}
+                      </>
                     )}
                   </p>
                   {metric.subLabel && (
