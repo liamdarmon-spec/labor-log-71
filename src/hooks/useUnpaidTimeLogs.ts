@@ -67,6 +67,7 @@ export interface UseUnpaidTimeLogsResult {
  * - Default paymentStatus = 'unpaid'
  * - Date filters are optional (but recommended in UI)
  * - Applies company / worker / project filters at DB level when possible
+ * - Excludes time logs already in non-cancelled pay runs (prevents duplicates)
  */
 export function useUnpaidTimeLogs(
   filters: UnpaidTimeLogFilters = {},
@@ -131,6 +132,23 @@ export function useUnpaidTimeLogs(
         query = query.eq('payment_status', paymentStatus);
       }
 
+      // Exclude time logs already in non-cancelled pay runs (prevents duplicate pay runs)
+      // This uses the new unpaid_time_logs_available_for_pay_run view logic
+      if (paymentStatus === 'unpaid') {
+        // Get IDs of time logs already in non-cancelled pay runs
+        const { data: existingItems, error: itemsError } = await supabase
+          .from('labor_pay_run_items')
+          .select('time_log_id, labor_pay_runs!inner(status)')
+          .neq('labor_pay_runs.status', 'cancelled');
+
+        if (itemsError) throw itemsError;
+
+        const excludedIds = (existingItems || []).map((item: any) => item.time_log_id);
+        if (excludedIds.length > 0) {
+          query = query.not('id', 'in', `(${excludedIds.map(id => `'${id}'`).join(',')})`);
+        }
+      }
+
       // Company filter (from view column)
       if (companyId) {
         query = query.eq('company_id', companyId);
@@ -145,11 +163,6 @@ export function useUnpaidTimeLogs(
       if (projectId) {
         query = query.eq('project_id', projectId);
       }
-
-      // Exclude time logs already assigned to any pay run
-      query = query.not('id', 'in', `(
-        SELECT time_log_id FROM labor_pay_run_items
-      )`);
 
       const { data, error } = await query;
       if (error) throw error;

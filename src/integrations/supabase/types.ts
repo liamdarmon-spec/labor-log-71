@@ -1800,6 +1800,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "labor_pay_run_items_time_log_id_fkey"
+            columns: ["time_log_id"]
+            isOneToOne: true
+            referencedRelation: "unpaid_time_logs_available_for_pay_run"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "labor_pay_run_items_worker_id_fkey"
             columns: ["worker_id"]
             isOneToOne: false
@@ -6488,6 +6495,175 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "company_payroll_summary"
             referencedColumns: ["company_id"]
+          },
+        ]
+      }
+      unpaid_time_logs_available_for_pay_run: {
+        Row: {
+          company_id: string | null
+          cost_code_id: string | null
+          created_at: string | null
+          created_by: string | null
+          date: string | null
+          hourly_rate: number | null
+          hours_worked: number | null
+          id: string | null
+          labor_cost: number | null
+          last_synced_at: string | null
+          notes: string | null
+          paid_amount: number | null
+          payment_id: string | null
+          payment_status: string | null
+          project_id: string | null
+          source_schedule_id: string | null
+          trade_id: string | null
+          worker_id: string | null
+        }
+        Insert: {
+          company_id?: string | null
+          cost_code_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          date?: string | null
+          hourly_rate?: number | null
+          hours_worked?: number | null
+          id?: string | null
+          labor_cost?: number | null
+          last_synced_at?: string | null
+          notes?: string | null
+          paid_amount?: number | null
+          payment_id?: string | null
+          payment_status?: string | null
+          project_id?: string | null
+          source_schedule_id?: string | null
+          trade_id?: string | null
+          worker_id?: string | null
+        }
+        Update: {
+          company_id?: string | null
+          cost_code_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          date?: string | null
+          hourly_rate?: number | null
+          hours_worked?: number | null
+          id?: string | null
+          labor_cost?: number | null
+          last_synced_at?: string | null
+          notes?: string | null
+          paid_amount?: number | null
+          payment_id?: string | null
+          payment_status?: string | null
+          project_id?: string | null
+          source_schedule_id?: string | null
+          trade_id?: string | null
+          worker_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_logs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_logs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_payroll_summary"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "time_logs_cost_code_id_fkey"
+            columns: ["cost_code_id"]
+            isOneToOne: false
+            referencedRelation: "cost_code_actuals"
+            referencedColumns: ["cost_code_id"]
+          },
+          {
+            foreignKeyName: "time_logs_cost_code_id_fkey"
+            columns: ["cost_code_id"]
+            isOneToOne: false
+            referencedRelation: "cost_codes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_logs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "material_actuals_by_project"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "time_logs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_budget_vs_actual_view"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "time_logs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_costs_view"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "time_logs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_dashboard_view"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "time_logs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_labor_summary"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "time_logs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_logs_source_schedule_id_fkey"
+            columns: ["source_schedule_id"]
+            isOneToOne: false
+            referencedRelation: "work_schedule_grid_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_logs_source_schedule_id_fkey"
+            columns: ["source_schedule_id"]
+            isOneToOne: false
+            referencedRelation: "work_schedules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_logs_trade_id_fkey"
+            columns: ["trade_id"]
+            isOneToOne: false
+            referencedRelation: "trades"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_logs_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "workers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_logs_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "workers_public"
+            referencedColumns: ["id"]
           },
         ]
       }
