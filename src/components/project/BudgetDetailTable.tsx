@@ -77,14 +77,8 @@ export function BudgetDetailTable({ projectId }: BudgetDetailTableProps) {
       if (!selectedBudgetLine?.cost_code_id) return [];
 
       const { data, error } = await supabase
-        .from("daily_logs")
-        .select(
-          `
-          *,
-          workers (name),
-          projects (project_name)
-        `
-        )
+        .from("time_logs_with_meta_view")
+        .select("*")
         .eq("project_id", projectId)
         .eq("cost_code_id", selectedBudgetLine.cost_code_id)
         .order("date", { ascending: false });
@@ -297,7 +291,7 @@ export function BudgetDetailTable({ projectId }: BudgetDetailTableProps) {
                   <Card key={log.id} className="p-3">
                     <div className="flex justify-between items-start">
                       <div>
-                        <p className="font-medium">{log.workers?.name}</p>
+                        <p className="font-medium">{log.worker_name}</p>
                         <p className="text-sm text-muted-foreground">
                           {format(new Date(log.date), "MMM d, yyyy")}
                         </p>
@@ -325,6 +319,7 @@ export function BudgetDetailTable({ projectId }: BudgetDetailTableProps) {
       {/* Baseline estimate drill-down from the budget side */}
       <EstimateDetailsSheet
         estimateId={viewEstimateId}
+        projectId={projectId}
         open={!!viewEstimateId}
         onOpenChange={(open) => {
           if (!open) setViewEstimateId(null);
