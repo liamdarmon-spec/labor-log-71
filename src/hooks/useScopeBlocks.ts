@@ -170,9 +170,27 @@ export function useCreateCostItem() {
 
   return useMutation({
     mutationFn: async ({ scopeBlockId, item }: { scopeBlockId: string; item: Partial<ScopeBlockCostItem> & { category: string; description: string } }) => {
+      let costCodeId = item.cost_code_id;
+      
+      // If no cost_code_id provided, fetch UNASSIGNED as fallback
+      if (!costCodeId) {
+        const { data: unassignedCode, error: codeError } = await supabase
+          .from('cost_codes')
+          .select('id')
+          .eq('code', 'UNASSIGNED')
+          .single();
+        
+        if (codeError) {
+          console.error('Error fetching UNASSIGNED cost code:', codeError);
+          throw new Error('Could not find UNASSIGNED cost code');
+        }
+        
+        costCodeId = unassignedCode.id;
+      }
+      
       const { data, error } = await supabase
         .from('scope_block_cost_items')
-        .insert([{ ...item, scope_block_id: scopeBlockId } as any])
+        .insert([{ ...item, scope_block_id: scopeBlockId, cost_code_id: costCodeId } as any])
         .select()
         .single();
       if (error) throw error;
@@ -180,6 +198,7 @@ export function useCreateCostItem() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['scope-blocks'] });
+      queryClient.invalidateQueries({ queryKey: ['estimates-v2'] });
       toast.success('Cost item added');
     },
     onError: (error) => {
@@ -194,9 +213,30 @@ export function useUpdateCostItem() {
 
   return useMutation({
     mutationFn: async ({ id, ...updates }: Partial<ScopeBlockCostItem> & { id: string }) => {
+      // Recalculate line_total if quantity, unit_price, or markup_percent changed
+      let finalUpdates = { ...updates };
+      
+      if (updates.quantity !== undefined || updates.unit_price !== undefined || updates.markup_percent !== undefined) {
+        const { data: current } = await supabase
+          .from('scope_block_cost_items')
+          .select('quantity, unit_price, markup_percent')
+          .eq('id', id)
+          .single();
+        
+        if (current) {
+          const qty = updates.quantity ?? current.quantity;
+          const unitPrice = updates.unit_price ?? current.unit_price;
+          const markup = updates.markup_percent ?? current.markup_percent;
+          
+          const subtotal = qty * unitPrice;
+          const lineTotal = subtotal * (1 + markup / 100);
+          finalUpdates.line_total = lineTotal;
+        }
+      }
+      
       const { data, error } = await supabase
         .from('scope_block_cost_items')
-        .update(updates)
+        .update(finalUpdates)
         .eq('id', id)
         .select()
         .single();
@@ -205,6 +245,7 @@ export function useUpdateCostItem() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['scope-blocks'] });
+      queryClient.invalidateQueries({ queryKey: ['estimates-v2'] });
     },
     onError: (error) => {
       console.error('Error updating cost item:', error);
@@ -226,6 +267,7 @@ export function useDeleteCostItem() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['scope-blocks'] });
+      queryClient.invalidateQueries({ queryKey: ['estimates-v2'] });
       toast.success('Cost item deleted');
     },
     onError: (error) => {
