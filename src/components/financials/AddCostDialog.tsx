@@ -1,31 +1,49 @@
-import { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { useProjects } from '@/hooks/useProjects';
-import { useCompanies } from '@/hooks/useCompanies';
-import { useSubs } from '@/hooks/useSubs';
-import { useCostCodes } from '@/hooks/useCostCodes';
-import { useCreateCost } from '@/hooks/useCosts';
-import { toast } from 'sonner';
+// src/components/financials/AddCostDialog.tsx
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { useProjects } from "@/hooks/useProjects";
+import { useCompanies } from "@/hooks/useCompanies";
+import { useSubs } from "@/hooks/useSubs";
+import { useCreateCost } from "@/hooks/useCosts";
+import { CostCodeSelect } from "@/components/cost-codes/CostCodeSelect";
+import { toast } from "sonner";
 
 const costSchema = z.object({
-  project_id: z.string().min(1, 'Project is required'),
+  project_id: z.string().min(1, "Project is required"),
   company_id: z.string().optional(),
-  vendor_type: z.enum(['sub', 'supplier', 'other']).optional(),
+  vendor_type: z.enum(["sub", "supplier", "other"]).optional(),
   vendor_id: z.string().optional(),
-  description: z.string().min(1, 'Description is required'),
-  amount: z.coerce.number().min(0, 'Amount must be positive'),
-  category: z.enum(['subs', 'materials', 'misc']),
+  description: z.string().min(1, "Description is required"),
+  amount: z.coerce.number().min(0, "Amount must be positive"),
+  category: z.enum(["subs", "materials", "misc"]),
   date_incurred: z.string(),
-  status: z.enum(['unpaid', 'paid']),
-  cost_code_id: z.string().optional(),
+  status: z.enum(["unpaid", "paid"]),
+  cost_code_id: z.string().min(1, "Cost code is required"),
   notes: z.string().optional(),
 });
 
@@ -40,18 +58,26 @@ export function AddCostDialog({ open, onOpenChange }: AddCostDialogProps) {
   const { data: projects } = useProjects();
   const { data: companies } = useCompanies();
   const { data: subs } = useSubs();
-  const { data: costCodes } = useCostCodes();
   const createCost = useCreateCost();
 
   const form = useForm<CostFormValues>({
     resolver: zodResolver(costSchema),
     defaultValues: {
-      date_incurred: new Date().toISOString().split('T')[0],
-      status: 'unpaid',
-      category: 'misc',
+      date_incurred: new Date().toISOString().split("T")[0],
+      status: "unpaid",
+      category: "misc",
       amount: 0,
+      cost_code_id: "",
     },
   });
+
+  const category = form.watch("category");
+  const costCodeCategory =
+    category === "subs"
+      ? "subs"
+      : category === "materials"
+      ? "materials"
+      : "other";
 
   const onSubmit = async (data: CostFormValues) => {
     try {
@@ -65,15 +91,15 @@ export function AddCostDialog({ open, onOpenChange }: AddCostDialogProps) {
         category: data.category,
         date_incurred: data.date_incurred,
         status: data.status,
-        cost_code_id: data.cost_code_id || null,
+        cost_code_id: data.cost_code_id,
         notes: data.notes || null,
         payment_id: null,
       });
-      toast.success('Cost added successfully');
+      toast.success("Cost added successfully");
       form.reset();
       onOpenChange(false);
     } catch (error) {
-      toast.error('Failed to add cost');
+      toast.error("Failed to add cost");
       console.error(error);
     }
   };
@@ -86,7 +112,10 @@ export function AddCostDialog({ open, onOpenChange }: AddCostDialogProps) {
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form
+            onSubmit={form.handleSubmit(onSubmit)}
+            className="space-y-4"
+          >
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -94,7 +123,10 @@ export function AddCostDialog({ open, onOpenChange }: AddCostDialogProps) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Project *</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select
+                      onValueChange={field.onChange}
+                      value={field.value}
+                    >
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select project" />
@@ -119,7 +151,10 @@ export function AddCostDialog({ open, onOpenChange }: AddCostDialogProps) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Company</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select
+                      onValueChange={field.onChange}
+                      value={field.value}
+                    >
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select company" />
@@ -144,7 +179,10 @@ export function AddCostDialog({ open, onOpenChange }: AddCostDialogProps) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Category *</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select
+                      onValueChange={field.onChange}
+                      value={field.value}
+                    >
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select category" />
@@ -167,7 +205,10 @@ export function AddCostDialog({ open, onOpenChange }: AddCostDialogProps) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Vendor Type</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select
+                      onValueChange={field.onChange}
+                      value={field.value}
+                    >
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select vendor type" />
@@ -190,7 +231,10 @@ export function AddCostDialog({ open, onOpenChange }: AddCostDialogProps) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Vendor</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select
+                      onValueChange={field.onChange}
+                      value={field.value}
+                    >
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select vendor" />
@@ -214,21 +258,17 @@ export function AddCostDialog({ open, onOpenChange }: AddCostDialogProps) {
                 name="cost_code_id"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Cost Code</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select cost code" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {costCodes?.map((code) => (
-                          <SelectItem key={code.id} value={code.id}>
-                            {code.code} - {code.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <FormLabel>Cost Code *</FormLabel>
+                    <FormControl>
+                      <CostCodeSelect
+                        value={field.value || null}
+                        category={costCodeCategory}
+                        required
+                        onChange={(val) =>
+                          field.onChange(val ?? "")
+                        }
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -241,7 +281,12 @@ export function AddCostDialog({ open, onOpenChange }: AddCostDialogProps) {
                   <FormItem>
                     <FormLabel>Amount *</FormLabel>
                     <FormControl>
-                      <Input type="number" step="0.01" placeholder="0.00" {...field} />
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="0.00"
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -268,7 +313,10 @@ export function AddCostDialog({ open, onOpenChange }: AddCostDialogProps) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Status *</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select
+                      onValueChange={field.onChange}
+                      value={field.value}
+                    >
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select status" />
@@ -292,7 +340,10 @@ export function AddCostDialog({ open, onOpenChange }: AddCostDialogProps) {
                 <FormItem>
                   <FormLabel>Description *</FormLabel>
                   <FormControl>
-                    <Input placeholder="Enter cost description" {...field} />
+                    <Input
+                      placeholder="Enter cost description"
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -306,7 +357,10 @@ export function AddCostDialog({ open, onOpenChange }: AddCostDialogProps) {
                 <FormItem>
                   <FormLabel>Notes</FormLabel>
                   <FormControl>
-                    <Textarea placeholder="Additional notes (optional)" {...field} />
+                    <Textarea
+                      placeholder="Additional notes (optional)"
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -314,11 +368,15 @@ export function AddCostDialog({ open, onOpenChange }: AddCostDialogProps) {
             />
 
             <div className="flex justify-end gap-2 pt-4">
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+              >
                 Cancel
               </Button>
               <Button type="submit" disabled={createCost.isPending}>
-                {createCost.isPending ? 'Adding...' : 'Add Cost'}
+                {createCost.isPending ? "Adding..." : "Add Cost"}
               </Button>
             </div>
           </form>
