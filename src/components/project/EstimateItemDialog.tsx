@@ -1,3 +1,4 @@
+// src/components/project/EstimateItemDialog.tsx
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -5,8 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useState, useEffect } from "react";
-import { useCostCodes } from "@/hooks/useCostCodes";
 import { useTradesSimple } from "@/hooks/useTrades";
+import { CostCodeSelect } from "@/components/cost-codes/CostCodeSelect";
 
 interface EstimateItemDialogProps {
   open: boolean;
@@ -29,100 +30,105 @@ export interface EstimateItemFormData {
   scope_group: string;
 }
 
-const CATEGORIES = ['Labor', 'Subs', 'Materials', 'Allowance', 'Other'];
-const UNITS = ['ea', 'sf', 'lf', 'hr', 'day', 'ls', 'ton', 'cy'];
+const CATEGORIES = ["Labor", "Subs", "Materials", "Allowance", "Other"];
+const UNITS = ["ea", "sf", "lf", "hr", "day", "ls", "ton", "cy"];
 
 export function EstimateItemDialog({ open, onOpenChange, onSave, estimateItem }: EstimateItemDialogProps) {
   const [formData, setFormData] = useState<EstimateItemFormData>({
-    description: '',
-    category: 'Labor',
+    description: "",
+    category: "Labor",
     cost_code_id: null,
     trade_id: null,
-    quantity: '',
-    unit: 'ea',
-    unit_price: '',
-    planned_hours: '',
+    quantity: "",
+    unit: "ea",
+    unit_price: "",
+    planned_hours: "",
     is_allowance: false,
-    area_name: '',
-    scope_group: '',
+    area_name: "",
+    scope_group: "",
   });
 
   useEffect(() => {
     if (estimateItem) {
       setFormData({
-        description: estimateItem.description || '',
-        category: estimateItem.category || 'Labor',
+        description: estimateItem.description || "",
+        category: estimateItem.category || "Labor",
         cost_code_id: estimateItem.cost_code_id || null,
         trade_id: estimateItem.trade_id || null,
-        quantity: estimateItem.quantity?.toString() || '',
-        unit: estimateItem.unit || 'ea',
-        unit_price: estimateItem.unit_price?.toString() || '',
-        planned_hours: estimateItem.planned_hours?.toString() || '',
+        quantity: estimateItem.quantity?.toString() || "",
+        unit: estimateItem.unit || "ea",
+        unit_price: estimateItem.unit_price?.toString() || "",
+        planned_hours: estimateItem.planned_hours?.toString() || "",
         is_allowance: estimateItem.is_allowance || false,
-        area_name: estimateItem.area_name || '',
-        scope_group: estimateItem.scope_group || '',
+        area_name: estimateItem.area_name || "",
+        scope_group: estimateItem.scope_group || "",
+      });
+    } else {
+      setFormData({
+        description: "",
+        category: "Labor",
+        cost_code_id: null,
+        trade_id: null,
+        quantity: "",
+        unit: "ea",
+        unit_price: "",
+        planned_hours: "",
+        is_allowance: false,
+        area_name: "",
+        scope_group: "",
       });
     }
-  }, [estimateItem]);
+  }, [estimateItem, open]);
 
-  const categoryForCostCodes = formData.category === 'Labor' ? 'labor' 
-    : formData.category === 'Subs' ? 'subs'
-    : formData.category === 'Materials' ? 'materials'
-    : 'other';
+  // Map UI category to cost code category
+  const categoryForCostCodes =
+    formData.category === "Labor"
+      ? "labor"
+      : formData.category === "Subs"
+      ? "subs"
+      : formData.category === "Materials"
+      ? "materials"
+      : "other";
 
-  const { data: costCodes } = useCostCodes(categoryForCostCodes as any);
-  const { data: allCostCodes } = useCostCodes(); // For cost code selection reverse lookup
-  
   // Use centralized hook with caching
   const { data: trades = [] } = useTradesSimple();
 
   const qty = parseFloat(formData.quantity) || 0;
   const price = parseFloat(formData.unit_price) || 0;
   const lineTotal = qty * price;
-  const showPlannedHours = formData.category === 'Labor';
-
-  // Auto-set category when cost code is selected
-  const handleCostCodeChange = (costCodeId: string) => {
-    const selectedCostCode = allCostCodes?.find(cc => cc.id === costCodeId);
-    if (selectedCostCode) {
-      const newCategory = selectedCostCode.category === 'labor' ? 'Labor'
-        : selectedCostCode.category === 'subs' ? 'Subs'
-        : selectedCostCode.category === 'materials' ? 'Materials'
-        : 'Other';
-      setFormData({ ...formData, cost_code_id: costCodeId, category: newCategory });
-    } else {
-      setFormData({ ...formData, cost_code_id: costCodeId });
-    }
-  };
+  const showPlannedHours = formData.category === "Labor";
 
   const handleSave = () => {
-    // Validate numeric fields before saving
     const qty = parseFloat(formData.quantity);
     const price = parseFloat(formData.unit_price);
-    const hours = formData.planned_hours ? parseFloat(formData.planned_hours) : null;
-    
+
+    if (!formData.cost_code_id) {
+      alert("Please select a cost code");
+      return;
+    }
+
     if (isNaN(qty) || qty <= 0) {
-      alert('Please enter a valid quantity');
+      alert("Please enter a valid quantity");
       return;
     }
     if (isNaN(price) || price < 0) {
-      alert('Please enter a valid unit price');
+      alert("Please enter a valid unit price");
       return;
     }
-    
+
     onSave(formData);
     setFormData({
-      description: '',
-      category: 'Labor',
+      description: "",
+      category: "Labor",
       cost_code_id: null,
       trade_id: null,
-      quantity: '',
-      unit: 'ea',
-      unit_price: '',
-      planned_hours: '',
+      quantity: "",
+      unit: "ea",
+      unit_price: "",
+      planned_hours: "",
       is_allowance: false,
-      area_name: '',
-      scope_group: '',
+      area_name: "",
+      scope_group: "",
     });
     onOpenChange(false);
   };
@@ -131,63 +137,63 @@ export function EstimateItemDialog({ open, onOpenChange, onSave, estimateItem }:
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>{estimateItem ? 'Edit' : 'Add'} Estimate Item</DialogTitle>
+          <DialogTitle>{estimateItem ? "Edit" : "Add"} Estimate Item</DialogTitle>
         </DialogHeader>
-        
+
         <div className="grid gap-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label>Category</Label>
-              <Select value={formData.category} onValueChange={(value) => setFormData({ ...formData, category: value })}>
+              <Select
+                value={formData.category}
+                onValueChange={(value) => setFormData({ ...formData, category: value })}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {CATEGORIES.map(cat => (
-                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <Label>Cost Code</Label>
-              <Select 
-                value={formData.cost_code_id || ''} 
-                onValueChange={handleCostCodeChange}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select cost code..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {costCodes?.map(code => (
-                    <SelectItem key={code.id} value={code.id}>
-                      {code.code} - {code.name}
+                  {CATEGORIES.map((cat) => (
+                    <SelectItem key={cat} value={cat}>
+                      {cat}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              {!formData.cost_code_id && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  ⚠️ Budget sync will be most accurate when each line item has a cost code
-                </p>
-              )}
+            </div>
+
+            <div>
+              <Label>Cost Code *</Label>
+              <CostCodeSelect
+                value={formData.cost_code_id}
+                category={categoryForCostCodes}
+                required
+                onChange={(val) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    cost_code_id: val ?? null,
+                  }))
+                }
+              />
             </div>
           </div>
 
-          {formData.category === 'Labor' && (
+          {formData.category === "Labor" && (
             <div>
               <Label>Trade</Label>
-              <Select 
-                value={formData.trade_id || ''} 
-                onValueChange={(value) => setFormData({ ...formData, trade_id: value || null })}
+              <Select
+                value={formData.trade_id || ""}
+                onValueChange={(value) =>
+                  setFormData({ ...formData, trade_id: value || null })
+                }
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select trade..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {trades?.map(trade => (
-                    <SelectItem key={trade.id} value={trade.id}>{trade.name}</SelectItem>
+                  {trades?.map((trade) => (
+                    <SelectItem key={trade.id} value={trade.id}>
+                      {trade.name}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -196,9 +202,11 @@ export function EstimateItemDialog({ open, onOpenChange, onSave, estimateItem }:
 
           <div>
             <Label>Description</Label>
-            <Input 
+            <Input
               value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, description: e.target.value })
+              }
               placeholder="Item description..."
             />
           </div>
@@ -206,17 +214,21 @@ export function EstimateItemDialog({ open, onOpenChange, onSave, estimateItem }:
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label>Area (optional)</Label>
-              <Input 
+              <Input
                 value={formData.area_name}
-                onChange={(e) => setFormData({ ...formData, area_name: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, area_name: e.target.value })
+                }
                 placeholder="e.g., Kitchen, Primary Bath"
               />
             </div>
             <div>
               <Label>Scope/Phase (optional)</Label>
-              <Input 
+              <Input
                 value={formData.scope_group}
-                onChange={(e) => setFormData({ ...formData, scope_group: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, scope_group: e.target.value })
+                }
                 placeholder="e.g., Demo, Rough, Finish"
               />
             </div>
@@ -225,25 +237,32 @@ export function EstimateItemDialog({ open, onOpenChange, onSave, estimateItem }:
           <div className="grid grid-cols-3 gap-4">
             <div>
               <Label>Quantity *</Label>
-              <Input 
+              <Input
                 type="number"
                 step="0.01"
                 min="0"
                 value={formData.quantity}
-                onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, quantity: e.target.value })
+                }
                 placeholder="0"
               />
             </div>
-            
+
             <div>
               <Label>Unit</Label>
-              <Select value={formData.unit} onValueChange={(value) => setFormData({ ...formData, unit: value })}>
+              <Select
+                value={formData.unit}
+                onValueChange={(value) => setFormData({ ...formData, unit: value })}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {UNITS.map(u => (
-                    <SelectItem key={u} value={u}>{u}</SelectItem>
+                  {UNITS.map((u) => (
+                    <SelectItem key={u} value={u}>
+                      {u}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -251,12 +270,14 @@ export function EstimateItemDialog({ open, onOpenChange, onSave, estimateItem }:
 
             <div>
               <Label>Unit Price * ($)</Label>
-              <Input 
+              <Input
                 type="number"
                 step="0.01"
                 min="0"
                 value={formData.unit_price}
-                onChange={(e) => setFormData({ ...formData, unit_price: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, unit_price: e.target.value })
+                }
                 placeholder="0.00"
               />
             </div>
@@ -265,37 +286,45 @@ export function EstimateItemDialog({ open, onOpenChange, onSave, estimateItem }:
           {showPlannedHours && (
             <div>
               <Label>Planned Hours (optional)</Label>
-              <Input 
+              <Input
                 type="number"
                 step="0.5"
                 min="0"
                 value={formData.planned_hours}
-                onChange={(e) => setFormData({ ...formData, planned_hours: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, planned_hours: e.target.value })
+                }
                 placeholder="0"
               />
             </div>
           )}
 
           <div className="flex items-center space-x-2">
-            <Checkbox 
+            <Checkbox
               id="allowance"
               checked={formData.is_allowance}
-              onCheckedChange={(checked) => setFormData({ ...formData, is_allowance: checked as boolean })}
+              onCheckedChange={(checked) =>
+                setFormData({ ...formData, is_allowance: checked as boolean })
+              }
             />
-            <Label htmlFor="allowance" className="text-sm">This is an allowance</Label>
+            <Label htmlFor="allowance" className="text-sm">
+              This is an allowance
+            </Label>
           </div>
 
           <div className="pt-4 border-t">
             <div className="flex justify-between items-center">
               <span className="font-semibold">Line Total:</span>
               <span className="text-lg font-bold">
-                {lineTotal > 0 ? `$${lineTotal.toFixed(2)}` : '—'}
+                {lineTotal > 0 ? `$${lineTotal.toFixed(2)}` : "—"}
               </span>
             </div>
           </div>
 
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
             <Button onClick={handleSave}>Save Item</Button>
           </div>
         </div>
