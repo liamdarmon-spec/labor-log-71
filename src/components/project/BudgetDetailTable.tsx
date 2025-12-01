@@ -18,7 +18,12 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { useUnifiedProjectBudget } from "@/hooks/useUnifiedProjectBudget";
 import { format } from "date-fns";
 import { EstimateDetailsSheet } from "@/components/project/EstimateDetailsSheet";
@@ -27,14 +32,15 @@ interface BudgetDetailTableProps {
   projectId: string;
 }
 
-type CategoryFilter = "all" | "labor" | "subs" | "materials" | "misc";
+type CategoryFilter = "all" | "labor" | "subs" | "materials" | "other";
 
 export function BudgetDetailTable({ projectId }: BudgetDetailTableProps) {
   const { data, isLoading, refetch } = useUnifiedProjectBudget(projectId);
   const budgetLines = data?.costCodeLines || [];
 
   const [selectedLine, setSelectedLine] = useState<string | null>(null);
-  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
+  const [categoryFilter, setCategoryFilter] =
+    useState<CategoryFilter>("all");
   const [viewEstimateId, setViewEstimateId] = useState<string | null>(null);
 
   // Listen for budget updates from estimates
@@ -43,7 +49,8 @@ export function BudgetDetailTable({ projectId }: BudgetDetailTableProps) {
       refetch();
     };
     window.addEventListener("budget-updated", handleBudgetUpdate);
-    return () => window.removeEventListener("budget-updated", handleBudgetUpdate);
+    return () =>
+      window.removeEventListener("budget-updated", handleBudgetUpdate);
   }, [refetch]);
 
   const selectedBudgetLine = budgetLines.find(
@@ -67,6 +74,7 @@ export function BudgetDetailTable({ projectId }: BudgetDetailTableProps) {
 
   const baselineEstimateId = projectBudget?.baseline_estimate_id || null;
 
+  // Time logs for the selected cost code (labor drill-down)
   const { data: timeLogs } = useQuery({
     queryKey: [
       "time_logs_by_cost_code",
@@ -97,7 +105,8 @@ export function BudgetDetailTable({ projectId }: BudgetDetailTableProps) {
     return (
       <Card className="p-6">
         <p className="text-center text-muted-foreground">
-          No budget lines available. Create an estimate and accept it as the budget baseline to get started.
+          No budget lines available. Create an estimate and set it as the
+          budget baseline to get started.
         </p>
       </Card>
     );
@@ -117,7 +126,8 @@ export function BudgetDetailTable({ projectId }: BudgetDetailTableProps) {
               Cost Code Ledger
             </CardTitle>
             <p className="text-xs text-muted-foreground">
-              Click a row to see time logs and details. Filter by category below.
+              Click a row to see time logs and details. Filter by category
+              below.
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -131,7 +141,9 @@ export function BudgetDetailTable({ projectId }: BudgetDetailTableProps) {
               size="sm"
               variant="outline"
               disabled={!baselineEstimateId}
-              onClick={() => baselineEstimateId && setViewEstimateId(baselineEstimateId)}
+              onClick={() =>
+                baselineEstimateId && setViewEstimateId(baselineEstimateId)
+              }
             >
               View Baseline Estimate
             </Button>
@@ -147,7 +159,7 @@ export function BudgetDetailTable({ projectId }: BudgetDetailTableProps) {
                 { key: "labor", label: "Labor" },
                 { key: "subs", label: "Subs" },
                 { key: "materials", label: "Materials" },
-                { key: "misc", label: "Other" },
+                { key: "other", label: "Other" },
               ] as { key: CategoryFilter; label: string }[]
             ).map((cat) => (
               <Button
@@ -177,10 +189,30 @@ export function BudgetDetailTable({ projectId }: BudgetDetailTableProps) {
             </TableHeader>
             <TableBody>
               {visibleLines.map((line) => {
+                const budgetHours = line.budget_hours ?? null;
+                const actualHours = line.actual_hours ?? null;
                 const hoursDelta =
-                  (line.actual_hours || 0) - (line.budget_hours || 0);
-                const amountDelta =
-                  (line.actual_amount || 0) - (line.budget_amount || 0);
+                  budgetHours !== null && actualHours !== null
+                    ? actualHours - budgetHours
+                    : null;
+
+                const budgetAmount = line.budget_amount || 0;
+                const actualAmount = line.actual_amount || 0;
+                const amountDelta = actualAmount - budgetAmount;
+
+                const hoursClass =
+                  hoursDelta !== null && hoursDelta > 0
+                    ? "text-destructive"
+                    : hoursDelta !== null && hoursDelta < 0
+                    ? "text-green-600"
+                    : "";
+
+                const amountClass =
+                  amountDelta > 0
+                    ? "text-destructive"
+                    : amountDelta < 0
+                    ? "text-green-600"
+                    : "";
 
                 return (
                   <TableRow
@@ -194,58 +226,43 @@ export function BudgetDetailTable({ projectId }: BudgetDetailTableProps) {
                         : "No Code"}
                     </TableCell>
                     <TableCell>
-                      <Badge
-                        variant="outline"
-                        className="capitalize"
-                      >
+                      <Badge variant="outline" className="capitalize">
                         {line.category}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
-                      {line.budget_hours?.toFixed(1) || "—"}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {line.category === "labor" && line.actual_hours
-                        ? line.actual_hours.toFixed(1)
-                        : "—"}
-                    </TableCell>
-                    <TableCell
-                      className={`text-right ${
-                        hoursDelta > 0
-                          ? "text-destructive"
-                          : hoursDelta < 0
-                          ? "text-green-600"
-                          : ""
-                      }`}
-                    >
-                      {line.category === "labor" && hoursDelta !== 0
-                        ? (hoursDelta > 0 ? "+" : "") + hoursDelta.toFixed(1)
+                      {budgetHours !== null
+                        ? budgetHours.toFixed(1)
                         : "—"}
                     </TableCell>
                     <TableCell className="text-right">
-                      ${(line.budget_amount || 0).toFixed(2)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {line.category === "labor"
-                        ? `$${(line.actual_amount || 0).toFixed(2)}`
+                      {actualHours !== null
+                        ? actualHours.toFixed(1)
                         : "—"}
                     </TableCell>
-                    <TableCell
-                      className={`text-right ${
-                        amountDelta > 0
-                          ? "text-destructive"
-                          : amountDelta < 0
-                          ? "text-green-600"
-                          : ""
-                      }`}
-                    >
-                      {line.category === "labor" && amountDelta !== 0
+                    <TableCell className={`text-right ${hoursClass}`}>
+                      {hoursDelta !== null && hoursDelta !== 0
+                        ? `${hoursDelta > 0 ? "+" : ""}${hoursDelta.toFixed(
+                            1
+                          )}`
+                        : "—"}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      ${budgetAmount.toFixed(2)}
+                    </TableCell>
+                    <TableCell className={`text-right`}>
+                      ${actualAmount.toFixed(2)}
+                    </TableCell>
+                    <TableCell className={`text-right ${amountClass}`}>
+                      {amountDelta !== 0
                         ? `${amountDelta > 0 ? "+$" : "-$"}${Math.abs(
                             amountDelta
                           ).toFixed(2)}`
                         : "—"}
                     </TableCell>
-                    <TableCell>{line.is_allowance ? "✓" : ""}</TableCell>
+                    <TableCell>
+                      {line.is_allowance ? "✓" : ""}
+                    </TableCell>
                   </TableRow>
                 );
               })}
@@ -271,15 +288,25 @@ export function BudgetDetailTable({ projectId }: BudgetDetailTableProps) {
           <div className="mt-6 space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <Card className="p-4">
-                <p className="text-sm text-muted-foreground">Budget Hours</p>
+                <p className="text-sm text-muted-foreground">
+                  Budget Hours
+                </p>
                 <p className="text-2xl font-bold">
-                  {selectedBudgetLine?.budget_hours?.toFixed(1) || "—"}
+                  {selectedBudgetLine?.budget_hours !== null &&
+                  selectedBudgetLine?.budget_hours !== undefined
+                    ? selectedBudgetLine.budget_hours.toFixed(1)
+                    : "—"}
                 </p>
               </Card>
-            <Card className="p-4">
-                <p className="text-sm text-muted-foreground">Actual Hours</p>
+              <Card className="p-4">
+                <p className="text-sm text-muted-foreground">
+                  Actual Hours
+                </p>
                 <p className="text-2xl font-bold">
-                  {selectedBudgetLine?.actual_hours?.toFixed(1) || "0.0"}
+                  {selectedBudgetLine?.actual_hours !== null &&
+                  selectedBudgetLine?.actual_hours !== undefined
+                    ? selectedBudgetLine.actual_hours.toFixed(1)
+                    : "0.0"}
                 </p>
               </Card>
             </div>
@@ -291,7 +318,9 @@ export function BudgetDetailTable({ projectId }: BudgetDetailTableProps) {
                   <Card key={log.id} className="p-3">
                     <div className="flex justify-between items-start">
                       <div>
-                        <p className="font-medium">{log.worker_name}</p>
+                        <p className="font-medium">
+                          {log.worker_name}
+                        </p>
                         <p className="text-sm text-muted-foreground">
                           {format(new Date(log.date), "MMM d, yyyy")}
                         </p>
@@ -300,7 +329,9 @@ export function BudgetDetailTable({ projectId }: BudgetDetailTableProps) {
                         )}
                       </div>
                       <div className="text-right">
-                        <p className="font-semibold">{log.hours_worked}h</p>
+                        <p className="font-semibold">
+                          {log.hours_worked}h
+                        </p>
                       </div>
                     </div>
                   </Card>
