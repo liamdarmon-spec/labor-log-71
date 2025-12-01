@@ -5,7 +5,6 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { TrendingUp, TrendingDown, Search, Filter, ChevronDown, ChevronRight } from 'lucide-react';
-import { useProjectBudgetLedger } from '@/hooks/useProjectBudgetLedger';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Select,
@@ -14,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { useUnifiedProjectBudget } from '@/hooks/useUnifiedProjectBudget';
 
 interface CostCodeLedgerTabProps {
   projectId: string;
@@ -21,7 +21,9 @@ interface CostCodeLedgerTabProps {
 }
 
 export function CostCodeLedgerTab({ projectId, filterCategory }: CostCodeLedgerTabProps) {
-  const { ledger, isLoading } = useProjectBudgetLedger(projectId);
+  const { data, isLoading } = useUnifiedProjectBudget(projectId);
+  const lines = data?.costCodeLines ?? [];
+
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>(filterCategory || 'all');
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
@@ -39,13 +41,14 @@ export function CostCodeLedgerTab({ projectId, filterCategory }: CostCodeLedgerT
     );
   }
 
-  if (!ledger) return null;
+  if (!data) return null;
 
-  const filteredLines = ledger.filter(line => {
-    const matchesSearch = 
-      line.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      line.description.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = categoryFilter === 'all' || line.category === categoryFilter;
+  const filteredLines = lines.filter((line) => {
+    const matchesSearch =
+      (line.code || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (line.description || '').toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory =
+      categoryFilter === 'all' || line.category === categoryFilter;
     return matchesSearch && matchesCategory;
   });
 
@@ -61,14 +64,15 @@ export function CostCodeLedgerTab({ projectId, filterCategory }: CostCodeLedgerT
   };
 
   const getVarianceColor = (variance: number) => {
-    if (variance < 0) return 'text-red-600';
-    if (variance > 0) return 'text-green-600';
+    // variance in unified hook = budget - actual
+    if (variance < 0) return 'text-red-600';   // over budget
+    if (variance > 0) return 'text-green-600'; // under budget
     return 'text-muted-foreground';
   };
 
   const getVarianceIcon = (variance: number) => {
-    if (variance < 0) return <TrendingDown className="h-4 w-4 inline" />;
-    if (variance > 0) return <TrendingUp className="h-4 w-4 inline" />;
+    if (variance < 0) return <TrendingUp className="h-4 w-4 inline" />; // costs trending up
+    if (variance > 0) return <TrendingDown className="h-4 w-4 inline" />; // good, under
     return null;
   };
 
@@ -104,7 +108,7 @@ export function CostCodeLedgerTab({ projectId, filterCategory }: CostCodeLedgerT
                 <SelectItem value="labor">Labor</SelectItem>
                 <SelectItem value="subs">Subs</SelectItem>
                 <SelectItem value="materials">Materials</SelectItem>
-                <SelectItem value="misc">Miscellaneous</SelectItem>
+                <SelectItem value="other">Other</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -116,7 +120,8 @@ export function CostCodeLedgerTab({ projectId, filterCategory }: CostCodeLedgerT
         <CardHeader>
           <CardTitle>Budget Lines</CardTitle>
           <CardDescription>
-            {filteredLines.length} cost code{filteredLines.length !== 1 ? 's' : ''} found
+            {filteredLines.length} cost code
+            {filteredLines.length !== 1 ? 's' : ''} found
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -139,75 +144,105 @@ export function CostCodeLedgerTab({ projectId, filterCategory }: CostCodeLedgerT
                   {filteredLines
                     .sort((a, b) => a.category.localeCompare(b.category))
                     .map((line) => {
-                      const percentUsed = line.budget_amount > 0 ? (line.actual_amount / line.budget_amount) * 100 : 0;
-                      const isOverBudget = percentUsed > 100;
+                      const budgetAmount = line.budget_amount || 0;
+                      const actualAmount = line.actual_amount || 0;
+                      const percentUsed =
+                        budgetAmount > 0
+                          ? (actualAmount / budgetAmount) * 100
+                          : 0;
                       const compositeKey = `${line.cost_code_id || 'unassigned'}:${line.category}`;
                       const isExpanded = expandedRows.has(compositeKey);
 
                       return (
-                        <TableRow 
-                          key={compositeKey} 
-                          className={`${isOverBudget ? 'bg-red-50' : ''} hover:bg-muted/50`}
-                        >
-                          <TableCell>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => toggleRow(line.cost_code_id, line.category)}
-                            className="h-8 w-8 p-0"
+                        <>
+                          <TableRow
+                            key={compositeKey}
+                            className={`hover:bg-muted/50 ${
+                              percentUsed > 100 ? 'bg-red-50' : ''
+                            }`}
                           >
-                            {isExpanded ? (
-                              <ChevronDown className="h-4 w-4" />
-                            ) : (
-                              <ChevronRight className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </TableCell>
-                        <TableCell className="font-mono font-semibold">
-                          {line.code}
-                        </TableCell>
-                        <TableCell className="font-medium">
-                          {line.description}
-                        </TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className="capitalize">
-                              {line.category}
-                            </Badge>
-                          </TableCell>
-                        <TableCell className="text-right font-semibold">
-                          ${(line.budget_amount || 0).toLocaleString()}
-                          {line.budget_hours && (
-                            <span className="text-xs text-muted-foreground ml-1 block">
-                              ({line.budget_hours}h)
-                            </span>
+                            <TableCell>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => toggleRow(line.cost_code_id, line.category)}
+                                className="h-8 w-8 p-0"
+                              >
+                                {isExpanded ? (
+                                  <ChevronDown className="h-4 w-4" />
+                                ) : (
+                                  <ChevronRight className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </TableCell>
+                            <TableCell className="font-mono font-semibold">
+                              {line.code}
+                            </TableCell>
+                            <TableCell className="font-medium">
+                              {line.description}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className="capitalize">
+                                {line.category}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-right font-semibold">
+                              ${budgetAmount.toLocaleString()}
+                              {line.budget_hours && (
+                                <span className="text-xs text-muted-foreground ml-1 block">
+                                  ({line.budget_hours}h)
+                                </span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right font-semibold">
+                              ${actualAmount.toLocaleString()}
+                              {line.actual_hours !== null && (
+                                <span className="text-xs text-muted-foreground ml-1 block">
+                                  ({line.actual_hours}h)
+                                </span>
+                              )}
+                            </TableCell>
+                            <TableCell
+                              className={`text-right font-semibold ${getVarianceColor(
+                                line.variance,
+                              )}`}
+                            >
+                              ${Math.abs(line.variance).toLocaleString()}
+                              {getVarianceIcon(line.variance) && (
+                                <span className="ml-1">
+                                  {getVarianceIcon(line.variance)}
+                                </span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {budgetAmount > 0 ? (
+                                <span
+                                  className={`font-semibold ${
+                                    percentUsed > 100 ? 'text-red-600' : ''
+                                  }`}
+                                >
+                                  {percentUsed.toFixed(1)}%
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground">
+                                  N/A
+                                </span>
+                              )}
+                            </TableCell>
+                          </TableRow>
+
+                          {isExpanded && (
+                            <TableRow key={`${compositeKey}-details`}>
+                              <TableCell colSpan={8} className="bg-muted/40">
+                                <div className="text-sm text-muted-foreground">
+                                  {/* Placeholder: hook already includes line.details,
+                                      you can render per-log/per-cost entries here later */}
+                                  Detailed entries coming soon (labor logs, costs, etc.)
+                                </div>
+                              </TableCell>
+                            </TableRow>
                           )}
-                        </TableCell>
-                        <TableCell className="text-right font-semibold">
-                          ${(line.actual_amount || 0).toLocaleString()}
-                          {line.actual_hours !== null && (
-                            <span className="text-xs text-muted-foreground ml-1 block">
-                              ({line.actual_hours}h)
-                            </span>
-                          )}
-                        </TableCell>
-                          <TableCell className={`text-right font-semibold ${getVarianceColor(line.variance)}`}>
-                            ${Math.abs(line.variance).toLocaleString()}
-                            {getVarianceIcon(line.variance) && (
-                              <span className="ml-1">
-                                {getVarianceIcon(line.variance)}
-                              </span>
-                            )}
-                          </TableCell>
-                        <TableCell className="text-right">
-                          {line.budget_amount > 0 ? (
-                            <span className={`font-semibold ${isOverBudget ? 'text-red-600' : ''}`}>
-                              {percentUsed.toFixed(1)}%
-                            </span>
-                          ) : (
-                            <span className="text-muted-foreground">N/A</span>
-                          )}
-                        </TableCell>
-                        </TableRow>
+                        </>
                       );
                     })}
                 </TableBody>
@@ -217,10 +252,9 @@ export function CostCodeLedgerTab({ projectId, filterCategory }: CostCodeLedgerT
             <div className="text-center py-12">
               <p className="text-muted-foreground mb-2">No cost codes found</p>
               <p className="text-sm text-muted-foreground">
-                {searchTerm || categoryFilter !== 'all' 
+                {searchTerm || categoryFilter !== 'all'
                   ? 'Try adjusting your filters'
-                  : 'Accept an estimate as baseline to create budget lines'
-                }
+                  : 'Accept an estimate as baseline to create budget lines'}
               </p>
             </div>
           )}
