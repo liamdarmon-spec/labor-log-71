@@ -280,6 +280,7 @@ export function ProjectEstimates({ projectId }: ProjectEstimatesProps) {
 
       <EstimateDetailsSheet
         estimateId={viewEstimateId}
+        projectId={projectId}
         open={!!viewEstimateId}
         onOpenChange={(open) => {
           if (!open) setViewEstimateId(null);
