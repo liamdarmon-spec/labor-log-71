@@ -1,3 +1,4 @@
+// src/components/workforce/EditTimeEntryDialog.tsx
 /**
  * EditTimeEntryDialog - Unified time entry editor for the Workforce → Time Logs tab
  *
@@ -11,34 +12,35 @@
  *   - You can only adjust project / trade / cost code / notes
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { DatePickerWithPresets } from '@/components/ui/date-picker-with-presets';
-import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
-import { Loader2, Plus, Trash2, Calendar, User, Lock } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { format } from 'date-fns';
-import type { GroupedTimeLog } from '@/lib/timeLogGrouping';
-import { useQuery } from '@tanstack/react-query';
+} from "@/components/ui/select";
+import { DatePickerWithPresets } from "@/components/ui/date-picker-with-presets";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { Loader2, Plus, Trash2, Calendar, User, Lock } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { format } from "date-fns";
+import type { GroupedTimeLog } from "@/lib/timeLogGrouping";
+import { useQuery } from "@tanstack/react-query";
+import { CostCodeSelect } from "@/components/cost-codes/CostCodeSelect";
 
 interface TimeLogAllocation {
   id: string; // time_logs.id
@@ -65,22 +67,22 @@ export function EditTimeEntryDialog({
 }: EditTimeEntryDialogProps) {
   const { toast } = useToast();
   const [allocations, setAllocations] = useState<TimeLogAllocation[]>([]);
-  const [selectedWorker, setSelectedWorker] = useState<string>('');
+  const [selectedWorker, setSelectedWorker] = useState<string>("");
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [loading, setLoading] = useState(false);
 
   const isAddMode = !group?.worker_id;
-  const isPaid = !!group && group.payment_status === 'paid';
+  const isPaid = !!group && group.payment_status === "paid";
 
   // Fetch workers (for add mode)
   const { data: workers } = useQuery({
-    queryKey: ['workers-active'],
+    queryKey: ["workers-active"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('workers')
-        .select('id, name, trade, hourly_rate')
-        .eq('active', true)
-        .order('name');
+        .from("workers")
+        .select("id, name, trade, hourly_rate")
+        .eq("active", true)
+        .order("name");
       if (error) throw error;
       return data;
     },
@@ -89,13 +91,13 @@ export function EditTimeEntryDialog({
 
   // Fetch projects and trades for dropdowns
   const { data: projects } = useQuery({
-    queryKey: ['projects-active'],
+    queryKey: ["projects-active"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('projects')
-        .select('id, project_name, client_name')
-        .eq('status', 'Active')
-        .order('project_name');
+        .from("projects")
+        .select("id, project_name, client_name")
+        .eq("status", "Active")
+        .order("project_name");
       if (error) throw error;
       return data;
     },
@@ -103,27 +105,12 @@ export function EditTimeEntryDialog({
   });
 
   const { data: trades } = useQuery({
-    queryKey: ['trades'],
+    queryKey: ["trades"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('trades')
-        .select('id, name')
-        .order('name');
-      if (error) throw error;
-      return data;
-    },
-    enabled: open,
-  });
-
-  const { data: costCodes } = useQuery({
-    queryKey: ['cost-codes-labor'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('cost_codes')
-        .select('id, code, name')
-        .eq('category', 'labor')
-        .eq('is_active', true)
-        .order('code');
+        .from("trades")
+        .select("id, name")
+        .order("name");
       if (error) throw error;
       return data;
     },
@@ -134,7 +121,6 @@ export function EditTimeEntryDialog({
   useEffect(() => {
     if (group && open) {
       if (group.worker_id) {
-        // Edit mode: load existing allocations
         const initialAllocations: TimeLogAllocation[] = group.projects.map(
           (project) => ({
             id: project.id,
@@ -149,11 +135,10 @@ export function EditTimeEntryDialog({
         setAllocations(initialAllocations);
         setSelectedDate(new Date(group.date));
       } else {
-        // Add mode: start with one empty allocation
         setAllocations([
           {
             id: `new-${crypto.randomUUID()}`,
-            project_id: '',
+            project_id: "",
             trade_id: null,
             cost_code_id: null,
             hours_worked: 8,
@@ -161,7 +146,7 @@ export function EditTimeEntryDialog({
             source_schedule_id: null,
           },
         ]);
-        setSelectedWorker('');
+        setSelectedWorker("");
         setSelectedDate(new Date());
       }
     }
@@ -176,7 +161,7 @@ export function EditTimeEntryDialog({
 
   const handleUpdateAllocation = (
     id: string,
-    field: keyof Omit<TimeLogAllocation, 'id'>,
+    field: keyof Omit<TimeLogAllocation, "id">,
     value: any
   ) => {
     setAllocations((prev) =>
@@ -189,15 +174,14 @@ export function EditTimeEntryDialog({
   const handleAddAllocation = () => {
     if (!isAddMode && isPaid) {
       toast({
-        title: 'Paid entry locked',
+        title: "Paid entry locked",
         description:
-          'Paid time logs cannot be split into additional allocations. Adjust projects via allocations flow instead.',
-        variant: 'destructive',
+          "Paid time logs cannot be split into additional allocations. Adjust projects via allocations flow instead.",
+        variant: "destructive",
       });
       return;
     }
 
-    // Get source_schedule_id from first allocation (they all share the same one)
     const sourceScheduleId =
       allocations.length > 0 ? allocations[0].source_schedule_id : null;
 
@@ -205,7 +189,7 @@ export function EditTimeEntryDialog({
       ...prev,
       {
         id: `new-${crypto.randomUUID()}`,
-        project_id: '',
+        project_id: "",
         trade_id: null,
         cost_code_id: null,
         hours_worked: 0,
@@ -218,19 +202,19 @@ export function EditTimeEntryDialog({
   const handleRemoveAllocation = (id: string) => {
     if (!isAddMode && isPaid) {
       toast({
-        title: 'Paid entry locked',
+        title: "Paid entry locked",
         description:
-          'Paid time logs cannot remove existing allocations. Adjust projects via allocations flow instead.',
-        variant: 'destructive',
+          "Paid time logs cannot remove existing allocations. Adjust projects via allocations flow instead.",
+        variant: "destructive",
       });
       return;
     }
 
     if (allocations.length === 1) {
       toast({
-        title: 'Cannot remove',
-        description: 'Must have at least one allocation',
-        variant: 'destructive',
+        title: "Cannot remove",
+        description: "Must have at least one allocation",
+        variant: "destructive",
       });
       return;
     }
@@ -238,24 +222,27 @@ export function EditTimeEntryDialog({
   };
 
   const handleSave = async () => {
-    // Validate
     if (isAddMode && !selectedWorker) {
       toast({
-        title: 'Missing worker',
-        description: 'Please select a worker',
-        variant: 'destructive',
+        title: "Missing worker",
+        description: "Please select a worker",
+        variant: "destructive",
       });
       return;
     }
 
     const invalidAllocations = allocations.filter(
-      (a) => !a.project_id || a.hours_worked <= 0
+      (a) =>
+        !a.project_id ||
+        a.hours_worked <= 0 ||
+        !a.cost_code_id
     );
     if (invalidAllocations.length > 0) {
       toast({
-        title: 'Invalid entries',
-        description: 'All allocations must have a project and hours > 0',
-        variant: 'destructive',
+        title: "Invalid entries",
+        description:
+          "All allocations must have a project, cost code, and hours > 0",
+        variant: "destructive",
       });
       return;
     }
@@ -264,46 +251,42 @@ export function EditTimeEntryDialog({
 
     try {
       if (isAddMode) {
-        // Insert new time logs (always unpaid initially)
-        // Get company_id from the first project
         const firstProject = await supabase
-          .from('projects')
-          .select('company_id')
-          .eq('id', allocations[0].project_id)
+          .from("projects")
+          .select("company_id")
+          .eq("id", allocations[0].project_id)
           .single();
 
         if (firstProject.error) throw firstProject.error;
 
         for (const alloc of allocations) {
-          const { error } = await supabase.from('time_logs').insert({
+          const { error } = await supabase.from("time_logs").insert({
             worker_id: selectedWorker,
-            date: format(selectedDate, 'yyyy-MM-dd'),
+            date: format(selectedDate, "yyyy-MM-dd"),
             company_id: firstProject.data.company_id,
             project_id: alloc.project_id,
             trade_id: alloc.trade_id,
             cost_code_id: alloc.cost_code_id,
             hours_worked: alloc.hours_worked,
             notes: alloc.notes,
-            source_schedule_id: null, // Manual entry
+            source_schedule_id: null,
           });
 
           if (error) throw error;
         }
 
         toast({
-          title: 'Success',
-          description: 'Time log created successfully',
+          title: "Success",
+          description: "Time log created successfully",
         });
       } else {
-        // Edit mode
         const existingAllocations = allocations.filter(
-          (a) => !a.id.startsWith('new-')
+          (a) => !a.id.startsWith("new-")
         );
         const newAllocations = allocations.filter((a) =>
-          a.id.startsWith('new-')
+          a.id.startsWith("new-")
         );
 
-        // Find allocations to delete
         const originalIds = group!.log_ids;
         const currentIds = existingAllocations.map((a) => a.id);
         const idsToDelete = originalIds.filter(
@@ -311,22 +294,18 @@ export function EditTimeEntryDialog({
         );
 
         if (isPaid) {
-          // PAID GUARDRAIL:
-          // - No adding/removing allocations
-          // - No changing hours (UI already locks, this is extra safety)
           if (newAllocations.length > 0 || idsToDelete.length > 0) {
             toast({
-              title: 'Paid entry locked',
+              title: "Paid entry locked",
               description:
-                'Paid time logs cannot be split or merged here. You can only adjust project, trade, cost code, or notes.',
-              variant: 'destructive',
+                "Paid time logs cannot be split or merged here. You can only adjust project, trade, cost code, or notes.",
+              variant: "destructive",
             });
             setLoading(false);
             return;
           }
         }
 
-        // Update existing allocations
         for (const alloc of existingAllocations) {
           const updatePayload: any = {
             project_id: alloc.project_id,
@@ -335,23 +314,21 @@ export function EditTimeEntryDialog({
             notes: alloc.notes,
           };
 
-          // Only allow hours update if NOT paid
           if (!isPaid) {
             updatePayload.hours_worked = alloc.hours_worked;
           }
 
           const { error } = await supabase
-            .from('time_logs')
+            .from("time_logs")
             .update(updatePayload)
-            .eq('id', alloc.id);
+            .eq("id", alloc.id);
 
           if (error) throw error;
         }
 
         if (!isPaid) {
-          // Insert new allocations (unpaid only)
           for (const alloc of newAllocations) {
-            const { error } = await supabase.from('time_logs').insert({
+            const { error } = await supabase.from("time_logs").insert({
               worker_id: group!.worker_id,
               date: group!.date,
               company_id: group!.company_id,
@@ -366,32 +343,31 @@ export function EditTimeEntryDialog({
             if (error) throw error;
           }
 
-          // Delete removed allocations (unpaid only)
           if (idsToDelete.length > 0) {
             const { error } = await supabase
-              .from('time_logs')
+              .from("time_logs")
               .delete()
-              .in('id', idsToDelete);
+              .in("id", idsToDelete);
 
             if (error) throw error;
           }
         }
 
         toast({
-          title: 'Success',
+          title: "Success",
           description: isPaid
-            ? 'Paid time entry updated (non-financial fields only)'
-            : 'Time entry updated successfully',
+            ? "Paid time entry updated (non-financial fields only)"
+            : "Time entry updated successfully",
         });
       }
 
       onSuccess();
     } catch (error: any) {
-      console.error('Error saving time entry:', error);
+      console.error("Error saving time entry:", error);
       toast({
-        title: 'Error',
-        description: error.message || 'Failed to save time entry',
-        variant: 'destructive',
+        title: "Error",
+        description: error.message || "Failed to save time entry",
+        variant: "destructive",
       });
     } finally {
       setLoading(false);
@@ -403,11 +379,10 @@ export function EditTimeEntryDialog({
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {isAddMode ? 'Add Time Log' : 'Edit Time Entry'}
+            {isAddMode ? "Add Time Log" : "Edit Time Entry"}
           </DialogTitle>
         </DialogHeader>
 
-        {/* Header Info */}
         {!isAddMode ? (
           <Card>
             <CardContent className="p-4 space-y-3">
@@ -415,14 +390,16 @@ export function EditTimeEntryDialog({
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     <User className="h-4 w-4 text-muted-foreground" />
-                    <span className="font-semibold">{group!.worker_name}</span>
-                    <Badge variant={isPaid ? 'default' : 'outline'}>
-                      {isPaid ? 'Paid' : 'Unpaid'}
+                    <span className="font-semibold">
+                      {group!.worker_name}
+                    </span>
+                    <Badge variant={isPaid ? "default" : "outline"}>
+                      {isPaid ? "Paid" : "Unpaid"}
                     </Badge>
                   </div>
                   <div className="flex items-center gap-2 text-sm text-muted-foreground ml-6">
                     <Calendar className="h-3 w-3" />
-                    {format(new Date(group!.date), 'MMM d, yyyy')}
+                    {format(new Date(group!.date), "MMM d, yyyy")}
                   </div>
                 </div>
                 <div className="text-right">
@@ -439,11 +416,12 @@ export function EditTimeEntryDialog({
                 <div className="mt-2 flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
                   <Lock className="h-3 w-3 mt-[2px]" />
                   <p>
-                    This time entry is <span className="font-semibold">paid</span>. Hours and number of
-                    allocations are locked. You can adjust{' '}
+                    This time entry is{" "}
+                    <span className="font-semibold">paid</span>. Hours and
+                    number of allocations are locked. You can adjust{" "}
                     <span className="font-semibold">
                       project, trade, cost code, or notes
-                    </span>{' '}
+                    </span>{" "}
                     without changing worker pay.
                   </p>
                 </div>
@@ -485,13 +463,12 @@ export function EditTimeEntryDialog({
           </Card>
         )}
 
-        {/* Allocations */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <Label className="text-base">Project Allocations</Label>
             <Badge variant="secondary">
               {allocations.length} allocation
-              {allocations.length !== 1 ? 's' : ''}
+              {allocations.length !== 1 ? "s" : ""}
             </Badge>
           </div>
 
@@ -521,7 +498,7 @@ export function EditTimeEntryDialog({
                     <Select
                       value={alloc.project_id}
                       onValueChange={(value) =>
-                        handleUpdateAllocation(alloc.id, 'project_id', value)
+                        handleUpdateAllocation(alloc.id, "project_id", value)
                       }
                     >
                       <SelectTrigger className="h-9">
@@ -540,12 +517,12 @@ export function EditTimeEntryDialog({
                   <div className="space-y-2">
                     <Label className="text-xs">Trade</Label>
                     <Select
-                      value={alloc.trade_id || 'none'}
+                      value={alloc.trade_id || "none"}
                       onValueChange={(value) =>
                         handleUpdateAllocation(
                           alloc.id,
-                          'trade_id',
-                          value === 'none' ? null : value
+                          "trade_id",
+                          value === "none" ? null : value
                         )
                       }
                     >
@@ -575,7 +552,7 @@ export function EditTimeEntryDialog({
                       onChange={(e) =>
                         handleUpdateAllocation(
                           alloc.id,
-                          'hours_worked',
+                          "hours_worked",
                           parseFloat(e.target.value) || 0
                         )
                       }
@@ -584,29 +561,19 @@ export function EditTimeEntryDialog({
                   </div>
 
                   <div className="space-y-2">
-                    <Label className="text-xs">Cost Code</Label>
-                    <Select
-                      value={alloc.cost_code_id || 'none'}
-                      onValueChange={(value) =>
+                    <Label className="text-xs">Cost Code *</Label>
+                    <CostCodeSelect
+                      value={alloc.cost_code_id}
+                      category="labor"
+                      required
+                      onChange={(val) =>
                         handleUpdateAllocation(
                           alloc.id,
-                          'cost_code_id',
-                          value === 'none' ? null : value
+                          "cost_code_id",
+                          val ?? null
                         )
                       }
-                    >
-                      <SelectTrigger className="h-9">
-                        <SelectValue placeholder="Select cost code" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">No Cost Code</SelectItem>
-                        {costCodes?.map((code: any) => (
-                          <SelectItem key={code.id} value={code.id}>
-                            {code.code} - {code.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    />
                   </div>
                 </div>
 
@@ -614,11 +581,11 @@ export function EditTimeEntryDialog({
                   <Label className="text-xs">Notes</Label>
                   <Textarea
                     className="h-16 resize-none"
-                    value={alloc.notes || ''}
+                    value={alloc.notes || ""}
                     onChange={(e) =>
                       handleUpdateAllocation(
                         alloc.id,
-                        'notes',
+                        "notes",
                         e.target.value || null
                       )
                     }
@@ -658,7 +625,7 @@ export function EditTimeEntryDialog({
                 Saving...
               </>
             ) : (
-              'Save Changes'
+              "Save Changes"
             )}
           </Button>
         </DialogFooter>
