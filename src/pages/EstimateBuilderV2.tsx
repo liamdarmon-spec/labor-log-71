@@ -1,8 +1,8 @@
-// src/pages/EstimateBuilderV2.tsx
+// src/components/estimates/EstimateBuilderV2.tsx
 import { useMemo } from "react";
-import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useNavigate } from "react-router-dom";
 
 import {
   Card,
@@ -76,6 +76,11 @@ interface EstimateRecord {
   is_budget_source: boolean;
 }
 
+interface EstimateBuilderProps {
+  estimateId: string;
+  projectId: string;
+}
+
 const CATEGORY_OPTIONS = [
   { value: "labor", label: "Labor" },
   { value: "subs", label: "Subs" },
@@ -83,29 +88,21 @@ const CATEGORY_OPTIONS = [
   { value: "other", label: "Other" },
 ];
 
-const formatMoney = (value: number | null | undefined) =>
-  `$${(value || 0).toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
+const normalizeCategory = (raw: string | null) => {
+  const v = (raw || "").toLowerCase();
+  if (v.startsWith("lab")) return "labor";
+  if (v.startsWith("sub")) return "subs";
+  if (v.startsWith("mat")) return "materials";
+  return "other";
+};
 
-export default function EstimateBuilderV2() {
-  const { estimateId } = useParams<{ estimateId: string }>();
+export function EstimateBuilderV2({ estimateId, projectId }: EstimateBuilderProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
-  if (!estimateId) {
-    return (
-      <div className="p-6">
-        <p className="text-sm text-muted-foreground">
-          Missing estimate id in route.
-        </p>
-      </div>
-    );
-  }
+  /* 1) Load estimate + blocks + items */
 
-  // 1) Load estimate + blocks + items
   const { data, isLoading } = useQuery({
     queryKey: ["estimate-builder", estimateId],
     queryFn: async () => {
@@ -157,9 +154,9 @@ export default function EstimateBuilderV2() {
 
   const estimate = data?.estimate;
   const scopeBlocks = data?.scopeBlocks || [];
-  const projectId = estimate?.project_id || null;
 
-  // 2) Totals (from scope block items)
+  /* 2) Helpers: totals */
+
   const { subtotal, tax, total } = useMemo(() => {
     if (!estimate) {
       return { subtotal: 0, tax: 0, total: 0 };
@@ -174,13 +171,19 @@ export default function EstimateBuilderV2() {
       return sum + blockTotal;
     }, 0);
 
-    const taxAmount = estimate.tax_amount ?? 0;
-    const totalAmount = subtotalFromItems + taxAmount;
+    const tax = estimate.tax_amount ?? 0;
+    const total = subtotalFromItems + tax;
 
-    return { subtotal: subtotalFromItems, tax: taxAmount, total: totalAmount };
+    return { subtotal: subtotalFromItems, tax, total };
   }, [estimate, scopeBlocks]);
 
-  // 3) Mutations
+  const formatMoney = (value: number | null | undefined) =>
+    `$${(value || 0).toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
+
+  /* 3) Mutations */
 
   const addCostItemMutation = useMutation({
     mutationFn: async (scope_block_id: string) => {
@@ -192,11 +195,11 @@ export default function EstimateBuilderV2() {
           scope_block_id,
           category: "materials",
           description: "",
-          quantity: 1,
+          quantity: null,
           unit: "ea",
-          unit_price: 0,
+          unit_price: null,
           line_total: 0,
-          markup_percent: 0,
+          markup_percent: null,
           notes: null,
           cost_code_id: unassignedId,
         })
@@ -241,29 +244,21 @@ export default function EstimateBuilderV2() {
     }) => {
       const { id, patch } = payload;
 
-      // recompute line_total if qty, unit_price, or markup changed
+      // recompute line_total if qty or unit_price changed
       let newPatch = { ...patch } as any;
-
-      if ("quantity" in patch || "unit_price" in patch || "markup_percent" in patch) {
+      if ("quantity" in patch || "unit_price" in patch) {
         const { data: existing, error: getErr } = await supabase
           .from("scope_block_cost_items")
-          .select("quantity, unit_price, markup_percent")
+          .select("quantity, unit_price")
           .eq("id", id)
-          .maybeSingle<
-            Pick<ScopeBlockCostItem, "quantity" | "unit_price" | "markup_percent">
-          >();
+          .maybeSingle<Pick<ScopeBlockCostItem, "quantity" | "unit_price">>();
 
         if (getErr) throw getErr;
-
         const quantity =
           (patch.quantity ?? existing?.quantity ?? 0) || 0;
         const unit_price =
           (patch.unit_price ?? existing?.unit_price ?? 0) || 0;
-        const markup_percent =
-          (patch.markup_percent ?? existing?.markup_percent ?? 0) || 0;
-
-        const base = quantity * unit_price;
-        newPatch.line_total = base * (1 + markup_percent / 100);
+        newPatch.line_total = quantity * unit_price;
       }
 
       const { error } = await supabase
@@ -315,7 +310,7 @@ export default function EstimateBuilderV2() {
 
   const saveAndSetBudgetMutation = useMutation({
     mutationFn: async () => {
-      // 1) Update estimate header
+      // 1) Update estimate as accepted + budget source with correct totals
       const { error: estErr } = await supabase
         .from("estimates")
         .update({
@@ -329,10 +324,11 @@ export default function EstimateBuilderV2() {
 
       if (estErr) throw estErr;
 
-      // 2) Sync to budget via RPC (this also updates is_budget_source flags)
-      const { error: rpcErr } = await supabase.rpc("sync_estimate_to_budget", {
-        p_estimate_id: estimateId,
-      });
+      // 2) Sync to budget via RPC
+      const { error: rpcErr } = await supabase.rpc(
+        "sync_estimate_to_budget",
+        { p_estimate_id: estimateId }
+      );
       if (rpcErr) throw rpcErr;
 
       // 3) Notify budget views
@@ -340,23 +336,17 @@ export default function EstimateBuilderV2() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["estimate-builder", estimateId] });
-      if (projectId) {
-        queryClient.invalidateQueries({
-          queryKey: ["project_budget_header", projectId],
-        });
-      }
+      queryClient.invalidateQueries({ queryKey: ["project_budget_header", projectId] });
 
       toast({
         title: "Budget baseline set",
         description: "This estimate is now the active project budget.",
-        action: projectId
-          ? {
-              label: "View Budget",
-              onClick: () => {
-                navigate(`/projects/${projectId}?tab=budget`);
-              },
-            }
-          : undefined,
+        action: {
+          label: "View Budget",
+          onClick: () => {
+            navigate(`/projects/${projectId}?tab=budget`);
+          },
+        },
       });
     },
     onError: (err: any) => {
@@ -369,9 +359,11 @@ export default function EstimateBuilderV2() {
     },
   });
 
+  /* 4) Rendering */
+
   if (isLoading || !estimate) {
     return (
-      <div className="space-y-4 p-6">
+      <div className="space-y-4">
         <Skeleton className="h-24 w-full" />
         <Skeleton className="h-64 w-full" />
       </div>
@@ -389,8 +381,20 @@ export default function EstimateBuilderV2() {
     updateCostItemMutation.mutate({ id: itemId, patch });
   };
 
+  const formatNumberInputValue = (value: number | null | undefined) =>
+    value === null || value === undefined ? "" : value;
+
+  const displayLineTotal = (item: ScopeBlockCostItem) => {
+    const hasQty = !!item.quantity && item.quantity !== 0;
+    const hasRate = !!item.unit_price && item.unit_price !== 0;
+    if (!hasQty && !hasRate && (!item.line_total || item.line_total === 0)) {
+      return <span className="text-xs text-muted-foreground">—</span>;
+    }
+    return <span>{formatMoney(item.line_total || 0)}</span>;
+  };
+
   return (
-    <div className="space-y-6 p-4 md:p-6">
+    <div className="space-y-6">
       {/* Header cards */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div className="flex flex-wrap gap-4">
@@ -446,14 +450,36 @@ export default function EstimateBuilderV2() {
         </div>
       </div>
 
+      {/* Small helper strip about groups/items */}
+      <Card>
+        <CardContent className="py-3">
+          <p className="text-xs text-muted-foreground">
+            Use <span className="font-medium">groups / sections</span> (e.g. Tile,
+            Demo, Framing) and add <span className="font-medium">cost items</span>{" "}
+            inside each group for labor, subs, and materials. Each row pulls into
+            your project budget by cost code.
+          </p>
+        </CardContent>
+      </Card>
+
       {/* Cost item blocks */}
       {scopeBlocks
         .filter((b) => b.block_type === "cost_items")
         .map((block) => {
           const items = block.scope_block_cost_items || [];
+
           const sectionTotal = items.reduce(
             (acc, item) => acc + (item.line_total || 0),
             0
+          );
+
+          const categoryTotals = items.reduce(
+            (acc, item) => {
+              const key = normalizeCategory(item.category);
+              acc[key] += item.line_total || 0;
+              return acc;
+            },
+            { labor: 0, subs: 0, materials: 0, other: 0 }
           );
 
           return (
@@ -468,6 +494,10 @@ export default function EstimateBuilderV2() {
                       {block.description}
                     </p>
                   )}
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    Items in this table roll up under this group in your project
+                    budget.
+                  </p>
                 </div>
                 <Badge variant="outline" className="text-[10px] uppercase">
                   cost_items
@@ -492,7 +522,7 @@ export default function EstimateBuilderV2() {
                       <TableRow key={item.id}>
                         <TableCell className="w-[120px]">
                           <Select
-                            value={item.category ?? "materials"}
+                            value={normalizeCategory(item.category)}
                             onValueChange={(val) =>
                               handleItemFieldChange(item.id, { category: val })
                             }
@@ -502,7 +532,10 @@ export default function EstimateBuilderV2() {
                             </SelectTrigger>
                             <SelectContent>
                               {CATEGORY_OPTIONS.map((opt) => (
-                                <SelectItem key={opt.value} value={opt.value}>
+                                <SelectItem
+                                  key={opt.value}
+                                  value={opt.value}
+                                >
                                   {opt.label}
                                 </SelectItem>
                               ))}
@@ -523,6 +556,7 @@ export default function EstimateBuilderV2() {
                         <TableCell className="max-w-[260px]">
                           <Input
                             className="h-8 text-sm"
+                            placeholder="Describe the work or material…"
                             value={item.description}
                             onChange={(e) =>
                               handleItemFieldChange(item.id, {
@@ -535,10 +569,13 @@ export default function EstimateBuilderV2() {
                           <Input
                             type="number"
                             className="h-8 text-right text-xs"
-                            value={item.quantity ?? 0}
+                            placeholder="Qty"
+                            value={formatNumberInputValue(item.quantity)}
                             onChange={(e) =>
                               handleItemFieldChange(item.id, {
-                                quantity: Number(e.target.value || 0),
+                                quantity: e.target.value === ""
+                                  ? null
+                                  : Number(e.target.value || 0),
                               })
                             }
                           />
@@ -546,10 +583,11 @@ export default function EstimateBuilderV2() {
                         <TableCell className="w-[80px]">
                           <Input
                             className="h-8 text-xs"
-                            value={item.unit ?? "ea"}
+                            placeholder="ea"
+                            value={item.unit ?? ""}
                             onChange={(e) =>
                               handleItemFieldChange(item.id, {
-                                unit: e.target.value,
+                                unit: e.target.value || null,
                               })
                             }
                           />
@@ -558,10 +596,13 @@ export default function EstimateBuilderV2() {
                           <Input
                             type="number"
                             className="h-8 text-right text-xs"
-                            value={item.unit_price ?? 0}
+                            placeholder="Rate"
+                            value={formatNumberInputValue(item.unit_price)}
                             onChange={(e) =>
                               handleItemFieldChange(item.id, {
-                                unit_price: Number(e.target.value || 0),
+                                unit_price: e.target.value === ""
+                                  ? null
+                                  : Number(e.target.value || 0),
                               })
                             }
                           />
@@ -570,16 +611,19 @@ export default function EstimateBuilderV2() {
                           <Input
                             type="number"
                             className="h-8 text-right text-xs"
-                            value={item.markup_percent ?? 0}
+                            placeholder="0"
+                            value={formatNumberInputValue(item.markup_percent)}
                             onChange={(e) =>
                               handleItemFieldChange(item.id, {
-                                markup_percent: Number(e.target.value || 0),
+                                markup_percent: e.target.value === ""
+                                  ? null
+                                  : Number(e.target.value || 0),
                               })
                             }
                           />
                         </TableCell>
                         <TableCell className="text-right w-[120px] text-sm font-semibold">
-                          {formatMoney(item.line_total || 0)}
+                          {displayLineTotal(item)}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -599,10 +643,18 @@ export default function EstimateBuilderV2() {
                     </TableRow>
 
                     <TableRow>
-                      <TableCell colSpan={7} className="text-right font-medium">
-                        Section Total:
+                      <TableCell colSpan={7} className="text-right font-medium align-top">
+                        <div className="space-y-1">
+                          <div>Section Total:</div>
+                          <div className="text-[11px] text-muted-foreground">
+                            Labor {formatMoney(categoryTotals.labor)} · Subs{" "}
+                            {formatMoney(categoryTotals.subs)} · Materials{" "}
+                            {formatMoney(categoryTotals.materials)} · Other{" "}
+                            {formatMoney(categoryTotals.other)}
+                          </div>
+                        </div>
                       </TableCell>
-                      <TableCell className="text-right font-bold">
+                      <TableCell className="text-right font-bold align-middle">
                         {formatMoney(sectionTotal)}
                       </TableCell>
                     </TableRow>
@@ -613,7 +665,7 @@ export default function EstimateBuilderV2() {
           );
         })}
 
-      {/* (Optional) show text / image blocks in a separate editor if needed */}
+      {/* (Optional) text / image blocks can still be rendered below using your existing implementation */}
     </div>
   );
 }
