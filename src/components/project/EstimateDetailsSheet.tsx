@@ -10,7 +10,14 @@ import {
 } from "@/components/ui/sheet";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { FileText, CheckCircle2, Star, Edit3 } from "lucide-react";
 import { format } from "date-fns";
@@ -161,7 +168,7 @@ export function EstimateDetailsSheet({
         const items = block.scope_block_cost_items || [];
         const blockTotal = items.reduce(
           (acc, item) => acc + (item.line_total || 0),
-          0
+          0,
         );
         return sum + blockTotal;
       }, 0);
@@ -171,7 +178,7 @@ export function EstimateDetailsSheet({
     } else if (legacyItems.length > 0) {
       const subtotal = legacyItems.reduce(
         (sum, item) => sum + (item.line_total || 0),
-        0
+        0,
       );
       const tax = estimate?.tax_amount ?? 0;
       const total = subtotal + tax;
@@ -185,7 +192,9 @@ export function EstimateDetailsSheet({
     }
   }, [estimate, usesScopeBlocks, scopeBlocks, legacyItems]);
 
-  const statusVariant = (status: string): "default" | "secondary" | "destructive" => {
+  const statusVariant = (
+    status: string,
+  ): "default" | "secondary" | "destructive" => {
     switch (status) {
       case "accepted":
         return "default";
@@ -255,7 +264,10 @@ export function EstimateDetailsSheet({
                 <span className="text-xs text-muted-foreground">
                   Created{" "}
                   {estimate.created_at
-                    ? format(new Date(estimate.created_at), "MMM d, yyyy h:mm a")
+                    ? format(
+                        new Date(estimate.created_at),
+                        "MMM d, yyyy h:mm a",
+                      )
                     : "—"}
                 </span>
                 <div className="flex gap-2">
@@ -287,7 +299,9 @@ export function EstimateDetailsSheet({
             <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
               <Card>
                 <CardContent className="pt-4">
-                  <p className="text-xs text-muted-foreground mb-1">Subtotal</p>
+                  <p className="text-xs text-muted-foreground mb-1">
+                    Subtotal
+                  </p>
                   <p className="text-2xl font-bold">
                     {formatMoney(totals.subtotal)}
                   </p>
@@ -329,7 +343,9 @@ export function EstimateDetailsSheet({
                           <div className="flex items-center justify-between mb-3">
                             <div>
                               {block.title && (
-                                <p className="font-semibold">{block.title}</p>
+                                <p className="font-semibold">
+                                  {block.title}
+                                </p>
                               )}
                               {block.description && (
                                 <p className="text-xs text-muted-foreground">
@@ -375,7 +391,10 @@ export function EstimateDetailsSheet({
                                       )}
                                     </TableCell>
                                     <TableCell>
-                                      <Badge variant="outline" className="text-xs">
+                                      <Badge
+                                        variant="outline"
+                                        className="text-xs"
+                                      >
                                         {displayCategory(item.category)}
                                       </Badge>
                                     </TableCell>
@@ -395,7 +414,9 @@ export function EstimateDetailsSheet({
                                     <TableCell className="text-right">
                                       {item.quantity ?? "—"}
                                     </TableCell>
-                                    <TableCell>{item.unit || "ea"}</TableCell>
+                                    <TableCell>
+                                      {item.unit || "ea"}
+                                    </TableCell>
                                     <TableCell className="text-right">
                                       {formatMoney(item.unit_price)}
                                     </TableCell>
@@ -446,7 +467,10 @@ export function EstimateDetailsSheet({
                               </div>
                             </TableCell>
                             <TableCell>
-                              <Badge variant="outline" className="text-xs">
+                              <Badge
+                                variant="outline"
+                                className="text-xs"
+                              >
                                 {displayCategory(item.category)}
                               </Badge>
                             </TableCell>
@@ -466,7 +490,9 @@ export function EstimateDetailsSheet({
                             <TableCell className="text-right">
                               {item.quantity ?? "—"}
                             </TableCell>
-                            <TableCell>{item.unit || "ea"}</TableCell>
+                            <TableCell>
+                              {item.unit || "ea"}
+                            </TableCell>
                             <TableCell className="text-right">
                               {formatMoney(item.unit_price)}
                             </TableCell>
