@@ -1,443 +1,290 @@
-import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
-import { toast } from 'sonner';
-import { Plus, Trash2, FileText, CheckCircle2, TrendingUp } from 'lucide-react';
-import { format } from 'date-fns';
-import { getUnassignedCostCodeId } from '@/lib/costCodes';
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { FileText, Eye, Star, Zap } from "lucide-react";
+import { format } from "date-fns";
+import { useToast } from "@/hooks/use-toast";
+import { CreateEstimateDialog } from "./CreateEstimateDialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { EstimateDetailsSheet } from "./EstimateDetailsSheet";
 
-interface Estimate {
-  id: string;
-  title: string;
-  status: string;
-  total_amount: number;
-  created_at: string;
-  is_budget_source?: boolean;
+interface ProjectEstimatesProps {
+  projectId: string;
 }
 
-interface EstimateItemWithCategory {
-  id?: string;
-  description: string;
-  quantity: string;
-  unit: string;
-  unit_price: string;
-  line_total: number;
-  category: string;
-}
+export function ProjectEstimates({ projectId }: ProjectEstimatesProps) {
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [syncDialogOpen, setSyncDialogOpen] = useState(false);
+  const [selectedEstimateId, setSelectedEstimateId] = useState<string | null>(
+    null
+  );
+  const [viewEstimateId, setViewEstimateId] = useState<string | null>(null);
+  const { toast } = useToast();
 
-interface EstimateItem {
-  description: string;
-  quantity: string;
-  unit: string;
-  unit_price: string;
-  line_total: number;
-  category?: string;
-}
-
-export const ProjectEstimates = ({ projectId }: { projectId: string }) => {
-  const [estimates, setEstimates] = useState<Estimate[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [formData, setFormData] = useState({
-    title: '',
-    status: 'draft',
-    tax_amount: '0',
-  });
-  const [lineItems, setLineItems] = useState<EstimateItem[]>([
-    { description: '', quantity: '1', unit: 'ea', unit_price: '0', line_total: 0, category: 'labor' }
-  ]);
-
-  useEffect(() => {
-    fetchEstimates();
-  }, [projectId]);
-
-  const fetchEstimates = async () => {
-    try {
-      setLoading(true);
+  const { data: estimates, isLoading, refetch } = useQuery({
+    queryKey: ["estimates", projectId],
+    queryFn: async () => {
       const { data, error } = await supabase
-        .from('estimates')
-        .select('*')
-        .eq('project_id', projectId)
-        .order('created_at', { ascending: false });
+        .from("estimates")
+        .select("*")
+        .eq("project_id", projectId)
+        .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setEstimates(data || []);
-    } catch (error) {
-      console.error('Error fetching estimates:', error);
-      toast.error('Failed to load estimates');
-    } finally {
-      setLoading(false);
-    }
-  };
+      return data || [];
+    },
+  });
 
-  const calculateLineTotal = (quantity: string, unitPrice: string) => {
-    return Number(quantity) * Number(unitPrice);
-  };
+  const handleSyncToBudget = async () => {
+    if (!selectedEstimateId) return;
 
-  const calculateSubtotal = () => {
-    return lineItems.reduce((sum, item) => sum + item.line_total, 0);
-  };
-
-  const calculateTotal = () => {
-    return calculateSubtotal() + Number(formData.tax_amount);
-  };
-
-  const addLineItem = () => {
-    setLineItems([...lineItems, { description: '', quantity: '1', unit: 'ea', unit_price: '0', line_total: 0, category: 'labor' }]);
-  };
-
-  const removeLineItem = (index: number) => {
-    setLineItems(lineItems.filter((_, i) => i !== index));
-  };
-
-  const updateLineItem = (index: number, field: keyof EstimateItem, value: string) => {
-    const updated = [...lineItems];
-    updated[index] = { ...updated[index], [field]: value };
-    
-    if (field === 'quantity' || field === 'unit_price') {
-      updated[index].line_total = calculateLineTotal(updated[index].quantity, updated[index].unit_price);
-    }
-    
-    setLineItems(updated);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
     try {
-      const subtotal = calculateSubtotal();
-      const total = calculateTotal();
-
-      const { data: estimate, error: estimateError } = await supabase
-        .from('estimates')
-        .insert({
-          project_id: projectId,
-          title: formData.title,
-          status: formData.status,
-          subtotal_amount: subtotal,
-          tax_amount: Number(formData.tax_amount),
-          total_amount: total,
-        })
-        .select()
-        .single();
-
-      if (estimateError) throw estimateError;
-
-      const unassignedId = await getUnassignedCostCodeId();
-
-      const itemsToInsert = lineItems.map(item => ({
-        estimate_id: estimate.id,
-        description: item.description,
-        quantity: Number(item.quantity),
-        unit: item.unit,
-        unit_price: Number(item.unit_price),
-        line_total: item.line_total,
-        cost_code_id: unassignedId,
-      }));
-
-      const { error: itemsError } = await supabase
-        .from('estimate_items')
-        .insert(itemsToInsert);
-
-      if (itemsError) throw itemsError;
-
-      toast.success('Estimate created successfully');
-      setIsDialogOpen(false);
-      setFormData({ title: '', status: 'draft', tax_amount: '0' });
-      setLineItems([{ description: '', quantity: '1', unit: 'ea', unit_price: '0', line_total: 0, category: 'labor' }]);
-      fetchEstimates();
-    } catch (error) {
-      console.error('Error creating estimate:', error);
-      toast.error('Failed to create estimate');
-    }
-  };
-
-  const syncToBudget = async (estimateId: string) => {
-    try {
-      // Fetch estimate items to calculate category totals
-      const { data: items, error: itemsError } = await supabase
-        .from('estimate_items')
-        .select('*')
-        .eq('estimate_id', estimateId);
-
-      if (itemsError) throw itemsError;
-
-      const laborTotal = items?.reduce((sum, item) => sum + (item.line_total || 0), 0) || 0;
-
-      // Update project budget
-      const { error: budgetError } = await supabase
-        .from('project_budgets')
-        .upsert({
-          project_id: projectId,
-          labor_budget: laborTotal,
-          subs_budget: 0,
-          materials_budget: 0,
-          other_budget: 0,
-        }, {
-          onConflict: 'project_id'
-        });
-
-      if (budgetError) throw budgetError;
-
-      toast.success('Budget synced from estimate');
-      fetchEstimates();
-    } catch (error) {
-      console.error('Error syncing to budget:', error);
-      toast.error('Failed to sync budget');
-    }
-  };
-
-  const updateEstimateStatus = async (estimateId: string, newStatus: string) => {
-    try {
-      const { error } = await supabase
-        .from('estimates')
-        .update({ status: newStatus })
-        .eq('id', estimateId);
+      const { error } = await supabase.rpc("sync_estimate_to_budget", {
+        p_estimate_id: selectedEstimateId,
+      });
 
       if (error) throw error;
-      toast.success('Estimate status updated');
-      fetchEstimates();
+
+      // notify budget views to refetch
+      window.dispatchEvent(new Event("budget-updated"));
+
+      toast({
+        title: "Success",
+        description: "Estimate synced to budget successfully",
+      });
+
+      refetch();
+      setSyncDialogOpen(false);
+      setSelectedEstimateId(null);
     } catch (error) {
-      console.error('Error updating estimate:', error);
-      toast.error('Failed to update estimate');
+      console.error("Error syncing estimate to budget:", error);
+      toast({
+        title: "Error",
+        description: "Failed to sync estimate to budget",
+        variant: "destructive",
+      });
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'accepted':
-        return 'bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20';
-      case 'sent':
-        return 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20';
-      case 'rejected':
-        return 'bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20';
-      default:
-        return 'bg-gray-500/10 text-gray-700 dark:text-gray-400 border-gray-500/20';
-    }
+  const getStatusBadge = (status: string) => {
+    const colors: Record<string, string> = {
+      draft: "bg-gray-100 text-gray-800 border-gray-200",
+      sent: "bg-blue-100 text-blue-800 border-blue-200",
+      accepted: "bg-green-100 text-green-800 border-green-200",
+      rejected: "bg-red-100 text-red-800 border-red-200",
+    };
+    return colors[status] || colors.draft;
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
-      <div className="space-y-3">
-        {[1, 2, 3].map((i) => (
-          <div key={i} className="h-20 bg-muted rounded animate-pulse"></div>
-        ))}
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Estimates</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-16 bg-muted animate-pulse rounded" />
+            ))}
+          </div>
+        </CardContent>
+      </Card>
     );
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold">Project Estimates</h3>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="w-4 h-4 mr-2" />
+    <>
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Estimates
+              </CardTitle>
+              <CardDescription>
+                Manage project estimates and sync to budget
+              </CardDescription>
+            </div>
+            <Button onClick={() => setCreateDialogOpen(true)}>
+              <FileText className="h-4 w-4 mr-2" />
               New Estimate
             </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Create New Estimate</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="title">Title *</Label>
-                  <Input
-                    id="title"
-                    value={formData.title}
-                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                    placeholder="e.g., Kitchen Renovation Estimate"
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="status">Status</Label>
-                  <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
-                    <SelectTrigger id="status">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="draft">Draft</SelectItem>
-                      <SelectItem value="sent">Sent</SelectItem>
-                      <SelectItem value="accepted">Accepted</SelectItem>
-                      <SelectItem value="rejected">Rejected</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <Label>Line Items</Label>
-                  <Button type="button" variant="outline" size="sm" onClick={addLineItem}>
-                    <Plus className="w-3 h-3 mr-1" />
-                    Add Item
-                  </Button>
-                </div>
-                <div className="space-y-2">
-                  {lineItems.map((item, index) => (
-                    <div key={index} className="grid grid-cols-12 gap-2 items-end">
-                      <div className="col-span-4">
-                        <Input
-                          placeholder="Description"
-                          value={item.description}
-                          onChange={(e) => updateLineItem(index, 'description', e.target.value)}
-                          required
-                        />
-                      </div>
-                      <div className="col-span-2">
-                        <Input
-                          type="number"
-                          step="0.01"
-                          placeholder="Qty"
-                          value={item.quantity}
-                          onChange={(e) => updateLineItem(index, 'quantity', e.target.value)}
-                          required
-                        />
-                      </div>
-                      <div className="col-span-2">
-                        <Input
-                          placeholder="Unit"
-                          value={item.unit}
-                          onChange={(e) => updateLineItem(index, 'unit', e.target.value)}
-                        />
-                      </div>
-                      <div className="col-span-2">
-                        <Input
-                          type="number"
-                          step="0.01"
-                          placeholder="Price"
-                          value={item.unit_price}
-                          onChange={(e) => updateLineItem(index, 'unit_price', e.target.value)}
-                          required
-                        />
-                      </div>
-                      <div className="col-span-1">
-                        <p className="text-sm font-medium">${item.line_total.toFixed(2)}</p>
-                      </div>
-                      <div className="col-span-1">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => removeLineItem(index)}
-                          disabled={lineItems.length === 1}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="border-t pt-4 space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span>Subtotal:</span>
-                  <span className="font-medium">${calculateSubtotal().toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between items-center text-sm">
-                  <span>Tax:</span>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      className="w-24 h-8"
-                      value={formData.tax_amount}
-                      onChange={(e) => setFormData({ ...formData, tax_amount: e.target.value })}
-                    />
-                  </div>
-                </div>
-                <div className="flex justify-between text-lg font-bold border-t pt-2">
-                  <span>Total:</span>
-                  <span>${calculateTotal().toFixed(2)}</span>
-                </div>
-              </div>
-
-              <div className="flex gap-2 justify-end">
-                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit">Create Estimate</Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
-      </div>
-
-      {estimates.length === 0 ? (
-        <Card className="p-12">
-          <div className="text-center space-y-4">
-            <FileText className="w-12 h-12 mx-auto text-muted-foreground" />
-            <p className="text-muted-foreground">No estimates yet. Create your first estimate to get started.</p>
           </div>
-        </Card>
-      ) : (
-        <Card>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Title</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Date Created</TableHead>
-                <TableHead className="text-right">Total Amount</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {estimates.map((estimate) => (
-                <TableRow key={estimate.id}>
-                  <TableCell className="font-medium">{estimate.title}</TableCell>
-                  <TableCell>
-                    <Badge className={getStatusColor(estimate.status)} variant="outline">
-                      {estimate.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{format(new Date(estimate.created_at), 'MMM d, yyyy')}</TableCell>
-                  <TableCell className="text-right font-semibold">
-                    ${Number(estimate.total_amount).toFixed(2)}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      {estimate.status === 'accepted' && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => syncToBudget(estimate.id)}
-                        >
-                          <TrendingUp className="w-4 h-4 mr-1" />
-                          Sync to Budget
-                        </Button>
+        </CardHeader>
+        <CardContent>
+          {estimates && estimates.length > 0 ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Title</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Subtotal</TableHead>
+                  <TableHead className="text-right">Tax</TableHead>
+                  <TableHead className="text-right">Total</TableHead>
+                  <TableHead>Created</TableHead>
+                  <TableHead className="text-center">Budget Source</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {estimates.map((estimate: any) => (
+                  <TableRow key={estimate.id}>
+                    <TableCell className="font-medium">
+                      {estimate.title}
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        className={getStatusBadge(estimate.status)}
+                        variant="outline"
+                      >
+                        {estimate.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      ${(estimate.subtotal_amount || 0).toLocaleString()}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      ${(estimate.tax_amount || 0).toLocaleString()}
+                    </TableCell>
+                    <TableCell className="text-right font-medium">
+                      ${(estimate.total_amount || 0).toLocaleString()}
+                    </TableCell>
+                    <TableCell>
+                      {estimate.created_at
+                        ? format(
+                            new Date(estimate.created_at),
+                            "MMM d, yyyy"
+                          )
+                        : "—"}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {estimate.is_budget_source ? (
+                        <Badge variant="default" className="gap-1">
+                          <Star className="h-3 w-3" />
+                          Budget Baseline
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">
+                          —
+                        </span>
                       )}
-                      {estimate.status !== 'accepted' && (
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        {!estimate.is_budget_source &&
+                          estimate.status === "accepted" && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setSelectedEstimateId(estimate.id);
+                                setSyncDialogOpen(true);
+                              }}
+                            >
+                              <Zap className="h-3 w-3 mr-1" />
+                              Sync to Budget
+                            </Button>
+                          )}
                         <Button
                           size="sm"
                           variant="ghost"
-                          onClick={() => updateEstimateStatus(estimate.id, 'accepted')}
+                          onClick={() => setViewEstimateId(estimate.id)}
                         >
-                          <CheckCircle2 className="w-4 h-4 mr-1" />
-                          Accept
+                          <Eye className="h-4 w-4" />
                         </Button>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </Card>
-      )}
-    </div>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          ) : (
+            <div className="text-center py-12">
+              <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-muted-foreground mb-2">No estimates yet</p>
+              <Button onClick={() => setCreateDialogOpen(true)}>
+                <FileText className="h-4 w-4 mr-2" />
+                Create First Estimate
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <CreateEstimateDialog
+        open={createDialogOpen}
+        onOpenChange={(open) => {
+          setCreateDialogOpen(open);
+          if (!open) refetch();
+        }}
+        projectId={projectId}
+        onSuccess={() => {
+          refetch();
+          setCreateDialogOpen(false);
+        }}
+      />
+
+      <AlertDialog open={syncDialogOpen} onOpenChange={setSyncDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Sync Estimate to Budget?</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <p>This will:</p>
+              <ul className="list-disc list-inside space-y-1 text-sm">
+                <li>Mark this estimate as the budget baseline</li>
+                <li>Create budget lines for each estimate item</li>
+                <li>Replace any existing budget for this project</li>
+              </ul>
+              <p className="mt-4 font-medium">
+                This action cannot be undone.
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleSyncToBudget}>
+              <Zap className="h-4 w-4 mr-2" />
+              Sync to Budget
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <EstimateDetailsSheet
+        estimateId={viewEstimateId}
+        open={!!viewEstimateId}
+        onOpenChange={(open) => {
+          if (!open) setViewEstimateId(null);
+        }}
+      />
+    </>
   );
-};
+}
