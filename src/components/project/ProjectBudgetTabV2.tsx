@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import {
   Card,
   CardContent,
@@ -33,11 +33,22 @@ import {
   BarChart3,
   ChevronDown,
   ChevronRight,
+  Clock,
+  Receipt,
+  Shuffle,
+  CheckSquare,
+  Eye,
 } from 'lucide-react';
 import { useUnifiedProjectBudget } from '@/hooks/useUnifiedProjectBudget';
 import { useRecalculateProjectFinancials } from '@/hooks/useProjectFinancials';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from '@/components/ui/context-menu';
 
 interface ProjectBudgetTabV2Props {
   projectId: string;
@@ -146,6 +157,47 @@ export function ProjectBudgetTabV2({ projectId }: ProjectBudgetTabV2Props) {
       maximumFractionDigits: 0,
     })}`;
 
+  const handleViewTransactions = (rowKey: string) => {
+    setExpandedRowId((prev) => (prev === rowKey ? null : rowKey));
+  };
+
+  // TODO: Wire these to real dialogs / flows
+  const handleLogTime = (line: any) => {
+    // open time log dialog with pre-filled project_id + cost_code_id
+    console.log('Log Time for line', {
+      cost_code_id: line.cost_code_id,
+      code: line.code,
+      category: line.category,
+    });
+  };
+
+  const handleAddCost = (line: any) => {
+    // open AP cost dialog with pre-filled project_id + cost_code_id
+    console.log('Add Cost for line', {
+      cost_code_id: line.cost_code_id,
+      code: line.code,
+      category: line.category,
+    });
+  };
+
+  const handleInitiateTransfer = (line: any) => {
+    // open Budget Transfer modal with this line as source
+    console.log('Initiate Budget Transfer from line', {
+      cost_code_id: line.cost_code_id,
+      code: line.code,
+      category: line.category,
+    });
+  };
+
+  const handleMarkComplete = (line: any) => {
+    // mark this cost code line as "complete" (status field once available)
+    console.log('Mark line as complete', {
+      cost_code_id: line.cost_code_id,
+      code: line.code,
+      category: line.category,
+    });
+  };
+
   const renderDetailsRow = (line: any) => {
     const details = line.details || [];
     if (!details.length) {
@@ -244,85 +296,136 @@ export function ProjectBudgetTabV2({ projectId }: ProjectBudgetTabV2Props) {
               const isExpanded = expandedRowId === rowKey;
 
               return (
-                <>
-                  <TableRow
-                    key={rowKey}
-                    className={cn(
-                      'cursor-pointer hover:bg-muted/50',
-                      isExpanded && 'bg-muted/60'
-                    )}
-                    onClick={() =>
-                      setExpandedRowId((prev) =>
-                        prev === rowKey ? null : rowKey
-                      )
-                    }
-                  >
-                    <TableCell className="align-middle">
-                      {isExpanded ? (
-                        <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                      ) : (
-                        <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                      )}
-                    </TableCell>
-                    <TableCell className="font-mono text-sm">
-                      {line.code || 'N/A'}
-                    </TableCell>
-                    <TableCell>
-                      {line.description || 'Unnamed'}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="secondary" className="capitalize">
-                        {line.category}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {formatMoney(budgetAmount)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {formatMoney(actualCost)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {formatMoney(committedAmount)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {formatMoney(totalCost)}
-                    </TableCell>
-                    <TableCell
-                      className={cn(
-                        'text-right',
-                        isOverBudget ? 'text-red-600' : 'text-green-600'
-                      )}
-                    >
-                      {isOverBudget ? '-' : '+'}
-                      {formatMoney(Math.abs(lineVariance))}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex flex-col items-end">
-                        <span className="font-medium">
-                          {formatMoney(eac)}
-                        </span>
-                        {pmForecast != null && (
-                          <span className="text-[10px] text-muted-foreground">
-                            PM Forecast
-                          </span>
+                <Fragment key={rowKey}>
+                  <ContextMenu>
+                    <ContextMenuTrigger asChild>
+                      <TableRow
+                        className={cn(
+                          'cursor-pointer hover:bg-muted/50',
+                          isExpanded && 'bg-muted/60'
                         )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <span
+                        // Left-click toggles expand
+                        onClick={() =>
+                          setExpandedRowId((prev) =>
+                            prev === rowKey ? null : rowKey
+                          )
+                        }
+                      >
+                        <TableCell className="align-middle">
+                          {isExpanded ? (
+                            <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                          ) : (
+                            <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                          )}
+                        </TableCell>
+                        <TableCell className="font-mono text-sm">
+                          {line.code || 'N/A'}
+                        </TableCell>
+                        <TableCell>
+                          {line.description || 'Unnamed'}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="secondary" className="capitalize">
+                            {line.category}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {formatMoney(budgetAmount)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {formatMoney(actualCost)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {formatMoney(committedAmount)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {formatMoney(totalCost)}
+                        </TableCell>
+                        <TableCell
                           className={cn(
-                            percentUsed > 90 && 'text-red-600 font-semibold'
+                            'text-right',
+                            isOverBudget ? 'text-red-600' : 'text-green-600'
                           )}
                         >
-                          {percentUsed.toFixed(1)}%
-                        </span>
-                        {percentUsed > 90 && (
-                          <AlertTriangle className="w-4 h-4 text-red-600" />
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
+                          {isOverBudget ? '-' : '+'}
+                          {formatMoney(Math.abs(lineVariance))}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex flex-col items-end">
+                            <span className="font-medium">
+                              {formatMoney(eac)}
+                            </span>
+                            {pmForecast != null && (
+                              <span className="text-[10px] text-muted-foreground">
+                                PM Forecast
+                              </span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <span
+                              className={cn(
+                                percentUsed > 90 && 'text-red-600 font-semibold'
+                              )}
+                            >
+                              {percentUsed.toFixed(1)}%
+                            </span>
+                            {percentUsed > 90 && (
+                              <AlertTriangle className="w-4 h-4 text-red-600" />
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    </ContextMenuTrigger>
+                    <ContextMenuContent className="w-56">
+                      <ContextMenuItem
+                        onSelect={(e) => {
+                          e.preventDefault();
+                          handleViewTransactions(rowKey);
+                        }}
+                      >
+                        <Eye className="w-4 h-4 mr-2" />
+                        View Transactions
+                      </ContextMenuItem>
+                      <ContextMenuItem
+                        onSelect={(e) => {
+                          e.preventDefault();
+                          handleLogTime(line);
+                        }}
+                      >
+                        <Clock className="w-4 h-4 mr-2" />
+                        Log Time
+                      </ContextMenuItem>
+                      <ContextMenuItem
+                        onSelect={(e) => {
+                          e.preventDefault();
+                          handleAddCost(line);
+                        }}
+                      >
+                        <Receipt className="w-4 h-4 mr-2" />
+                        Add Cost
+                      </ContextMenuItem>
+                      <ContextMenuItem
+                        onSelect={(e) => {
+                          e.preventDefault();
+                          handleInitiateTransfer(line);
+                        }}
+                      >
+                        <Shuffle className="w-4 h-4 mr-2" />
+                        Initiate Budget Transfer
+                      </ContextMenuItem>
+                      <ContextMenuItem
+                        onSelect={(e) => {
+                          e.preventDefault();
+                          handleMarkComplete(line);
+                        }}
+                      >
+                        <CheckSquare className="w-4 h-4 mr-2" />
+                        Mark as Complete
+                      </ContextMenuItem>
+                    </ContextMenuContent>
+                  </ContextMenu>
 
                   {isExpanded && (
                     <TableRow>
@@ -331,7 +434,7 @@ export function ProjectBudgetTabV2({ projectId }: ProjectBudgetTabV2Props) {
                       </TableCell>
                     </TableRow>
                   )}
-                </>
+                </Fragment>
               );
             })
           ) : (
@@ -515,12 +618,13 @@ export function ProjectBudgetTabV2({ projectId }: ProjectBudgetTabV2Props) {
         </CardContent>
       </Card>
 
-      {/* Cost Code Ledger – unified, tab-filtered, 4-point variance + EAC */}
+      {/* Cost Code Ledger – unified, tab-filtered, 4-point variance + EAC + context menu */}
       <Card>
         <CardHeader>
           <CardTitle>Cost Code Ledger</CardTitle>
           <CardDescription>
-            Budget, Actuals, Committed, Total Cost, Variance & EAC
+            Budget, Actuals, Committed, Total Cost, Variance & EAC — with
+            one-click actions.
           </CardDescription>
         </CardHeader>
         <CardContent>
