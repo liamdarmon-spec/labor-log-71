@@ -1,3 +1,4 @@
+// src/components/project/EstimateDetailsSheet.tsx
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -94,7 +95,7 @@ export function EstimateDetailsSheet({
 
       if (estError) throw estError;
 
-      // 2) Fetch scope blocks + cost items (new system)
+      // 2) New system: scope blocks
       const { data: blocksData, error: blocksError } = await supabase
         .from("scope_blocks")
         .select(
@@ -124,7 +125,7 @@ export function EstimateDetailsSheet({
 
       if (blocksError) throw blocksError;
 
-      // 3) Fetch legacy estimate_items as fallback
+      // 3) Legacy estimate_items
       const { data: legacyItems, error: itemsError } = await supabase
         .from("estimate_items")
         .select(
@@ -231,8 +232,7 @@ export function EstimateDetailsSheet({
 
   const handleOpenBudgetTracking = () => {
     onOpenChange(false);
-    // 👉 Adjust this route if your project financials path is different
-    navigate(`/projects/${projectId}/financials`);
+    navigate(`/projects/${projectId}?tab=budget`);
   };
 
   return (
@@ -450,7 +450,6 @@ export function EstimateDetailsSheet({
                     );
                   })
               ) : legacyItems.length > 0 ? (
-                // Legacy estimate_items view
                 <Card>
                   <CardContent className="pt-4">
                     <Table>
