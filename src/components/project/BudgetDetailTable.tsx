@@ -1,3 +1,4 @@
+// src/components/project/BudgetDetailTable.tsx
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -271,7 +272,7 @@ export function BudgetDetailTable({ projectId }: BudgetDetailTableProps) {
         </CardContent>
       </Card>
 
-      {/* Cost-code drill-down: time logs for that cost code */}
+      {/* Cost-code drill-down */}
       <Sheet
         open={!!selectedLine}
         onOpenChange={(open) => !open && setSelectedLine(null)}
@@ -347,7 +348,7 @@ export function BudgetDetailTable({ projectId }: BudgetDetailTableProps) {
         </SheetContent>
       </Sheet>
 
-      {/* Baseline estimate drill-down from the budget side */}
+      {/* Baseline estimate drill-down */}
       <EstimateDetailsSheet
         estimateId={viewEstimateId}
         projectId={projectId}
