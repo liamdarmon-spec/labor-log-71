@@ -27,7 +27,6 @@ import {
 } from "@/components/ui/sheet";
 import { useUnifiedProjectBudget } from "@/hooks/useUnifiedProjectBudget";
 import { format } from "date-fns";
-import { EstimateDetailsSheet } from "@/components/project/EstimateDetailsSheet";
 
 interface BudgetDetailTableProps {
   projectId: string;
@@ -42,7 +41,6 @@ export function BudgetDetailTable({ projectId }: BudgetDetailTableProps) {
   const [selectedLine, setSelectedLine] = useState<string | null>(null);
   const [categoryFilter, setCategoryFilter] =
     useState<CategoryFilter>("all");
-  const [viewEstimateId, setViewEstimateId] = useState<string | null>(null);
 
   // Listen for budget updates from estimates
   useEffect(() => {
@@ -143,7 +141,7 @@ export function BudgetDetailTable({ projectId }: BudgetDetailTableProps) {
               variant="outline"
               disabled={!baselineEstimateId}
               onClick={() =>
-                baselineEstimateId && setViewEstimateId(baselineEstimateId)
+                baselineEstimateId && window.open(`/estimates/${baselineEstimateId}`, '_blank')
               }
             >
               View Baseline Estimate
@@ -347,16 +345,6 @@ export function BudgetDetailTable({ projectId }: BudgetDetailTableProps) {
           </div>
         </SheetContent>
       </Sheet>
-
-      {/* Baseline estimate drill-down */}
-      <EstimateDetailsSheet
-        estimateId={viewEstimateId}
-        projectId={projectId}
-        open={!!viewEstimateId}
-        onOpenChange={(open) => {
-          if (!open) setViewEstimateId(null);
-        }}
-      />
     </>
   );
 }

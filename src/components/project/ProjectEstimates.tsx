@@ -32,7 +32,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { EstimateDetailsSheet } from "./EstimateDetailsSheet";
+import { useNavigate } from "react-router-dom";
 
 interface ProjectEstimatesProps {
   projectId: string;
@@ -44,8 +44,8 @@ export function ProjectEstimates({ projectId }: ProjectEstimatesProps) {
   const [selectedEstimateId, setSelectedEstimateId] = useState<string | null>(
     null
   );
-  const [viewEstimateId, setViewEstimateId] = useState<string | null>(null);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const { data: estimates, isLoading, refetch } = useQuery({
     queryKey: ["estimates", projectId],
@@ -215,10 +215,11 @@ export function ProjectEstimates({ projectId }: ProjectEstimatesProps) {
                           )}
                         <Button
                           size="sm"
-                          variant="ghost"
-                          onClick={() => setViewEstimateId(estimate.id)}
+                          variant="outline"
+                          onClick={() => navigate(`/estimates/${estimate.id}`)}
                         >
-                          <Eye className="h-4 w-4" />
+                          <Eye className="h-4 w-4 mr-2" />
+                          View
                         </Button>
                       </div>
                     </TableCell>
@@ -277,15 +278,6 @@ export function ProjectEstimates({ projectId }: ProjectEstimatesProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      <EstimateDetailsSheet
-        estimateId={viewEstimateId}
-        projectId={projectId}
-        open={!!viewEstimateId}
-        onOpenChange={(open) => {
-          if (!open) setViewEstimateId(null);
-        }}
-      />
     </>
   );
 }
