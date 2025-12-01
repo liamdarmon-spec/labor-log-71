@@ -43,7 +43,7 @@ interface ProjectBudgetTabV2Props {
 export function ProjectBudgetTabV2({ projectId }: ProjectBudgetTabV2Props) {
   const { data: budgetData, isLoading } = useUnifiedProjectBudget(projectId);
   const recalculate = useRecalculateProjectFinancials();
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [tabValue, setTabValue] = useState<'all' | 'labor' | 'subs' | 'materials' | 'other'>('all');
 
   if (isLoading || !budgetData) {
     return (
@@ -54,7 +54,7 @@ export function ProjectBudgetTabV2({ projectId }: ProjectBudgetTabV2Props) {
     );
   }
 
-  const summary = budgetData?.summary ?? {
+  const summary = budgetData.summary ?? {
     total_budget: 0,
     total_actual: 0,
     total_variance: 0,
@@ -90,7 +90,7 @@ export function ProjectBudgetTabV2({ projectId }: ProjectBudgetTabV2Props) {
   const actual = summary.total_actual;
 
   const remaining = baseline - actual;
-  const variance = actual - baseline;
+  const variance = baseline - actual; // positive = under budget
   const variancePercent = baseline > 0 ? (variance / baseline) * 100 : 0;
   const percentConsumed = baseline > 0 ? (actual / baseline) * 100 : 0;
 
@@ -128,6 +128,97 @@ export function ProjectBudgetTabV2({ projectId }: ProjectBudgetTabV2Props) {
   const handleRecalculate = () => {
     recalculate.mutate(projectId);
   };
+
+  const filteredLines = budgetData.costCodeLines.filter((line) => {
+    if (tabValue === 'all') return true;
+    return line.category === tabValue;
+  });
+
+  const renderLedgerTable = () => (
+    <div className="border rounded-lg">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Code</TableHead>
+            <TableHead>Description</TableHead>
+            <TableHead>Category</TableHead>
+            <TableHead className="text-right">Budget</TableHead>
+            <TableHead className="text-right">Actual</TableHead>
+            <TableHead className="text-right">Variance</TableHead>
+            <TableHead className="text-right">% Used</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {filteredLines && filteredLines.length > 0 ? (
+            filteredLines.map((line) => {
+              const actualCost = line.actual_amount ?? 0;
+              const budgetAmount = line.budget_amount ?? 0;
+              const lineVariance = budgetAmount - actualCost; // positive = under budget
+              const percentUsed =
+                budgetAmount > 0 ? (actualCost / budgetAmount) * 100 : 0;
+
+              return (
+                <TableRow
+                  key={line.cost_code_id || `${line.code}-${line.category}`}
+                >
+                  <TableCell className="font-mono text-sm">
+                    {line.code || 'N/A'}
+                  </TableCell>
+                  <TableCell>
+                    {line.description || 'Unnamed'}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="secondary" className="capitalize">
+                      {line.category}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    ${budgetAmount.toLocaleString()}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    ${actualCost.toLocaleString()}
+                  </TableCell>
+                  <TableCell
+                    className={`text-right ${
+                      lineVariance < 0 ? 'text-red-600' : 'text-green-600'
+                    }`}
+                  >
+                    {lineVariance < 0 ? '-' : '+'}$
+                    {Math.abs(lineVariance).toLocaleString()}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex items-center justify-end gap-2">
+                      <span
+                        className={
+                          percentUsed > 90
+                            ? 'text-red-600 font-semibold'
+                            : ''
+                        }
+                      >
+                        {percentUsed.toFixed(1)}%
+                      </span>
+                      {percentUsed > 90 && (
+                        <AlertTriangle className="w-4 h-4 text-red-600" />
+                      )}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              );
+            })
+          ) : (
+            <TableRow>
+              <TableCell
+                colSpan={7}
+                className="text-center py-8 text-muted-foreground"
+              >
+                No budget lines found. Sync an estimate to create a budget.
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
+    </div>
+  );
 
   return (
     <div className="space-y-6">
@@ -196,7 +287,7 @@ export function ProjectBudgetTabV2({ projectId }: ProjectBudgetTabV2Props) {
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center justify-between">
               Variance
-              {variance > 0 ? (
+              {variance < 0 ? (
                 <TrendingUp className="w-4 h-4 text-red-600" />
               ) : (
                 <TrendingDown className="w-4 h-4 text-green-600" />
@@ -206,13 +297,13 @@ export function ProjectBudgetTabV2({ projectId }: ProjectBudgetTabV2Props) {
           <CardContent>
             <div
               className={`text-2xl font-bold ${
-                variance > 0 ? 'text-red-600' : 'text-green-600'
+                variance < 0 ? 'text-red-600' : 'text-green-600'
               }`}
             >
               ${Math.abs(variance).toLocaleString()}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              {variance > 0 ? 'Over' : 'Under'} by{' '}
+              {variance < 0 ? 'Over' : 'Under'} by{' '}
               {Math.abs(variancePercent).toFixed(1)}%
             </p>
           </CardContent>
@@ -245,10 +336,10 @@ export function ProjectBudgetTabV2({ projectId }: ProjectBudgetTabV2Props) {
         <CardContent>
           <div className="space-y-6">
             {categories.map((cat) => {
-              const catVariance = cat.actual - cat.budget;
+              const catVariance = cat.budget - cat.actual;
               const catPercent =
                 cat.budget > 0 ? (cat.actual / cat.budget) * 100 : 0;
-              const isOverBudget = catPercent > 90;
+              const isWarn = catPercent > 90;
 
               return (
                 <div key={cat.key} className="space-y-2">
@@ -256,7 +347,7 @@ export function ProjectBudgetTabV2({ projectId }: ProjectBudgetTabV2Props) {
                     <div className="flex items-center gap-2">
                       <div className={`w-3 h-3 rounded-full ${cat.color}`} />
                       <span className="font-medium">{cat.name}</span>
-                      {isOverBudget && (
+                      {isWarn && (
                         <Badge variant="destructive" className="ml-2">
                           <AlertTriangle className="w-3 h-3 mr-1" />
                           {catPercent > 100 ? 'Over Budget' : 'Warning'}
@@ -270,13 +361,13 @@ export function ProjectBudgetTabV2({ projectId }: ProjectBudgetTabV2Props) {
                       </div>
                       <div
                         className={`text-sm ${
-                          catVariance > 0
+                          catVariance < 0
                             ? 'text-red-600'
                             : 'text-muted-foreground'
                         }`}
                       >
-                        {catVariance > 0 ? '+' : ''}$
-                        {catVariance.toLocaleString()} (
+                        {catVariance < 0 ? '-' : '+'}$
+                        {Math.abs(catVariance).toLocaleString()} (
                         {catPercent.toFixed(1)}%)
                       </div>
                     </div>
@@ -292,140 +383,42 @@ export function ProjectBudgetTabV2({ projectId }: ProjectBudgetTabV2Props) {
         </CardContent>
       </Card>
 
-      {/* Cost Code Ledger – uses budgetData.costCodeLines (already correct) */}
+      {/* Cost Code Ledger – unified, tab-filtered */}
       <Card>
         <CardHeader>
           <CardTitle>Cost Code Ledger</CardTitle>
           <CardDescription>Detailed breakdown by cost code</CardDescription>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="all" className="w-full">
+          <Tabs
+            value={tabValue}
+            onValueChange={(val) =>
+              setTabValue(val as 'all' | 'labor' | 'subs' | 'materials' | 'other')
+            }
+            className="w-full"
+          >
             <TabsList>
-              <TabsTrigger value="all" onClick={() => setSelectedCategory(null)}>
-                All
-              </TabsTrigger>
-              <TabsTrigger
-                value="labor"
-                onClick={() => setSelectedCategory('labor')}
-              >
-                Labor
-              </TabsTrigger>
-              <TabsTrigger
-                value="subs"
-                onClick={() => setSelectedCategory('subs')}
-              >
-                Subs
-              </TabsTrigger>
-              <TabsTrigger
-                value="materials"
-                onClick={() => setSelectedCategory('materials')}
-              >
-                Materials
-              </TabsTrigger>
-              <TabsTrigger
-                value="other"
-                onClick={() => setSelectedCategory('other')}
-              >
-                Other
-              </TabsTrigger>
+              <TabsTrigger value="all">All</TabsTrigger>
+              <TabsTrigger value="labor">Labor</TabsTrigger>
+              <TabsTrigger value="subs">Subs</TabsTrigger>
+              <TabsTrigger value="materials">Materials</TabsTrigger>
+              <TabsTrigger value="other">Other</TabsTrigger>
             </TabsList>
 
             <TabsContent value="all" className="mt-4">
-              <div className="border rounded-lg">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Code</TableHead>
-                      <TableHead>Description</TableHead>
-                      <TableHead>Category</TableHead>
-                      <TableHead className="text-right">Budget</TableHead>
-                      <TableHead className="text-right">Actual</TableHead>
-                      <TableHead className="text-right">Variance</TableHead>
-                      <TableHead className="text-right">% Used</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {budgetData.costCodeLines &&
-                    budgetData.costCodeLines.length > 0 ? (
-                      budgetData.costCodeLines
-                        .filter(
-                          (line) =>
-                            !selectedCategory ||
-                            line.category === selectedCategory,
-                        )
-                        .map((line) => {
-                          const actualCost = line.actual_amount ?? 0;
-                          const budgetAmount = line.budget_amount ?? 0;
-                          const lineVariance = actualCost - budgetAmount;
-                          const percentUsed =
-                            budgetAmount > 0
-                              ? (actualCost / budgetAmount) * 100
-                              : 0;
-
-                          return (
-                            <TableRow
-                              key={line.cost_code_id || `${line.code}-${line.category}`}
-                            >
-                              <TableCell className="font-mono text-sm">
-                                {line.code || 'N/A'}
-                              </TableCell>
-                              <TableCell>
-                                {line.description || 'Unnamed'}
-                              </TableCell>
-                              <TableCell>
-                                <Badge variant="secondary">
-                                  {line.category}
-                                </Badge>
-                              </TableCell>
-                              <TableCell className="text-right">
-                                ${budgetAmount.toLocaleString()}
-                              </TableCell>
-                              <TableCell className="text-right">
-                                ${actualCost.toLocaleString()}
-                              </TableCell>
-                              <TableCell
-                                className={`text-right ${
-                                  lineVariance > 0
-                                    ? 'text-red-600'
-                                    : 'text-green-600'
-                                }`}
-                              >
-                                {lineVariance > 0 ? '+' : ''}$
-                                {lineVariance.toLocaleString()}
-                              </TableCell>
-                              <TableCell className="text-right">
-                                <div className="flex items-center justify-end gap-2">
-                                  <span
-                                    className={
-                                      percentUsed > 90
-                                        ? 'text-red-600 font-semibold'
-                                        : ''
-                                    }
-                                  >
-                                    {percentUsed.toFixed(1)}%
-                                  </span>
-                                  {percentUsed > 90 && (
-                                    <AlertTriangle className="w-4 h-4 text-red-600" />
-                                  )}
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })
-                    ) : (
-                      <TableRow>
-                        <TableCell
-                          colSpan={7}
-                          className="text-center py-8 text-muted-foreground"
-                        >
-                          No budget lines found. Sync an estimate to create a
-                          budget.
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
+              {renderLedgerTable()}
+            </TabsContent>
+            <TabsContent value="labor" className="mt-4">
+              {renderLedgerTable()}
+            </TabsContent>
+            <TabsContent value="subs" className="mt-4">
+              {renderLedgerTable()}
+            </TabsContent>
+            <TabsContent value="materials" className="mt-4">
+              {renderLedgerTable()}
+            </TabsContent>
+            <TabsContent value="other" className="mt-4">
+              {renderLedgerTable()}
             </TabsContent>
           </Tabs>
         </CardContent>
