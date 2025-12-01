@@ -165,7 +165,6 @@ export function EstimateItemDialog({ open, onOpenChange, onSave, estimateItem }:
               <Label>Cost Code *</Label>
               <CostCodeSelect
                 value={formData.cost_code_id}
-                category={categoryForCostCodes}
                 required
                 onChange={(val) =>
                   setFormData((prev) => ({
