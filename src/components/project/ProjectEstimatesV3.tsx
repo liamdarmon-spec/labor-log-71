@@ -1,3 +1,4 @@
+// src/components/project/ProjectEstimatesV3.tsx
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -18,7 +19,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { FileText, Eye, Star, Zap } from "lucide-react";
+import { FileText, Eye, Star, Zap, Edit3 } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { CreateEstimateDialog } from "./CreateEstimateDialog";
@@ -33,6 +34,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { EstimateDetailsSheet } from "./EstimateDetailsSheet";
+import { useNavigate } from "react-router-dom";
 
 interface ProjectEstimatesV3Props {
   projectId: string;
@@ -46,6 +48,7 @@ export function ProjectEstimatesV3({ projectId }: ProjectEstimatesV3Props) {
   );
   const [viewEstimateId, setViewEstimateId] = useState<string | null>(null);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const { data: estimates, isLoading, refetch } = useQuery({
     queryKey: ["estimates", projectId],
@@ -71,12 +74,11 @@ export function ProjectEstimatesV3({ projectId }: ProjectEstimatesV3Props) {
 
       if (error) throw error;
 
-      // notify budget views to refetch
       window.dispatchEvent(new Event("budget-updated"));
 
       toast({
         title: "Success",
-        description: "Estimate synced to budget successfully",
+        description: "Estimate synced to budget successfully.",
       });
 
       refetch();
@@ -86,7 +88,7 @@ export function ProjectEstimatesV3({ projectId }: ProjectEstimatesV3Props) {
       console.error("Error syncing estimate to budget:", error);
       toast({
         title: "Error",
-        description: "Failed to sync estimate to budget",
+        description: "Failed to sync estimate to budget.",
         variant: "destructive",
       });
     }
@@ -119,28 +121,32 @@ export function ProjectEstimatesV3({ projectId }: ProjectEstimatesV3Props) {
     );
   }
 
+  const hasEstimates = (estimates || []).length > 0;
+
   return (
     <>
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2">
             <div>
               <CardTitle className="flex items-center gap-2">
                 <FileText className="h-5 w-5" />
                 Estimates
               </CardTitle>
               <CardDescription>
-                Manage project estimates and sync to budget
+                Manage project estimates and sync to budget.
               </CardDescription>
             </div>
-            <Button onClick={() => setCreateDialogOpen(true)}>
-              <FileText className="h-4 w-4 mr-2" />
-              New Estimate
-            </Button>
+            {hasEstimates && (
+              <Button onClick={() => setCreateDialogOpen(true)}>
+                <FileText className="h-4 w-4 mr-2" />
+                New Estimate
+              </Button>
+            )}
           </div>
         </CardHeader>
         <CardContent>
-          {estimates && estimates.length > 0 ? (
+          {hasEstimates ? (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -199,26 +205,32 @@ export function ProjectEstimatesV3({ projectId }: ProjectEstimatesV3Props) {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2">
-                        {!estimate.is_budget_source &&
-                          estimate.status === "accepted" && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => {
-                                setSelectedEstimateId(estimate.id);
-                                setSyncDialogOpen(true);
-                              }}
-                            >
-                              <Zap className="h-3 w-3 mr-1" />
-                              Sync to Budget
-                            </Button>
-                          )}
+                        {!estimate.is_budget_source && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setSelectedEstimateId(estimate.id);
+                              setSyncDialogOpen(true);
+                            }}
+                          >
+                            <Zap className="h-3 w-3 mr-1" />
+                            Sync to Budget
+                          </Button>
+                        )}
                         <Button
                           size="sm"
                           variant="ghost"
                           onClick={() => setViewEstimateId(estimate.id)}
                         >
                           <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => navigate(`/estimates/${estimate.id}`)}
+                        >
+                          <Edit3 className="h-4 w-4" />
                         </Button>
                       </div>
                     </TableCell>
@@ -248,7 +260,6 @@ export function ProjectEstimatesV3({ projectId }: ProjectEstimatesV3Props) {
         projectId={projectId}
         onSuccess={() => {
           refetch();
-          setCreateDialogOpen(false);
         }}
       />
 
@@ -260,7 +271,7 @@ export function ProjectEstimatesV3({ projectId }: ProjectEstimatesV3Props) {
               <p>This will:</p>
               <ul className="list-disc list-inside space-y-1 text-sm">
                 <li>Mark this estimate as the budget baseline</li>
-                <li>Create budget lines for each estimate item</li>
+                <li>Create budget lines for each cost code</li>
                 <li>Replace any existing budget for this project</li>
               </ul>
               <p className="mt-4 font-medium">
