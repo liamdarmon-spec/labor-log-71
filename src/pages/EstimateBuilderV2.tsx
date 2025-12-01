@@ -1,8 +1,8 @@
-// src/components/estimates/EstimateBuilderV2.tsx
-import { useMemo, useState } from "react";
+// src/pages/EstimateBuilderV2.tsx
+import { useMemo } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useNavigate } from "react-router-dom";
 
 import {
   Card,
@@ -22,12 +22,17 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { CostCodeSelect } from "@/components/cost-codes/CostCodeSelect";
 import { getUnassignedCostCodeId } from "@/lib/costCodes";
-import { format } from "date-fns";
-import { CheckCircle2, DollarSign, Save, Zap } from "lucide-react";
+import { DollarSign, Save, Zap } from "lucide-react";
 
 type ScopeBlockType = "section" | "cost_items" | "text" | "image";
 
@@ -71,11 +76,6 @@ interface EstimateRecord {
   is_budget_source: boolean;
 }
 
-interface EstimateBuilderProps {
-  estimateId: string;
-  projectId: string;
-}
-
 const CATEGORY_OPTIONS = [
   { value: "labor", label: "Labor" },
   { value: "subs", label: "Subs" },
@@ -83,13 +83,29 @@ const CATEGORY_OPTIONS = [
   { value: "other", label: "Other" },
 ];
 
-export function EstimateBuilderV2({ estimateId, projectId }: EstimateBuilderProps) {
+const formatMoney = (value: number | null | undefined) =>
+  `$${(value || 0).toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+
+export default function EstimateBuilderV2() {
+  const { estimateId } = useParams<{ estimateId: string }>();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
-  /* 1) Load estimate + blocks + items */
+  if (!estimateId) {
+    return (
+      <div className="p-6">
+        <p className="text-sm text-muted-foreground">
+          Missing estimate id in route.
+        </p>
+      </div>
+    );
+  }
 
+  // 1) Load estimate + blocks + items
   const { data, isLoading } = useQuery({
     queryKey: ["estimate-builder", estimateId],
     queryFn: async () => {
@@ -141,9 +157,9 @@ export function EstimateBuilderV2({ estimateId, projectId }: EstimateBuilderProp
 
   const estimate = data?.estimate;
   const scopeBlocks = data?.scopeBlocks || [];
+  const projectId = estimate?.project_id || null;
 
-  /* 2) Helpers: totals */
-
+  // 2) Totals (from scope block items)
   const { subtotal, tax, total } = useMemo(() => {
     if (!estimate) {
       return { subtotal: 0, tax: 0, total: 0 };
@@ -158,19 +174,13 @@ export function EstimateBuilderV2({ estimateId, projectId }: EstimateBuilderProp
       return sum + blockTotal;
     }, 0);
 
-    const tax = estimate.tax_amount ?? 0;
-    const total = subtotalFromItems + tax;
+    const taxAmount = estimate.tax_amount ?? 0;
+    const totalAmount = subtotalFromItems + taxAmount;
 
-    return { subtotal: subtotalFromItems, tax, total };
+    return { subtotal: subtotalFromItems, tax: taxAmount, total: totalAmount };
   }, [estimate, scopeBlocks]);
 
-  const formatMoney = (value: number | null | undefined) =>
-    `$${(value || 0).toLocaleString(undefined, {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    })}`;
-
-  /* 3) Mutations */
+  // 3) Mutations
 
   const addCostItemMutation = useMutation({
     mutationFn: async (scope_block_id: string) => {
@@ -231,21 +241,29 @@ export function EstimateBuilderV2({ estimateId, projectId }: EstimateBuilderProp
     }) => {
       const { id, patch } = payload;
 
-      // recompute line_total if qty or unit_price changed
+      // recompute line_total if qty, unit_price, or markup changed
       let newPatch = { ...patch } as any;
-      if ("quantity" in patch || "unit_price" in patch) {
+
+      if ("quantity" in patch || "unit_price" in patch || "markup_percent" in patch) {
         const { data: existing, error: getErr } = await supabase
           .from("scope_block_cost_items")
-          .select("quantity, unit_price")
+          .select("quantity, unit_price, markup_percent")
           .eq("id", id)
-          .maybeSingle<Pick<ScopeBlockCostItem, "quantity" | "unit_price">>();
+          .maybeSingle<
+            Pick<ScopeBlockCostItem, "quantity" | "unit_price" | "markup_percent">
+          >();
 
         if (getErr) throw getErr;
+
         const quantity =
           (patch.quantity ?? existing?.quantity ?? 0) || 0;
         const unit_price =
           (patch.unit_price ?? existing?.unit_price ?? 0) || 0;
-        newPatch.line_total = quantity * unit_price;
+        const markup_percent =
+          (patch.markup_percent ?? existing?.markup_percent ?? 0) || 0;
+
+        const base = quantity * unit_price;
+        newPatch.line_total = base * (1 + markup_percent / 100);
       }
 
       const { error } = await supabase
@@ -297,7 +315,7 @@ export function EstimateBuilderV2({ estimateId, projectId }: EstimateBuilderProp
 
   const saveAndSetBudgetMutation = useMutation({
     mutationFn: async () => {
-      // 1) Update estimate as accepted + budget source with correct totals
+      // 1) Update estimate header
       const { error: estErr } = await supabase
         .from("estimates")
         .update({
@@ -311,11 +329,10 @@ export function EstimateBuilderV2({ estimateId, projectId }: EstimateBuilderProp
 
       if (estErr) throw estErr;
 
-      // 2) Sync to budget via RPC
-      const { error: rpcErr } = await supabase.rpc(
-        "sync_estimate_to_budget",
-        { p_estimate_id: estimateId }
-      );
+      // 2) Sync to budget via RPC (this also updates is_budget_source flags)
+      const { error: rpcErr } = await supabase.rpc("sync_estimate_to_budget", {
+        p_estimate_id: estimateId,
+      });
       if (rpcErr) throw rpcErr;
 
       // 3) Notify budget views
@@ -323,17 +340,23 @@ export function EstimateBuilderV2({ estimateId, projectId }: EstimateBuilderProp
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["estimate-builder", estimateId] });
-      queryClient.invalidateQueries({ queryKey: ["project_budget_header", projectId] });
+      if (projectId) {
+        queryClient.invalidateQueries({
+          queryKey: ["project_budget_header", projectId],
+        });
+      }
 
       toast({
         title: "Budget baseline set",
         description: "This estimate is now the active project budget.",
-        action: {
-          label: "View Budget",
-          onClick: () => {
-            navigate(`/projects/${projectId}?tab=budget`);
-          },
-        },
+        action: projectId
+          ? {
+              label: "View Budget",
+              onClick: () => {
+                navigate(`/projects/${projectId}?tab=budget`);
+              },
+            }
+          : undefined,
       });
     },
     onError: (err: any) => {
@@ -346,11 +369,9 @@ export function EstimateBuilderV2({ estimateId, projectId }: EstimateBuilderProp
     },
   });
 
-  /* 4) Rendering */
-
   if (isLoading || !estimate) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-4 p-6">
         <Skeleton className="h-24 w-full" />
         <Skeleton className="h-64 w-full" />
       </div>
@@ -369,7 +390,7 @@ export function EstimateBuilderV2({ estimateId, projectId }: EstimateBuilderProp
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-4 md:p-6">
       {/* Header cards */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div className="flex flex-wrap gap-4">
@@ -425,7 +446,7 @@ export function EstimateBuilderV2({ estimateId, projectId }: EstimateBuilderProp
         </div>
       </div>
 
-      {/* Blocks */}
+      {/* Cost item blocks */}
       {scopeBlocks
         .filter((b) => b.block_type === "cost_items")
         .map((block) => {
@@ -448,7 +469,6 @@ export function EstimateBuilderV2({ estimateId, projectId }: EstimateBuilderProp
                     </p>
                   )}
                 </div>
-                {/* NOTE: gear icon removed until we have real settings UI */}
                 <Badge variant="outline" className="text-[10px] uppercase">
                   cost_items
                 </Badge>
@@ -482,10 +502,7 @@ export function EstimateBuilderV2({ estimateId, projectId }: EstimateBuilderProp
                             </SelectTrigger>
                             <SelectContent>
                               {CATEGORY_OPTIONS.map((opt) => (
-                                <SelectItem
-                                  key={opt.value}
-                                  value={opt.value}
-                                >
+                                <SelectItem key={opt.value} value={opt.value}>
                                   {opt.label}
                                 </SelectItem>
                               ))}
@@ -596,7 +613,7 @@ export function EstimateBuilderV2({ estimateId, projectId }: EstimateBuilderProp
           );
         })}
 
-      {/* (Optional) show text / image blocks below as-is in your existing implementation */}
+      {/* (Optional) show text / image blocks in a separate editor if needed */}
     </div>
   );
 }
