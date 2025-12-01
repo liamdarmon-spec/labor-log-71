@@ -1,3 +1,4 @@
+// DEPRECATED: replaced by ProjectEstimatesV3 - do not use this component
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
