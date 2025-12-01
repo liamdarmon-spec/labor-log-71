@@ -33,7 +33,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { EstimateDetailsSheet } from "./EstimateDetailsSheet";
 import { useNavigate } from "react-router-dom";
 
 interface ProjectEstimatesV3Props {
@@ -46,7 +45,6 @@ export function ProjectEstimatesV3({ projectId }: ProjectEstimatesV3Props) {
   const [selectedEstimateId, setSelectedEstimateId] = useState<string | null>(
     null,
   );
-  const [viewEstimateId, setViewEstimateId] = useState<string | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -220,17 +218,11 @@ export function ProjectEstimatesV3({ projectId }: ProjectEstimatesV3Props) {
                         )}
                         <Button
                           size="sm"
-                          variant="ghost"
-                          onClick={() => setViewEstimateId(estimate.id)}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
+                          variant="outline"
                           onClick={() => navigate(`/estimates/${estimate.id}`)}
                         >
-                          <Edit3 className="h-4 w-4" />
+                          <Edit3 className="h-4 w-4 mr-2" />
+                          Edit
                         </Button>
                       </div>
                     </TableCell>
@@ -258,8 +250,10 @@ export function ProjectEstimatesV3({ projectId }: ProjectEstimatesV3Props) {
           if (!open) refetch();
         }}
         projectId={projectId}
-        onSuccess={() => {
+        onSuccess={(estimateId) => {
           refetch();
+          // Navigate directly to builder
+          navigate(`/estimates/${estimateId}`);
         }}
       />
 
@@ -288,15 +282,6 @@ export function ProjectEstimatesV3({ projectId }: ProjectEstimatesV3Props) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      <EstimateDetailsSheet
-        estimateId={viewEstimateId}
-        projectId={projectId}
-        open={!!viewEstimateId}
-        onOpenChange={(open) => {
-          if (!open) setViewEstimateId(null);
-        }}
-      />
     </>
   );
 }

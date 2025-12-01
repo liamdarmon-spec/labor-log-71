@@ -18,7 +18,7 @@ interface CreateEstimateDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   projectId: string;
-  onSuccess?: () => void;
+  onSuccess?: (estimateId: string) => void;
 }
 
 export function CreateEstimateDialog({
@@ -56,7 +56,7 @@ export function CreateEstimateDialog({
         description: "You can now add scope blocks and cost items.",
       });
       onOpenChange(false);
-      onSuccess?.();
+      onSuccess?.(newId);
       navigate(`/estimates/${newId}`);
     },
     onError: (err: any) => {
