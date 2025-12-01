@@ -146,6 +146,11 @@ export function useUnpaidTimeLogs(
         query = query.eq('project_id', projectId);
       }
 
+      // Exclude time logs already assigned to any pay run
+      query = query.not('id', 'in', `(
+        SELECT time_log_id FROM labor_pay_run_items
+      )`);
+
       const { data, error } = await query;
       if (error) throw error;
 

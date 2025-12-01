@@ -1788,14 +1788,14 @@ export type Database = {
           {
             foreignKeyName: "labor_pay_run_items_time_log_id_fkey"
             columns: ["time_log_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "time_logs"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "labor_pay_run_items_time_log_id_fkey"
             columns: ["time_log_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "time_logs_with_meta_view"
             referencedColumns: ["id"]
           },
