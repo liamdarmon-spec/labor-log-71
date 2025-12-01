@@ -1,11 +1,22 @@
 import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useProjectBudgetStructure } from '@/hooks/useProjectBudgetStructure';
 import { useUpdateBudgetLine } from '@/hooks/useUpdateBudgetLine';
@@ -29,8 +40,11 @@ type EditableLine = {
   cost_codes?: { code?: string | null } | null;
 };
 
-export function ProjectBudgetBuilderTab({ projectId }: ProjectBudgetBuilderTabProps) {
-  const { data, isLoading, error, refetch } = useProjectBudgetStructure(projectId);
+export function ProjectBudgetBuilderTab({
+  projectId,
+}: ProjectBudgetBuilderTabProps) {
+  const { data, isLoading, error, refetch } =
+    useProjectBudgetStructure(projectId);
   const updateLineMutation = useUpdateBudgetLine(projectId);
 
   // simple local edit state: map lineId -> EditableLine
@@ -68,6 +82,16 @@ export function ProjectBudgetBuilderTab({ projectId }: ProjectBudgetBuilderTabPr
 
   const { budget, groups, lines } = data as any;
 
+  // 🔒 Immutable Baseline Logic
+  // Treat any of these as "locked":
+  // - explicit locked status
+  // - is_locked boolean (if present)
+  // - baseline_estimate_id set (meaning synced from an estimate)
+  const isLocked =
+    budget?.status === 'locked' ||
+    budget?.is_locked === true ||
+    !!budget?.baseline_estimate_id;
+
   const getDraft = (line: any): EditableLine => {
     if (drafts[line.id]) return drafts[line.id];
 
@@ -85,16 +109,19 @@ export function ProjectBudgetBuilderTab({ projectId }: ProjectBudgetBuilderTabPr
       cost_codes: line.cost_codes,
     };
 
-    setDrafts(prev => ({ ...prev, [line.id]: draft }));
+    setDrafts((prev) => ({ ...prev, [line.id]: draft }));
     return draft;
   };
 
   const handleChange = <K extends keyof EditableLine>(
     lineId: string,
     field: K,
-    value: EditableLine[K]
+    value: EditableLine[K],
   ) => {
-    setDrafts(prev => ({
+    // If locked, ignore changes at UI layer
+    if (isLocked) return;
+
+    setDrafts((prev) => ({
       ...prev,
       [lineId]: {
         ...(prev[lineId] || {}),
@@ -104,6 +131,8 @@ export function ProjectBudgetBuilderTab({ projectId }: ProjectBudgetBuilderTabPr
   };
 
   const handleSave = async (lineId: string) => {
+    if (isLocked) return;
+
     const draft = drafts[lineId];
     if (!draft) return;
 
@@ -138,7 +167,11 @@ export function ProjectBudgetBuilderTab({ projectId }: ProjectBudgetBuilderTabPr
         ? draft.qty * draft.unit_cost
         : line.budget_amount || 0;
 
-    const isSaving = updateLineMutation.isPending && updateLineMutation.variables?.id === draft.id;
+    const isSaving =
+      updateLineMutation.isPending &&
+      updateLineMutation.variables?.id === draft.id;
+
+    const disabled = isLocked || isSaving;
 
     return (
       <div
@@ -171,19 +204,21 @@ export function ProjectBudgetBuilderTab({ projectId }: ProjectBudgetBuilderTabPr
 
             <Input
               value={draft.description_client ?? ''}
-              onChange={e =>
+              onChange={(e) =>
                 handleChange(line.id, 'description_client', e.target.value)
               }
               placeholder="Client-facing description"
               className="h-8 text-sm"
+              disabled={disabled}
             />
             <Input
               value={draft.description_internal ?? ''}
-              onChange={e =>
+              onChange={(e) =>
                 handleChange(line.id, 'description_internal', e.target.value)
               }
               placeholder="Internal description / notes"
               className="h-8 text-xs text-muted-foreground"
+              disabled={disabled}
             />
           </div>
 
@@ -195,25 +230,27 @@ export function ProjectBudgetBuilderTab({ projectId }: ProjectBudgetBuilderTabPr
                 min={0}
                 step={0.01}
                 value={Number.isFinite(draft.qty) ? draft.qty : ''}
-                onChange={e =>
+                onChange={(e) =>
                   handleChange(
                     line.id,
                     'qty',
-                    Number(e.target.value || 0) as any
+                    Number(e.target.value || 0) as any,
                   )
                 }
                 className="h-8 text-xs"
                 placeholder="Qty"
+                disabled={disabled}
               />
             </div>
             <div className="w-20">
               <Input
                 value={draft.unit ?? ''}
-                onChange={e =>
+                onChange={(e) =>
                   handleChange(line.id, 'unit', e.target.value as any)
                 }
                 className="h-8 text-xs"
                 placeholder="Unit"
+                disabled={disabled}
               />
             </div>
             <div className="w-28">
@@ -221,16 +258,19 @@ export function ProjectBudgetBuilderTab({ projectId }: ProjectBudgetBuilderTabPr
                 type="number"
                 min={0}
                 step={0.01}
-                value={Number.isFinite(draft.unit_cost) ? draft.unit_cost : ''}
-                onChange={e =>
+                value={
+                  Number.isFinite(draft.unit_cost) ? draft.unit_cost : ''
+                }
+                onChange={(e) =>
                   handleChange(
                     line.id,
                     'unit_cost',
-                    Number(e.target.value || 0) as any
+                    Number(e.target.value || 0) as any,
                   )
                 }
                 className="h-8 text-xs"
                 placeholder="Unit cost"
+                disabled={disabled}
               />
             </div>
           </div>
@@ -239,13 +279,14 @@ export function ProjectBudgetBuilderTab({ projectId }: ProjectBudgetBuilderTabPr
           <div className="flex items-center gap-2 md:w-[260px] justify-end">
             <Select
               value={draft.line_type || 'other'}
-              onValueChange={val =>
+              onValueChange={(val) =>
                 handleChange(
                   line.id,
                   'line_type',
-                  (val as EditableLine['line_type']) || null
+                  (val as EditableLine['line_type']) || null,
                 )
               }
+              disabled={disabled}
             >
               <SelectTrigger className="h-8 w-28 text-xs">
                 <SelectValue placeholder="Type" />
@@ -260,13 +301,14 @@ export function ProjectBudgetBuilderTab({ projectId }: ProjectBudgetBuilderTabPr
 
             <Select
               value={draft.scope_type}
-              onValueChange={val =>
+              onValueChange={(val) =>
                 handleChange(
                   line.id,
                   'scope_type',
-                  val as EditableLine['scope_type']
+                  val as EditableLine['scope_type'],
                 )
               }
+              disabled={disabled}
             >
               <SelectTrigger className="h-8 w-32 text-xs">
                 <SelectValue placeholder="Scope" />
@@ -286,32 +328,42 @@ export function ProjectBudgetBuilderTab({ projectId }: ProjectBudgetBuilderTabPr
             <div className="flex items-center gap-2">
               <Checkbox
                 checked={draft.client_visible}
-                onCheckedChange={checked =>
+                onCheckedChange={(checked) =>
                   handleChange(
                     line.id,
                     'client_visible',
-                    Boolean(checked) as any
+                    Boolean(checked) as any,
                   )
                 }
                 aria-label="Client visible"
+                disabled={disabled}
               />
               <span className="text-[10px] text-muted-foreground">
                 Client
               </span>
             </div>
 
-            <Button
-              size="sm"
-              variant="outline"
-              className={cn(
-                'h-8 text-xs',
-                isSaving && 'opacity-70 cursor-wait'
-              )}
-              disabled={isSaving}
-              onClick={() => handleSave(line.id)}
-            >
-              {isSaving ? 'Saving…' : 'Save'}
-            </Button>
+            {isLocked ? (
+              <Badge
+                variant="outline"
+                className="h-8 flex items-center text-xs"
+              >
+                Baseline Locked
+              </Badge>
+            ) : (
+              <Button
+                size="sm"
+                variant="outline"
+                className={cn(
+                  'h-8 text-xs',
+                  isSaving && 'opacity-70 cursor-wait',
+                )}
+                disabled={disabled}
+                onClick={() => handleSave(line.id)}
+              >
+                {isSaving ? 'Saving…' : 'Save'}
+              </Button>
+            )}
           </div>
         </div>
       </div>
@@ -327,13 +379,34 @@ export function ProjectBudgetBuilderTab({ projectId }: ProjectBudgetBuilderTabPr
             {budget?.name || 'Project Budget'}
           </h3>
           <p className="text-sm text-muted-foreground">
-            Canonical budget structure – editable lines. This will later drive proposals and cost tracking.
+            Canonical budget structure – this drives proposals and cost
+            tracking.
           </p>
+          {isLocked ? (
+            <p className="mt-1 text-xs text-red-600">
+              This budget is{' '}
+              <span className="font-semibold">locked as the baseline.</span>{' '}
+              To change the budget, use Change Orders or Budget Transfers (not
+              direct edits).
+            </p>
+          ) : (
+            <p className="mt-1 text-xs text-muted-foreground">
+              Changes here update the working budget. Once an estimate is
+              synced as baseline, edits will be locked.
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-2">
           {budget?.status && (
-            <Badge variant={budget.status === 'active' ? 'default' : 'secondary'}>
+            <Badge
+              variant={budget.status === 'active' ? 'default' : 'secondary'}
+            >
               {budget.status}
+            </Badge>
+          )}
+          {isLocked && (
+            <Badge variant="outline" className="text-xs">
+              Baseline Locked
             </Badge>
           )}
         </div>
@@ -343,7 +416,9 @@ export function ProjectBudgetBuilderTab({ projectId }: ProjectBudgetBuilderTabPr
       <ScrollArea className="h-[520px] border rounded-md">
         <div className="p-4 space-y-4">
           {(groups || [])
-            .sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+            .sort(
+              (a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0),
+            )
             .map((group: any) => {
               const groupLines = (linesByGroup as any)[group.id] || [];
               return (
@@ -377,7 +452,8 @@ export function ProjectBudgetBuilderTab({ projectId }: ProjectBudgetBuilderTabPr
                         {groupLines
                           .sort(
                             (a: any, b: any) =>
-                              (a.sort_order ?? 0) - (b.sort_order ?? 0)
+                              (a.sort_order ?? 0) -
+                              (b.sort_order ?? 0),
                           )
                           .map(renderLineRow)}
                       </div>
@@ -397,7 +473,7 @@ export function ProjectBudgetBuilderTab({ projectId }: ProjectBudgetBuilderTabPr
                   {ungroupedLines
                     .sort(
                       (a: any, b: any) =>
-                        (a.sort_order ?? 0) - (b.sort_order ?? 0)
+                        (a.sort_order ?? 0) - (b.sort_order ?? 0),
                     )
                     .map(renderLineRow)}
                 </div>
