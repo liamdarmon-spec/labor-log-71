@@ -1,6 +1,6 @@
 import { Layout } from '@/components/Layout';
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -20,6 +20,9 @@ import { ProjectDocumentsTab } from '@/components/project/ProjectDocumentsTab';
 import { ProjectLaborTab } from '@/components/project/ProjectLaborTab';
 import { ProjectTasksTab } from '@/components/project/ProjectTasksTab';
 
+const VALID_TABS = ['overview', 'estimates', 'proposals', 'budget', 'billing', 'financials', 'dashboard', 'labor', 'tasks', 'schedule', 'subs', 'documents'] as const;
+type TabValue = typeof VALID_TABS[number];
+
 interface Project {
   id: string;
   project_name: string;
@@ -33,8 +36,19 @@ interface Project {
 const ProjectDetail = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Get active tab from URL, default to 'overview'
+  const tabParam = searchParams.get('tab');
+  const activeTab: TabValue = tabParam && VALID_TABS.includes(tabParam as TabValue) 
+    ? (tabParam as TabValue) 
+    : 'overview';
+
+  const handleTabChange = (value: string) => {
+    setSearchParams({ tab: value });
+  };
 
   useEffect(() => {
     if (projectId) {
@@ -109,7 +123,7 @@ const ProjectDetail = () => {
           companyId={project.company_id}
         />
 
-        <Tabs defaultValue="overview" className="space-y-4 sm:space-y-6">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4 sm:space-y-6">
           {/* Mobile: Scrollable horizontal tabs */}
           <div className="overflow-x-auto -mx-3 px-3 sm:mx-0 sm:px-0 pb-1">
             <TabsList className="inline-flex w-auto min-w-full lg:grid lg:w-full lg:grid-cols-12 h-auto">
