@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Calendar, Users, Clock, ClipboardCheck, AlertCircle, ListChecks } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 export interface WeeklySummaryProps {
   workersScheduledToday?: number | null;
@@ -8,6 +9,30 @@ export interface WeeklySummaryProps {
   varianceHoursThisWeek?: number | null;
   openItemsCount?: number | null;
   overdueTasksCount?: number | null;
+}
+
+interface MiniKpiProps {
+  label: string;
+  value: string;
+  icon: React.ElementType;
+  valueColor?: string;
+  iconColor?: string;
+}
+
+function MiniKpi({ label, value, icon: Icon, valueColor, iconColor }: MiniKpiProps) {
+  return (
+    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
+      <Icon className={cn("h-3.5 w-3.5 shrink-0", iconColor || "text-muted-foreground")} />
+      <div className="min-w-0 flex-1">
+        <p className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium leading-none">
+          {label}
+        </p>
+        <p className={cn("text-sm font-semibold leading-tight mt-0.5", valueColor)}>
+          {value}
+        </p>
+      </div>
+    </div>
+  );
 }
 
 export function WeeklySummary({
@@ -39,74 +64,57 @@ export function WeeklySummary({
 
   const variance = getVarianceDisplay();
 
-  const stats = [
-    {
-      label: 'Workers Today',
-      value: formatValue(workersScheduledToday),
-      icon: Users,
-      color: 'text-blue-600',
-      bgColor: 'bg-blue-500/10',
-    },
-    {
-      label: 'Scheduled Hours',
-      value: formatHours(hoursScheduledThisWeek),
-      icon: Calendar,
-      color: 'text-violet-600',
-      bgColor: 'bg-violet-500/10',
-    },
-    {
-      label: 'Logged Hours',
-      value: formatHours(hoursLoggedThisWeek),
-      icon: Clock,
-      color: 'text-emerald-600',
-      bgColor: 'bg-emerald-500/10',
-    },
-    {
-      label: 'Variance',
-      value: variance.value,
-      icon: ClipboardCheck,
-      color: variance.color,
-      bgColor: varianceHoursThisWeek != null && varianceHoursThisWeek > 0 ? 'bg-amber-500/10' : 'bg-emerald-500/10',
-    },
-    {
-      label: 'Open Items',
-      value: formatValue(openItemsCount),
-      icon: ListChecks,
-      color: 'text-primary',
-      bgColor: 'bg-primary/10',
-    },
-    {
-      label: 'Overdue Tasks',
-      value: formatValue(overdueTasksCount),
-      icon: AlertCircle,
-      color: overdueTasksCount && overdueTasksCount > 0 ? 'text-red-600' : 'text-muted-foreground',
-      bgColor: overdueTasksCount && overdueTasksCount > 0 ? 'bg-red-500/10' : 'bg-muted/50',
-    },
-  ];
-
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base font-semibold flex items-center gap-2">
+    <Card className="rounded-xl border-border/60 shadow-sm">
+      <CardHeader className="pb-2 pt-4 px-4">
+        <CardTitle className="text-sm font-semibold flex items-center gap-2 text-muted-foreground">
           <Calendar className="h-4 w-4 text-primary" />
           Today & This Week
         </CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-          {stats.map((stat) => (
-            <div key={stat.label} className="flex items-start gap-2.5 p-3 bg-muted/30 rounded-lg">
-              <div className={`p-1.5 rounded-md ${stat.bgColor}`}>
-                <stat.icon className={`h-3.5 w-3.5 ${stat.color}`} />
-              </div>
-              <div className="min-w-0">
-                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
-                  {stat.label}
-                </p>
-                <p className={`text-base font-bold ${stat.color}`}>{stat.value}</p>
-              </div>
-            </div>
-          ))}
+      <CardContent className="px-4 pb-4">
+        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+          {/* Hours Group */}
+          <MiniKpi
+            label="Scheduled"
+            value={formatHours(hoursScheduledThisWeek)}
+            icon={Calendar}
+            iconColor="text-violet-500"
+          />
+          <MiniKpi
+            label="Logged"
+            value={formatHours(hoursLoggedThisWeek)}
+            icon={Clock}
+            iconColor="text-emerald-500"
+          />
+          <MiniKpi
+            label="Variance"
+            value={variance.value}
+            valueColor={variance.color}
+            icon={ClipboardCheck}
+            iconColor={varianceHoursThisWeek != null && varianceHoursThisWeek > 0 ? 'text-amber-500' : 'text-emerald-500'}
+          />
+          
+          {/* Counts Group */}
+          <MiniKpi
+            label="Workers"
+            value={formatValue(workersScheduledToday)}
+            icon={Users}
+            iconColor="text-blue-500"
+          />
+          <MiniKpi
+            label="Open Items"
+            value={formatValue(openItemsCount)}
+            icon={ListChecks}
+            iconColor="text-primary"
+          />
+          <MiniKpi
+            label="Overdue"
+            value={formatValue(overdueTasksCount)}
+            valueColor={overdueTasksCount && overdueTasksCount > 0 ? 'text-red-600' : undefined}
+            icon={AlertCircle}
+            iconColor={overdueTasksCount && overdueTasksCount > 0 ? 'text-red-500' : 'text-muted-foreground'}
+          />
         </div>
       </CardContent>
     </Card>
