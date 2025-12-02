@@ -17,9 +17,9 @@ export default function CostsAPTab() {
     <div className="space-y-6">
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Costs (AP)</h1>
+          <h2 className="text-2xl font-semibold">Costs</h2>
           <p className="text-muted-foreground">
-            All job-related non-labor expenses and accounts payable
+            All project costs, bills, and non-labor expenses in one place.
           </p>
         </div>
         <Button onClick={() => setAddCostOpen(true)}>
@@ -35,7 +35,7 @@ export default function CostsAPTab() {
           <TabsTrigger value="subs">Subcontractors</TabsTrigger>
           <TabsTrigger value="materials">Materials</TabsTrigger>
           <TabsTrigger value="equipment">Equipment</TabsTrigger>
-          <TabsTrigger value="misc">Misc</TabsTrigger>
+          <TabsTrigger value="misc">Other</TabsTrigger>
         </TabsList>
 
         {/* All non-labor AP pulled from `costs` */}
@@ -51,7 +51,7 @@ export default function CostsAPTab() {
             </p>
             <div className="flex flex-wrap gap-2">
               <Button size="sm" variant="default" onClick={() => navigate('/financials/payments')}>
-                Go to Payment Center
+                Go to Payments
               </Button>
               <Button size="sm" variant="outline" onClick={() => navigate('/workforce')}>
                 Open Workforce OS

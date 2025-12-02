@@ -12,9 +12,9 @@ export default function PaymentsCenterTab() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Payments Center</h1>
+        <h2 className="text-2xl font-semibold">Payments</h2>
         <p className="text-muted-foreground">
-          Central hub for all outgoing payments - Labor, Subs, and Vendors
+          Vendor payments, pay runs, and money leaving the company.
         </p>
       </div>
 
@@ -38,7 +38,7 @@ export default function PaymentsCenterTab() {
         <TabsContent value="pay-runs">
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Historical labor payment runs and their status
+              Historical labor payment runs and their status.
             </p>
             <LaborPayRunsTabV2 />
           </div>
@@ -56,7 +56,7 @@ export default function PaymentsCenterTab() {
         <TabsContent value="vendors">
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Material and equipment vendor payments
+              Material and equipment vendor payments.
             </p>
             <Card>
               <CardHeader>

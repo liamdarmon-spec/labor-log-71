@@ -8,23 +8,22 @@ export default function FinancialsLayout() {
 
   const getActiveTab = () => {
     const path = location.pathname;
-    if (path === '/financials' || path === '/financials/') return 'overview';
-    if (path.includes('/revenue')) return 'revenue';
-    if (path.includes('/costs')) return 'costs';
-    if (path.includes('/job-costing')) return 'job-costing';
+    
+    // Map current path to new 4-tab structure
+    if (path.includes('/costs') || path.includes('/procurement')) return 'costs';
     if (path.includes('/payments')) return 'payments';
-    if (path.includes('/procurement')) return 'procurement';
-    return 'overview';
+    if (path.includes('/receivables') || path.includes('/revenue')) return 'receivables';
+    if (path.includes('/profit') || path.includes('/job-costing') || path === '/financials' || path === '/financials/') return 'profit';
+    
+    return 'costs';
   };
 
   const handleTabChange = (value: string) => {
     const routes: Record<string, string> = {
-      'overview': '/financials',
-      'revenue': '/financials/revenue',
       'costs': '/financials/costs',
-      'job-costing': '/financials/job-costing',
       'payments': '/financials/payments',
-      'procurement': '/financials/procurement',
+      'receivables': '/financials/receivables',
+      'profit': '/financials/profit',
     };
     navigate(routes[value]);
   };
@@ -35,18 +34,16 @@ export default function FinancialsLayout() {
         <div>
           <h1 className="text-3xl font-bold">Financials</h1>
           <p className="text-muted-foreground">
-            Professional AP/AR management, job costing analytics, and payment center
+            Costs, payments, receivables, and profit overview
           </p>
         </div>
 
         <Tabs value={getActiveTab()} onValueChange={handleTabChange} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="revenue">Revenue (AR)</TabsTrigger>
-            <TabsTrigger value="costs">Costs (AP)</TabsTrigger>
-            <TabsTrigger value="job-costing">Job Costing</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="costs">Costs</TabsTrigger>
             <TabsTrigger value="payments">Payments</TabsTrigger>
-            <TabsTrigger value="procurement">Procurement</TabsTrigger>
+            <TabsTrigger value="receivables">Receivables</TabsTrigger>
+            <TabsTrigger value="profit">Profit</TabsTrigger>
           </TabsList>
         </Tabs>
 
