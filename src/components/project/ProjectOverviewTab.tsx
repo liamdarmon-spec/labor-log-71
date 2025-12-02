@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { format, startOfWeek, endOfWeek, subDays } from 'date-fns';
-import { CheckSquare, CalendarDays } from 'lucide-react';
+import { CheckSquare, CalendarDays, Plus } from 'lucide-react';
 
 import { SnapshotBar, SnapshotBarProps } from '@/components/project-hub/SnapshotBar';
 import { ActionRow, ActionRowProps } from '@/components/project-hub/ActionRow';
@@ -194,15 +194,15 @@ export function ProjectOverviewTab({ projectId }: ProjectOverviewTabProps) {
 
   if (isLoading) {
     return (
-      <div className="space-y-8 px-2 md:px-4 lg:px-8 pt-4 pb-8">
-        <Skeleton className="h-24 rounded-xl" />
-        <Skeleton className="h-10" />
-        <Skeleton className="h-32 rounded-xl" />
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
-          <Skeleton className="h-64 rounded-xl" />
-          <Skeleton className="h-64 rounded-xl" />
+      <div className="space-y-4 pt-2 pb-6">
+        <Skeleton className="h-28 rounded-xl" />
+        <Skeleton className="h-8 w-96" />
+        <Skeleton className="h-20 rounded-xl" />
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+          <Skeleton className="h-56 rounded-xl" />
+          <Skeleton className="h-56 rounded-xl" />
         </div>
-        <Skeleton className="h-48 rounded-xl" />
+        <Skeleton className="h-40 rounded-xl" />
       </div>
     );
   }
@@ -249,54 +249,65 @@ export function ProjectOverviewTab({ projectId }: ProjectOverviewTabProps) {
   // ========== RENDER ==========
 
   return (
-    <div className="space-y-8 px-2 md:px-4 lg:px-8 pt-4 pb-8">
+    <div className="space-y-4 pt-2 pb-6">
+      {/* Top KPI Bar */}
       <SnapshotBar {...snapshotProps} />
       
-      {/* Custom ActionRow with CreateTaskDialog trigger */}
+      {/* Action Row - Horizontally scrollable on mobile */}
       <div className="overflow-x-auto -mx-2 px-2 pb-1">
-        <div className="flex gap-2 min-w-max">
+        <div className="flex items-center gap-1.5 min-w-max">
+          {/* Primary action: New Task */}
           <CreateTaskDialog
             projectId={projectId}
             trigger={
-              <button className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap text-xs h-8 px-3 rounded-md font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors">
-                <svg className="h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
-                New Task
-              </button>
+              <Button
+                size="sm"
+                className="gap-1.5 text-xs h-7 px-3 rounded-full"
+              >
+                <Plus className="h-3 w-3" />
+                Task
+              </Button>
             }
           />
+          
+          {/* Secondary actions */}
           <ActionRow {...actionHandlers} />
           
-          {/* Deep links to project views */}
-          <div className="flex gap-2 ml-2 border-l border-border pl-3">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => navigate(`/tasks?projectId=${projectId}`)}
-              className="gap-1.5 text-xs h-8"
-            >
-              <CheckSquare className="h-3.5 w-3.5" />
-              View Tasks
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => navigate(`/schedule?projectId=${projectId}`)}
-              className="gap-1.5 text-xs h-8"
-            >
-              <CalendarDays className="h-3.5 w-3.5" />
-              View Schedule
-            </Button>
-          </div>
+          {/* Separator */}
+          <div className="h-5 w-px bg-border/60 mx-1" />
+          
+          {/* Deep links to global views */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate(`/tasks?projectId=${projectId}`)}
+            className="gap-1.5 text-xs h-7 px-2.5 rounded-full text-muted-foreground hover:text-foreground"
+          >
+            <CheckSquare className="h-3 w-3" />
+            All Tasks
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate(`/schedule?projectId=${projectId}`)}
+            className="gap-1.5 text-xs h-7 px-2.5 rounded-full text-muted-foreground hover:text-foreground"
+          >
+            <CalendarDays className="h-3 w-3" />
+            Schedule
+          </Button>
         </div>
       </div>
 
+      {/* Weekly Summary KPIs */}
       <WeeklySummary {...weeklySummaryProps} />
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+      {/* Budget + Workforce Grid */}
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
         <BudgetMiniOverview {...budgetProps} />
         <WorkforceMiniTable {...workforceProps} />
       </div>
 
+      {/* Activity Feed */}
       <ProjectFeed projectId={projectId} />
 
       {/* Dialogs */}
