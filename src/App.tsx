@@ -37,6 +37,7 @@ import PublicProposal from '@/pages/PublicProposal';
 import Materials from '@/pages/Materials';
 import SubProfileV2 from './pages/SubProfileV2';
 import Subs from "./pages/Subs";
+import Tasks from "./pages/Tasks";
 import NotFound from "./pages/NotFound";
 import "./i18n/config";
 
@@ -69,6 +70,7 @@ const App = () => (
           <Route path="/projects/:projectId" element={<ProjectDetail />} />
           <Route path="/projects/:projectId/proposals/:proposalId" element={<ProposalEditor />} />
           <Route path="/estimates/:estimateId" element={<EstimateBuilderV2 />} />
+          <Route path="/tasks" element={<Tasks />} />
           <Route path="/settings/proposals" element={<ProposalSettings />} />
             <Route path="/workforce" element={<Workforce />} />
             <Route path="/workforce/worker/:workerId" element={<WorkerProfile />} />
