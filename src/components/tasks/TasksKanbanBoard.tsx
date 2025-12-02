@@ -20,24 +20,14 @@ interface TasksKanbanBoardProps {
 function DraggableTask({ task, showProject, onViewDetails }: { task: Task; showProject: boolean; onViewDetails: (task: Task) => void }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: task.id, data: { task } });
   
-  const handleClick = (e: React.MouseEvent) => {
-    // Only open details if we didn't drag (pointer didn't move much)
-    if (!isDragging) {
-      e.stopPropagation();
-      onViewDetails(task);
-    }
-  };
-  
   return (
     <div 
       ref={setNodeRef} 
       style={{ transform: CSS.Translate.toString(transform), opacity: isDragging ? 0.5 : 1 }}
       {...listeners} 
       {...attributes}
-      onClick={handleClick}
-      className="cursor-pointer"
     >
-      <TaskCard task={task} showProject={showProject} />
+      <TaskCard task={task} showProject={showProject} onViewDetails={onViewDetails} />
     </div>
   );
 }
@@ -232,9 +222,9 @@ export function TasksKanbanBoard({ projectId, filters }: TasksKanbanBoardProps) 
                 onClick={() => setShowOlderDone(!showOlderDone)}
               >
                 {showOlderDone ? (
-                  <><EyeOff className="w-3 h-3" />Hide older ({olderDoneTasks.length})</>
+                  <><EyeOff className="w-3 h-3" />Hide archived ({olderDoneTasks.length})</>
                 ) : (
-                  <><Eye className="w-3 h-3" />Show older ({olderDoneTasks.length})</>
+                  <><Eye className="w-3 h-3" />Show archived ({olderDoneTasks.length})</>
                 )}
               </Button>
             ) : null}
