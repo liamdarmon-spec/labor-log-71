@@ -105,15 +105,15 @@ export function useTaskSummary(filters: TaskFilters = {}) {
       summary.openTasks++;
     }
 
-    // Count tasks due today
-    if (task.due_date) {
+    // Count tasks due today (exclude done tasks)
+    if (task.due_date && task.status !== 'done') {
       const dueDate = parseISO(task.due_date);
       if (!isBefore(dueDate, todayStart) && !isAfter(dueDate, todayEnd)) {
         summary.dueToday++;
       }
 
       // Count overdue tasks (due before today and not done)
-      if (isBefore(dueDate, todayStart) && task.status !== 'done') {
+      if (isBefore(dueDate, todayStart)) {
         summary.overdue++;
       }
     }
