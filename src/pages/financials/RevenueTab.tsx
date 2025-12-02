@@ -8,9 +8,9 @@ export default function RevenueTab() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Revenue (AR)</h1>
+        <h2 className="text-2xl font-semibold">Receivables</h2>
         <p className="text-muted-foreground">
-          All incoming money and client invoicing
+          Invoices, customer payments, and money owed to you.
         </p>
       </div>
 

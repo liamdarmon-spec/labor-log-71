@@ -76,9 +76,9 @@ export default function FinancialsOverviewV2() {
               variant="link"
               size="sm"
               className="p-0 h-auto text-xs"
-              onClick={() => navigate('/financials/revenue')}
+              onClick={() => navigate('/financials/receivables')}
             >
-              View Revenue Details →
+              View Receivables →
             </Button>
           </CardContent>
         </Card>
@@ -240,7 +240,7 @@ export default function FinancialsOverviewV2() {
 
       {/* Quick Action Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => navigate('/financials/revenue')}>
+        <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => navigate('/financials/receivables')}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <FileText className="w-5 h-5 text-primary" />

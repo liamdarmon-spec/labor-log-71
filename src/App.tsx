@@ -30,6 +30,7 @@ import CostsAPTab from '@/pages/financials/CostsAPTab';
 import JobCostingTabV2 from '@/pages/financials/JobCostingTabV2';
 import PaymentsCenterTab from '@/pages/financials/PaymentsCenterTab';
 import ProcurementTab from '@/pages/financials/ProcurementTab';
+import ProfitTab from '@/pages/financials/ProfitTab';
 import Documents from '@/pages/Documents';
 import Proposals from '@/pages/Proposals';
 import ProposalBuilderV2 from '@/pages/ProposalBuilderV2';
@@ -75,15 +76,18 @@ const App = () => (
             <Route path="/workforce" element={<Workforce />} />
             <Route path="/workforce/worker/:workerId" element={<WorkerProfile />} />
             
-            {/* Financial System - AP/AR Architecture */}
+            {/* Financial System - 4-Tab Architecture: Costs / Payments / Receivables / Profit */}
             <Route path="/financials" element={<FinancialsLayout />}>
-              <Route index element={<FinancialsOverviewV2 />} />
-              <Route path="overview" element={<FinancialsOverviewV2 />} />
-              <Route path="revenue" element={<RevenueTab />} />
+              <Route index element={<CostsAPTab />} />
               <Route path="costs" element={<CostsAPTab />} />
-              <Route path="job-costing" element={<JobCostingTabV2 />} />
               <Route path="payments" element={<PaymentsCenterTab />} />
-              <Route path="procurement" element={<ProcurementTab />} />
+              <Route path="receivables" element={<RevenueTab />} />
+              <Route path="profit" element={<ProfitTab />} />
+              {/* Legacy route mappings for backward compatibility */}
+              <Route path="overview" element={<ProfitTab />} />
+              <Route path="revenue" element={<RevenueTab />} />
+              <Route path="job-costing" element={<ProfitTab />} />
+              <Route path="procurement" element={<CostsAPTab />} />
             </Route>
 
             {/* Legacy routes */}
