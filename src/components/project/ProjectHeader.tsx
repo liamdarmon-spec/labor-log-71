@@ -1,9 +1,11 @@
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { DollarSign, Clock, TrendingUp, AlertCircle } from 'lucide-react';
+import { DollarSign, Clock, TrendingUp, AlertCircle, CheckSquare, CalendarDays } from 'lucide-react';
 import { useProjectStats } from '@/hooks/useProjectStats';
 import { Skeleton } from '@/components/ui/skeleton';
 import { FinancialOSLink } from './FinancialOSLink';
+import { useNavigate } from 'react-router-dom';
 
 interface ProjectHeaderProps {
   projectId: string;
@@ -31,16 +33,29 @@ function getStatusColor(status: string): string {
 
 export function ProjectHeader({ projectId, projectName, clientName, address, status }: ProjectHeaderProps) {
   const { data: stats, isLoading } = useProjectStats(projectId);
+  const navigate = useNavigate();
 
   return (
     <div className="space-y-4">
       <div className="flex flex-col space-y-2">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-bold">{projectName}</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold">{projectName}</h1>
             <Badge className={getStatusColor(status)}>{status}</Badge>
           </div>
-          <FinancialOSLink projectId={projectId} />
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate(`/schedule?projectId=${projectId}`)}
+              className="gap-2"
+            >
+              <CalendarDays className="h-4 w-4" />
+              <span className="hidden sm:inline">View Schedule</span>
+              <span className="sm:hidden">Schedule</span>
+            </Button>
+            <FinancialOSLink projectId={projectId} />
+          </div>
         </div>
         <div className="flex flex-col text-sm text-muted-foreground">
           <span className="font-medium">{clientName}</span>
