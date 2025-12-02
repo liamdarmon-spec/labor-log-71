@@ -50,18 +50,16 @@ export default function Tasks() {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <TabsList>
+          <div className="flex flex-col gap-4">
+            <TabsList className="w-fit">
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="my-tasks">My Tasks</TabsTrigger>
               <TabsTrigger value="calendar">Calendar</TabsTrigger>
             </TabsList>
-          </div>
 
-          {/* Filters - shown on Overview and My Tasks */}
-          {activeTab !== 'calendar' && (
+            {/* Filters */}
             <TaskFilters value={filters} onChange={setFilters} />
-          )}
+          </div>
 
           <TabsContent value="overview" className="mt-4">
             <TasksKanbanBoard filters={hookFilters} />
@@ -72,10 +70,7 @@ export default function Tasks() {
           </TabsContent>
 
           <TabsContent value="calendar" className="mt-4">
-            <div className="space-y-4">
-              <TaskFilters value={filters} onChange={setFilters} />
-              <TasksCalendarView filters={hookFilters} />
-            </div>
+            <TasksCalendarView filters={hookFilters} />
           </TabsContent>
         </Tabs>
       </div>

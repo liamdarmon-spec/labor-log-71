@@ -2,7 +2,6 @@ import { useState, useMemo } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import {
   format,
@@ -19,7 +18,7 @@ import {
   isToday,
 } from 'date-fns';
 import { useTasks, Task, TaskFilters as TaskFiltersType } from '@/hooks/useTasks';
-import { TaskCard } from './TaskCard';
+import { TaskDetailDrawer } from './TaskDetailDrawer';
 import { cn } from '@/lib/utils';
 
 interface TasksCalendarViewProps {
@@ -27,10 +26,18 @@ interface TasksCalendarViewProps {
   filters: TaskFiltersType;
 }
 
+const TYPE_DOT_COLORS: Record<string, string> = {
+  todo: 'bg-slate-500',
+  meeting: 'bg-purple-500',
+  inspection: 'bg-amber-500',
+  milestone: 'bg-green-500',
+  punchlist: 'bg-red-500',
+};
+
 export function TasksCalendarView({ projectId, filters }: TasksCalendarViewProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
 
   const queryFilters = {
     ...filters,
@@ -38,8 +45,6 @@ export function TasksCalendarView({ projectId, filters }: TasksCalendarViewProps
   };
 
   const { data: tasks = [], isLoading } = useTasks(queryFilters);
-
-  const showProject = !projectId;
 
   // Group tasks by due date
   const tasksByDate = useMemo(() => {
@@ -66,30 +71,10 @@ export function TasksCalendarView({ projectId, filters }: TasksCalendarViewProps
   const handlePrevMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
   const handleNextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
 
-  const handleDateClick = (date: Date) => {
-    const dateKey = format(date, 'yyyy-MM-dd');
-    const dayTasks = tasksByDate.get(dateKey) || [];
-    if (dayTasks.length > 0) {
-      setSelectedDate(date);
-      setIsSheetOpen(true);
-    }
-  };
-
-  const selectedDateTasks = selectedDate ? tasksByDate.get(format(selectedDate, 'yyyy-MM-dd')) || [] : [];
-
-  const getTaskTypeColor = (type: string) => {
-    switch (type) {
-      case 'meeting':
-        return 'bg-blue-500';
-      case 'inspection':
-        return 'bg-purple-500';
-      case 'milestone':
-        return 'bg-amber-500';
-      case 'punchlist':
-        return 'bg-red-500';
-      default:
-        return 'bg-primary';
-    }
+  const handleTaskClick = (task: Task, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedTask(task);
+    setIsDetailOpen(true);
   };
 
   if (isLoading) {
@@ -109,6 +94,9 @@ export function TasksCalendarView({ projectId, filters }: TasksCalendarViewProps
           <div className="flex gap-1">
             <Button variant="outline" size="icon" onClick={handlePrevMonth}>
               <ChevronLeft className="w-4 h-4" />
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setCurrentMonth(new Date())}>
+              Today
             </Button>
             <Button variant="outline" size="icon" onClick={handleNextMonth}>
               <ChevronRight className="w-4 h-4" />
@@ -131,19 +119,14 @@ export function TasksCalendarView({ projectId, filters }: TasksCalendarViewProps
             const dateKey = format(day, 'yyyy-MM-dd');
             const dayTasks = tasksByDate.get(dateKey) || [];
             const isCurrentMonth = isSameMonth(day, currentMonth);
-            const isSelected = selectedDate && isSameDay(day, selectedDate);
 
             return (
               <div
                 key={dateKey}
-                onClick={() => handleDateClick(day)}
                 className={cn(
                   'min-h-[80px] p-1 border rounded-md transition-colors',
                   !isCurrentMonth && 'bg-muted/30 text-muted-foreground',
-                  isCurrentMonth && 'hover:bg-muted/50 cursor-pointer',
-                  isSelected && 'ring-2 ring-primary',
-                  isToday(day) && 'bg-primary/10',
-                  dayTasks.length > 0 && 'cursor-pointer'
+                  isToday(day) && 'bg-primary/10 border-primary/30'
                 )}
               >
                 <div className={cn('text-xs font-medium mb-1', isToday(day) && 'text-primary font-bold')}>
@@ -151,13 +134,22 @@ export function TasksCalendarView({ projectId, filters }: TasksCalendarViewProps
                 </div>
                 <div className="space-y-0.5">
                   {dayTasks.slice(0, 3).map((task) => (
-                    <div key={task.id} className="flex items-center gap-1 text-xs truncate">
-                      <div className={cn('w-1.5 h-1.5 rounded-full flex-shrink-0', getTaskTypeColor(task.task_type))} />
+                    <button
+                      key={task.id}
+                      onClick={(e) => handleTaskClick(task, e)}
+                      className="w-full flex items-center gap-1 text-xs truncate hover:bg-muted/50 rounded px-1 py-0.5 text-left"
+                    >
+                      <div
+                        className={cn(
+                          'w-1.5 h-1.5 rounded-full flex-shrink-0',
+                          TYPE_DOT_COLORS[task.task_type] || 'bg-primary'
+                        )}
+                      />
                       <span className="truncate">{task.title}</span>
-                    </div>
+                    </button>
                   ))}
                   {dayTasks.length > 3 && (
-                    <Badge variant="secondary" className="text-xs h-4 px-1">
+                    <Badge variant="secondary" className="text-xs h-4 px-1 w-full justify-center">
                       +{dayTasks.length - 3} more
                     </Badge>
                   )}
@@ -168,22 +160,8 @@ export function TasksCalendarView({ projectId, filters }: TasksCalendarViewProps
         </div>
       </Card>
 
-      {/* Day Detail Sheet */}
-      <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-        <SheetContent className="overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle>{selectedDate && format(selectedDate, 'EEEE, MMMM d, yyyy')}</SheetTitle>
-          </SheetHeader>
-          <div className="mt-4 space-y-3">
-            {selectedDateTasks.map((task) => (
-              <TaskCard key={task.id} task={task} showProject={showProject} />
-            ))}
-            {selectedDateTasks.length === 0 && (
-              <p className="text-sm text-muted-foreground text-center py-8">No tasks due this day</p>
-            )}
-          </div>
-        </SheetContent>
-      </Sheet>
+      {/* Task Detail Drawer */}
+      <TaskDetailDrawer task={selectedTask} open={isDetailOpen} onOpenChange={setIsDetailOpen} />
     </>
   );
 }
