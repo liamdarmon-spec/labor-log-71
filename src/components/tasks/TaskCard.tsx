@@ -41,9 +41,10 @@ export function TaskCard({ task, showProject = false, onViewDetails }: TaskCardP
     <Card
       className={cn(
         'p-3 hover:shadow-md hover:border-primary/30 transition-all duration-200 group',
-        isOverdue && 'border-l-2 border-l-destructive'
+        isOverdue && 'border-l-2 border-l-destructive',
+        onViewDetails && 'cursor-pointer'
       )}
-      onClick={() => onViewDetails?.(task)}
+      onClick={onViewDetails ? () => onViewDetails(task) : undefined}
     >
       <div className="space-y-2">
         {/* Title with priority indicator */}
