@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Layout } from '@/components/Layout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TaskFilters, TaskFilterValue } from '@/components/tasks/TaskFilters';
@@ -9,8 +10,17 @@ import { CreateTaskDialog } from '@/components/tasks/CreateTaskDialog';
 import { CheckSquare } from 'lucide-react';
 
 export default function Tasks() {
+  const [searchParams] = useSearchParams();
   const [filters, setFilters] = useState<TaskFilterValue>({});
   const [activeTab, setActiveTab] = useState('overview');
+
+  // Sync projectId from URL params
+  useEffect(() => {
+    const urlProjectId = searchParams.get('projectId');
+    if (urlProjectId && urlProjectId !== filters.projectId) {
+      setFilters(prev => ({ ...prev, projectId: urlProjectId }));
+    }
+  }, [searchParams]);
 
   // Convert TaskFilterValue to TaskFilters format for hooks
   const hookFilters = {
