@@ -18,6 +18,7 @@ import { ProjectFinancialsTab } from '@/components/project/ProjectFinancialsTab'
 import { ProjectSubsTabV3 } from '@/components/project/ProjectSubsTabV3';
 import { ProjectDocumentsTab } from '@/components/project/ProjectDocumentsTab';
 import { ProjectLaborTab } from '@/components/project/ProjectLaborTab';
+import { ProjectTasksTab } from '@/components/project/ProjectTasksTab';
 
 interface Project {
   id: string;
@@ -111,7 +112,7 @@ const ProjectDetail = () => {
         <Tabs defaultValue="overview" className="space-y-4 sm:space-y-6">
           {/* Mobile: Scrollable horizontal tabs */}
           <div className="overflow-x-auto -mx-3 px-3 sm:mx-0 sm:px-0 pb-1">
-            <TabsList className="inline-flex w-auto min-w-full lg:grid lg:w-full lg:grid-cols-11 h-auto">
+            <TabsList className="inline-flex w-auto min-w-full lg:grid lg:w-full lg:grid-cols-12 h-auto">
               <TabsTrigger value="overview" className="text-xs sm:text-sm px-3 sm:px-4 whitespace-nowrap">
                 Overview
               </TabsTrigger>
@@ -135,6 +136,9 @@ const ProjectDetail = () => {
               </TabsTrigger>
               <TabsTrigger value="labor" className="text-xs sm:text-sm px-3 sm:px-4 whitespace-nowrap">
                 Labor
+              </TabsTrigger>
+              <TabsTrigger value="tasks" className="text-xs sm:text-sm px-3 sm:px-4 whitespace-nowrap">
+                Tasks
               </TabsTrigger>
               <TabsTrigger value="schedule" className="text-xs sm:text-sm px-3 sm:px-4 whitespace-nowrap">
                 Schedule
@@ -178,6 +182,10 @@ const ProjectDetail = () => {
 
           <TabsContent value="labor">
             <ProjectLaborTab projectId={project.id} />
+          </TabsContent>
+
+          <TabsContent value="tasks">
+            <ProjectTasksTab projectId={project.id} />
           </TabsContent>
 
           <TabsContent value="schedule">

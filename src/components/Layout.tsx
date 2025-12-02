@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { HardHat, Settings, BarChart3, DollarSign, CalendarClock, Languages, Building2, Users, Hammer } from 'lucide-react';
+import { HardHat, Settings, BarChart3, DollarSign, CalendarClock, Languages, Building2, Users, Hammer, CheckSquare } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { MobileNav } from '@/components/MobileNav';
 import { MobileBottomNav } from '@/components/MobileBottomNav';
@@ -57,6 +57,15 @@ export const Layout = ({ children }: LayoutProps) => {
             >
               <Building2 className="w-4 h-4" />
               <span>Projects</span>
+            </Button>
+            <Button
+              variant={location.pathname === '/tasks' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => navigate('/tasks')}
+              className={`gap-2 h-9 ${location.pathname === '/tasks' ? 'font-semibold' : ''}`}
+            >
+              <CheckSquare className="w-4 h-4" />
+              <span>Tasks</span>
             </Button>
             <Button
               variant={location.pathname.startsWith('/workforce') ? 'default' : 'ghost'}
