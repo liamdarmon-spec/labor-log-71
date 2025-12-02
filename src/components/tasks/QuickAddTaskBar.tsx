@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { Input } from '@/components/ui/input';
 import { useCreateTask } from '@/hooks/useTasks';
-import { Plus, Loader2 } from 'lucide-react';
+import { Plus, Loader2, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
@@ -55,17 +55,23 @@ export function QuickAddTaskBar({ projectId, defaultType = 'todo', onCreated }: 
   return (
     <div
       className={cn(
-        'relative flex items-center gap-3 rounded-lg border bg-card px-3 py-2 transition-all duration-200',
-        isFocused ? 'ring-2 ring-primary/20 border-primary/40 shadow-sm' : 'border-border hover:border-primary/20'
+        'group relative flex items-center gap-3 rounded-xl border-2 border-dashed bg-gradient-to-r from-muted/30 to-muted/10 px-4 py-3 transition-all duration-300',
+        isFocused 
+          ? 'border-primary/40 bg-gradient-to-r from-primary/5 to-transparent shadow-lg shadow-primary/5' 
+          : 'border-muted-foreground/20 hover:border-primary/20 hover:from-muted/40'
       )}
     >
-      <div className="text-muted-foreground">
+      <div className={cn(
+        'flex items-center justify-center w-8 h-8 rounded-lg transition-all duration-300',
+        isFocused ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary'
+      )}>
         {createTask.isPending ? (
           <Loader2 className="w-4 h-4 animate-spin" />
         ) : (
           <Plus className="w-4 h-4" />
         )}
       </div>
+      
       <Input
         ref={inputRef}
         value={value}
@@ -73,14 +79,22 @@ export function QuickAddTaskBar({ projectId, defaultType = 'todo', onCreated }: 
         onKeyDown={handleKeyDown}
         onFocus={() => setIsFocused(true)}
         onBlur={() => setIsFocused(false)}
-        placeholder="Add a task..."
-        className="border-0 shadow-none focus-visible:ring-0 px-0 h-auto py-0 text-sm placeholder:text-muted-foreground/60"
+        placeholder="Add a new task..."
+        className="flex-1 border-0 bg-transparent shadow-none focus-visible:ring-0 px-0 h-auto py-0 text-sm font-medium placeholder:text-muted-foreground/50 placeholder:font-normal"
         disabled={createTask.isPending}
       />
-      {value.trim() && (
-        <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded shrink-0">
-          ↵ Enter
-        </span>
+      
+      {value.trim() ? (
+        <div className="flex items-center gap-2">
+          <kbd className="hidden sm:inline-flex items-center gap-1 px-2 py-1 text-[10px] font-medium text-muted-foreground bg-muted/80 rounded-md border">
+            <span>↵</span> Enter
+          </kbd>
+        </div>
+      ) : (
+        <div className="hidden sm:flex items-center gap-1.5 text-[10px] text-muted-foreground/60">
+          <Sparkles className="w-3 h-3" />
+          <span>Quick add</span>
+        </div>
       )}
     </div>
   );
