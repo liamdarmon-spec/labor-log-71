@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArrowLeft } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ProjectHeader } from '@/components/project/ProjectHeader';
-import { ProjectOverviewOS } from '@/components/project/ProjectOverviewOS';
+import { ProjectOverviewTab } from '@/components/project/ProjectOverviewTab';
 import { ProjectEstimatesV3 } from '@/components/project/ProjectEstimatesV3';
 import { ProjectProposalsTabV3 } from '@/components/project/ProjectProposalsTabV3';
 import { ProjectScheduleTabV2 } from '@/components/project/ProjectScheduleTabV2';
@@ -153,7 +153,7 @@ const ProjectDetail = () => {
           </div>
 
           <TabsContent value="overview">
-            <ProjectOverviewOS projectId={project.id} />
+            <ProjectOverviewTab projectId={project.id} />
           </TabsContent>
 
           <TabsContent value="estimates">
