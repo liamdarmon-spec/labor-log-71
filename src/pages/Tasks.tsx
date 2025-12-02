@@ -22,7 +22,6 @@ export default function Tasks() {
   };
 
   // For "My Tasks" tab, we would set assigneeId to current user
-  // For now, we'll use the same filters but this can be enhanced with auth
   const myTasksFilters = {
     ...hookFilters,
     // assigneeId: currentUserId, // TODO: Wire up with auth
@@ -38,8 +37,8 @@ export default function Tasks() {
               <CheckSquare className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold">Tasks</h1>
-              <p className="text-sm text-muted-foreground">Central hub for tasks across all projects</p>
+              <h1 className="text-2xl font-semibold tracking-tight">Tasks</h1>
+              <p className="text-sm text-muted-foreground">Manage tasks across all projects</p>
             </div>
           </div>
           <CreateTaskDialog />
@@ -50,26 +49,26 @@ export default function Tasks() {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <div className="flex flex-col gap-4">
-            <TabsList className="w-fit">
-              <TabsTrigger value="overview">Overview</TabsTrigger>
-              <TabsTrigger value="my-tasks">My Tasks</TabsTrigger>
-              <TabsTrigger value="calendar">Calendar</TabsTrigger>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <TabsList className="w-fit h-9">
+              <TabsTrigger value="overview" className="text-sm">Overview</TabsTrigger>
+              <TabsTrigger value="my-tasks" className="text-sm">My Tasks</TabsTrigger>
+              <TabsTrigger value="calendar" className="text-sm">Calendar</TabsTrigger>
             </TabsList>
 
-            {/* Filters */}
+            {/* Filters inline with tabs */}
             <TaskFilters value={filters} onChange={setFilters} />
           </div>
 
-          <TabsContent value="overview" className="mt-4">
+          <TabsContent value="overview" className="mt-6">
             <TasksKanbanBoard filters={hookFilters} />
           </TabsContent>
 
-          <TabsContent value="my-tasks" className="mt-4">
+          <TabsContent value="my-tasks" className="mt-6">
             <TasksKanbanBoard filters={myTasksFilters} />
           </TabsContent>
 
-          <TabsContent value="calendar" className="mt-4">
+          <TabsContent value="calendar" className="mt-6">
             <TasksCalendarView filters={hookFilters} />
           </TabsContent>
         </Tabs>

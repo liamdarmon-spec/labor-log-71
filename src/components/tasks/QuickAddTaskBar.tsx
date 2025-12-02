@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { Input } from '@/components/ui/input';
 import { useCreateTask } from '@/hooks/useTasks';
 import { Plus, Loader2 } from 'lucide-react';
@@ -23,7 +23,7 @@ export function QuickAddTaskBar({ projectId, defaultType = 'todo', onCreated }: 
 
     createTask.mutate(
       {
-        project_id: projectId || '',
+        project_id: projectId || null,
         title: trimmed,
         status: 'open',
         priority: 'medium',
@@ -55,11 +55,11 @@ export function QuickAddTaskBar({ projectId, defaultType = 'todo', onCreated }: 
   return (
     <div
       className={cn(
-        'relative flex items-center gap-2 rounded-lg border bg-background transition-all',
-        isFocused ? 'ring-2 ring-primary/20 border-primary/50' : 'border-border'
+        'relative flex items-center gap-3 rounded-lg border bg-card px-3 py-2 transition-all duration-200',
+        isFocused ? 'ring-2 ring-primary/20 border-primary/40 shadow-sm' : 'border-border hover:border-primary/20'
       )}
     >
-      <div className="pl-3 text-muted-foreground">
+      <div className="text-muted-foreground">
         {createTask.isPending ? (
           <Loader2 className="w-4 h-4 animate-spin" />
         ) : (
@@ -73,14 +73,14 @@ export function QuickAddTaskBar({ projectId, defaultType = 'todo', onCreated }: 
         onKeyDown={handleKeyDown}
         onFocus={() => setIsFocused(true)}
         onBlur={() => setIsFocused(false)}
-        placeholder={projectId ? 'Quick add task…' : 'Quick add task (no project)…'}
-        className="border-0 shadow-none focus-visible:ring-0 px-0"
+        placeholder="Add a task..."
+        className="border-0 shadow-none focus-visible:ring-0 px-0 h-auto py-0 text-sm placeholder:text-muted-foreground/60"
         disabled={createTask.isPending}
       />
       {value.trim() && (
-        <div className="pr-3 text-xs text-muted-foreground">
-          Press Enter
-        </div>
+        <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded shrink-0">
+          ↵ Enter
+        </span>
       )}
     </div>
   );
