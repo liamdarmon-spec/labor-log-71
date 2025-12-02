@@ -42,12 +42,14 @@ const ProjectDetail = () => {
 
   // Get active tab from URL, default to 'overview'
   const tabParam = searchParams.get('tab');
-  const activeTab: TabValue = tabParam && VALID_TABS.includes(tabParam as TabValue) 
-    ? (tabParam as TabValue) 
+  const activeTab: TabValue = VALID_TABS.includes(tabParam as TabValue)
+    ? (tabParam as TabValue)
     : 'overview';
 
   const handleTabChange = (value: string) => {
-    setSearchParams({ tab: value });
+    const next = new URLSearchParams(searchParams);
+    next.set('tab', value);
+    setSearchParams(next);
   };
 
   useEffect(() => {
@@ -61,7 +63,7 @@ const ProjectDetail = () => {
       setLoading(true);
       const { data, error } = await supabase
         .from('projects')
-        .select('*')
+        .select('id, project_name, client_name, status, address, project_manager, company_id')
         .eq('id', projectId)
         .maybeSingle();
 
