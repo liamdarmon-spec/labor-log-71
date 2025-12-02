@@ -136,7 +136,7 @@ export function useCreateTask() {
 
   return useMutation({
     mutationFn: async (task: {
-      project_id: string;
+      project_id: string | null;
       title: string;
       description?: string;
       status?: string;
