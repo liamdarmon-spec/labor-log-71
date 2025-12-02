@@ -3,7 +3,9 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
 import { format, startOfWeek, endOfWeek, subDays } from 'date-fns';
+import { CheckSquare, CalendarDays } from 'lucide-react';
 
 import { SnapshotBar, SnapshotBarProps } from '@/components/project-hub/SnapshotBar';
 import { ActionRow, ActionRowProps } from '@/components/project-hub/ActionRow';
@@ -263,6 +265,28 @@ export function ProjectOverviewTab({ projectId }: ProjectOverviewTabProps) {
             }
           />
           <ActionRow {...actionHandlers} />
+          
+          {/* Deep links to project views */}
+          <div className="flex gap-2 ml-2 border-l border-border pl-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate(`/tasks?projectId=${projectId}`)}
+              className="gap-1.5 text-xs h-8"
+            >
+              <CheckSquare className="h-3.5 w-3.5" />
+              View Tasks
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate(`/schedule?projectId=${projectId}`)}
+              className="gap-1.5 text-xs h-8"
+            >
+              <CalendarDays className="h-3.5 w-3.5" />
+              View Schedule
+            </Button>
+          </div>
         </div>
       </div>
 
