@@ -1,100 +1,43 @@
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
-import { ChevronRight, TrendingUp } from 'lucide-react';
-import { Skeleton } from '@/components/ui/skeleton';
-import { useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { TrendingUp, ChevronRight } from 'lucide-react';
 
-interface BudgetMiniOverviewProps {
-  projectId: string;
+export interface BudgetCategorySummary {
+  label: string;
+  budget: number;
+  actual: number;
 }
 
-export function BudgetMiniOverview({ projectId }: BudgetMiniOverviewProps) {
-  const navigate = useNavigate();
+export interface BudgetMiniOverviewProps {
+  categories: BudgetCategorySummary[];
+  onOpenBudget?: () => void;
+}
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['budget-mini-overview', projectId],
-    queryFn: async () => {
-      const [budgetRes, laborRes, costsRes] = await Promise.all([
-        supabase
-          .from('project_budgets')
-          .select('labor_budget, subs_budget, materials_budget, other_budget')
-          .eq('project_id', projectId)
-          .maybeSingle(),
-        supabase
-          .from('time_logs')
-          .select('labor_cost')
-          .eq('project_id', projectId),
-        supabase
-          .from('costs')
-          .select('amount, category')
-          .eq('project_id', projectId),
-      ]);
-
-      const laborActual = laborRes.data?.reduce((sum, l) => sum + (l.labor_cost || 0), 0) || 0;
-      const subsActual = costsRes.data?.filter(c => c.category === 'subs').reduce((sum, c) => sum + (c.amount || 0), 0) || 0;
-      const materialsActual = costsRes.data?.filter(c => c.category === 'materials').reduce((sum, c) => sum + (c.amount || 0), 0) || 0;
-      const otherActual = costsRes.data?.filter(c => 
-        c.category === 'misc' || c.category === 'equipment' || c.category === 'other' || !c.category
-      ).reduce((sum, c) => sum + (c.amount || 0), 0) || 0;
-
-      return [
-        {
-          category: 'Labor',
-          budget: budgetRes.data?.labor_budget || 0,
-          actual: laborActual,
-        },
-        {
-          category: 'Subs',
-          budget: budgetRes.data?.subs_budget || 0,
-          actual: subsActual,
-        },
-        {
-          category: 'Materials',
-          budget: budgetRes.data?.materials_budget || 0,
-          actual: materialsActual,
-        },
-        {
-          category: 'Other',
-          budget: budgetRes.data?.other_budget || 0,
-          actual: otherActual,
-        },
-      ];
-    },
-  });
-
-  if (isLoading) {
-    return (
-      <Card>
-        <CardHeader className="pb-3">
-          <Skeleton className="h-5 w-32" />
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-12" />)}
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  const totalBudget = data?.reduce((sum, d) => sum + d.budget, 0) || 0;
-  const totalActual = data?.reduce((sum, d) => sum + d.actual, 0) || 0;
+export function BudgetMiniOverview({ categories, onOpenBudget }: BudgetMiniOverviewProps) {
+  const totalBudget = categories.reduce((sum, c) => sum + c.budget, 0);
+  const totalActual = categories.reduce((sum, c) => sum + c.actual, 0);
+  const totalVariance = totalBudget - totalActual;
   const totalPercent = totalBudget > 0 ? (totalActual / totalBudget) * 100 : 0;
 
   return (
-    <Card 
-      className="cursor-pointer hover:shadow-md transition-shadow group"
-      onClick={() => navigate(`?tab=budget`)}
-    >
+    <Card>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-base font-semibold flex items-center gap-2">
             <TrendingUp className="h-4 w-4 text-primary" />
-            Budget Overview
+            Budget vs Actual
           </CardTitle>
-          <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:translate-x-0.5 transition-transform" />
+          {onOpenBudget && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={onOpenBudget}
+              className="text-xs h-7 text-muted-foreground hover:text-foreground"
+            >
+              View Budget
+              <ChevronRight className="h-3.5 w-3.5 ml-1" />
+            </Button>
+          )}
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -102,44 +45,53 @@ export function BudgetMiniOverview({ projectId }: BudgetMiniOverviewProps) {
         <div className="p-3 bg-muted/50 rounded-lg">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium">Total</span>
-            <span className={`text-sm font-semibold ${totalPercent > 100 ? 'text-red-600' : 'text-emerald-600'}`}>
-              {totalPercent.toFixed(0)}% used
+            <span className={`text-sm font-semibold ${totalVariance >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+              {totalVariance >= 0 ? '+' : '-'}${Math.abs(totalVariance).toLocaleString()}
             </span>
           </div>
-          <Progress 
-            value={Math.min(totalPercent, 100)} 
-            className="h-2"
-          />
+          {/* Progress bar */}
+          <div className="h-2 bg-muted rounded-full overflow-hidden">
+            <div 
+              className={`h-full transition-all ${
+                totalPercent > 100 ? 'bg-red-500' : totalPercent > 80 ? 'bg-amber-500' : 'bg-emerald-500'
+              }`}
+              style={{ width: `${Math.min(totalPercent, 100)}%` }}
+            />
+          </div>
           <div className="flex justify-between mt-2 text-xs text-muted-foreground">
             <span>${totalActual.toLocaleString()} spent</span>
             <span>${totalBudget.toLocaleString()} budget</span>
           </div>
         </div>
 
-        {/* Category Breakdown */}
-        <div className="space-y-3">
-          {data?.map((item) => {
-            const percent = item.budget > 0 ? (item.actual / item.budget) * 100 : 0;
-            const variance = item.budget - item.actual;
+        {/* Category Grid */}
+        <div className="grid grid-cols-2 gap-3">
+          {categories.map((cat) => {
+            const variance = cat.budget - cat.actual;
+            const percent = cat.budget > 0 ? (cat.actual / cat.budget) * 100 : 0;
             const isOver = variance < 0;
-            
+
             return (
-              <div key={item.category} className="space-y-1.5">
+              <div key={cat.label} className="space-y-2 p-3 bg-muted/30 rounded-lg">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">{item.category}</span>
-                  <div className="flex items-center gap-3 text-xs">
-                    <span className="text-muted-foreground">
-                      ${item.actual.toLocaleString()} / ${item.budget.toLocaleString()}
-                    </span>
-                    <span className={`font-medium min-w-[60px] text-right ${isOver ? 'text-red-600' : 'text-emerald-600'}`}>
-                      {isOver ? '-' : '+'}${Math.abs(variance).toLocaleString()}
-                    </span>
-                  </div>
+                  <span className="text-sm font-medium">{cat.label}</span>
+                  <span className={`text-xs font-semibold ${isOver ? 'text-red-600' : 'text-emerald-600'}`}>
+                    {isOver ? '-' : '+'}${Math.abs(variance).toLocaleString()}
+                  </span>
                 </div>
-                <Progress 
-                  value={Math.min(percent, 100)} 
-                  className={`h-1.5 ${percent > 100 ? '[&>div]:bg-red-500' : percent > 80 ? '[&>div]:bg-amber-500' : ''}`}
-                />
+                {/* Mini progress bar */}
+                <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                  <div 
+                    className={`h-full transition-all ${
+                      percent > 100 ? 'bg-red-500' : percent > 80 ? 'bg-amber-500' : 'bg-primary/70'
+                    }`}
+                    style={{ width: `${Math.min(percent, 100)}%` }}
+                  />
+                </div>
+                <div className="flex justify-between text-[10px] text-muted-foreground">
+                  <span>Budget: ${cat.budget.toLocaleString()}</span>
+                  <span>Actual: ${cat.actual.toLocaleString()}</span>
+                </div>
               </div>
             );
           })}
