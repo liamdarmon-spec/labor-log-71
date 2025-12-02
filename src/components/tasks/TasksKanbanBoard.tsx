@@ -20,14 +20,24 @@ interface TasksKanbanBoardProps {
 function DraggableTask({ task, showProject, onViewDetails }: { task: Task; showProject: boolean; onViewDetails: (task: Task) => void }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: task.id, data: { task } });
   
+  const handleClick = (e: React.MouseEvent) => {
+    // Only open details if we didn't drag (pointer didn't move much)
+    if (!isDragging) {
+      e.stopPropagation();
+      onViewDetails(task);
+    }
+  };
+  
   return (
     <div 
       ref={setNodeRef} 
       style={{ transform: CSS.Translate.toString(transform), opacity: isDragging ? 0.5 : 1 }}
       {...listeners} 
       {...attributes}
+      onClick={handleClick}
+      className="cursor-pointer"
     >
-      <TaskCard task={task} showProject={showProject} onViewDetails={onViewDetails} />
+      <TaskCard task={task} showProject={showProject} />
     </div>
   );
 }

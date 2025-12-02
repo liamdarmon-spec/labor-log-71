@@ -65,7 +65,7 @@ export function CreateTaskDialog({ projectId, onCreated, trigger }: CreateTaskDi
 
     createTask.mutate(
       {
-        project_id: formData.project_id || '',
+        project_id: formData.project_id || null,
         title: formData.title.trim(),
         description: formData.description || undefined,
         status: formData.status,

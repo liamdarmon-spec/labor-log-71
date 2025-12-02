@@ -23,7 +23,7 @@ export function QuickAddTaskBar({ projectId, defaultType = 'todo', onCreated }: 
 
     createTask.mutate(
       {
-        project_id: projectId || null,
+        project_id: projectId ?? null,
         title: trimmed,
         status: 'open',
         priority: 'medium',
