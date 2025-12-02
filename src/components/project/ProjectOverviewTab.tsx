@@ -11,6 +11,7 @@ import { WeeklySummary, WeeklySummaryProps } from '@/components/project-hub/Week
 import { BudgetMiniOverview, BudgetMiniOverviewProps, BudgetCategorySummary } from '@/components/project-hub/BudgetMiniOverview';
 import { WorkforceMiniTable, WorkforceMiniTableProps, WorkforceRow } from '@/components/project-hub/WorkforceMiniTable';
 import { ProjectFeed } from '@/components/project-hub/ProjectFeed';
+import { useProjectTaskCounts } from '@/hooks/useTasks';
 
 import { CreateTaskDialog } from '@/components/tasks/CreateTaskDialog';
 import { AddToScheduleDialog } from '@/components/scheduling/AddToScheduleDialog';
@@ -143,30 +144,8 @@ export function ProjectOverviewTab({ projectId }: ProjectOverviewTabProps) {
     },
   });
 
-  // Tasks data
-  const { data: tasksData, isLoading: loadingTasks } = useQuery({
-    queryKey: ['project-overview-tasks', projectId],
-    queryFn: async () => {
-      const [openRes, overdueRes] = await Promise.all([
-        supabase
-          .from('project_todos')
-          .select('id')
-          .eq('project_id', projectId)
-          .neq('status', 'done'),
-        supabase
-          .from('project_todos')
-          .select('id')
-          .eq('project_id', projectId)
-          .neq('status', 'done')
-          .lt('due_date', today),
-      ]);
-
-      return {
-        openTasksCount: openRes.data?.length || 0,
-        overdueTasksCount: overdueRes.data?.length || 0,
-      };
-    },
-  });
+  // Tasks data - use the canonical hook
+  const { data: taskCounts, isLoading: loadingTasks } = useProjectTaskCounts(projectId);
 
   // Workforce snapshot (last 7 days)
   const { data: workforceData, isLoading: loadingWorkforce } = useQuery({
@@ -235,7 +214,7 @@ export function ProjectOverviewTab({ projectId }: ProjectOverviewTabProps) {
     scheduleHealthPercent: scheduleData?.scheduleHealthPercent,
     budgetVariance: budgetData?.budgetVariance,
     weeklyLaborHours: scheduleData?.hoursLoggedThisWeek,
-    openTasksCount: tasksData?.openTasksCount,
+    openTasksCount: taskCounts?.open ?? 0,
   };
 
   const actionHandlers: ActionRowProps = {
@@ -251,8 +230,8 @@ export function ProjectOverviewTab({ projectId }: ProjectOverviewTabProps) {
     hoursScheduledThisWeek: scheduleData?.hoursScheduledThisWeek,
     hoursLoggedThisWeek: scheduleData?.hoursLoggedThisWeek,
     varianceHoursThisWeek: scheduleData?.varianceHoursThisWeek,
-    openItemsCount: tasksData?.openTasksCount,
-    overdueTasksCount: tasksData?.overdueTasksCount,
+    openItemsCount: taskCounts?.open ?? 0,
+    overdueTasksCount: taskCounts?.overdue ?? 0,
   };
 
   const budgetProps: BudgetMiniOverviewProps = {

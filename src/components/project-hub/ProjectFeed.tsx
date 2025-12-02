@@ -1,17 +1,30 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Activity, Sparkles, Layout, CheckCircle2 } from 'lucide-react';
+import { Activity, CheckCircle2, Clock, Plus, DollarSign } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useProjectActivityFeed, ProjectActivityType } from '@/hooks/useProjectActivityFeed';
+import { format, isToday, isYesterday, parseISO } from 'date-fns';
 
 export interface ProjectFeedProps {
   projectId: string;
 }
 
+const typeConfig: Record<ProjectActivityType, { icon: typeof Activity; color: string }> = {
+  task_created: { icon: Plus, color: 'text-blue-500 bg-blue-500/10' },
+  task_completed: { icon: CheckCircle2, color: 'text-green-500 bg-green-500/10' },
+  task_updated: { icon: Activity, color: 'text-amber-500 bg-amber-500/10' },
+  time_log_added: { icon: Clock, color: 'text-purple-500 bg-purple-500/10' },
+  cost_added: { icon: DollarSign, color: 'text-slate-500 bg-slate-500/10' },
+};
+
+function formatRelativeDate(dateStr: string): string {
+  const date = parseISO(dateStr);
+  if (isToday(date)) return format(date, "'Today at' h:mm a");
+  if (isYesterday(date)) return format(date, "'Yesterday at' h:mm a");
+  return format(date, 'MMM d, h:mm a');
+}
+
 export function ProjectFeed({ projectId }: ProjectFeedProps) {
-  // Placeholder items - real activity feed coming in a later step
-  const placeholderItems = [
-    { id: '1', icon: Sparkles, text: 'Task hub launched', time: 'Just now' },
-    { id: '2', icon: Layout, text: 'Budget overview redesigned', time: '2 hours ago' },
-    { id: '3', icon: CheckCircle2, text: 'Project Command Center live', time: 'Today' },
-  ];
+  const { data: activity, isLoading, error } = useProjectActivityFeed(projectId);
 
   return (
     <Card>
@@ -20,25 +33,59 @@ export function ProjectFeed({ projectId }: ProjectFeedProps) {
           <Activity className="h-4 w-4 text-primary" />
           Project Activity
         </CardTitle>
-        <p className="text-xs text-muted-foreground">Activity feed coming soon</p>
       </CardHeader>
       <CardContent>
-        <div className="space-y-3">
-          {placeholderItems.map((item) => (
-            <div 
-              key={item.id} 
-              className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg"
-            >
-              <div className="p-1.5 rounded-md bg-primary/10">
-                <item.icon className="h-3.5 w-3.5 text-primary" />
+        {isLoading ? (
+          <div className="space-y-3">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="flex items-center gap-3 p-3">
+                <Skeleton className="h-8 w-8 rounded-md" />
+                <div className="flex-1 space-y-1.5">
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-3 w-1/3" />
+                </div>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium">{item.text}</p>
-                <p className="text-xs text-muted-foreground">{item.time}</p>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : error ? (
+          <p className="text-sm text-muted-foreground py-4 text-center">
+            Unable to load activity feed.
+          </p>
+        ) : !activity || activity.length === 0 ? (
+          <p className="text-sm text-muted-foreground py-4 text-center">
+            No recent activity yet.
+          </p>
+        ) : (
+          <div className="space-y-2 max-h-80 overflow-y-auto">
+            {activity.slice(0, 15).map((item) => {
+              const config = typeConfig[item.type];
+              const IconComponent = config.icon;
+              const [iconColor, bgColor] = config.color.split(' ');
+
+              return (
+                <div
+                  key={item.id}
+                  className="flex items-start gap-3 p-2.5 rounded-lg hover:bg-muted/30 transition-colors"
+                >
+                  <div className={`p-1.5 rounded-md shrink-0 ${bgColor}`}>
+                    <IconComponent className={`h-3.5 w-3.5 ${iconColor}`} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm">
+                      <span className="font-medium">{item.title}</span>
+                      {item.description && (
+                        <span className="text-muted-foreground"> · {item.description}</span>
+                      )}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {formatRelativeDate(item.occurredAt)}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </CardContent>
     </Card>
   );

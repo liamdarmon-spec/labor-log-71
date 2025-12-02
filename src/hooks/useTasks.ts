@@ -276,3 +276,66 @@ export function useProjectsList() {
     },
   });
 }
+
+// Project-specific task counts for Project Hub
+export interface ProjectTaskCounts {
+  open: number;
+  overdue: number;
+  dueToday: number;
+}
+
+export function useProjectTaskCounts(projectId: string | null | undefined): {
+  data: ProjectTaskCounts | undefined;
+  isLoading: boolean;
+  error: unknown;
+} {
+  return useQuery({
+    queryKey: ['project-task-counts', projectId],
+    queryFn: async (): Promise<ProjectTaskCounts> => {
+      if (!projectId) {
+        return { open: 0, overdue: 0, dueToday: 0 };
+      }
+
+      const { data, error } = await supabase
+        .from('project_todos')
+        .select('id, status, due_date')
+        .eq('project_id', projectId);
+
+      if (error) throw error;
+
+      const today = startOfDay(new Date());
+      const todayEnd = endOfDay(new Date());
+
+      let open = 0;
+      let overdue = 0;
+      let dueToday = 0;
+
+      (data || []).forEach((task) => {
+        const isDone = task.status === 'done';
+        
+        // Count open tasks (open or in_progress)
+        if (task.status === 'open' || task.status === 'in_progress') {
+          open++;
+        }
+
+        // Check due date conditions only for non-done tasks
+        if (task.due_date && !isDone) {
+          const dueDate = parseISO(task.due_date);
+          
+          // Overdue: due_date < today
+          if (isBefore(dueDate, today)) {
+            overdue++;
+          }
+          
+          // Due today: due_date is today
+          if (!isBefore(dueDate, today) && !isAfter(dueDate, todayEnd)) {
+            dueToday++;
+          }
+        }
+      });
+
+      return { open, overdue, dueToday };
+    },
+    enabled: !!projectId,
+  });
+}
