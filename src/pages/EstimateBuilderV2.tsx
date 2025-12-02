@@ -1,30 +1,13 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { CostCodeSelect } from "@/components/cost-codes/CostCodeSelect";
-import { UnitSelect } from "@/components/shared/UnitSelect";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, Zap, Trash2 } from "lucide-react";
+import { ArrowLeft, Plus, Zap, FileText, Save } from "lucide-react";
 import { getUnassignedCostCodeId } from "@/lib/costCodes";
 import {
   AlertDialog,
@@ -36,13 +19,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-
-const CATEGORIES = [
-  { value: "labor", label: "Labor" },
-  { value: "materials", label: "Materials" },
-  { value: "subs", label: "Subs" },
-  { value: "other", label: "Other" },
-];
+import { EstimateSectionCard } from "@/components/estimates/EstimateSectionCard";
+import { EstimateSummaryCards } from "@/components/estimates/EstimateSummaryCards";
 
 interface CostItem {
   id: string;
@@ -55,6 +33,7 @@ interface CostItem {
   markup_percent: number;
   line_total: number;
   notes: string | null;
+  sort_order: number;
 }
 
 interface ScopeBlock {
@@ -65,14 +44,27 @@ interface ScopeBlock {
   scope_block_cost_items: CostItem[];
 }
 
+interface Estimate {
+  id: string;
+  title: string;
+  status: string;
+  tax_amount: number | null;
+  subtotal_amount: number | null;
+  total_amount: number | null;
+  is_budget_source: boolean | null;
+  projects: {
+    id: string;
+    project_name: string;
+  } | null;
+}
+
 export default function EstimateBuilderV2() {
   const { estimateId } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  
-  const [numberDrafts, setNumberDrafts] = useState<Record<string, number | string>>({});
-  const [descriptionDrafts, setDescriptionDrafts] = useState<Record<string, string>>({});
+
   const [syncDialogOpen, setSyncDialogOpen] = useState(false);
+  const [pendingChanges, setPendingChanges] = useState(false);
 
   // Fetch estimate
   const { data: estimate, isLoading: estimateLoading } = useQuery({
@@ -84,12 +76,12 @@ export default function EstimateBuilderV2() {
         .eq("id", estimateId!)
         .single();
       if (error) throw error;
-      return data;
+      return data as Estimate;
     },
     enabled: !!estimateId,
   });
 
-  // Fetch scope blocks
+  // Fetch scope blocks with cost items
   const { data: scopeBlocks = [], isLoading: blocksLoading } = useQuery({
     queryKey: ["scope-blocks", "estimate", estimateId],
     queryFn: async () => {
@@ -107,7 +99,14 @@ export default function EstimateBuilderV2() {
         .eq("block_type", "cost_items")
         .order("sort_order", { ascending: true });
       if (error) throw error;
-      return (data || []) as ScopeBlock[];
+
+      // Sort cost items within each block
+      return (data || []).map((block) => ({
+        ...block,
+        scope_block_cost_items: (block.scope_block_cost_items || []).sort(
+          (a: CostItem, b: CostItem) => (a.sort_order || 0) - (b.sort_order || 0)
+        ),
+      })) as ScopeBlock[];
     },
     enabled: !!estimateId,
   });
@@ -135,116 +134,13 @@ export default function EstimateBuilderV2() {
   });
 
   // Auto-create block if needed
-  if (!blocksLoading && scopeBlocks.length === 0 && !createFirstBlock.isPending) {
-    createFirstBlock.mutate();
-  }
+  useEffect(() => {
+    if (!blocksLoading && scopeBlocks.length === 0 && !createFirstBlock.isPending) {
+      createFirstBlock.mutate();
+    }
+  }, [blocksLoading, scopeBlocks.length, createFirstBlock]);
 
-  // Add cost item
-  const addCostItem = useMutation({
-    mutationFn: async (scopeBlockId: string) => {
-      const unassignedId = await getUnassignedCostCodeId();
-      const { data, error } = await supabase
-        .from("scope_block_cost_items")
-        .insert({
-          scope_block_id: scopeBlockId,
-          category: "labor",
-          cost_code_id: unassignedId,
-          description: "New Item",
-          quantity: 1,
-          unit: "ea",
-          unit_price: 0,
-          markup_percent: 0,
-          line_total: 0,
-          sort_order: 0,
-        })
-        .select()
-        .single();
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["scope-blocks", "estimate", estimateId] });
-    },
-  });
-
-  // Update cost item with optimistic updates
-  const updateCostItem = useMutation({
-    mutationFn: async ({ id, updates }: { id: string; updates: Partial<CostItem> }) => {
-      // Calculate line_total locally
-      const item = scopeBlocks
-        .flatMap((b) => b.scope_block_cost_items)
-        .find((i) => i.id === id);
-      
-      if (!item) throw new Error("Item not found");
-
-      const qty = updates.quantity ?? item.quantity;
-      const price = updates.unit_price ?? item.unit_price;
-      const markup = updates.markup_percent ?? item.markup_percent;
-      const lineTotal = qty * price * (1 + markup / 100);
-
-      const finalUpdates = { ...updates, line_total: lineTotal };
-
-      const { data, error } = await supabase
-        .from("scope_block_cost_items")
-        .update(finalUpdates)
-        .eq("id", id)
-        .select()
-        .single();
-      if (error) throw error;
-      return data;
-    },
-    onMutate: async ({ id, updates }) => {
-      // Cancel outgoing refetches
-      await queryClient.cancelQueries({ queryKey: ["scope-blocks", "estimate", estimateId] });
-
-      // Snapshot previous value
-      const previous = queryClient.getQueryData(["scope-blocks", "estimate", estimateId]);
-
-      // Optimistically update cache
-      queryClient.setQueryData(["scope-blocks", "estimate", estimateId], (old: ScopeBlock[] | undefined) => {
-        if (!old) return old;
-        return old.map((block) => ({
-          ...block,
-          scope_block_cost_items: block.scope_block_cost_items.map((item) => {
-            if (item.id === id) {
-              const qty = updates.quantity ?? item.quantity;
-              const price = updates.unit_price ?? item.unit_price;
-              const markup = updates.markup_percent ?? item.markup_percent;
-              const lineTotal = qty * price * (1 + markup / 100);
-              return { ...item, ...updates, line_total: lineTotal };
-            }
-            return item;
-          }),
-        }));
-      });
-
-      return { previous };
-    },
-    onError: (err, variables, context) => {
-      // Rollback on error
-      if (context?.previous) {
-        queryClient.setQueryData(["scope-blocks", "estimate", estimateId], context.previous);
-      }
-      toast.error("Failed to update item");
-    },
-  });
-
-  // Delete cost item
-  const deleteCostItem = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from("scope_block_cost_items")
-        .delete()
-        .eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["scope-blocks", "estimate", estimateId] });
-      toast.success("Item deleted");
-    },
-  });
-
-  // Add new section
+  // Add section
   const addSection = useMutation({
     mutationFn: async () => {
       const maxOrder = Math.max(...scopeBlocks.map((b) => b.sort_order || 0), -1);
@@ -277,8 +173,145 @@ export default function EstimateBuilderV2() {
         .eq("id", id);
       if (error) throw error;
     },
+    onMutate: async ({ id, title }) => {
+      await queryClient.cancelQueries({ queryKey: ["scope-blocks", "estimate", estimateId] });
+      const previous = queryClient.getQueryData(["scope-blocks", "estimate", estimateId]);
+      queryClient.setQueryData(["scope-blocks", "estimate", estimateId], (old: ScopeBlock[] | undefined) =>
+        old?.map((b) => (b.id === id ? { ...b, title } : b))
+      );
+      return { previous };
+    },
+    onError: (_, __, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(["scope-blocks", "estimate", estimateId], context.previous);
+      }
+    },
+  });
+
+  // Delete section
+  const deleteSection = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("scope_blocks").delete().eq("id", id);
+      if (error) throw error;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["scope-blocks", "estimate", estimateId] });
+      toast.success("Section deleted");
+    },
+  });
+
+  // Add cost item
+  const addCostItem = useMutation({
+    mutationFn: async (scopeBlockId: string) => {
+      const unassignedId = await getUnassignedCostCodeId();
+      const block = scopeBlocks.find((b) => b.id === scopeBlockId);
+      const maxOrder = Math.max(...(block?.scope_block_cost_items || []).map((i) => i.sort_order || 0), -1);
+
+      const { data, error } = await supabase
+        .from("scope_block_cost_items")
+        .insert({
+          scope_block_id: scopeBlockId,
+          category: "labor",
+          cost_code_id: unassignedId,
+          description: "New Item",
+          quantity: 1,
+          unit: "ea",
+          unit_price: 0,
+          markup_percent: 0,
+          line_total: 0,
+          sort_order: maxOrder + 1,
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["scope-blocks", "estimate", estimateId] });
+    },
+  });
+
+  // Update cost item with optimistic updates
+  const updateCostItem = useMutation({
+    mutationFn: async ({ id, updates }: { id: string; updates: Partial<CostItem> }) => {
+      // Find current item to calculate line_total
+      const item = scopeBlocks
+        .flatMap((b) => b.scope_block_cost_items)
+        .find((i) => i.id === id);
+
+      if (!item) throw new Error("Item not found");
+
+      const qty = updates.quantity ?? item.quantity;
+      const price = updates.unit_price ?? item.unit_price;
+      const markup = updates.markup_percent ?? item.markup_percent;
+      const lineTotal = qty * price * (1 + markup / 100);
+
+      const finalUpdates: Partial<CostItem> = {
+        ...updates,
+        line_total: lineTotal,
+      };
+
+      // Ensure we never send null for required fields
+      if (finalUpdates.category === null) delete finalUpdates.category;
+      if (finalUpdates.description === null) delete finalUpdates.description;
+
+      const { data, error } = await supabase
+        .from("scope_block_cost_items")
+        .update(finalUpdates)
+        .eq("id", id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onMutate: async ({ id, updates }) => {
+      await queryClient.cancelQueries({ queryKey: ["scope-blocks", "estimate", estimateId] });
+
+      const previous = queryClient.getQueryData(["scope-blocks", "estimate", estimateId]);
+
+      queryClient.setQueryData(["scope-blocks", "estimate", estimateId], (old: ScopeBlock[] | undefined) => {
+        if (!old) return old;
+        return old.map((block) => ({
+          ...block,
+          scope_block_cost_items: block.scope_block_cost_items.map((item) => {
+            if (item.id === id) {
+              const qty = updates.quantity ?? item.quantity;
+              const price = updates.unit_price ?? item.unit_price;
+              const markup = updates.markup_percent ?? item.markup_percent;
+              const lineTotal = qty * price * (1 + markup / 100);
+              return { ...item, ...updates, line_total: lineTotal };
+            }
+            return item;
+          }),
+        }));
+      });
+
+      setPendingChanges(true);
+      return { previous };
+    },
+    onError: (_, __, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(["scope-blocks", "estimate", estimateId], context.previous);
+      }
+      toast.error("Failed to update item");
+    },
+    onSettled: () => {
+      setPendingChanges(false);
+    },
+  });
+
+  // Delete cost item
+  const deleteCostItem = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("scope_block_cost_items")
+        .delete()
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["scope-blocks", "estimate", estimateId] });
+      toast.success("Item deleted");
     },
   });
 
@@ -293,312 +326,191 @@ export default function EstimateBuilderV2() {
     onSuccess: () => {
       toast.success("Estimate synced to budget successfully");
       queryClient.invalidateQueries({ queryKey: ["estimate-builder", estimateId] });
+      queryClient.invalidateQueries({ queryKey: ["project-budget-ledger"] });
+      queryClient.invalidateQueries({ queryKey: ["project-financials-v3"] });
+
+      // Dispatch event to notify other components
+      window.dispatchEvent(new Event("budget-updated"));
       setSyncDialogOpen(false);
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast.error("Failed to sync to budget: " + error.message);
     },
   });
 
-  // Local totals calculation
-  const { subtotal, tax, total } = useMemo(() => {
-    const allItems = scopeBlocks.flatMap((b) => b.scope_block_cost_items);
-    const subtotal = allItems.reduce((sum, item) => sum + (item.line_total || 0), 0);
-    const tax = estimate?.tax_amount || 0;
-    const total = subtotal + tax;
-    return { subtotal, tax, total };
-  }, [scopeBlocks, estimate?.tax_amount]);
-
-  // Number draft handlers
-  const getDraftNumber = useCallback(
-    (itemId: string, field: string) => {
-      const key = `${itemId}:${field}`;
-      return numberDrafts[key];
+  // Handlers wrapped in useCallback
+  const handleTitleChange = useCallback(
+    (blockId: string, title: string) => {
+      updateSectionTitle.mutate({ id: blockId, title });
     },
-    [numberDrafts]
+    [updateSectionTitle]
   );
 
-  const setDraftNumber = useCallback((itemId: string, field: string, value: string) => {
-    const key = `${itemId}:${field}`;
-    setNumberDrafts((prev) => ({ ...prev, [key]: value }));
-  }, []);
-
-  const commitDraftNumber = useCallback(
-    (itemId: string, field: string) => {
-      const key = `${itemId}:${field}`;
-      const draftValue = numberDrafts[key];
-      if (draftValue === undefined) return;
-
-      const numericValue = draftValue === "" ? 0 : Number(draftValue) || 0;
-      updateCostItem.mutate({ id: itemId, updates: { [field]: numericValue } });
-      setNumberDrafts((prev) => {
-        const updated = { ...prev };
-        delete updated[key];
-        return updated;
-      });
+  const handleAddItem = useCallback(
+    (blockId: string) => {
+      addCostItem.mutate(blockId);
     },
-    [numberDrafts, updateCostItem]
+    [addCostItem]
   );
 
-  // Description draft handlers
-  const getDraftDescription = useCallback(
-    (itemId: string) => descriptionDrafts[itemId],
-    [descriptionDrafts]
+  const handleUpdateItem = useCallback(
+    (itemId: string, updates: Partial<CostItem>) => {
+      updateCostItem.mutate({ id: itemId, updates });
+    },
+    [updateCostItem]
   );
 
-  const setDraftDescription = useCallback((itemId: string, value: string) => {
-    setDescriptionDrafts((prev) => ({ ...prev, [itemId]: value }));
-  }, []);
-
-  const commitDraftDescription = useCallback(
+  const handleDeleteItem = useCallback(
     (itemId: string) => {
-      const draftValue = descriptionDrafts[itemId];
-      if (draftValue === undefined) return;
-
-      updateCostItem.mutate({ id: itemId, updates: { description: draftValue } });
-      setDescriptionDrafts((prev) => {
-        const updated = { ...prev };
-        delete updated[itemId];
-        return updated;
-      });
+      deleteCostItem.mutate(itemId);
     },
-    [descriptionDrafts, updateCostItem]
+    [deleteCostItem]
+  );
+
+  const handleDeleteSection = useCallback(
+    (blockId: string) => {
+      deleteSection.mutate(blockId);
+    },
+    [deleteSection]
   );
 
   const formatMoney = (value: number) =>
     `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
+  // Loading state
   if (estimateLoading || blocksLoading) {
     return (
       <Layout>
         <div className="space-y-4">
-          <div className="h-10 w-64 bg-muted animate-pulse rounded" />
-          <div className="h-32 bg-muted animate-pulse rounded" />
-          <div className="h-96 bg-muted animate-pulse rounded" />
+          <div className="flex items-center gap-3">
+            <Skeleton className="h-10 w-10" />
+            <div>
+              <Skeleton className="h-8 w-64 mb-2" />
+              <Skeleton className="h-4 w-32" />
+            </div>
+          </div>
+          <div className="grid grid-cols-4 gap-4">
+            {[...Array(4)].map((_, i) => (
+              <Skeleton key={i} className="h-24" />
+            ))}
+          </div>
+          <Skeleton className="h-96" />
         </div>
       </Layout>
     );
   }
 
+  // Not found state
   if (!estimate) {
     return (
       <Layout>
         <div className="text-center py-12">
-          <p className="text-muted-foreground">Estimate not found</p>
-          <Button onClick={() => navigate("/financials/estimates")} className="mt-4">
-            Back to Estimates
+          <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+          <h2 className="text-xl font-semibold mb-2">Estimate not found</h2>
+          <p className="text-muted-foreground mb-4">
+            The estimate you're looking for doesn't exist or has been deleted.
+          </p>
+          <Button onClick={() => navigate("/projects")}>
+            Back to Projects
           </Button>
         </div>
       </Layout>
     );
   }
 
-  const projectId = (estimate as any).projects?.id;
-  const projectName = (estimate as any).projects?.project_name;
+  const projectId = estimate.projects?.id;
+  const projectName = estimate.projects?.project_name;
+  const taxAmount = estimate.tax_amount || 0;
 
   return (
     <Layout>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate(`/projects/${projectId}?tab=estimates`)}
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <div>
-              <h1 className="text-3xl font-bold">{estimate.title}</h1>
-              <p className="text-muted-foreground">{projectName}</p>
+      <div className="space-y-6 max-w-7xl mx-auto">
+        {/* Header - Sticky on scroll */}
+        <div className="sticky top-0 z-20 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 pb-4 -mx-4 px-4 border-b">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4">
+            <div className="flex items-center gap-3">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => navigate(`/projects/${projectId}?tab=estimates`)}
+                className="shrink-0"
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h1 className="text-xl sm:text-2xl font-bold truncate">{estimate.title}</h1>
+                  <Badge variant={estimate.status === "draft" ? "secondary" : "default"}>
+                    {estimate.status}
+                  </Badge>
+                  {estimate.is_budget_source && (
+                    <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
+                      Budget Source
+                    </Badge>
+                  )}
+                  {pendingChanges && (
+                    <Badge variant="outline" className="bg-yellow-500/10 text-yellow-700 border-yellow-200">
+                      <Save className="h-3 w-3 mr-1" />
+                      Saving...
+                    </Badge>
+                  )}
+                </div>
+                <p className="text-sm text-muted-foreground truncate">{projectName}</p>
+              </div>
             </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={() => addSection.mutate()}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Section
-            </Button>
-            <Button onClick={() => setSyncDialogOpen(true)}>
-              <Zap className="h-4 w-4 mr-2" />
-              Sync to Budget
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => addSection.mutate()}>
+                <Plus className="h-4 w-4 mr-1.5" />
+                <span className="hidden sm:inline">Add Section</span>
+                <span className="sm:hidden">Section</span>
+              </Button>
+              <Button size="sm" onClick={() => setSyncDialogOpen(true)}>
+                <Zap className="h-4 w-4 mr-1.5" />
+                <span className="hidden sm:inline">Sync to Budget</span>
+                <span className="sm:hidden">Sync</span>
+              </Button>
+            </div>
           </div>
         </div>
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="pt-6">
-              <p className="text-sm text-muted-foreground mb-1">Subtotal</p>
-              <p className="text-2xl font-bold">{formatMoney(subtotal)}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <p className="text-sm text-muted-foreground mb-1">Tax</p>
-              <p className="text-2xl font-bold">{formatMoney(tax)}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <p className="text-sm text-muted-foreground mb-1">Total</p>
-              <p className="text-2xl font-bold text-primary">{formatMoney(total)}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <p className="text-sm text-muted-foreground mb-1">Items</p>
-              <p className="text-2xl font-bold">
-                {scopeBlocks.reduce((sum, b) => sum + b.scope_block_cost_items.length, 0)}
-              </p>
-            </CardContent>
-          </Card>
+        <EstimateSummaryCards scopeBlocks={scopeBlocks} taxAmount={taxAmount} />
+
+        {/* Sections */}
+        <div className="space-y-4">
+          {scopeBlocks.map((block) => (
+            <EstimateSectionCard
+              key={block.id}
+              id={block.id}
+              title={block.title}
+              items={block.scope_block_cost_items}
+              onTitleChange={(title) => handleTitleChange(block.id, title)}
+              onAddItem={() => handleAddItem(block.id)}
+              onUpdateItem={handleUpdateItem}
+              onDeleteItem={handleDeleteItem}
+              onDeleteSection={() => handleDeleteSection(block.id)}
+              isOnlySection={scopeBlocks.length === 1}
+            />
+          ))}
         </div>
 
-        {/* Scope Blocks */}
-        {scopeBlocks.map((block) => {
-          const blockTotal = block.scope_block_cost_items.reduce(
-            (sum, item) => sum + (item.line_total || 0),
-            0
-          );
-
-          return (
-            <Card key={block.id}>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <Input
-                    value={block.title || ""}
-                    onChange={(e) => updateSectionTitle.mutate({ id: block.id, title: e.target.value })}
-                    className="text-lg font-semibold border-none shadow-none p-0 h-auto focus-visible:ring-0"
-                  />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => addCostItem.mutate(block.id)}
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Item
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-[120px]">Category</TableHead>
-                      <TableHead className="w-[180px]">Cost Code</TableHead>
-                      <TableHead>Description</TableHead>
-                      <TableHead className="w-[100px] text-right">Qty</TableHead>
-                      <TableHead className="w-[100px]">Unit</TableHead>
-                      <TableHead className="w-[120px] text-right">Rate</TableHead>
-                      <TableHead className="w-[100px] text-right">Markup %</TableHead>
-                      <TableHead className="w-[140px] text-right">Total</TableHead>
-                      <TableHead className="w-[60px]"></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {block.scope_block_cost_items.map((item) => (
-                      <TableRow key={item.id}>
-                        <TableCell>
-                          <Select
-                            value={item.category}
-                            onValueChange={(val) =>
-                              updateCostItem.mutate({ id: item.id, updates: { category: val } })
-                            }
-                          >
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {CATEGORIES.map((cat) => (
-                                <SelectItem key={cat.value} value={cat.value}>
-                                  {cat.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </TableCell>
-                        <TableCell>
-                          <CostCodeSelect
-                            value={item.cost_code_id}
-                            onChange={(val) =>
-                              updateCostItem.mutate({ id: item.id, updates: { cost_code_id: val } })
-                            }
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Input
-                            value={getDraftDescription(item.id) ?? item.description}
-                            onChange={(e) => setDraftDescription(item.id, e.target.value)}
-                            onBlur={() => commitDraftDescription(item.id)}
-                            placeholder="Description"
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Input
-                            type="number"
-                            value={getDraftNumber(item.id, "quantity") ?? item.quantity}
-                            onChange={(e) => setDraftNumber(item.id, "quantity", e.target.value)}
-                            onBlur={() => commitDraftNumber(item.id, "quantity")}
-                            className="text-right"
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <UnitSelect
-                            value={item.unit}
-                            onChange={(val) =>
-                              updateCostItem.mutate({ id: item.id, updates: { unit: val } })
-                            }
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Input
-                            type="number"
-                            value={getDraftNumber(item.id, "unit_price") ?? item.unit_price}
-                            onChange={(e) => setDraftNumber(item.id, "unit_price", e.target.value)}
-                            onBlur={() => commitDraftNumber(item.id, "unit_price")}
-                            className="text-right"
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Input
-                            type="number"
-                            value={getDraftNumber(item.id, "markup_percent") ?? item.markup_percent}
-                            onChange={(e) => setDraftNumber(item.id, "markup_percent", e.target.value)}
-                            onBlur={() => commitDraftNumber(item.id, "markup_percent")}
-                            className="text-right"
-                          />
-                        </TableCell>
-                        <TableCell className="text-right font-medium">
-                          {formatMoney(item.line_total)}
-                        </TableCell>
-                        <TableCell>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => deleteCostItem.mutate(item.id)}
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-                <div className="mt-4 flex justify-end">
-                  <div className="text-right">
-                    <p className="text-sm text-muted-foreground">Section Total</p>
-                    <p className="text-xl font-bold">{formatMoney(blockTotal)}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
+        {/* Empty state */}
+        {scopeBlocks.length === 0 && !blocksLoading && (
+          <div className="text-center py-12 border-2 border-dashed rounded-lg">
+            <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-lg font-medium mb-2">No sections yet</h3>
+            <p className="text-muted-foreground mb-4">
+              Add a section to start building your estimate
+            </p>
+            <Button onClick={() => addSection.mutate()}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Section
+            </Button>
+          </div>
+        )}
       </div>
 
-      {/* Sync Dialog */}
+      {/* Sync to Budget Dialog */}
       <AlertDialog open={syncDialogOpen} onOpenChange={setSyncDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -610,14 +522,19 @@ export default function EstimateBuilderV2() {
                 <li>Create budget lines for each cost code</li>
                 <li>Replace any existing budget for this project</li>
               </ul>
-              <p className="mt-4 font-medium">This action cannot be undone.</p>
+              <p className="mt-4 font-medium text-foreground">
+                This action cannot be undone.
+              </p>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => syncToBudget.mutate()}>
+            <AlertDialogAction
+              onClick={() => syncToBudget.mutate()}
+              disabled={syncToBudget.isPending}
+            >
               <Zap className="h-4 w-4 mr-2" />
-              Sync to Budget
+              {syncToBudget.isPending ? "Syncing..." : "Sync to Budget"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
