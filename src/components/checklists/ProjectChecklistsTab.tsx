@@ -1,17 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ClipboardList, Plus, Sparkles, ChevronRight } from 'lucide-react';
+import { ClipboardList, Sparkles, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useProjectChecklists, ChecklistPhase, ProjectChecklist } from '@/hooks/useChecklists';
+import { useProjectChecklists, ChecklistPhase, ProjectChecklist, useChecklistTemplates } from '@/hooks/useChecklists';
 import { ChecklistDetailDrawer } from './ChecklistDetailDrawer';
 import { SmartChecklistWizard } from './SmartChecklistWizard';
+import { ChecklistInsightsPanel } from './ChecklistInsightsPanel';
 import { useEstimatesV2 } from '@/hooks/useEstimatesV2';
 import { useScopeBlocks } from '@/hooks/useScopeBlocks';
 import { ProjectType } from '@/hooks/useChecklists';
+import { ScopeBlockInput } from '@/lib/checklists/intel';
 
 const PHASES: { value: ChecklistPhase | 'all'; label: string }[] = [
   { value: 'all', label: 'All' },
@@ -42,7 +44,30 @@ export function ProjectChecklistsTab({ projectId }: ProjectChecklistsTabProps) {
   
   // Get the active estimate (budget source or most recent)
   const activeEstimate = estimates.find((e) => e.is_budget_source) || estimates[0];
-  const { data: scopeBlocks = [] } = useScopeBlocks('estimate', activeEstimate?.id);
+  const projectType = (activeEstimate?.project_type as ProjectType) || 'other';
+  
+  const { data: scopeBlocksRaw = [] } = useScopeBlocks('estimate', activeEstimate?.id);
+  const { data: templates = [] } = useChecklistTemplates(projectType);
+
+  // Transform scope blocks for the intelligence engine
+  const scopeBlocks: ScopeBlockInput[] = useMemo(() => {
+    return scopeBlocksRaw.map(block => ({
+      id: block.id,
+      title: block.title,
+      costItems: (block.cost_items || []).map((item: any) => ({
+        id: item.id,
+        cost_code_id: item.cost_code_id,
+        cost_code_category: item.cost_codes?.category || null,
+        cost_code_code: item.cost_codes?.code || null,
+        cost_code_name: item.cost_codes?.name || null,
+        area_label: item.area_label || null,
+        group_label: item.group_label || null,
+      })),
+    }));
+  }, [scopeBlocksRaw]);
+
+  // Mock answers - in real usage, load from checklist_question_answers
+  const answers = useMemo(() => ({}), []);
 
   const filteredChecklists = phaseFilter === 'all'
     ? checklists
@@ -57,9 +82,11 @@ export function ProjectChecklistsTab({ projectId }: ProjectChecklistsTabProps) {
   }, {} as Record<string, ProjectChecklist[]>);
 
   const canGenerateChecklists = activeEstimate && 
-    activeEstimate.project_type && 
-    activeEstimate.project_type !== 'other' &&
+    projectType && 
+    projectType !== 'other' &&
     scopeBlocks.length > 0;
+
+  const existingChecklistsMeta = checklists.map(c => ({ title: c.title, phase: c.phase }));
 
   return (
     <div className="space-y-6">
@@ -80,9 +107,21 @@ export function ProjectChecklistsTab({ projectId }: ProjectChecklistsTabProps) {
         </Button>
       </div>
 
+      {/* Insights Panel */}
+      {canGenerateChecklists && (
+        <ChecklistInsightsPanel
+          projectType={projectType}
+          scopeBlocks={scopeBlocks}
+          answers={answers}
+          existingChecklists={existingChecklistsMeta}
+          templates={templates as any}
+          onGenerateClick={() => setWizardOpen(true)}
+        />
+      )}
+
       {!canGenerateChecklists && activeEstimate && (
         <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
-          {!activeEstimate.project_type || activeEstimate.project_type === 'other' ? (
+          {!projectType || projectType === 'other' ? (
             <>Select a project type on the estimate to generate smart checklists.</>
           ) : scopeBlocks.length === 0 ? (
             <>Add scope sections to your estimate to generate smart checklists.</>
@@ -159,9 +198,10 @@ export function ProjectChecklistsTab({ projectId }: ProjectChecklistsTabProps) {
           onOpenChange={setWizardOpen}
           projectId={projectId}
           estimateId={activeEstimate.id}
-          projectType={(activeEstimate.project_type as ProjectType) || 'other'}
+          projectType={projectType}
           scopeBlockCount={scopeBlocks.length}
           scopeBlockTitles={scopeBlocks.map((b) => b.title)}
+          scopeBlocks={scopeBlocks}
           onComplete={() => setWizardOpen(false)}
         />
       )}
