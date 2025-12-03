@@ -313,6 +313,173 @@ export type Database = {
           },
         ]
       }
+      checklist_question_answers: {
+        Row: {
+          created_at: string | null
+          estimate_id: string
+          id: string
+          question_id: string
+          updated_at: string | null
+          value_boolean: boolean | null
+          value_json: Json | null
+          value_text: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          estimate_id: string
+          id?: string
+          question_id: string
+          updated_at?: string | null
+          value_boolean?: boolean | null
+          value_json?: Json | null
+          value_text?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          estimate_id?: string
+          id?: string
+          question_id?: string
+          updated_at?: string | null
+          value_boolean?: boolean | null
+          value_json?: Json | null
+          value_text?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checklist_question_answers_estimate_id_fkey"
+            columns: ["estimate_id"]
+            isOneToOne: false
+            referencedRelation: "estimates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checklist_question_answers_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "checklist_questions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      checklist_questions: {
+        Row: {
+          code: string
+          created_at: string | null
+          help_text: string | null
+          id: string
+          input_type: string
+          is_active: boolean | null
+          label: string
+          options: Json | null
+          project_type: string
+          sort_order: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string | null
+          help_text?: string | null
+          id?: string
+          input_type: string
+          is_active?: boolean | null
+          label: string
+          options?: Json | null
+          project_type: string
+          sort_order?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string | null
+          help_text?: string | null
+          id?: string
+          input_type?: string
+          is_active?: boolean | null
+          label?: string
+          options?: Json | null
+          project_type?: string
+          sort_order?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      checklist_template_items: {
+        Row: {
+          checklist_template_id: string
+          created_at: string | null
+          default_assignee_role: string | null
+          id: string
+          label: string
+          required: boolean | null
+          sort_order: number
+          updated_at: string | null
+        }
+        Insert: {
+          checklist_template_id: string
+          created_at?: string | null
+          default_assignee_role?: string | null
+          id?: string
+          label: string
+          required?: boolean | null
+          sort_order?: number
+          updated_at?: string | null
+        }
+        Update: {
+          checklist_template_id?: string
+          created_at?: string | null
+          default_assignee_role?: string | null
+          id?: string
+          label?: string
+          required?: boolean | null
+          sort_order?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checklist_template_items_checklist_template_id_fkey"
+            columns: ["checklist_template_id"]
+            isOneToOne: false
+            referencedRelation: "checklist_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      checklist_templates: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          phase: string
+          project_type: string
+          tags: string[] | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          phase: string
+          project_type: string
+          tags?: string[] | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          phase?: string
+          project_type?: string
+          tags?: string[] | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       companies: {
         Row: {
           created_at: string | null
@@ -1450,6 +1617,7 @@ export type Database = {
           margin_percent: number | null
           parent_estimate_id: string | null
           project_id: string
+          project_type: string | null
           settings: Json | null
           status: string
           subtotal_amount: number | null
@@ -1469,6 +1637,7 @@ export type Database = {
           margin_percent?: number | null
           parent_estimate_id?: string | null
           project_id: string
+          project_type?: string | null
           settings?: Json | null
           status?: string
           subtotal_amount?: number | null
@@ -1488,6 +1657,7 @@ export type Database = {
           margin_percent?: number | null
           parent_estimate_id?: string | null
           project_id?: string
+          project_type?: string | null
           settings?: Json | null
           status?: string
           subtotal_amount?: number | null
@@ -2577,6 +2747,168 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: true
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_checklist_items: {
+        Row: {
+          assignee_user_id: string | null
+          completed_at: string | null
+          completed_by_user_id: string | null
+          created_at: string | null
+          due_date: string | null
+          id: string
+          label: string
+          notes: string | null
+          project_checklist_id: string
+          required: boolean | null
+          sort_order: number
+          template_item_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          assignee_user_id?: string | null
+          completed_at?: string | null
+          completed_by_user_id?: string | null
+          created_at?: string | null
+          due_date?: string | null
+          id?: string
+          label: string
+          notes?: string | null
+          project_checklist_id: string
+          required?: boolean | null
+          sort_order?: number
+          template_item_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          assignee_user_id?: string | null
+          completed_at?: string | null
+          completed_by_user_id?: string | null
+          created_at?: string | null
+          due_date?: string | null
+          id?: string
+          label?: string
+          notes?: string | null
+          project_checklist_id?: string
+          required?: boolean | null
+          sort_order?: number
+          template_item_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_checklist_items_project_checklist_id_fkey"
+            columns: ["project_checklist_id"]
+            isOneToOne: false
+            referencedRelation: "project_checklists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_checklist_items_template_item_id_fkey"
+            columns: ["template_item_id"]
+            isOneToOne: false
+            referencedRelation: "checklist_template_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_checklists: {
+        Row: {
+          created_at: string | null
+          estimate_id: string | null
+          id: string
+          phase: string
+          progress_cached: number | null
+          project_id: string
+          project_type: string | null
+          scope_block_id: string | null
+          status: string | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          estimate_id?: string | null
+          id?: string
+          phase: string
+          progress_cached?: number | null
+          project_id: string
+          project_type?: string | null
+          scope_block_id?: string | null
+          status?: string | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          estimate_id?: string | null
+          id?: string
+          phase?: string
+          progress_cached?: number | null
+          project_id?: string
+          project_type?: string | null
+          scope_block_id?: string | null
+          status?: string | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_checklists_estimate_id_fkey"
+            columns: ["estimate_id"]
+            isOneToOne: false
+            referencedRelation: "estimates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_checklists_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "material_actuals_by_project"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "project_checklists_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_budget_vs_actual_view"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "project_checklists_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_costs_view"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "project_checklists_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_dashboard_view"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "project_checklists_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_labor_summary"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "project_checklists_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_checklists_scope_block_id_fkey"
+            columns: ["scope_block_id"]
+            isOneToOne: false
+            referencedRelation: "scope_blocks"
             referencedColumns: ["id"]
           },
         ]

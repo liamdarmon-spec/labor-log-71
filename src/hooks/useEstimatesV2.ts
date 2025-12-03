@@ -17,6 +17,8 @@ export interface EstimateV2 {
   approved_by: string | null;
   margin_percent: number;
   settings: any;
+  project_type: string | null;
+  is_budget_source: boolean | null;
   created_at: string;
   updated_at: string;
 }
