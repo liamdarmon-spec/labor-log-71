@@ -2,8 +2,8 @@
 // Best-in-class grouped estimate editor using scope_blocks + scope_block_cost_items
 // Block → Area → Item, with 4-way cost category & cost code integration.
 
-import React, { useMemo, useCallback } from "react";
-import { GripVertical, Plus, Trash2, ChevronDown } from "lucide-react";
+import React, { useMemo, useCallback, useState, memo } from "react";
+import { GripVertical, Plus, Trash2, ChevronDown, ChevronRight } from "lucide-react";
 import { CostCodeSelect } from "@/components/cost-codes/CostCodeSelect";
 import { UnitSelect } from "@/components/shared/UnitSelect";
 import { cn } from "@/lib/utils";
@@ -309,7 +309,7 @@ interface BlockSectionProps {
   renameArea: (blockId: string, oldName: string | null, newName: string | null) => void;
 }
 
-const BlockSection: React.FC<BlockSectionProps> = ({
+const BlockSection: React.FC<BlockSectionProps> = memo(({
   block: b,
   updateItem,
   addItemToArea,
@@ -383,7 +383,7 @@ const BlockSection: React.FC<BlockSectionProps> = ({
       </div>
     </section>
   );
-};
+});
 
 // ====== Area Group Section ======
 
@@ -396,7 +396,7 @@ interface AreaGroupSectionProps {
   renameArea: (blockId: string, oldName: string | null, newName: string | null) => void;
 }
 
-const AreaGroupSection: React.FC<AreaGroupSectionProps> = ({
+const AreaGroupSection: React.FC<AreaGroupSectionProps> = memo(({
   blockId,
   group: g,
   updateItem,
@@ -404,23 +404,29 @@ const AreaGroupSection: React.FC<AreaGroupSectionProps> = ({
   deleteItem,
   renameArea,
 }) => {
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const areaTotals = computeCategoryTotals(g.items);
   const areaLabel = g.area ?? "Ungrouped";
 
   return (
-    <div className="px-2 py-2">
-      {/* Area header */}
-      <div className="flex items-center justify-between px-2 py-1 mb-1 rounded-lg bg-muted/50">
+    <div className="px-2 py-1">
+      {/* Area header - clickable to collapse */}
+      <button
+        type="button"
+        className="w-full flex items-center justify-between px-2 py-1.5 mb-1 rounded-lg bg-muted/50 hover:bg-muted/70 transition-colors text-left"
+        onClick={() => setIsCollapsed(!isCollapsed)}
+      >
         <div className="flex items-center gap-2">
-          <ChevronDown className="h-4 w-4 text-muted-foreground" />
-          <input
-            className="bg-transparent text-sm font-medium text-foreground border-none outline-none px-1 rounded-md focus:bg-background focus:ring-1 focus:ring-ring"
-            defaultValue={areaLabel}
-            onBlur={(e) => renameArea(blockId, g.area, e.target.value || null)}
-          />
+          {isCollapsed ? (
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          ) : (
+            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+          )}
+          <span className="text-sm font-medium text-foreground">{areaLabel}</span>
           {g.area === null && (
             <span className="text-[11px] text-muted-foreground">(items without an area)</span>
           )}
+          <span className="text-[11px] text-muted-foreground">({g.items.length})</span>
         </div>
         <div className="hidden md:flex items-center gap-2 text-[11px]">
           <ChipLabel label="LAB" amount={areaTotals.labor} small />
@@ -428,33 +434,50 @@ const AreaGroupSection: React.FC<AreaGroupSectionProps> = ({
           <ChipLabel label="MAT" amount={areaTotals.materials} small />
           <ChipLabel label="OTHER" amount={areaTotals.other} small />
         </div>
-      </div>
+      </button>
 
-      {/* Rows */}
-      {g.items.map((item) => (
-        <ItemRow
-          key={item.id}
-          blockId={blockId}
-          item={item}
-          updateItem={updateItem}
-          deleteItem={deleteItem}
-        />
-      ))}
+      {/* Editable area name - only shown when expanded */}
+      {!isCollapsed && g.area !== null && (
+        <div className="px-2 mb-2">
+          <input
+            className="bg-transparent text-xs text-muted-foreground border-none outline-none px-1 rounded-md focus:bg-background focus:ring-1 focus:ring-ring w-32"
+            defaultValue={areaLabel}
+            placeholder="Area name"
+            onClick={(e) => e.stopPropagation()}
+            onBlur={(e) => renameArea(blockId, g.area, e.target.value || null)}
+          />
+        </div>
+      )}
 
-      {/* Add item inside area */}
-      <div className="px-2 py-2">
-        <button
-          type="button"
-          className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
-          onClick={() => addItemToArea(blockId, g.area)}
-        >
-          <Plus className="h-3 w-3" />
-          Add Item
-        </button>
-      </div>
+      {/* Rows - only render when expanded */}
+      {!isCollapsed && (
+        <>
+          {g.items.map((item) => (
+            <ItemRow
+              key={item.id}
+              blockId={blockId}
+              item={item}
+              updateItem={updateItem}
+              deleteItem={deleteItem}
+            />
+          ))}
+
+          {/* Add item inside area */}
+          <div className="px-2 py-2">
+            <button
+              type="button"
+              className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+              onClick={() => addItemToArea(blockId, g.area)}
+            >
+              <Plus className="h-3 w-3" />
+              Add Item
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
-};
+});
 
 // ====== Item Row ======
 
@@ -465,7 +488,7 @@ interface ItemRowProps {
   deleteItem: (blockId: string, itemId: string) => void;
 }
 
-const ItemRow: React.FC<ItemRowProps> = ({ blockId, item, updateItem, deleteItem }) => {
+const ItemRow: React.FC<ItemRowProps> = memo(({ blockId, item, updateItem, deleteItem }) => {
   const total = computeItemTotal(item);
   const invalid = !isItemValid(item);
 
@@ -653,7 +676,7 @@ const ItemRow: React.FC<ItemRowProps> = ({ blockId, item, updateItem, deleteItem
       </div>
     </>
   );
-};
+});
 
 // ====== Small shared UI bits ======
 

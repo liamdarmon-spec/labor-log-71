@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, Save, FileText } from "lucide-react";
+import { ArrowLeft, Plus, FileText } from "lucide-react";
 import { getUnassignedCostCodeId } from "@/lib/costCodes";
 import {
   ProjectEstimateEditor,
@@ -83,15 +83,35 @@ function transformToEditorBlocks(dbBlocks: ScopeBlockDB[]): EstimateEditorBlock[
   }));
 }
 
+// Serialize item for comparison
+function serializeItem(item: ScopeItem): string {
+  return JSON.stringify({
+    scope_block_id: item.scope_block_id,
+    area_label: item.area_label,
+    group_label: item.group_label,
+    category: item.category,
+    cost_code_id: item.cost_code_id,
+    description: item.description,
+    quantity: item.quantity,
+    unit: item.unit,
+    unit_price: item.unit_price,
+    markup_percent: item.markup_percent,
+  });
+}
+
 export default function EstimateBuilderV2() {
   const { estimateId } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const [pendingChanges, setPendingChanges] = useState(false);
+  // Local state for immediate UI updates
+  const [localBlocks, setLocalBlocks] = useState<EstimateEditorBlock[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
   
-  // Track existing item IDs for diff
-  const existingItemIdsRef = useRef<Set<string>>(new Set());
+  // Track existing items for diffing
+  const existingItemsRef = useRef<Map<string, string>>(new Map()); // id -> serialized
+  const existingIdsRef = useRef<Set<string>>(new Set());
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Fetch estimate
   const { data: estimate, isLoading: estimateLoading } = useQuery({
@@ -136,18 +156,31 @@ export default function EstimateBuilderV2() {
         ),
       })) as ScopeBlockDB[];
       
-      // Update existing item IDs ref
-      const allIds = new Set<string>();
-      blocks.forEach(b => b.scope_block_cost_items.forEach(i => allIds.add(i.id)));
-      existingItemIdsRef.current = allIds;
-      
       return blocks;
     },
     enabled: !!estimateId,
+    staleTime: 30000, // Cache for 30s to reduce refetches
   });
 
-  // Transform to editor format
-  const editorBlocks = useMemo(() => transformToEditorBlocks(scopeBlocks), [scopeBlocks]);
+  // Sync local state when DB data changes
+  useEffect(() => {
+    if (scopeBlocks.length > 0) {
+      const transformed = transformToEditorBlocks(scopeBlocks);
+      setLocalBlocks(transformed);
+      
+      // Update tracking refs
+      const newMap = new Map<string, string>();
+      const newIds = new Set<string>();
+      transformed.forEach(b => {
+        b.items.forEach(item => {
+          newIds.add(item.id);
+          newMap.set(item.id, serializeItem(item));
+        });
+      });
+      existingItemsRef.current = newMap;
+      existingIdsRef.current = newIds;
+    }
+  }, [scopeBlocks]);
 
   // Auto-create first scope block if none exist
   const createFirstBlock = useMutation({
@@ -181,7 +214,7 @@ export default function EstimateBuilderV2() {
   // Add section mutation
   const addSection = useMutation({
     mutationFn: async () => {
-      const maxOrder = Math.max(...scopeBlocks.map((b) => b.sort_order || 0), -1);
+      const maxOrder = Math.max(...localBlocks.map((b) => b.block.sort_order || 0), -1);
       const { data, error } = await supabase
         .from("scope_blocks")
         .insert({
@@ -222,84 +255,84 @@ export default function EstimateBuilderV2() {
     },
   });
 
-  // Handle blocks change from ProjectEstimateEditor
-  const handleBlocksChange = useCallback(
-    async (newBlocks: EstimateEditorBlock[]) => {
-      setPendingChanges(true);
+  // Debounced save function - only saves changed items
+  const saveChanges = useCallback(async (blocks: EstimateEditorBlock[]) => {
+    setIsSaving(true);
+    
+    try {
+      const currentItems = new Map<string, ScopeItem>();
+      blocks.forEach(b => b.items.forEach(item => currentItems.set(item.id, item)));
       
-      try {
-        const existingIds = existingItemIdsRef.current;
-        const newItemsMap = new Map<string, ScopeItem>();
-        
-        // Collect all new items
-        newBlocks.forEach(b => {
-          b.items.forEach(item => {
-            newItemsMap.set(item.id, item);
-          });
-        });
-        
-        const newIds = new Set(newItemsMap.keys());
-        
-        // Find items to delete (in existing but not in new)
-        const toDelete: string[] = [];
-        existingIds.forEach(id => {
-          if (!newIds.has(id)) {
-            toDelete.push(id);
-          }
-        });
-        
-        // Find items to create (in new but not in existing)
-        const toCreate: ScopeItem[] = [];
-        const toUpdate: ScopeItem[] = [];
-        
-        newItemsMap.forEach((item, id) => {
-          if (!existingIds.has(id)) {
-            // New item - needs creation
-            toCreate.push(item);
-          } else {
-            // Existing item - needs update
+      const currentIds = new Set(currentItems.keys());
+      const existingIds = existingIdsRef.current;
+      const existingItems = existingItemsRef.current;
+      
+      // Find deletions
+      const toDelete: string[] = [];
+      existingIds.forEach(id => {
+        if (!currentIds.has(id)) toDelete.push(id);
+      });
+      
+      // Find creates and updates
+      const toCreate: ScopeItem[] = [];
+      const toUpdate: ScopeItem[] = [];
+      
+      currentItems.forEach((item, id) => {
+        if (!existingIds.has(id)) {
+          toCreate.push(item);
+        } else {
+          // Only update if actually changed
+          const oldSerialized = existingItems.get(id);
+          const newSerialized = serializeItem(item);
+          if (oldSerialized !== newSerialized) {
             toUpdate.push(item);
           }
-        });
-        
-        // Execute deletions
-        if (toDelete.length > 0) {
-          const { error } = await supabase
-            .from("scope_block_cost_items")
-            .delete()
-            .in("id", toDelete);
-          if (error) throw error;
         }
+      });
+      
+      // Skip if nothing changed
+      if (toDelete.length === 0 && toCreate.length === 0 && toUpdate.length === 0) {
+        setIsSaving(false);
+        return;
+      }
+      
+      // Execute deletions
+      if (toDelete.length > 0) {
+        const { error } = await supabase
+          .from("scope_block_cost_items")
+          .delete()
+          .in("id", toDelete);
+        if (error) throw error;
+      }
+      
+      // Execute creations
+      if (toCreate.length > 0) {
+        const unassignedId = await getUnassignedCostCodeId();
+        const insertData = toCreate.map((item, idx) => ({
+          scope_block_id: item.scope_block_id,
+          category: item.category,
+          cost_code_id: item.cost_code_id || unassignedId,
+          description: item.description || "New Item",
+          quantity: item.quantity || 1,
+          unit: item.unit || "ea",
+          unit_price: item.unit_price || 0,
+          markup_percent: item.markup_percent || 0,
+          line_total: (item.quantity || 0) * (item.unit_price || 0) * (1 + (item.markup_percent || 0) / 100),
+          sort_order: idx,
+          area_label: item.area_label,
+          group_label: item.group_label,
+        }));
         
-        // Execute creations
-        if (toCreate.length > 0) {
-          const unassignedId = await getUnassignedCostCodeId();
-          
-          const insertData = toCreate.map((item, idx) => ({
-            scope_block_id: item.scope_block_id,
-            category: item.category,
-            cost_code_id: item.cost_code_id || unassignedId,
-            description: item.description || "New Item",
-            quantity: item.quantity || 1,
-            unit: item.unit || "ea",
-            unit_price: item.unit_price || 0,
-            markup_percent: item.markup_percent || 0,
-            line_total: (item.quantity || 0) * (item.unit_price || 0) * (1 + (item.markup_percent || 0) / 100),
-            sort_order: idx,
-            area_label: item.area_label,
-            group_label: item.group_label,
-          }));
-          
-          const { error } = await supabase
-            .from("scope_block_cost_items")
-            .insert(insertData);
-          if (error) throw error;
-        }
-        
-        // Execute updates (batch for efficiency)
-        for (const item of toUpdate) {
+        const { error } = await supabase
+          .from("scope_block_cost_items")
+          .insert(insertData);
+        if (error) throw error;
+      }
+      
+      // Execute updates - batch them
+      if (toUpdate.length > 0) {
+        await Promise.all(toUpdate.map(async (item) => {
           const lineTotal = (item.quantity || 0) * (item.unit_price || 0) * (1 + (item.markup_percent || 0) / 100);
-          
           const { error } = await supabase
             .from("scope_block_cost_items")
             .update({
@@ -317,20 +350,47 @@ export default function EstimateBuilderV2() {
             })
             .eq("id", item.id);
           if (error) throw error;
-        }
-        
-        // Refresh data
-        queryClient.invalidateQueries({ queryKey: ["scope-blocks", "estimate", estimateId] });
-        
-      } catch (error) {
-        console.error("Error saving changes:", error);
-        toast.error("Failed to save changes");
-      } finally {
-        setPendingChanges(false);
+        }));
       }
-    },
-    [estimateId, queryClient]
-  );
+      
+      // Update refs with new state
+      const newMap = new Map<string, string>();
+      currentItems.forEach((item, id) => {
+        newMap.set(id, serializeItem(item));
+      });
+      existingItemsRef.current = newMap;
+      existingIdsRef.current = currentIds;
+      
+    } catch (error) {
+      console.error("Error saving changes:", error);
+      toast.error("Failed to save changes");
+    } finally {
+      setIsSaving(false);
+    }
+  }, []);
+
+  // Handle blocks change - debounced
+  const handleBlocksChange = useCallback((newBlocks: EstimateEditorBlock[]) => {
+    // Update local state immediately for responsive UI
+    setLocalBlocks(newBlocks);
+    
+    // Debounce the save
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+    saveTimeoutRef.current = setTimeout(() => {
+      saveChanges(newBlocks);
+    }, 800); // 800ms debounce
+  }, [saveChanges]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Handle set as budget source
   const handleSetAsBudgetSource = useCallback(() => {
@@ -385,59 +445,56 @@ export default function EstimateBuilderV2() {
   return (
     <Layout>
       <div className="space-y-6 max-w-7xl mx-auto">
-        {/* Header - Sticky on scroll */}
-        <div className="sticky top-0 z-20 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 pb-4 -mx-4 px-4 border-b">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4">
-            <div className="flex items-center gap-3">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => navigate(`/projects/${projectId}?tab=estimates`)}
-                className="shrink-0"
-              >
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-              <div className="min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h1 className="text-xl sm:text-2xl font-bold truncate">{estimate.title}</h1>
-                  <Badge variant={estimate.status === "draft" ? "secondary" : "default"}>
-                    {estimate.status}
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate(`/projects/${projectId}?tab=estimates`)}
+              className="shrink-0"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-xl sm:text-2xl font-bold truncate">{estimate.title}</h1>
+                <Badge variant={estimate.status === "draft" ? "secondary" : "default"}>
+                  {estimate.status}
+                </Badge>
+                {isBudgetSourceLocked && (
+                  <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
+                    Budget Source
                   </Badge>
-                  {isBudgetSourceLocked && (
-                    <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
-                      Budget Source
-                    </Badge>
-                  )}
-                  {pendingChanges && (
-                    <Badge variant="outline" className="bg-yellow-500/10 text-yellow-700 border-yellow-200">
-                      <Save className="h-3 w-3 mr-1" />
-                      Saving...
-                    </Badge>
-                  )}
-                </div>
-                <p className="text-sm text-muted-foreground truncate">{projectName}</p>
+                )}
+                {isSaving && (
+                  <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-200">
+                    Saving...
+                  </Badge>
+                )}
               </div>
+              <p className="text-sm text-muted-foreground truncate">{projectName}</p>
             </div>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={() => addSection.mutate()}>
-                <Plus className="h-4 w-4 mr-1.5" />
-                <span className="hidden sm:inline">Add Section</span>
-                <span className="sm:hidden">Section</span>
-              </Button>
-            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => addSection.mutate()}>
+              <Plus className="h-4 w-4 mr-1.5" />
+              <span className="hidden sm:inline">Add Section</span>
+              <span className="sm:hidden">Section</span>
+            </Button>
           </div>
         </div>
 
         {/* ProjectEstimateEditor */}
         <ProjectEstimateEditor
-          blocks={editorBlocks}
+          blocks={localBlocks}
           isBudgetSourceLocked={isBudgetSourceLocked}
           onBlocksChange={handleBlocksChange}
           onSetAsBudgetSource={handleSetAsBudgetSource}
         />
 
         {/* Empty state */}
-        {editorBlocks.length === 0 && (
+        {localBlocks.length === 0 && (
           <div className="text-center py-12 border-2 border-dashed rounded-xl">
             <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
             <h3 className="text-lg font-medium mb-2">No sections yet</h3>
