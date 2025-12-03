@@ -1,12 +1,6 @@
 // ProjectEstimateEditor.tsx
-// Grouped, "best in class" estimate editor using scope_blocks + scope_block_cost_items
-// ✅ Supports:
-//   - Section = scope_block
-//   - Area grouping  (area_label)
-//   - Sub-group inside each area (group_label)
-//   - Desktop table + mobile card layouts
-//   - CostCodeSelect + UnitSelect
-//   - Budget-source validation banner
+// Best-in-class grouped estimate editor using scope_blocks + scope_block_cost_items
+// Block → Area → Item, with 4-way cost category & cost code integration.
 
 import React, { useMemo, useCallback } from "react";
 import { GripVertical, Plus, Trash2, ChevronDown } from "lucide-react";
@@ -28,16 +22,16 @@ export interface ScopeBlock {
 export interface ScopeItem {
   id: string;
   scope_block_id: string;
-  area_label: string | null;   // e.g. "Kitchen"
-  group_label: string | null;  // e.g. "Cabinets", "Tile", "Demo"
-  category: BudgetCategory;
-  cost_code_id: string | null;
+  area_label: string | null;   // e.g. "Demo", "Shower", "Flooring"
+  group_label: string | null;  // reserved for future subgrouping
+  category: BudgetCategory;    // 4-way: labor / subs / materials / other
+  cost_code_id: string | null; // FK → cost_codes.id
   description: string;
   quantity: number;
   unit: string;
   unit_price: number;
   markup_percent: number;
-  line_total: number;
+  line_total: number;          // can be recomputed on the fly
   hasError?: boolean;
   errorMessage?: string;
 }
@@ -61,11 +55,6 @@ interface AreaGroup {
   items: ScopeItem[];
 }
 
-interface SubgroupGroup {
-  subgroup: string | null;
-  items: ScopeItem[];
-}
-
 function groupItemsByArea(items: ScopeItem[]): AreaGroup[] {
   const map = new Map<string | null, ScopeItem[]>();
 
@@ -81,36 +70,11 @@ function groupItemsByArea(items: ScopeItem[]): AreaGroup[] {
     groups.push({ area, items: sorted });
   }
 
-  // "Ungrouped" area last
   return groups.sort((a, b) => {
     if (a.area === b.area) return 0;
     if (a.area === null) return 1;
     if (b.area === null) return -1;
     return a.area.localeCompare(b.area);
-  });
-}
-
-function groupItemsBySubgroup(items: ScopeItem[]): SubgroupGroup[] {
-  const map = new Map<string | null, ScopeItem[]>();
-
-  for (const item of items) {
-    const key = item.group_label || null;
-    if (!map.has(key)) map.set(key, []);
-    map.get(key)!.push(item);
-  }
-
-  const groups: SubgroupGroup[] = [];
-  for (const [subgroup, sgItems] of map.entries()) {
-    const sorted = [...sgItems].sort((a, b) => a.id.localeCompare(b.id));
-    groups.push({ subgroup, items: sorted });
-  }
-
-  // "Ungrouped" subgroup last
-  return groups.sort((a, b) => {
-    if (a.subgroup === b.subgroup) return 0;
-    if (a.subgroup === null) return 1;
-    if (b.subgroup === null) return -1;
-    return a.subgroup.localeCompare(b.subgroup);
   });
 }
 
@@ -178,14 +142,14 @@ export const ProjectEstimateEditor: React.FC<EstimateEditorProps> = ({
   );
 
   const addItemToArea = useCallback(
-    (blockId: string, area: string | null, subgroup?: string | null) => {
+    (blockId: string, area: string | null) => {
       const next = blocks.map((b) => {
         if (b.block.id !== blockId) return b;
         const newItem: ScopeItem = {
           id: crypto.randomUUID(),
           scope_block_id: blockId,
           area_label: area,
-          group_label: subgroup ?? null,
+          group_label: null,
           category: "labor",
           cost_code_id: null,
           description: "New Item",
@@ -214,7 +178,7 @@ export const ProjectEstimateEditor: React.FC<EstimateEditorProps> = ({
       while (usedNames.has(name)) {
         name = `${baseName} ${idx++}`;
       }
-      addItemToArea(blockId, name, null);
+      addItemToArea(blockId, name);
     },
     [blocks, addItemToArea]
   );
@@ -247,38 +211,11 @@ export const ProjectEstimateEditor: React.FC<EstimateEditorProps> = ({
     [blocks, onBlocksChange]
   );
 
-  const renameSubgroup = useCallback(
-    (
-      blockId: string,
-      area: string | null,
-      oldSubgroup: string | null,
-      newSubgroup: string | null
-    ) => {
-      const cleaned = newSubgroup?.trim() || null;
-      const next = blocks.map((b) => {
-        if (b.block.id !== blockId) return b;
-        return {
-          ...b,
-          items: b.items.map((i) =>
-            i.area_label === area && i.group_label === oldSubgroup
-              ? { ...i, group_label: cleaned }
-              : i
-          ),
-        };
-      });
-      onBlocksChange(next);
-    },
-    [blocks, onBlocksChange]
-  );
-
-  // ---------- render helpers ----------
+  // ---------- global totals ----------
 
   const subtotal =
-    globalTotals.labor +
-    globalTotals.subs +
-    globalTotals.materials +
-    globalTotals.other;
-  const tax = 0;
+    globalTotals.labor + globalTotals.subs + globalTotals.materials + globalTotals.other;
+  const tax = 0; // reserved for future tax logic
   const total = subtotal + tax;
 
   return (
@@ -332,7 +269,6 @@ export const ProjectEstimateEditor: React.FC<EstimateEditorProps> = ({
           addAreaToBlock={addAreaToBlock}
           deleteItem={deleteItem}
           renameArea={renameArea}
-          renameSubgroup={renameSubgroup}
         />
       ))}
     </div>
@@ -344,16 +280,10 @@ export const ProjectEstimateEditor: React.FC<EstimateEditorProps> = ({
 interface BlockSectionProps {
   block: EstimateEditorBlock;
   updateItem: (blockId: string, itemId: string, patch: Partial<ScopeItem>) => void;
-  addItemToArea: (blockId: string, area: string | null, subgroup?: string | null) => void;
+  addItemToArea: (blockId: string, area: string | null) => void;
   addAreaToBlock: (blockId: string) => void;
   deleteItem: (blockId: string, itemId: string) => void;
   renameArea: (blockId: string, oldName: string | null, newName: string | null) => void;
-  renameSubgroup: (
-    blockId: string,
-    area: string | null,
-    oldSubgroup: string | null,
-    newSubgroup: string | null
-  ) => void;
 }
 
 const BlockSection: React.FC<BlockSectionProps> = ({
@@ -363,7 +293,6 @@ const BlockSection: React.FC<BlockSectionProps> = ({
   addAreaToBlock,
   deleteItem,
   renameArea,
-  renameSubgroup,
 }) => {
   const groups = groupItemsByArea(b.items);
   const blockTotals = computeCategoryTotals(b.items);
@@ -379,9 +308,7 @@ const BlockSection: React.FC<BlockSectionProps> = ({
               {b.block.title || "Untitled Section"}
             </div>
             {b.block.description && (
-              <div className="text-xs text-muted-foreground">
-                {b.block.description}
-              </div>
+              <div className="text-xs text-muted-foreground">{b.block.description}</div>
             )}
           </div>
         </div>
@@ -395,9 +322,8 @@ const BlockSection: React.FC<BlockSectionProps> = ({
       </header>
 
       {/* Table header - hidden on mobile */}
-      <div className="hidden lg:grid grid-cols-[minmax(0,120px)_minmax(0,160px)_minmax(0,160px)_minmax(0,1fr)_70px_70px_80px_70px_90px_60px] px-4 py-2 text-xs font-medium text-muted-foreground border-b border-border">
+      <div className="hidden lg:grid grid-cols-[minmax(0,120px)_minmax(0,180px)_minmax(0,1fr)_80px_80px_90px_80px_90px_60px] px-4 py-2 text-xs font-medium text-muted-foreground border-b border-border">
         <div>Area</div>
-        <div>Subgroup</div>
         <div>Category / Cost Code</div>
         <div>Description</div>
         <div className="text-right">Qty</div>
@@ -418,7 +344,6 @@ const BlockSection: React.FC<BlockSectionProps> = ({
           addItemToArea={addItemToArea}
           deleteItem={deleteItem}
           renameArea={renameArea}
-          renameSubgroup={renameSubgroup}
         />
       ))}
 
@@ -443,15 +368,9 @@ interface AreaGroupSectionProps {
   blockId: string;
   group: AreaGroup;
   updateItem: (blockId: string, itemId: string, patch: Partial<ScopeItem>) => void;
-  addItemToArea: (blockId: string, area: string | null, subgroup?: string | null) => void;
+  addItemToArea: (blockId: string, area: string | null) => void;
   deleteItem: (blockId: string, itemId: string) => void;
   renameArea: (blockId: string, oldName: string | null, newName: string | null) => void;
-  renameSubgroup: (
-    blockId: string,
-    area: string | null,
-    oldSubgroup: string | null,
-    newSubgroup: string | null
-  ) => void;
 }
 
 const AreaGroupSection: React.FC<AreaGroupSectionProps> = ({
@@ -461,26 +380,9 @@ const AreaGroupSection: React.FC<AreaGroupSectionProps> = ({
   addItemToArea,
   deleteItem,
   renameArea,
-  renameSubgroup,
 }) => {
   const areaTotals = computeCategoryTotals(g.items);
   const areaLabel = g.area ?? "Ungrouped";
-
-  const subgroups = groupItemsBySubgroup(g.items);
-
-  const handleAddSubgroup = () => {
-    const baseName = "New Subgroup";
-    const usedNames = new Set(
-      g.items.map((i) => i.group_label).filter(Boolean) as string[]
-    );
-    let name = baseName;
-    let idx = 2;
-    while (usedNames.has(name)) {
-      name = `${baseName} ${idx++}`;
-    }
-    // create first line in that subgroup
-    addItemToArea(blockId, g.area, name);
-  };
 
   return (
     <div className="px-2 py-2">
@@ -494,9 +396,7 @@ const AreaGroupSection: React.FC<AreaGroupSectionProps> = ({
             onBlur={(e) => renameArea(blockId, g.area, e.target.value || null)}
           />
           {g.area === null && (
-            <span className="text-[11px] text-muted-foreground">
-              (items without an area)
-            </span>
+            <span className="text-[11px] text-muted-foreground">(items without an area)</span>
           )}
         </div>
         <div className="hidden md:flex items-center gap-2 text-[11px]">
@@ -507,84 +407,26 @@ const AreaGroupSection: React.FC<AreaGroupSectionProps> = ({
         </div>
       </div>
 
-      {/* Subgroups + rows */}
-      {subgroups.map((sg) => {
-        const subgroupTotals = computeCategoryTotals(sg.items);
-        const subgroupLabel = sg.subgroup ?? "General";
+      {/* Rows */}
+      {g.items.map((item) => (
+        <ItemRow
+          key={item.id}
+          blockId={blockId}
+          item={item}
+          updateItem={updateItem}
+          deleteItem={deleteItem}
+        />
+      ))}
 
-        return (
-          <div key={sg.subgroup ?? "general"} className="mb-2">
-            {/* Subgroup header */}
-            <div className="flex items-center justify-between px-4 py-1 mb-1">
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] uppercase text-muted-foreground">
-                  Subgroup
-                </span>
-                <input
-                  className="bg-transparent text-xs font-medium text-foreground border-none outline-none px-1 rounded-md focus:bg-background focus:ring-1 focus:ring-ring"
-                  defaultValue={subgroupLabel}
-                  onBlur={(e) =>
-                    renameSubgroup(
-                      blockId,
-                      g.area,
-                      sg.subgroup,
-                      e.target.value || null
-                    )
-                  }
-                />
-              </div>
-              <div className="hidden md:flex items-center gap-2 text-[10px] text-muted-foreground">
-                <span>{formatCurrency(subgroupTotals.labor)} LAB</span>
-                <span>{formatCurrency(subgroupTotals.subs)} SUBS</span>
-                <span>{formatCurrency(subgroupTotals.materials)} MAT</span>
-                <span>{formatCurrency(subgroupTotals.other)} OTHER</span>
-              </div>
-            </div>
-
-            {/* Rows in subgroup */}
-            {sg.items.map((item) => (
-              <ItemRow
-                key={item.id}
-                blockId={blockId}
-                item={item}
-                updateItem={updateItem}
-                deleteItem={deleteItem}
-              />
-            ))}
-
-            {/* Add item inside subgroup */}
-            <div className="px-2 pb-2">
-              <button
-                type="button"
-                className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
-                onClick={() => addItemToArea(blockId, g.area, sg.subgroup)}
-              >
-                <Plus className="h-3 w-3" />
-                Add Item to {subgroupLabel}
-              </button>
-            </div>
-          </div>
-        );
-      })}
-
-      {/* Add subgroup + ungrouped item */}
-      <div className="px-2 py-2 flex items-center justify-between">
+      {/* Add item inside area */}
+      <div className="px-2 py-2">
         <button
           type="button"
           className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
-          onClick={handleAddSubgroup}
+          onClick={() => addItemToArea(blockId, g.area)}
         >
           <Plus className="h-3 w-3" />
-          Add Subgroup
-        </button>
-
-        <button
-          type="button"
-          className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
-          onClick={() => addItemToArea(blockId, g.area, null)}
-        >
-          <Plus className="h-3 w-3" />
-          Add Item (no subgroup)
+          Add Item
         </button>
       </div>
     </div>
@@ -609,39 +451,23 @@ const ItemRow: React.FC<ItemRowProps> = ({ blockId, item, updateItem, deleteItem
       {/* Desktop layout */}
       <div
         className={cn(
-          "hidden lg:grid grid-cols-[minmax(0,120px)_minmax(0,160px)_minmax(0,160px)_minmax(0,1fr)_70px_70px_80px_70px_90px_60px] items-center gap-2 px-2 py-1 text-xs",
+          "hidden lg:grid grid-cols-[minmax(0,120px)_minmax(0,180px)_minmax(0,1fr)_80px_80px_90px_80px_90px_60px] items-center gap-2 px-2 py-1 text-xs",
           invalid && "bg-destructive/10"
         )}
       >
-        {/* Area (can move row between areas) */}
         <input
           className="w-full rounded-lg border border-input px-2 py-1 text-xs bg-background"
           value={item.area_label ?? ""}
           placeholder="Area"
-          onChange={(e) =>
-            updateItem(blockId, item.id, { area_label: e.target.value || null })
-          }
+          onChange={(e) => updateItem(blockId, item.id, { area_label: e.target.value || null })}
         />
 
-        {/* Subgroup (inline edit – also supported via headers) */}
-        <input
-          className="w-full rounded-lg border border-input px-2 py-1 text-xs bg-background"
-          value={item.group_label ?? ""}
-          placeholder="Subgroup"
-          onChange={(e) =>
-            updateItem(blockId, item.id, { group_label: e.target.value || null })
-          }
-        />
-
-        {/* Category + cost code */}
         <div className="flex items-center gap-1">
           <select
             className="h-7 rounded-full border border-input bg-muted px-2 text-[11px]"
             value={item.category}
             onChange={(e) =>
-              updateItem(blockId, item.id, {
-                category: e.target.value as BudgetCategory,
-              })
+              updateItem(blockId, item.id, { category: e.target.value as BudgetCategory })
             }
           >
             <option value="labor">LAB</option>
@@ -653,72 +479,53 @@ const ItemRow: React.FC<ItemRowProps> = ({ blockId, item, updateItem, deleteItem
           <div className="flex-1 min-w-0">
             <CostCodeSelect
               value={item.cost_code_id}
-              onChange={(val) =>
-                updateItem(blockId, item.id, { cost_code_id: val })
-              }
+              onChange={(val) => updateItem(blockId, item.id, { cost_code_id: val })}
               error={!item.cost_code_id ? "Required" : undefined}
             />
           </div>
         </div>
 
-        {/* Description */}
         <input
           className="w-full rounded-lg border border-input px-2 py-1 text-xs bg-background"
           value={item.description}
-          onChange={(e) =>
-            updateItem(blockId, item.id, { description: e.target.value })
-          }
+          onChange={(e) => updateItem(blockId, item.id, { description: e.target.value })}
         />
 
-        {/* Qty */}
         <input
           type="number"
           min={0}
           className="w-full text-right rounded-lg border border-input px-2 py-1 bg-background"
           value={item.quantity}
           onChange={(e) =>
-            updateItem(blockId, item.id, {
-              quantity: Number(e.target.value || 0),
-            })
+            updateItem(blockId, item.id, { quantity: Number(e.target.value || 0) })
           }
         />
 
-        {/* Unit */}
         <UnitSelect
           value={item.unit}
           onChange={(val) => updateItem(blockId, item.id, { unit: val })}
         />
 
-        {/* Rate */}
         <input
           type="number"
           className="w-full text-right rounded-lg border border-input px-2 py-1 bg-background"
           value={item.unit_price}
           onChange={(e) =>
-            updateItem(blockId, item.id, {
-              unit_price: Number(e.target.value || 0),
-            })
+            updateItem(blockId, item.id, { unit_price: Number(e.target.value || 0) })
           }
         />
 
-        {/* Markup */}
         <input
           type="number"
           className="w-full text-right rounded-lg border border-input px-2 py-1 bg-background"
           value={item.markup_percent}
           onChange={(e) =>
-            updateItem(blockId, item.id, {
-              markup_percent: Number(e.target.value || 0),
-            })
+            updateItem(blockId, item.id, { markup_percent: Number(e.target.value || 0) })
           }
         />
 
-        {/* Total */}
-        <div className="text-right font-medium text-foreground">
-          {formatCurrency(total)}
-        </div>
+        <div className="text-right font-medium text-foreground">{formatCurrency(total)}</div>
 
-        {/* Actions */}
         <button
           type="button"
           className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-destructive/20 text-destructive hover:bg-destructive/10 transition-colors"
@@ -736,31 +543,20 @@ const ItemRow: React.FC<ItemRowProps> = ({ blockId, item, updateItem, deleteItem
         )}
       >
         <div className="flex justify-between items-start mb-2">
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-2">
-              <select
-                className="h-7 rounded-full border border-input bg-muted px-2 text-[11px]"
-                value={item.category}
-                onChange={(e) =>
-                  updateItem(blockId, item.id, {
-                    category: e.target.value as BudgetCategory,
-                  })
-                }
-              >
-                <option value="labor">LAB</option>
-                <option value="subs">SUBS</option>
-                <option value="materials">MAT</option>
-                <option value="other">OTHER</option>
-              </select>
-              <span className="text-sm font-medium">
-                {formatCurrency(total)}
-              </span>
-            </div>
-            <div className="flex gap-2 text-[11px] text-muted-foreground">
-              <span>{item.area_label || "No area"}</span>
-              <span>·</span>
-              <span>{item.group_label || "No subgroup"}</span>
-            </div>
+          <div className="flex items-center gap-2">
+            <select
+              className="h-7 rounded-full border border-input bg-muted px-2 text-[11px]"
+              value={item.category}
+              onChange={(e) =>
+                updateItem(blockId, item.id, { category: e.target.value as BudgetCategory })
+              }
+            >
+              <option value="labor">LAB</option>
+              <option value="subs">SUBS</option>
+              <option value="materials">MAT</option>
+              <option value="other">OTHER</option>
+            </select>
+            <span className="text-sm font-medium">{formatCurrency(total)}</span>
           </div>
           <button
             type="button"
@@ -776,17 +572,13 @@ const ItemRow: React.FC<ItemRowProps> = ({ blockId, item, updateItem, deleteItem
             className="w-full rounded-lg border border-input px-2 py-1.5 text-sm bg-background"
             value={item.description}
             placeholder="Description"
-            onChange={(e) =>
-              updateItem(blockId, item.id, { description: e.target.value })
-            }
+            onChange={(e) => updateItem(blockId, item.id, { description: e.target.value })}
           />
 
           <div className="grid grid-cols-2 gap-2">
             <CostCodeSelect
               value={item.cost_code_id}
-              onChange={(val) =>
-                updateItem(blockId, item.id, { cost_code_id: val })
-              }
+              onChange={(val) => updateItem(blockId, item.id, { cost_code_id: val })}
               error={!item.cost_code_id ? "Required" : undefined}
             />
             <input
@@ -794,23 +586,10 @@ const ItemRow: React.FC<ItemRowProps> = ({ blockId, item, updateItem, deleteItem
               value={item.area_label ?? ""}
               placeholder="Area"
               onChange={(e) =>
-                updateItem(blockId, item.id, {
-                  area_label: e.target.value || null,
-                })
+                updateItem(blockId, item.id, { area_label: e.target.value || null })
               }
             />
           </div>
-
-          <input
-            className="w-full rounded-lg border border-input px-2 py-1.5 text-sm bg-background"
-            value={item.group_label ?? ""}
-            placeholder="Subgroup"
-            onChange={(e) =>
-              updateItem(blockId, item.id, {
-                group_label: e.target.value || null,
-              })
-            }
-          />
 
           <div className="grid grid-cols-4 gap-2">
             <input
@@ -820,9 +599,7 @@ const ItemRow: React.FC<ItemRowProps> = ({ blockId, item, updateItem, deleteItem
               value={item.quantity}
               placeholder="Qty"
               onChange={(e) =>
-                updateItem(blockId, item.id, {
-                  quantity: Number(e.target.value || 0),
-                })
+                updateItem(blockId, item.id, { quantity: Number(e.target.value || 0) })
               }
             />
             <UnitSelect
@@ -835,9 +612,7 @@ const ItemRow: React.FC<ItemRowProps> = ({ blockId, item, updateItem, deleteItem
               value={item.unit_price}
               placeholder="Rate"
               onChange={(e) =>
-                updateItem(blockId, item.id, {
-                  unit_price: Number(e.target.value || 0),
-                })
+                updateItem(blockId, item.id, { unit_price: Number(e.target.value || 0) })
               }
             />
             <input
@@ -846,9 +621,7 @@ const ItemRow: React.FC<ItemRowProps> = ({ blockId, item, updateItem, deleteItem
               value={item.markup_percent}
               placeholder="%"
               onChange={(e) =>
-                updateItem(blockId, item.id, {
-                  markup_percent: Number(e.target.value || 0),
-                })
+                updateItem(blockId, item.id, { markup_percent: Number(e.target.value || 0) })
               }
             />
           </div>
@@ -867,12 +640,7 @@ interface SummaryCardProps {
   isCount?: boolean;
 }
 
-const SummaryCard: React.FC<SummaryCardProps> = ({
-  label,
-  value,
-  highlight,
-  isCount,
-}) => (
+const SummaryCard: React.FC<SummaryCardProps> = ({ label, value, highlight, isCount }) => (
   <div
     className={cn(
       "rounded-2xl border border-border bg-card px-4 py-3 flex flex-col justify-between",
@@ -880,20 +648,15 @@ const SummaryCard: React.FC<SummaryCardProps> = ({
     )}
   >
     <span className="text-xs text-muted-foreground">{label}</span>
-    <span
-      className={cn(
-        "mt-1 text-lg font-semibold",
-        highlight && "text-foreground"
-      )}
-    >
+    <span className={cn("mt-1 text-lg font-semibold", highlight && "text-foreground")}>
       {isCount ? value : formatCurrency(value)}
     </span>
   </div>
 );
 
-const CategorySummaryCard: React.FC<{
-  totals: Record<BudgetCategory, number>;
-}> = ({ totals }) => (
+const CategorySummaryCard: React.FC<{ totals: Record<BudgetCategory, number> }> = ({
+  totals,
+}) => (
   <div className="col-span-2 md:col-span-1 rounded-2xl border border-border bg-card px-4 py-3 flex flex-col justify-between">
     <span className="text-xs text-muted-foreground">By Category</span>
     <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
@@ -905,33 +668,26 @@ const CategorySummaryCard: React.FC<{
   </div>
 );
 
-const CategoryPill: React.FC<{ label: string; amount: number }> = ({
-  label,
-  amount,
-}) => (
+const CategoryPill: React.FC<{ label: string; amount: number }> = ({ label, amount }) => (
   <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5">
     <span className="mr-1 text-muted-foreground">{label}:</span>
     <span className="font-medium text-foreground">{formatCurrency(amount)}</span>
   </span>
 );
 
-const ChipLabel: React.FC<{
-  label: string;
-  amount: number;
-  small?: boolean;
-}> = ({ label, amount, small }) => (
+const ChipLabel: React.FC<{ label: string; amount: number; small?: boolean }> = ({
+  label,
+  amount,
+  small,
+}) => (
   <span
     className={cn(
       "inline-flex items-center rounded-full bg-muted px-2",
       small ? "py-0.5 text-[10px]" : "py-1 text-[11px]"
     )}
   >
-    <span className="mr-1 uppercase tracking-wide text-muted-foreground">
-      {label}
-    </span>
-    <span className="font-semibold text-foreground">
-      {formatCurrency(amount)}
-    </span>
+    <span className="mr-1 uppercase tracking-wide text-muted-foreground">{label}</span>
+    <span className="font-semibold text-foreground">{formatCurrency(amount)}</span>
   </span>
 );
 
