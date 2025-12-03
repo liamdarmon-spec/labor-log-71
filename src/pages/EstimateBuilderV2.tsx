@@ -34,6 +34,8 @@ interface CostItem {
   line_total: number;
   notes: string | null;
   sort_order: number;
+  area_label?: string | null;
+  breakdown_notes?: string | null;
 }
 
 interface ScopeBlock {
@@ -220,6 +222,8 @@ export default function EstimateBuilderV2() {
           markup_percent: 0,
           line_total: 0,
           sort_order: maxOrder + 1,
+          area_label: null,
+          breakdown_notes: null,
         })
         .select()
         .single();
