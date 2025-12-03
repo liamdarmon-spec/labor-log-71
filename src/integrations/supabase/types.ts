@@ -1361,6 +1361,7 @@ export type Database = {
           created_at: string | null
           description: string
           estimate_id: string
+          group_label: string | null
           id: string
           is_allowance: boolean | null
           line_total: number
@@ -1378,6 +1379,7 @@ export type Database = {
           created_at?: string | null
           description: string
           estimate_id: string
+          group_label?: string | null
           id?: string
           is_allowance?: boolean | null
           line_total?: number
@@ -1395,6 +1397,7 @@ export type Database = {
           created_at?: string | null
           description?: string
           estimate_id?: string
+          group_label?: string | null
           id?: string
           is_allowance?: boolean | null
           line_total?: number
@@ -3819,6 +3822,7 @@ export type Database = {
           cost_code_id: string
           created_at: string | null
           description: string
+          group_label: string | null
           id: string
           line_total: number
           margin_percent: number | null
@@ -3838,6 +3842,7 @@ export type Database = {
           cost_code_id: string
           created_at?: string | null
           description: string
+          group_label?: string | null
           id?: string
           line_total?: number
           margin_percent?: number | null
@@ -3857,6 +3862,7 @@ export type Database = {
           cost_code_id?: string
           created_at?: string | null
           description?: string
+          group_label?: string | null
           id?: string
           line_total?: number
           margin_percent?: number | null

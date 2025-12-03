@@ -36,6 +36,7 @@ interface CostItem {
   sort_order: number;
   area_label?: string | null;
   breakdown_notes?: string | null;
+  group_label?: string | null;
 }
 
 interface ScopeBlock {
@@ -204,7 +205,7 @@ export default function EstimateBuilderV2() {
 
   // Add cost item
   const addCostItem = useMutation({
-    mutationFn: async (scopeBlockId: string) => {
+    mutationFn: async ({ scopeBlockId, groupLabel }: { scopeBlockId: string; groupLabel?: string | null }) => {
       const unassignedId = await getUnassignedCostCodeId();
       const block = scopeBlocks.find((b) => b.id === scopeBlockId);
       const maxOrder = Math.max(...(block?.scope_block_cost_items || []).map((i) => i.sort_order || 0), -1);
@@ -224,6 +225,7 @@ export default function EstimateBuilderV2() {
           sort_order: maxOrder + 1,
           area_label: null,
           breakdown_notes: null,
+          group_label: groupLabel ?? null,
         })
         .select()
         .single();
@@ -351,8 +353,8 @@ export default function EstimateBuilderV2() {
   );
 
   const handleAddItem = useCallback(
-    (blockId: string) => {
-      addCostItem.mutate(blockId);
+    (blockId: string, groupLabel?: string | null) => {
+      addCostItem.mutate({ scopeBlockId: blockId, groupLabel });
     },
     [addCostItem]
   );
@@ -489,7 +491,7 @@ export default function EstimateBuilderV2() {
               title={block.title}
               items={block.scope_block_cost_items}
               onTitleChange={(title) => handleTitleChange(block.id, title)}
-              onAddItem={() => handleAddItem(block.id)}
+              onAddItem={(groupLabel) => handleAddItem(block.id, groupLabel)}
               onUpdateItem={handleUpdateItem}
               onDeleteItem={handleDeleteItem}
               onDeleteSection={() => handleDeleteSection(block.id)}
