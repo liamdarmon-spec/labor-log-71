@@ -58,7 +58,7 @@ export const ProjectOverviewEnhanced = ({ projectId }: { projectId: string }) =>
       // Fetch project stats
       const { data: costData } = await supabase
         .from('project_budget_vs_actual_view')
-        .select('labor_budget, actual_labor_cost')
+        .select('labor_budget, labor_actual')
         .eq('project_id', projectId)
         .single();
 
@@ -77,7 +77,7 @@ export const ProjectOverviewEnhanced = ({ projectId }: { projectId: string }) =>
         .single();
 
       const laborBudget = costData?.labor_budget || 0;
-      const laborActual = costData?.actual_labor_cost || 0;
+      const laborActual = costData?.labor_actual || 0;
 
       if (costData) {
         setStats({

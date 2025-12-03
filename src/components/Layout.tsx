@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { HardHat, Settings, BarChart3, DollarSign, CalendarClock, Languages, Building2, Users, Hammer, CheckSquare, CalendarDays } from 'lucide-react';
+import { HardHat, Settings, DollarSign, CalendarClock, Languages, Building2, Users, CheckSquare, CalendarDays } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { MobileNav } from '@/components/MobileNav';
 import { MobileBottomNav } from '@/components/MobileBottomNav';
@@ -41,15 +41,6 @@ export const Layout = ({ children }: LayoutProps) => {
           </div>
           <nav className="hidden lg:flex items-center gap-2">
             <Button
-              variant={location.pathname === '/' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => navigate('/')}
-              className={`gap-2 h-9 ${location.pathname === '/' ? 'font-semibold' : ''}`}
-            >
-              <BarChart3 className="w-4 h-4" />
-              <span>Dashboard</span>
-            </Button>
-            <Button
               variant={location.pathname === '/projects' || location.pathname.startsWith('/projects/') ? 'default' : 'ghost'}
               size="sm"
               onClick={() => navigate('/projects')}
@@ -84,15 +75,6 @@ export const Layout = ({ children }: LayoutProps) => {
             >
               <Users className="w-4 h-4" />
               <span>Workforce</span>
-            </Button>
-            <Button
-              variant={location.pathname.startsWith('/subs') ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => navigate('/subs')}
-              className={`gap-2 h-9 ${location.pathname.startsWith('/subs') ? 'font-semibold' : ''}`}
-            >
-              <Hammer className="w-4 h-4" />
-              <span>Subs</span>
             </Button>
             <Button
               variant={location.pathname.startsWith('/financials') ? 'default' : 'ghost'}
