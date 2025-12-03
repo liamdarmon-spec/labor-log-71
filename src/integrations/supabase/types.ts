@@ -2374,6 +2374,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "project_budget_lines_budget_id_fkey"
+            columns: ["project_budget_id"]
+            isOneToOne: false
+            referencedRelation: "project_budgets"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "project_budget_lines_cost_code_id_fkey"
             columns: ["cost_code_id"]
             isOneToOne: false
