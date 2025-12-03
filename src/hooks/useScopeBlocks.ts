@@ -54,6 +54,7 @@ export function useScopeBlocks(entityType: 'estimate' | 'proposal', entityId: st
       return data as ScopeBlock[];
     },
     enabled: !!entityId,
+    staleTime: 30000, // 30 seconds cache
   });
 }
 
@@ -71,6 +72,7 @@ export function useCreateScopeBlock() {
       return data;
     },
     onSuccess: (data) => {
+      // Targeted invalidation
       queryClient.invalidateQueries({
         queryKey: ['scope-blocks', data.entity_type, data.entity_id],
       });
@@ -98,10 +100,10 @@ export function useUpdateScopeBlock() {
       return data;
     },
     onSuccess: (data) => {
+      // Targeted invalidation
       queryClient.invalidateQueries({
         queryKey: ['scope-blocks', data.entity_type, data.entity_id],
       });
-      toast.success('Scope block updated');
     },
     onError: (error) => {
       console.error('Error updating scope block:', error);
@@ -123,6 +125,7 @@ export function useDeleteScopeBlock() {
       return { entityType, entityId };
     },
     onSuccess: ({ entityType, entityId }) => {
+      // Targeted invalidation
       queryClient.invalidateQueries({
         queryKey: ['scope-blocks', entityType, entityId],
       });
@@ -169,7 +172,12 @@ export function useCreateCostItem() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ scopeBlockId, item }: { scopeBlockId: string; item: Partial<ScopeBlockCostItem> & { category: string; description: string } }) => {
+    mutationFn: async ({ scopeBlockId, item, entityType, entityId }: { 
+      scopeBlockId: string; 
+      item: Partial<ScopeBlockCostItem> & { category: string; description: string };
+      entityType?: string;
+      entityId?: string;
+    }) => {
       let costCodeId = item.cost_code_id;
       
       // If no cost_code_id provided, fetch UNASSIGNED as fallback
@@ -194,10 +202,17 @@ export function useCreateCostItem() {
         .select()
         .single();
       if (error) throw error;
-      return data;
+      return { data, entityType, entityId };
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['scope-blocks'] });
+    onSuccess: ({ entityType, entityId }) => {
+      // Targeted invalidation if we know the entity
+      if (entityType && entityId) {
+        queryClient.invalidateQueries({ queryKey: ['scope-blocks', entityType, entityId] });
+        queryClient.invalidateQueries({ queryKey: ['estimate-blocks', entityId] });
+      } else {
+        // Fallback to broad invalidation
+        queryClient.invalidateQueries({ queryKey: ['scope-blocks'] });
+      }
       queryClient.invalidateQueries({ queryKey: ['estimates-v2'] });
       toast.success('Cost item added');
     },
@@ -212,7 +227,11 @@ export function useUpdateCostItem() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, ...updates }: Partial<ScopeBlockCostItem> & { id: string }) => {
+    mutationFn: async ({ id, entityType, entityId, ...updates }: Partial<ScopeBlockCostItem> & { 
+      id: string;
+      entityType?: string;
+      entityId?: string;
+    }) => {
       // Recalculate line_total if quantity, unit_price, or markup_percent changed
       let finalUpdates = { ...updates };
       
@@ -241,10 +260,16 @@ export function useUpdateCostItem() {
         .select()
         .single();
       if (error) throw error;
-      return data;
+      return { data, entityType, entityId };
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['scope-blocks'] });
+    onSuccess: ({ entityType, entityId }) => {
+      // Targeted invalidation if we know the entity
+      if (entityType && entityId) {
+        queryClient.invalidateQueries({ queryKey: ['scope-blocks', entityType, entityId] });
+        queryClient.invalidateQueries({ queryKey: ['estimate-blocks', entityId] });
+      } else {
+        queryClient.invalidateQueries({ queryKey: ['scope-blocks'] });
+      }
       queryClient.invalidateQueries({ queryKey: ['estimates-v2'] });
     },
     onError: (error) => {
@@ -258,15 +283,26 @@ export function useDeleteCostItem() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (id: string) => {
+    mutationFn: async ({ id, entityType, entityId }: { 
+      id: string;
+      entityType?: string;
+      entityId?: string;
+    }) => {
       const { error } = await supabase
         .from('scope_block_cost_items')
         .delete()
         .eq('id', id);
       if (error) throw error;
+      return { entityType, entityId };
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['scope-blocks'] });
+    onSuccess: ({ entityType, entityId }) => {
+      // Targeted invalidation if we know the entity
+      if (entityType && entityId) {
+        queryClient.invalidateQueries({ queryKey: ['scope-blocks', entityType, entityId] });
+        queryClient.invalidateQueries({ queryKey: ['estimate-blocks', entityId] });
+      } else {
+        queryClient.invalidateQueries({ queryKey: ['scope-blocks'] });
+      }
       queryClient.invalidateQueries({ queryKey: ['estimates-v2'] });
       toast.success('Cost item deleted');
     },

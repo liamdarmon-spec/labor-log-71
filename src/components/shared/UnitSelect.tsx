@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useMeasurementUnits } from "@/hooks/useMeasurementUnits";
 import {
   Select,
@@ -31,21 +32,27 @@ export function UnitSelect({
 }: UnitSelectProps) {
   const { data: allUnits = [] } = useMeasurementUnits();
 
-  // Filter by category if specified
-  const units = categoryFilter
-    ? allUnits.filter((u) => u.category === categoryFilter)
-    : allUnits;
+  // Memoize filtered units
+  const units = useMemo(() => {
+    return categoryFilter
+      ? allUnits.filter((u) => u.category === categoryFilter)
+      : allUnits;
+  }, [allUnits, categoryFilter]);
 
-  // Group units by category
-  const groupedUnits = units.reduce((acc, unit) => {
-    const cat = unit.category || "other";
-    if (!acc[cat]) acc[cat] = [];
-    acc[cat].push(unit);
-    return acc;
-  }, {} as Record<string, typeof units>);
+  // Memoize grouped units - prevents recomputation on every render
+  const groupedUnits = useMemo(() => {
+    return units.reduce((acc, unit) => {
+      const cat = unit.category || "other";
+      if (!acc[cat]) acc[cat] = [];
+      acc[cat].push(unit);
+      return acc;
+    }, {} as Record<string, typeof units>);
+  }, [units]);
 
-  // Show grouped if no filter
-  const showGrouped = !categoryFilter && Object.keys(groupedUnits).length > 1;
+  // Memoize whether to show grouped
+  const showGrouped = useMemo(() => {
+    return !categoryFilter && Object.keys(groupedUnits).length > 1;
+  }, [categoryFilter, groupedUnits]);
 
   return (
     <Select value={value ?? ""} onValueChange={onChange}>

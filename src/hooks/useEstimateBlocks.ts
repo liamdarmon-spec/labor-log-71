@@ -124,7 +124,9 @@ export function useEstimateBlocks(estimateId: string | undefined) {
       return transformToEditorBlocks(sorted);
     },
     enabled: !!estimateId,
-    staleTime: 30000,
+    staleTime: 30000, // 30 seconds cache
+    gcTime: 5 * 60 * 1000, // Keep in garbage collection for 5 minutes
+    refetchOnWindowFocus: false, // Don't refetch on window focus for better UX
   });
 
   // Create item mutation

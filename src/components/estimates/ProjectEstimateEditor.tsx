@@ -2,7 +2,7 @@
 // Best-in-class grouped estimate editor: Block → Area → Group → Item
 // Optional areas and groups for flexible organization
 
-import React, { useMemo, useCallback, useState, memo } from "react";
+import React, { useMemo, useCallback, useState, useEffect, memo } from "react";
 import {
   GripVertical,
   Plus,
@@ -1080,20 +1080,55 @@ const ItemRow = memo(function ItemRow({
   updateItem,
   deleteItem,
 }: ItemRowProps) {
-  const total = computeItemTotal(item);
+  // Local state for text fields - blur-to-save pattern
+  const [localDesc, setLocalDesc] = useState(item.description);
+  
+  // Sync local state when item changes from parent
+  useEffect(() => {
+    setLocalDesc(item.description);
+  }, [item.description]);
+
+  const total = useMemo(() => computeItemTotal(item), [item.quantity, item.unit_price, item.markup_percent]);
   const invalid = !isItemValid(item);
-  const missingCostCode =
-    !item.cost_code_id || item.cost_code_id === "UNASSIGNED";
-  const missingDesc = !item.description?.trim();
+  const missingCostCode = !item.cost_code_id || item.cost_code_id === "UNASSIGNED";
+  const missingDesc = !localDesc?.trim();
   const missingQty = (item.quantity || 0) <= 0;
 
-  const handleCostCodeChange = (codeId: string) => {
+  // Memoized handlers to prevent re-renders
+  const handleCostCodeChange = useCallback((codeId: string) => {
     updateItem(blockId, item.id, { cost_code_id: codeId });
-  };
+  }, [updateItem, blockId, item.id]);
 
-  const handleCategoryChange = (cat: BudgetCategory) => {
+  const handleCategoryChange = useCallback((cat: BudgetCategory) => {
     updateItem(blockId, item.id, { category: cat });
-  };
+  }, [updateItem, blockId, item.id]);
+
+  const handleDescBlur = useCallback(() => {
+    const trimmed = localDesc?.trim() || "";
+    if (trimmed !== item.description) {
+      updateItem(blockId, item.id, { description: trimmed });
+    }
+  }, [localDesc, item.description, updateItem, blockId, item.id]);
+
+  const handleQtyChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    updateItem(blockId, item.id, { quantity: parseFloat(e.target.value) || 0 });
+  }, [updateItem, blockId, item.id]);
+
+  const handleRateChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    updateItem(blockId, item.id, { unit_price: parseFloat(e.target.value) || 0 });
+  }, [updateItem, blockId, item.id]);
+
+  const handleMarkupChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    updateItem(blockId, item.id, { markup_percent: parseFloat(e.target.value) || 0 });
+  }, [updateItem, blockId, item.id]);
+
+  const handleUnitChange = useCallback((v: string) => {
+    updateItem(blockId, item.id, { unit: v });
+  }, [updateItem, blockId, item.id]);
+
+  const handleDelete = useCallback(() => {
+    deleteItem(blockId, item.id);
+  }, [deleteItem, blockId, item.id]);
 
   return (
     <>
@@ -1130,23 +1165,17 @@ const ItemRow = memo(function ItemRow({
           error={missingCostCode ? "Required" : undefined}
         />
 
-        {/* Description */}
+        {/* Description - local state with blur-to-save */}
         <input
           type="text"
           className={cn(
             "h-7 px-2 text-xs bg-transparent border rounded focus:ring-1 focus:ring-ring focus:border-ring transition-colors",
             missingDesc ? "border-destructive/50" : "border-border/50"
           )}
-          value={item.description}
+          value={localDesc}
           placeholder="Description"
-          onChange={(e) =>
-            updateItem(blockId, item.id, { description: e.target.value })
-          }
-          onBlur={(e) =>
-            updateItem(blockId, item.id, {
-              description: e.target.value.trim(),
-            })
-          }
+          onChange={(e) => setLocalDesc(e.target.value)}
+          onBlur={handleDescBlur}
         />
 
         {/* Qty */}
@@ -1159,17 +1188,13 @@ const ItemRow = memo(function ItemRow({
           value={item.quantity || ""}
           placeholder="0"
           min={0}
-          onChange={(e) =>
-            updateItem(blockId, item.id, {
-              quantity: parseFloat(e.target.value) || 0,
-            })
-          }
+          onChange={handleQtyChange}
         />
 
         {/* Unit */}
         <UnitSelect
           value={item.unit}
-          onChange={(v) => updateItem(blockId, item.id, { unit: v })}
+          onChange={handleUnitChange}
           className="h-7 text-xs"
         />
 
@@ -1181,11 +1206,7 @@ const ItemRow = memo(function ItemRow({
           placeholder="0"
           min={0}
           step={0.01}
-          onChange={(e) =>
-            updateItem(blockId, item.id, {
-              unit_price: parseFloat(e.target.value) || 0,
-            })
-          }
+          onChange={handleRateChange}
         />
 
         {/* Markup */}
@@ -1196,11 +1217,7 @@ const ItemRow = memo(function ItemRow({
             value={item.markup_percent || ""}
             placeholder="0"
             min={0}
-            onChange={(e) =>
-              updateItem(blockId, item.id, {
-                markup_percent: parseFloat(e.target.value) || 0,
-              })
-            }
+            onChange={handleMarkupChange}
           />
           <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">
             %
@@ -1216,7 +1233,7 @@ const ItemRow = memo(function ItemRow({
         <button
           type="button"
           className="h-7 w-7 flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded transition-colors"
-          onClick={() => deleteItem(blockId, item.id)}
+          onClick={handleDelete}
         >
           <Trash2 className="h-3.5 w-3.5" />
         </button>
@@ -1239,9 +1256,7 @@ const ItemRow = memo(function ItemRow({
               CATEGORY_COLORS[item.category]
             )}
             value={item.category}
-            onChange={(e) =>
-              handleCategoryChange(e.target.value as BudgetCategory)
-            }
+            onChange={(e) => handleCategoryChange(e.target.value as BudgetCategory)}
           >
             <option value="labor">LAB</option>
             <option value="subs">SUBS</option>
@@ -1255,30 +1270,24 @@ const ItemRow = memo(function ItemRow({
             <button
               type="button"
               className="h-7 w-7 flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded transition-colors"
-              onClick={() => deleteItem(blockId, item.id)}
+              onClick={handleDelete}
             >
               <Trash2 className="h-3.5 w-3.5" />
             </button>
           </div>
         </div>
 
-        {/* Description */}
+        {/* Description - local state with blur-to-save */}
         <input
           type="text"
           className={cn(
             "w-full h-8 px-2 text-sm bg-transparent border rounded mb-2 focus:ring-1 focus:ring-ring focus:border-ring transition-colors",
             missingDesc ? "border-destructive/50" : "border-border/50"
           )}
-          value={item.description}
+          value={localDesc}
           placeholder="Description"
-          onChange={(e) =>
-            updateItem(blockId, item.id, { description: e.target.value })
-          }
-          onBlur={(e) =>
-            updateItem(blockId, item.id, {
-              description: e.target.value.trim(),
-            })
-          }
+          onChange={(e) => setLocalDesc(e.target.value)}
+          onBlur={handleDescBlur}
         />
 
         {/* Cost Code */}
@@ -1307,11 +1316,7 @@ const ItemRow = memo(function ItemRow({
               value={item.quantity || ""}
               placeholder="0"
               min={0}
-              onChange={(e) =>
-                updateItem(blockId, item.id, {
-                  quantity: parseFloat(e.target.value) || 0,
-                })
-              }
+              onChange={handleQtyChange}
             />
           </div>
           <div>
@@ -1320,7 +1325,7 @@ const ItemRow = memo(function ItemRow({
             </label>
             <UnitSelect
               value={item.unit}
-              onChange={(v) => updateItem(blockId, item.id, { unit: v })}
+              onChange={handleUnitChange}
               className="h-7 text-xs"
             />
           </div>
@@ -1335,11 +1340,7 @@ const ItemRow = memo(function ItemRow({
               placeholder="0"
               min={0}
               step={0.01}
-              onChange={(e) =>
-                updateItem(blockId, item.id, {
-                  unit_price: parseFloat(e.target.value) || 0,
-                })
-              }
+              onChange={handleRateChange}
             />
           </div>
           <div>
@@ -1353,11 +1354,7 @@ const ItemRow = memo(function ItemRow({
                 value={item.markup_percent || ""}
                 placeholder="0"
                 min={0}
-                onChange={(e) =>
-                  updateItem(blockId, item.id, {
-                    markup_percent: parseFloat(e.target.value) || 0,
-                  })
-                }
+                onChange={handleMarkupChange}
               />
               <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">
                 %
