@@ -114,7 +114,7 @@ export default function EstimateBuilderV2() {
   const existingIdsRef = useRef<Set<string>>(new Set());
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Fetch estimate
+  // Fetch estimate - cached and won't refetch on window focus
   const { data: estimate, isLoading: estimateLoading } = useQuery({
     queryKey: ["estimate-builder", estimateId],
     queryFn: async () => {
@@ -127,9 +127,12 @@ export default function EstimateBuilderV2() {
       return data as Estimate;
     },
     enabled: !!estimateId,
+    staleTime: 60000, // 1 minute
+    gcTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: false,
   });
 
-  // Fetch scope blocks with cost items
+  // Fetch scope blocks with cost items - cached with good stale/gc times
   const { data: scopeBlocks = [], isLoading: blocksLoading } = useQuery({
     queryKey: ["scope-blocks", "estimate", estimateId],
     queryFn: async () => {
@@ -160,7 +163,9 @@ export default function EstimateBuilderV2() {
       return blocks;
     },
     enabled: !!estimateId,
-    staleTime: 30000, // Cache for 30s to reduce refetches
+    staleTime: 30000, // 30s - don't refetch within this window
+    gcTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: false, // Don't refetch on tab focus
   });
 
   // Sync local state when DB data changes
@@ -256,8 +261,19 @@ export default function EstimateBuilderV2() {
     },
   });
 
-  // Debounced save function - only saves changed items
+  // Track in-flight save to prevent overlapping mutations
+  const isSavingRef = useRef(false);
+  const pendingBlocksRef = useRef<EstimateEditorBlock[] | null>(null);
+
+  // Debounced save function - only saves changed items, with mutation flood protection
   const saveChanges = useCallback(async (blocks: EstimateEditorBlock[]) => {
+    // If already saving, queue this save for later
+    if (isSavingRef.current) {
+      pendingBlocksRef.current = blocks;
+      return;
+    }
+    
+    isSavingRef.current = true;
     setIsSaving(true);
     
     try {
@@ -282,7 +298,6 @@ export default function EstimateBuilderV2() {
         if (!existingIds.has(id)) {
           toCreate.push(item);
         } else {
-          // Only update if actually changed
           const oldSerialized = existingItems.get(id);
           const newSerialized = serializeItem(item);
           if (oldSerialized !== newSerialized) {
@@ -293,11 +308,10 @@ export default function EstimateBuilderV2() {
       
       // Skip if nothing changed
       if (toDelete.length === 0 && toCreate.length === 0 && toUpdate.length === 0) {
-        setIsSaving(false);
         return;
       }
       
-      // Execute deletions
+      // Execute deletions (single batch)
       if (toDelete.length > 0) {
         const { error } = await supabase
           .from("scope_block_cost_items")
@@ -306,7 +320,7 @@ export default function EstimateBuilderV2() {
         if (error) throw error;
       }
       
-      // Execute creations
+      // Execute creations (single batch insert)
       if (toCreate.length > 0) {
         const unassignedId = await getUnassignedCostCodeId();
         const insertData = toCreate.map((item, idx) => ({
@@ -330,28 +344,32 @@ export default function EstimateBuilderV2() {
         if (error) throw error;
       }
       
-      // Execute updates - batch them
+      // Execute updates - batch into chunks of 10 to avoid overwhelming DB
       if (toUpdate.length > 0) {
-        await Promise.all(toUpdate.map(async (item) => {
-          const lineTotal = (item.quantity || 0) * (item.unit_price || 0) * (1 + (item.markup_percent || 0) / 100);
-          const { error } = await supabase
-            .from("scope_block_cost_items")
-            .update({
-              scope_block_id: item.scope_block_id,
-              category: item.category,
-              cost_code_id: item.cost_code_id,
-              description: item.description,
-              quantity: item.quantity,
-              unit: item.unit,
-              unit_price: item.unit_price,
-              markup_percent: item.markup_percent,
-              line_total: lineTotal,
-              area_label: item.area_label,
-              group_label: item.group_label,
-            })
-            .eq("id", item.id);
-          if (error) throw error;
-        }));
+        const CHUNK_SIZE = 10;
+        for (let i = 0; i < toUpdate.length; i += CHUNK_SIZE) {
+          const chunk = toUpdate.slice(i, i + CHUNK_SIZE);
+          await Promise.all(chunk.map(async (item) => {
+            const lineTotal = (item.quantity || 0) * (item.unit_price || 0) * (1 + (item.markup_percent || 0) / 100);
+            const { error } = await supabase
+              .from("scope_block_cost_items")
+              .update({
+                scope_block_id: item.scope_block_id,
+                category: item.category,
+                cost_code_id: item.cost_code_id,
+                description: item.description,
+                quantity: item.quantity,
+                unit: item.unit,
+                unit_price: item.unit_price,
+                markup_percent: item.markup_percent,
+                line_total: lineTotal,
+                area_label: item.area_label,
+                group_label: item.group_label,
+              })
+              .eq("id", item.id);
+            if (error) throw error;
+          }));
+        }
       }
       
       // Update refs with new state
@@ -366,7 +384,15 @@ export default function EstimateBuilderV2() {
       console.error("Error saving changes:", error);
       toast.error("Failed to save changes");
     } finally {
+      isSavingRef.current = false;
       setIsSaving(false);
+      
+      // Process any pending save that came in while we were saving
+      if (pendingBlocksRef.current) {
+        const pending = pendingBlocksRef.current;
+        pendingBlocksRef.current = null;
+        saveChanges(pending);
+      }
     }
   }, []);
 
@@ -478,8 +504,17 @@ export default function EstimateBuilderV2() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => addSection.mutate()}>
-              <Plus className="h-4 w-4 mr-1.5" />
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => addSection.mutate()}
+              disabled={addSection.isPending}
+            >
+              {addSection.isPending ? (
+                <span className="h-4 w-4 mr-1.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+              ) : (
+                <Plus className="h-4 w-4 mr-1.5" />
+              )}
               <span className="hidden sm:inline">Add Section</span>
               <span className="sm:hidden">Section</span>
             </Button>
@@ -490,6 +525,7 @@ export default function EstimateBuilderV2() {
         <ProjectEstimateEditor
           blocks={localBlocks}
           isBudgetSourceLocked={isBudgetSourceLocked}
+          isBudgetSyncing={syncToBudget.isPending}
           onBlocksChange={handleBlocksChange}
           onSetAsBudgetSource={handleSetAsBudgetSource}
         />
@@ -500,8 +536,15 @@ export default function EstimateBuilderV2() {
             <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
             <h3 className="text-lg font-medium mb-2">No sections yet</h3>
             <p className="text-muted-foreground mb-4">Add a section to start building your estimate.</p>
-            <Button onClick={() => addSection.mutate()}>
-              <Plus className="h-4 w-4 mr-2" />
+            <Button 
+              onClick={() => addSection.mutate()}
+              disabled={addSection.isPending}
+            >
+              {addSection.isPending ? (
+                <span className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-current border-t-transparent" />
+              ) : (
+                <Plus className="h-4 w-4 mr-2" />
+              )}
               Add Section
             </Button>
           </div>
