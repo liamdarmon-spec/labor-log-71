@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 export interface CostCode {
   id: string;
   code: string;
-  name: string;
+  name: string | null;
   category: 'labor' | 'subs' | 'materials' | 'equipment' | 'other';
   trade_id: string | null;
   default_trade_id: string | null;
@@ -19,6 +19,7 @@ export function useCostCodes(category?: CostCode['category']) {
         .from('cost_codes')
         .select('*')
         .eq('is_active', true)
+        .neq('code', 'UNASSIGNED')
         .order('code');
       
       if (category) {
@@ -30,5 +31,27 @@ export function useCostCodes(category?: CostCode['category']) {
       if (error) throw error;
       return data as CostCode[];
     },
+    staleTime: 5 * 60 * 1000, // 5 minutes - cost codes rarely change
+    gcTime: 30 * 60 * 1000, // Keep in cache for 30 minutes
+  });
+}
+
+// Lightweight version for CostCodeSelect - just id, code, name, category
+export function useCostCodesForSelect() {
+  return useQuery({
+    queryKey: ['cost-codes-select'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('cost_codes')
+        .select('id, code, name, category')
+        .eq('is_active', true)
+        .neq('code', 'UNASSIGNED')
+        .order('code');
+      
+      if (error) throw error;
+      return data as Pick<CostCode, 'id' | 'code' | 'name' | 'category'>[];
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 30 * 60 * 1000, // 30 minutes
   });
 }

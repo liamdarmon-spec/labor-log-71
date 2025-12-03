@@ -1,5 +1,5 @@
-import { useEffect, useState, useMemo, useRef } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
+import { useCostCodesForSelect } from "@/hooks/useCostCodes";
 import {
   Command,
   CommandEmpty,
@@ -79,41 +79,13 @@ export function CostCodeSelect({
   compact = false,
 }: CostCodeSelectProps) {
   const [open, setOpen] = useState(false);
-  const [codes, setCodes] = useState<CostCode[]>([]);
-  const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
   const selectedRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    let isMounted = true;
+  // Use shared React Query hook - cached across all instances
+  const { data: codes = [], isLoading: loading } = useCostCodesForSelect();
 
-    const fetchCodes = async () => {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from("cost_codes")
-        .select("id, code, name, category")
-        .neq("code", "UNASSIGNED")
-        .order("code", { ascending: true });
-
-      if (!isMounted) return;
-
-      if (error) {
-        console.error("Error loading cost codes", error);
-        setCodes([]);
-      } else {
-        setCodes(data || []);
-      }
-      setLoading(false);
-    };
-
-    fetchCodes();
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  // Group codes by category
+  // Group codes by category - memoized
   const groupedCodes = useMemo(() => {
     const filtered = search
       ? codes.filter(
@@ -132,28 +104,32 @@ export function CostCodeSelect({
     return groups;
   }, [codes, search]);
 
-  // Recently used codes
-  const recentIds = getRecentlyUsed();
+  // Recently used codes - stable reference
+  const recentIds = useMemo(() => getRecentlyUsed(), []);
   const recentCodes = useMemo(
     () => recentIds.map((id) => codes.find((c) => c.id === id)).filter(Boolean) as CostCode[],
     [codes, recentIds]
   );
 
-  const selectedCode = codes.find((c) => c.id === value);
+  const selectedCode = useMemo(
+    () => codes.find((c) => c.id === value),
+    [codes, value]
+  );
 
-  const handleSelect = (id: string) => {
+  const handleSelect = useCallback((id: string) => {
     onChange(id);
     addToRecentlyUsed(id);
     setOpen(false);
     setSearch("");
-  };
+  }, [onChange]);
 
   // Auto-scroll to selected item when dropdown opens
   useEffect(() => {
     if (open && selectedRef.current) {
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         selectedRef.current?.scrollIntoView({ block: "nearest" });
       }, 100);
+      return () => clearTimeout(timer);
     }
   }, [open]);
 
