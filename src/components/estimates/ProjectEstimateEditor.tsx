@@ -322,14 +322,14 @@ const BlockSection: React.FC<BlockSectionProps> = ({
       </header>
 
       {/* Table header - hidden on mobile */}
-      <div className="hidden lg:grid grid-cols-[minmax(0,120px)_minmax(0,180px)_minmax(0,1fr)_80px_80px_90px_80px_90px_60px] px-4 py-2 text-xs font-medium text-muted-foreground border-b border-border">
-        <div>Area</div>
-        <div>Category / Cost Code</div>
+      <div className="hidden lg:grid grid-cols-[70px_minmax(140px,1fr)_minmax(200px,2fr)_70px_70px_80px_70px_90px_40px] gap-2 px-4 py-2 text-xs font-medium text-muted-foreground border-b border-border">
+        <div>Type</div>
+        <div>Cost Code</div>
         <div>Description</div>
         <div className="text-right">Qty</div>
         <div>Unit</div>
         <div className="text-right">Rate</div>
-        <div className="text-right">Markup %</div>
+        <div className="text-right">Markup</div>
         <div className="text-right">Total</div>
         <div></div>
       </div>
@@ -451,101 +451,100 @@ const ItemRow: React.FC<ItemRowProps> = ({ blockId, item, updateItem, deleteItem
       {/* Desktop layout */}
       <div
         className={cn(
-          "hidden lg:grid grid-cols-[minmax(0,120px)_minmax(0,180px)_minmax(0,1fr)_80px_80px_90px_80px_90px_60px] items-center gap-2 px-2 py-1 text-xs",
-          invalid && "bg-destructive/10"
+          "hidden lg:grid grid-cols-[70px_minmax(140px,1fr)_minmax(200px,2fr)_70px_70px_80px_70px_90px_40px] items-center gap-2 px-4 py-1.5 text-xs rounded-md hover:bg-muted/30 transition-colors",
+          invalid && "bg-destructive/5 hover:bg-destructive/10"
         )}
       >
-        <input
-          className="w-full rounded-lg border border-input px-2 py-1 text-xs bg-background"
-          value={item.area_label ?? ""}
-          placeholder="Area"
-          onChange={(e) => updateItem(blockId, item.id, { area_label: e.target.value || null })}
+        {/* Category pill */}
+        <select
+          className="h-7 rounded-md border border-input bg-muted/50 px-1.5 text-[11px] font-medium cursor-pointer"
+          value={item.category}
+          onChange={(e) =>
+            updateItem(blockId, item.id, { category: e.target.value as BudgetCategory })
+          }
+        >
+          <option value="labor">LAB</option>
+          <option value="subs">SUBS</option>
+          <option value="materials">MAT</option>
+          <option value="other">OTHER</option>
+        </select>
+
+        {/* Cost Code - full width */}
+        <CostCodeSelect
+          value={item.cost_code_id}
+          onChange={(val) => updateItem(blockId, item.id, { cost_code_id: val })}
+          error={!item.cost_code_id ? "Required" : undefined}
         />
 
-        <div className="flex items-center gap-1">
-          <select
-            className="h-7 rounded-full border border-input bg-muted px-2 text-[11px]"
-            value={item.category}
-            onChange={(e) =>
-              updateItem(blockId, item.id, { category: e.target.value as BudgetCategory })
-            }
-          >
-            <option value="labor">LAB</option>
-            <option value="subs">SUBS</option>
-            <option value="materials">MAT</option>
-            <option value="other">OTHER</option>
-          </select>
-
-          <div className="flex-1 min-w-0">
-            <CostCodeSelect
-              value={item.cost_code_id}
-              onChange={(val) => updateItem(blockId, item.id, { cost_code_id: val })}
-              error={!item.cost_code_id ? "Required" : undefined}
-            />
-          </div>
-        </div>
-
+        {/* Description */}
         <input
-          className="w-full rounded-lg border border-input px-2 py-1 text-xs bg-background"
+          className="w-full rounded-md border border-input px-2 py-1.5 text-xs bg-background focus:ring-1 focus:ring-ring"
           value={item.description}
+          placeholder="Description"
           onChange={(e) => updateItem(blockId, item.id, { description: e.target.value })}
         />
 
+        {/* Qty */}
         <input
           type="number"
           min={0}
-          className="w-full text-right rounded-lg border border-input px-2 py-1 bg-background"
+          className="w-full text-right rounded-md border border-input px-2 py-1.5 text-xs bg-background focus:ring-1 focus:ring-ring"
           value={item.quantity}
           onChange={(e) =>
             updateItem(blockId, item.id, { quantity: Number(e.target.value || 0) })
           }
         />
 
+        {/* Unit */}
         <UnitSelect
           value={item.unit}
           onChange={(val) => updateItem(blockId, item.id, { unit: val })}
         />
 
+        {/* Rate */}
         <input
           type="number"
-          className="w-full text-right rounded-lg border border-input px-2 py-1 bg-background"
+          className="w-full text-right rounded-md border border-input px-2 py-1.5 text-xs bg-background focus:ring-1 focus:ring-ring"
           value={item.unit_price}
           onChange={(e) =>
             updateItem(blockId, item.id, { unit_price: Number(e.target.value || 0) })
           }
         />
 
+        {/* Markup */}
         <input
           type="number"
-          className="w-full text-right rounded-lg border border-input px-2 py-1 bg-background"
+          className="w-full text-right rounded-md border border-input px-2 py-1.5 text-xs bg-background focus:ring-1 focus:ring-ring"
           value={item.markup_percent}
           onChange={(e) =>
             updateItem(blockId, item.id, { markup_percent: Number(e.target.value || 0) })
           }
         />
 
-        <div className="text-right font-medium text-foreground">{formatCurrency(total)}</div>
+        {/* Total */}
+        <div className="text-right font-semibold text-foreground tabular-nums">{formatCurrency(total)}</div>
 
+        {/* Delete */}
         <button
           type="button"
-          className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-destructive/20 text-destructive hover:bg-destructive/10 transition-colors"
+          className="inline-flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
           onClick={() => deleteItem(blockId, item.id)}
         >
-          <Trash2 className="h-3 w-3" />
+          <Trash2 className="h-3.5 w-3.5" />
         </button>
       </div>
 
       {/* Mobile layout */}
       <div
         className={cn(
-          "lg:hidden p-3 mb-2 rounded-lg border border-border",
-          invalid && "bg-destructive/10"
+          "lg:hidden p-3 mb-2 rounded-lg border border-border bg-card",
+          invalid && "bg-destructive/5 border-destructive/20"
         )}
       >
-        <div className="flex justify-between items-start mb-2">
+        <div className="flex justify-between items-start mb-3">
           <div className="flex items-center gap-2">
             <select
-              className="h-7 rounded-full border border-input bg-muted px-2 text-[11px]"
+              className="h-7 rounded-md border border-input bg-muted/50 px-2 text-[11px] font-medium"
               value={item.category}
               onChange={(e) =>
                 updateItem(blockId, item.id, { category: e.target.value as BudgetCategory })
@@ -556,74 +555,76 @@ const ItemRow: React.FC<ItemRowProps> = ({ blockId, item, updateItem, deleteItem
               <option value="materials">MAT</option>
               <option value="other">OTHER</option>
             </select>
-            <span className="text-sm font-medium">{formatCurrency(total)}</span>
+            <span className="text-sm font-semibold tabular-nums">{formatCurrency(total)}</span>
           </div>
           <button
             type="button"
-            className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-destructive/20 text-destructive"
+            className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10"
             onClick={() => deleteItem(blockId, item.id)}
           >
-            <Trash2 className="h-3 w-3" />
+            <Trash2 className="h-3.5 w-3.5" />
           </button>
         </div>
 
         <div className="space-y-2">
+          {/* Description - full width */}
           <input
-            className="w-full rounded-lg border border-input px-2 py-1.5 text-sm bg-background"
+            className="w-full rounded-md border border-input px-3 py-2 text-sm bg-background"
             value={item.description}
             placeholder="Description"
             onChange={(e) => updateItem(blockId, item.id, { description: e.target.value })}
           />
 
-          <div className="grid grid-cols-2 gap-2">
-            <CostCodeSelect
-              value={item.cost_code_id}
-              onChange={(val) => updateItem(blockId, item.id, { cost_code_id: val })}
-              error={!item.cost_code_id ? "Required" : undefined}
-            />
-            <input
-              className="rounded-lg border border-input px-2 py-1.5 text-sm bg-background"
-              value={item.area_label ?? ""}
-              placeholder="Area"
-              onChange={(e) =>
-                updateItem(blockId, item.id, { area_label: e.target.value || null })
-              }
-            />
-          </div>
+          {/* Cost Code - full width */}
+          <CostCodeSelect
+            value={item.cost_code_id}
+            onChange={(val) => updateItem(blockId, item.id, { cost_code_id: val })}
+            error={!item.cost_code_id ? "Required" : undefined}
+          />
 
+          {/* Qty, Unit, Rate, Markup in grid */}
           <div className="grid grid-cols-4 gap-2">
-            <input
-              type="number"
-              min={0}
-              className="text-right rounded-lg border border-input px-2 py-1.5 bg-background"
-              value={item.quantity}
-              placeholder="Qty"
-              onChange={(e) =>
-                updateItem(blockId, item.id, { quantity: Number(e.target.value || 0) })
-              }
-            />
-            <UnitSelect
-              value={item.unit}
-              onChange={(val) => updateItem(blockId, item.id, { unit: val })}
-            />
-            <input
-              type="number"
-              className="text-right rounded-lg border border-input px-2 py-1.5 bg-background"
-              value={item.unit_price}
-              placeholder="Rate"
-              onChange={(e) =>
-                updateItem(blockId, item.id, { unit_price: Number(e.target.value || 0) })
-              }
-            />
-            <input
-              type="number"
-              className="text-right rounded-lg border border-input px-2 py-1.5 bg-background"
-              value={item.markup_percent}
-              placeholder="%"
-              onChange={(e) =>
-                updateItem(blockId, item.id, { markup_percent: Number(e.target.value || 0) })
-              }
-            />
+            <div>
+              <label className="text-[10px] text-muted-foreground mb-0.5 block">Qty</label>
+              <input
+                type="number"
+                min={0}
+                className="w-full text-right rounded-md border border-input px-2 py-1.5 text-sm bg-background"
+                value={item.quantity}
+                onChange={(e) =>
+                  updateItem(blockId, item.id, { quantity: Number(e.target.value || 0) })
+                }
+              />
+            </div>
+            <div>
+              <label className="text-[10px] text-muted-foreground mb-0.5 block">Unit</label>
+              <UnitSelect
+                value={item.unit}
+                onChange={(val) => updateItem(blockId, item.id, { unit: val })}
+              />
+            </div>
+            <div>
+              <label className="text-[10px] text-muted-foreground mb-0.5 block">Rate</label>
+              <input
+                type="number"
+                className="w-full text-right rounded-md border border-input px-2 py-1.5 text-sm bg-background"
+                value={item.unit_price}
+                onChange={(e) =>
+                  updateItem(blockId, item.id, { unit_price: Number(e.target.value || 0) })
+                }
+              />
+            </div>
+            <div>
+              <label className="text-[10px] text-muted-foreground mb-0.5 block">Markup %</label>
+              <input
+                type="number"
+                className="w-full text-right rounded-md border border-input px-2 py-1.5 text-sm bg-background"
+                value={item.markup_percent}
+                onChange={(e) =>
+                  updateItem(blockId, item.id, { markup_percent: Number(e.target.value || 0) })
+                }
+              />
+            </div>
           </div>
         </div>
       </div>
