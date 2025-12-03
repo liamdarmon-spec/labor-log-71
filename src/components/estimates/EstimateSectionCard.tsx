@@ -16,21 +16,7 @@ import {
   GripVertical,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { EstimateCostItemRow } from "./EstimateCostItemRow";
-
-interface CostItem {
-  id: string;
-  category: string;
-  cost_code_id: string | null;
-  description: string;
-  quantity: number;
-  unit: string;
-  unit_price: number;
-  markup_percent: number;
-  line_total: number;
-  notes: string | null;
-  sort_order: number;
-}
+import { EstimateCostItemRow, CostItem } from "./EstimateCostItemRow";
 
 interface EstimateSectionCardProps {
   id: string;
@@ -154,7 +140,8 @@ export function EstimateSectionCard({
         <CollapsibleContent>
           <CardContent className="p-0">
             {/* Table Header - Hidden on mobile */}
-            <div className="hidden lg:grid grid-cols-[100px_150px_1fr_80px_80px_100px_80px_100px_40px] gap-2 px-4 py-2 bg-muted/50 border-b text-xs font-medium text-muted-foreground">
+            <div className="hidden lg:grid grid-cols-[80px_100px_140px_1fr_70px_70px_90px_70px_90px_70px] gap-2 px-4 py-2 bg-muted/50 border-b text-xs font-medium text-muted-foreground">
+              <div>Area</div>
               <div>Category</div>
               <div>Cost Code</div>
               <div>Description</div>
@@ -163,7 +150,7 @@ export function EstimateSectionCard({
               <div className="text-right">Rate</div>
               <div className="text-right">Markup</div>
               <div className="text-right">Total</div>
-              <div></div>
+              <div className="text-center">Details</div>
             </div>
 
             {/* Cost Items */}

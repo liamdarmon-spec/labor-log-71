@@ -3813,6 +3813,8 @@ export type Database = {
       }
       scope_block_cost_items: {
         Row: {
+          area_label: string | null
+          breakdown_notes: string | null
           category: string
           cost_code_id: string
           created_at: string | null
@@ -3830,6 +3832,8 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          area_label?: string | null
+          breakdown_notes?: string | null
           category: string
           cost_code_id: string
           created_at?: string | null
@@ -3847,6 +3851,8 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          area_label?: string | null
+          breakdown_notes?: string | null
           category?: string
           cost_code_id?: string
           created_at?: string | null
