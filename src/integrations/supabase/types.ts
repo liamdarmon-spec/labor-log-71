@@ -5469,8 +5469,8 @@ export type Database = {
           labor_unpaid: number | null
           materials_actual: number | null
           materials_unpaid: number | null
-          misc_actual: number | null
-          misc_unpaid: number | null
+          other_actual: number | null
+          other_unpaid: number | null
           profit: number | null
           retention_held: number | null
           revenue: number | null
