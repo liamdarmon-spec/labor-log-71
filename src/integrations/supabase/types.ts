@@ -5799,6 +5799,80 @@ export type Database = {
           },
         ]
       }
+      project_budget_ledger_view: {
+        Row: {
+          actual_amount: number | null
+          actual_hours: number | null
+          budget_amount: number | null
+          budget_hours: number | null
+          category: string | null
+          cost_code: string | null
+          cost_code_id: string | null
+          cost_code_name: string | null
+          is_allowance: boolean | null
+          project_id: string | null
+          unpaid_amount: number | null
+          variance: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_budget_lines_cost_code_id_fkey"
+            columns: ["cost_code_id"]
+            isOneToOne: false
+            referencedRelation: "cost_code_actuals"
+            referencedColumns: ["cost_code_id"]
+          },
+          {
+            foreignKeyName: "project_budget_lines_cost_code_id_fkey"
+            columns: ["cost_code_id"]
+            isOneToOne: false
+            referencedRelation: "cost_codes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_budget_lines_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "material_actuals_by_project"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "project_budget_lines_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_budget_vs_actual_view"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "project_budget_lines_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_costs_view"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "project_budget_lines_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_dashboard_view"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "project_budget_lines_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_labor_summary"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "project_budget_lines_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_budget_vs_actual_view: {
         Row: {
           labor_actual: number | null
@@ -6994,6 +7068,29 @@ export type Database = {
       get_material_actuals_by_project: {
         Args: { p_project_id: string }
         Returns: number
+      }
+      get_project_budget_ledger: {
+        Args: { p_project_id: string }
+        Returns: {
+          actual_amount: number | null
+          actual_hours: number | null
+          budget_amount: number | null
+          budget_hours: number | null
+          category: string | null
+          cost_code: string | null
+          cost_code_id: string | null
+          cost_code_name: string | null
+          is_allowance: boolean | null
+          project_id: string | null
+          unpaid_amount: number | null
+          variance: number | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "project_budget_ledger_view"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       get_project_budget_overview: {
         Args: { p_project_id: string }
