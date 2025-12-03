@@ -15,6 +15,7 @@ import {
   ScopeItem,
   BudgetCategory,
 } from "@/components/estimates/ProjectEstimateEditor";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface CostItemDB {
   id: string;
