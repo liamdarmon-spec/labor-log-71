@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, memo } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +19,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { useDebounce } from "@/hooks/use-debounce";
 
 export interface CostItem {
   id: string;
@@ -49,84 +50,90 @@ const CATEGORIES = [
   { value: "other", label: "Other", color: "bg-gray-500/10 text-gray-700 border-gray-200" },
 ];
 
-export function EstimateCostItemRow({
+function EstimateCostItemRowComponent({
   item,
   onUpdate,
   onDelete,
 }: EstimateCostItemRowProps) {
-  // Local drafts for number fields
-  const [qtyDraft, setQtyDraft] = useState<string | null>(null);
-  const [rateDraft, setRateDraft] = useState<string | null>(null);
-  const [markupDraft, setMarkupDraft] = useState<string | null>(null);
-  const [descDraft, setDescDraft] = useState<string | null>(null);
-  const [areaDraft, setAreaDraft] = useState<string | null>(null);
-  const [breakdownDraft, setBreakdownDraft] = useState<string | null>(null);
+  // Local state for controlled inputs
+  const [localDesc, setLocalDesc] = useState(item.description);
+  const [localArea, setLocalArea] = useState(item.area_label ?? "");
+  const [localBreakdown, setLocalBreakdown] = useState(item.breakdown_notes ?? "");
+  const [localQty, setLocalQty] = useState(String(item.quantity));
+  const [localRate, setLocalRate] = useState(String(item.unit_price));
+  const [localMarkup, setLocalMarkup] = useState(String(item.markup_percent));
   const [detailsOpen, setDetailsOpen] = useState(false);
 
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const breakdownRef = useRef<HTMLTextAreaElement>(null);
-
-  // Auto-resize textarea
+  // Sync from props when item changes externally
+  const itemIdRef = useRef(item.id);
   useEffect(() => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = "auto";
-      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+    if (itemIdRef.current !== item.id) {
+      itemIdRef.current = item.id;
+      setLocalDesc(item.description);
+      setLocalArea(item.area_label ?? "");
+      setLocalBreakdown(item.breakdown_notes ?? "");
+      setLocalQty(String(item.quantity));
+      setLocalRate(String(item.unit_price));
+      setLocalMarkup(String(item.markup_percent));
     }
-  }, [descDraft, item.description]);
+  }, [item]);
+
+  // Debounce text fields for auto-save while typing
+  const debouncedDesc = useDebounce(localDesc, 500);
+  const debouncedArea = useDebounce(localArea, 500);
+  const debouncedBreakdown = useDebounce(localBreakdown, 500);
+
+  // Track previous values to avoid duplicate updates
+  const prevDescRef = useRef(item.description);
+  const prevAreaRef = useRef(item.area_label ?? "");
+  const prevBreakdownRef = useRef(item.breakdown_notes ?? "");
 
   useEffect(() => {
-    if (breakdownRef.current && detailsOpen) {
-      breakdownRef.current.style.height = "auto";
-      breakdownRef.current.style.height = `${Math.max(breakdownRef.current.scrollHeight, 80)}px`;
+    if (debouncedDesc !== prevDescRef.current && debouncedDesc !== item.description) {
+      prevDescRef.current = debouncedDesc;
+      onUpdate({ description: debouncedDesc });
     }
-  }, [breakdownDraft, item.breakdown_notes, detailsOpen]);
+  }, [debouncedDesc, item.description, onUpdate]);
 
-  const commitQty = useCallback(() => {
-    if (qtyDraft !== null) {
-      const val = parseFloat(qtyDraft) || 0;
-      onUpdate({ quantity: val });
-      setQtyDraft(null);
-    }
-  }, [qtyDraft, onUpdate]);
-
-  const commitRate = useCallback(() => {
-    if (rateDraft !== null) {
-      const val = parseFloat(rateDraft) || 0;
-      onUpdate({ unit_price: val });
-      setRateDraft(null);
-    }
-  }, [rateDraft, onUpdate]);
-
-  const commitMarkup = useCallback(() => {
-    if (markupDraft !== null) {
-      const val = parseFloat(markupDraft) || 0;
-      onUpdate({ markup_percent: val });
-      setMarkupDraft(null);
-    }
-  }, [markupDraft, onUpdate]);
-
-  const commitDesc = useCallback(() => {
-    if (descDraft !== null && descDraft !== item.description) {
-      onUpdate({ description: descDraft });
-    }
-    setDescDraft(null);
-  }, [descDraft, item.description, onUpdate]);
-
-  const commitArea = useCallback(() => {
-    const newVal = areaDraft?.trim() || null;
-    if (areaDraft !== null && newVal !== (item.area_label || null)) {
+  useEffect(() => {
+    const newVal = debouncedArea.trim() || null;
+    const oldVal = item.area_label || null;
+    if (debouncedArea !== prevAreaRef.current && newVal !== oldVal) {
+      prevAreaRef.current = debouncedArea;
       onUpdate({ area_label: newVal });
     }
-    setAreaDraft(null);
-  }, [areaDraft, item.area_label, onUpdate]);
+  }, [debouncedArea, item.area_label, onUpdate]);
 
-  const commitBreakdown = useCallback(() => {
-    const newVal = breakdownDraft?.trim() || null;
-    if (breakdownDraft !== null && newVal !== (item.breakdown_notes || null)) {
+  useEffect(() => {
+    const newVal = debouncedBreakdown.trim() || null;
+    const oldVal = item.breakdown_notes || null;
+    if (debouncedBreakdown !== prevBreakdownRef.current && newVal !== oldVal) {
+      prevBreakdownRef.current = debouncedBreakdown;
       onUpdate({ breakdown_notes: newVal });
     }
-    setBreakdownDraft(null);
-  }, [breakdownDraft, item.breakdown_notes, onUpdate]);
+  }, [debouncedBreakdown, item.breakdown_notes, onUpdate]);
+
+  // Number field commits on blur only
+  const commitQty = useCallback(() => {
+    const val = parseFloat(localQty) || 0;
+    if (val !== item.quantity) {
+      onUpdate({ quantity: val });
+    }
+  }, [localQty, item.quantity, onUpdate]);
+
+  const commitRate = useCallback(() => {
+    const val = parseFloat(localRate) || 0;
+    if (val !== item.unit_price) {
+      onUpdate({ unit_price: val });
+    }
+  }, [localRate, item.unit_price, onUpdate]);
+
+  const commitMarkup = useCallback(() => {
+    const val = parseFloat(localMarkup) || 0;
+    if (val !== item.markup_percent) {
+      onUpdate({ markup_percent: val });
+    }
+  }, [localMarkup, item.markup_percent, onUpdate]);
 
   const formatMoney = (value: number) =>
     `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -140,14 +147,11 @@ export function EstimateCostItemRow({
         {/* Mobile: Description first for context */}
         <div className="lg:hidden order-first">
           <label className="text-xs text-muted-foreground mb-1 block">Description</label>
-          <Textarea
-            ref={textareaRef}
-            value={descDraft ?? item.description}
-            onChange={(e) => setDescDraft(e.target.value)}
-            onBlur={commitDesc}
+          <Input
+            value={localDesc}
+            onChange={(e) => setLocalDesc(e.target.value)}
             placeholder="Item description"
-            className="min-h-[32px] py-1.5 text-sm resize-none overflow-hidden"
-            rows={1}
+            className="h-9 text-sm"
           />
         </div>
 
@@ -155,9 +159,8 @@ export function EstimateCostItemRow({
         <div className="lg:hidden">
           <label className="text-xs text-muted-foreground mb-1 block">Area</label>
           <Input
-            value={areaDraft ?? item.area_label ?? ""}
-            onChange={(e) => setAreaDraft(e.target.value)}
-            onBlur={commitArea}
+            value={localArea}
+            onChange={(e) => setLocalArea(e.target.value)}
             placeholder="e.g. Kitchen"
             className="h-8 text-sm"
             maxLength={50}
@@ -167,9 +170,8 @@ export function EstimateCostItemRow({
         {/* Desktop: Area */}
         <div className="hidden lg:block">
           <Input
-            value={areaDraft ?? item.area_label ?? ""}
-            onChange={(e) => setAreaDraft(e.target.value)}
-            onBlur={commitArea}
+            value={localArea}
+            onChange={(e) => setLocalArea(e.target.value)}
             placeholder="Area"
             className="h-8 text-xs"
             maxLength={50}
@@ -229,13 +231,11 @@ export function EstimateCostItemRow({
 
         {/* Desktop only: Description */}
         <div className="hidden lg:block">
-          <Textarea
-            value={descDraft ?? item.description}
-            onChange={(e) => setDescDraft(e.target.value)}
-            onBlur={commitDesc}
+          <Input
+            value={localDesc}
+            onChange={(e) => setLocalDesc(e.target.value)}
             placeholder="Item description"
-            className="min-h-[32px] h-8 py-1.5 text-sm resize-none overflow-hidden"
-            rows={1}
+            className="h-8 text-sm"
           />
         </div>
 
@@ -245,8 +245,8 @@ export function EstimateCostItemRow({
             <label className="text-xs text-muted-foreground mb-1 block lg:hidden">Qty</label>
             <Input
               type="number"
-              value={qtyDraft ?? item.quantity}
-              onChange={(e) => setQtyDraft(e.target.value)}
+              value={localQty}
+              onChange={(e) => setLocalQty(e.target.value)}
               onBlur={commitQty}
               className="h-8 text-right text-sm"
               step="any"
@@ -266,8 +266,8 @@ export function EstimateCostItemRow({
             <label className="text-xs text-muted-foreground mb-1 block lg:hidden">Rate</label>
             <Input
               type="number"
-              value={rateDraft ?? item.unit_price}
-              onChange={(e) => setRateDraft(e.target.value)}
+              value={localRate}
+              onChange={(e) => setLocalRate(e.target.value)}
               onBlur={commitRate}
               className="h-8 text-right text-sm"
               step="any"
@@ -281,8 +281,8 @@ export function EstimateCostItemRow({
             <label className="text-xs text-muted-foreground mb-1 block lg:hidden">Markup %</label>
             <Input
               type="number"
-              value={markupDraft ?? item.markup_percent}
-              onChange={(e) => setMarkupDraft(e.target.value)}
+              value={localMarkup}
+              onChange={(e) => setLocalMarkup(e.target.value)}
               onBlur={commitMarkup}
               className="h-8 text-right text-sm"
               step="any"
@@ -356,10 +356,8 @@ export function EstimateCostItemRow({
             Breakdown (internal notes, optional)
           </label>
           <Textarea
-            ref={breakdownRef}
-            value={breakdownDraft ?? item.breakdown_notes ?? ""}
-            onChange={(e) => setBreakdownDraft(e.target.value)}
-            onBlur={commitBreakdown}
+            value={localBreakdown}
+            onChange={(e) => setLocalBreakdown(e.target.value)}
             placeholder="Example: Remove uppers & lowers, demo backsplash, demo flooring to subfloor…"
             className="min-h-[80px] text-sm resize-none"
           />
@@ -368,3 +366,6 @@ export function EstimateCostItemRow({
     </Collapsible>
   );
 }
+
+// Memoize to prevent unnecessary re-renders
+export const EstimateCostItemRow = memo(EstimateCostItemRowComponent);
