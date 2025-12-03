@@ -53,13 +53,13 @@ export function ProjectChecklistsTab({ projectId }: ProjectChecklistsTabProps) {
   const scopeBlocks: ScopeBlockInput[] = useMemo(() => {
     return scopeBlocksRaw.map(block => ({
       id: block.id,
-      title: block.title,
-      costItems: (block.cost_items || []).map((item: any) => ({
+      title: block.title || '',
+      costItems: (block.scope_block_cost_items || []).map((item: any) => ({
         id: item.id,
         cost_code_id: item.cost_code_id,
-        cost_code_category: item.cost_codes?.category || null,
-        cost_code_code: item.cost_codes?.code || null,
-        cost_code_name: item.cost_codes?.name || null,
+        cost_code_category: item.category || null,
+        cost_code_code: null,
+        cost_code_name: item.description || null,
         area_label: item.area_label || null,
         group_label: item.group_label || null,
       })),
@@ -201,7 +201,6 @@ export function ProjectChecklistsTab({ projectId }: ProjectChecklistsTabProps) {
           projectType={projectType}
           scopeBlockCount={scopeBlocks.length}
           scopeBlockTitles={scopeBlocks.map((b) => b.title)}
-          scopeBlocks={scopeBlocks}
           onComplete={() => setWizardOpen(false)}
         />
       )}
