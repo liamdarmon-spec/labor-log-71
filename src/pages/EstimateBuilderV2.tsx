@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -7,23 +7,18 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, Zap, FileText, Save } from "lucide-react";
+import { ArrowLeft, Plus, Save, FileText } from "lucide-react";
 import { getUnassignedCostCodeId } from "@/lib/costCodes";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { EstimateSectionCard } from "@/components/estimates/EstimateSectionCard";
-import { EstimateSummaryCards } from "@/components/estimates/EstimateSummaryCards";
+  ProjectEstimateEditor,
+  EstimateEditorBlock,
+  ScopeItem,
+  BudgetCategory,
+} from "@/components/estimates/ProjectEstimateEditor";
 
-interface CostItem {
+interface CostItemDB {
   id: string;
+  scope_block_id: string;
   category: string;
   cost_code_id: string | null;
   description: string;
@@ -39,12 +34,13 @@ interface CostItem {
   group_label?: string | null;
 }
 
-interface ScopeBlock {
+interface ScopeBlockDB {
   id: string;
   title: string | null;
+  description: string | null;
   block_type: string;
   sort_order: number;
-  scope_block_cost_items: CostItem[];
+  scope_block_cost_items: CostItemDB[];
 }
 
 interface Estimate {
@@ -61,13 +57,41 @@ interface Estimate {
   } | null;
 }
 
+// Transform DB data to editor format
+function transformToEditorBlocks(dbBlocks: ScopeBlockDB[]): EstimateEditorBlock[] {
+  return dbBlocks.map((block) => ({
+    block: {
+      id: block.id,
+      title: block.title || "Untitled Section",
+      description: block.description,
+      sort_order: block.sort_order,
+    },
+    items: (block.scope_block_cost_items || []).map((item) => ({
+      id: item.id,
+      scope_block_id: item.scope_block_id,
+      area_label: item.area_label ?? null,
+      group_label: item.group_label ?? null,
+      category: (item.category as BudgetCategory) || "labor",
+      cost_code_id: item.cost_code_id,
+      description: item.description || "",
+      quantity: item.quantity || 0,
+      unit: item.unit || "ea",
+      unit_price: item.unit_price || 0,
+      markup_percent: item.markup_percent || 0,
+      line_total: item.line_total || 0,
+    })),
+  }));
+}
+
 export default function EstimateBuilderV2() {
   const { estimateId } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const [syncDialogOpen, setSyncDialogOpen] = useState(false);
   const [pendingChanges, setPendingChanges] = useState(false);
+  
+  // Track existing item IDs for diff
+  const existingItemIdsRef = useRef<Set<string>>(new Set());
 
   // Fetch estimate
   const { data: estimate, isLoading: estimateLoading } = useQuery({
@@ -93,6 +117,7 @@ export default function EstimateBuilderV2() {
         .select(`
           id,
           title,
+          description,
           block_type,
           sort_order,
           scope_block_cost_items(*)
@@ -104,15 +129,25 @@ export default function EstimateBuilderV2() {
       if (error) throw error;
 
       // Sort cost items within each block
-      return (data || []).map((block) => ({
+      const blocks = (data || []).map((block) => ({
         ...block,
         scope_block_cost_items: (block.scope_block_cost_items || []).sort(
-          (a: CostItem, b: CostItem) => (a.sort_order || 0) - (b.sort_order || 0)
+          (a: CostItemDB, b: CostItemDB) => (a.sort_order || 0) - (b.sort_order || 0)
         ),
-      })) as ScopeBlock[];
+      })) as ScopeBlockDB[];
+      
+      // Update existing item IDs ref
+      const allIds = new Set<string>();
+      blocks.forEach(b => b.scope_block_cost_items.forEach(i => allIds.add(i.id)));
+      existingItemIdsRef.current = allIds;
+      
+      return blocks;
     },
     enabled: !!estimateId,
   });
+
+  // Transform to editor format
+  const editorBlocks = useMemo(() => transformToEditorBlocks(scopeBlocks), [scopeBlocks]);
 
   // Auto-create first scope block if none exist
   const createFirstBlock = useMutation({
@@ -143,7 +178,7 @@ export default function EstimateBuilderV2() {
     }
   }, [blocksLoading, scopeBlocks.length, createFirstBlock]);
 
-  // Add section
+  // Add section mutation
   const addSection = useMutation({
     mutationFn: async () => {
       const maxOrder = Math.max(...scopeBlocks.map((b) => b.sort_order || 0), -1);
@@ -167,160 +202,6 @@ export default function EstimateBuilderV2() {
     },
   });
 
-  // Update section title
-  const updateSectionTitle = useMutation({
-    mutationFn: async ({ id, title }: { id: string; title: string }) => {
-      const { error } = await supabase
-        .from("scope_blocks")
-        .update({ title })
-        .eq("id", id);
-      if (error) throw error;
-    },
-    onMutate: async ({ id, title }) => {
-      await queryClient.cancelQueries({ queryKey: ["scope-blocks", "estimate", estimateId] });
-      const previous = queryClient.getQueryData(["scope-blocks", "estimate", estimateId]);
-      queryClient.setQueryData(["scope-blocks", "estimate", estimateId], (old: ScopeBlock[] | undefined) =>
-        old?.map((b) => (b.id === id ? { ...b, title } : b))
-      );
-      return { previous };
-    },
-    onError: (_, __, context) => {
-      if (context?.previous) {
-        queryClient.setQueryData(["scope-blocks", "estimate", estimateId], context.previous);
-      }
-    },
-  });
-
-  // Delete section
-  const deleteSection = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("scope_blocks").delete().eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["scope-blocks", "estimate", estimateId] });
-      toast.success("Section deleted");
-    },
-  });
-
-  // Add cost item
-  const addCostItem = useMutation({
-    mutationFn: async ({ scopeBlockId, groupLabel }: { scopeBlockId: string; groupLabel?: string | null }) => {
-      const unassignedId = await getUnassignedCostCodeId();
-      const block = scopeBlocks.find((b) => b.id === scopeBlockId);
-      const maxOrder = Math.max(...(block?.scope_block_cost_items || []).map((i) => i.sort_order || 0), -1);
-
-      const { data, error } = await supabase
-        .from("scope_block_cost_items")
-        .insert({
-          scope_block_id: scopeBlockId,
-          category: "labor",
-          cost_code_id: unassignedId,
-          description: "New Item",
-          quantity: 1,
-          unit: "ea",
-          unit_price: 0,
-          markup_percent: 0,
-          line_total: 0,
-          sort_order: maxOrder + 1,
-          area_label: null,
-          breakdown_notes: null,
-          group_label: groupLabel ?? null,
-        })
-        .select()
-        .single();
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["scope-blocks", "estimate", estimateId] });
-    },
-  });
-
-  // Update cost item with optimistic updates
-  const updateCostItem = useMutation({
-    mutationFn: async ({ id, updates }: { id: string; updates: Partial<CostItem> }) => {
-      // Find current item to calculate line_total
-      const item = scopeBlocks
-        .flatMap((b) => b.scope_block_cost_items)
-        .find((i) => i.id === id);
-
-      if (!item) throw new Error("Item not found");
-
-      const qty = updates.quantity ?? item.quantity;
-      const price = updates.unit_price ?? item.unit_price;
-      const markup = updates.markup_percent ?? item.markup_percent;
-      const lineTotal = qty * price * (1 + markup / 100);
-
-      const finalUpdates: Partial<CostItem> = {
-        ...updates,
-        line_total: lineTotal,
-      };
-
-      // Ensure we never send null for required fields
-      if (finalUpdates.category === null) delete finalUpdates.category;
-      if (finalUpdates.description === null) delete finalUpdates.description;
-
-      const { data, error } = await supabase
-        .from("scope_block_cost_items")
-        .update(finalUpdates)
-        .eq("id", id)
-        .select()
-        .single();
-      if (error) throw error;
-      return data;
-    },
-    onMutate: async ({ id, updates }) => {
-      await queryClient.cancelQueries({ queryKey: ["scope-blocks", "estimate", estimateId] });
-
-      const previous = queryClient.getQueryData(["scope-blocks", "estimate", estimateId]);
-
-      queryClient.setQueryData(["scope-blocks", "estimate", estimateId], (old: ScopeBlock[] | undefined) => {
-        if (!old) return old;
-        return old.map((block) => ({
-          ...block,
-          scope_block_cost_items: block.scope_block_cost_items.map((item) => {
-            if (item.id === id) {
-              const qty = updates.quantity ?? item.quantity;
-              const price = updates.unit_price ?? item.unit_price;
-              const markup = updates.markup_percent ?? item.markup_percent;
-              const lineTotal = qty * price * (1 + markup / 100);
-              return { ...item, ...updates, line_total: lineTotal };
-            }
-            return item;
-          }),
-        }));
-      });
-
-      setPendingChanges(true);
-      return { previous };
-    },
-    onError: (_, __, context) => {
-      if (context?.previous) {
-        queryClient.setQueryData(["scope-blocks", "estimate", estimateId], context.previous);
-      }
-      toast.error("Failed to update item");
-    },
-    onSettled: () => {
-      setPendingChanges(false);
-    },
-  });
-
-  // Delete cost item
-  const deleteCostItem = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from("scope_block_cost_items")
-        .delete()
-        .eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["scope-blocks", "estimate", estimateId] });
-      toast.success("Item deleted");
-    },
-  });
-
   // Sync to budget
   const syncToBudget = useMutation({
     mutationFn: async () => {
@@ -334,54 +215,127 @@ export default function EstimateBuilderV2() {
       queryClient.invalidateQueries({ queryKey: ["estimate-builder", estimateId] });
       queryClient.invalidateQueries({ queryKey: ["project-budget-ledger"] });
       queryClient.invalidateQueries({ queryKey: ["project-financials-v3"] });
-
-      // Dispatch event to notify other components
       window.dispatchEvent(new Event("budget-updated"));
-      setSyncDialogOpen(false);
     },
     onError: (error: Error) => {
       toast.error("Failed to sync to budget: " + error.message);
     },
   });
 
-  // Handlers wrapped in useCallback
-  const handleTitleChange = useCallback(
-    (blockId: string, title: string) => {
-      updateSectionTitle.mutate({ id: blockId, title });
+  // Handle blocks change from ProjectEstimateEditor
+  const handleBlocksChange = useCallback(
+    async (newBlocks: EstimateEditorBlock[]) => {
+      setPendingChanges(true);
+      
+      try {
+        const existingIds = existingItemIdsRef.current;
+        const newItemsMap = new Map<string, ScopeItem>();
+        
+        // Collect all new items
+        newBlocks.forEach(b => {
+          b.items.forEach(item => {
+            newItemsMap.set(item.id, item);
+          });
+        });
+        
+        const newIds = new Set(newItemsMap.keys());
+        
+        // Find items to delete (in existing but not in new)
+        const toDelete: string[] = [];
+        existingIds.forEach(id => {
+          if (!newIds.has(id)) {
+            toDelete.push(id);
+          }
+        });
+        
+        // Find items to create (in new but not in existing)
+        const toCreate: ScopeItem[] = [];
+        const toUpdate: ScopeItem[] = [];
+        
+        newItemsMap.forEach((item, id) => {
+          if (!existingIds.has(id)) {
+            // New item - needs creation
+            toCreate.push(item);
+          } else {
+            // Existing item - needs update
+            toUpdate.push(item);
+          }
+        });
+        
+        // Execute deletions
+        if (toDelete.length > 0) {
+          const { error } = await supabase
+            .from("scope_block_cost_items")
+            .delete()
+            .in("id", toDelete);
+          if (error) throw error;
+        }
+        
+        // Execute creations
+        if (toCreate.length > 0) {
+          const unassignedId = await getUnassignedCostCodeId();
+          
+          const insertData = toCreate.map((item, idx) => ({
+            scope_block_id: item.scope_block_id,
+            category: item.category,
+            cost_code_id: item.cost_code_id || unassignedId,
+            description: item.description || "New Item",
+            quantity: item.quantity || 1,
+            unit: item.unit || "ea",
+            unit_price: item.unit_price || 0,
+            markup_percent: item.markup_percent || 0,
+            line_total: (item.quantity || 0) * (item.unit_price || 0) * (1 + (item.markup_percent || 0) / 100),
+            sort_order: idx,
+            area_label: item.area_label,
+            group_label: item.group_label,
+          }));
+          
+          const { error } = await supabase
+            .from("scope_block_cost_items")
+            .insert(insertData);
+          if (error) throw error;
+        }
+        
+        // Execute updates (batch for efficiency)
+        for (const item of toUpdate) {
+          const lineTotal = (item.quantity || 0) * (item.unit_price || 0) * (1 + (item.markup_percent || 0) / 100);
+          
+          const { error } = await supabase
+            .from("scope_block_cost_items")
+            .update({
+              scope_block_id: item.scope_block_id,
+              category: item.category,
+              cost_code_id: item.cost_code_id,
+              description: item.description,
+              quantity: item.quantity,
+              unit: item.unit,
+              unit_price: item.unit_price,
+              markup_percent: item.markup_percent,
+              line_total: lineTotal,
+              area_label: item.area_label,
+              group_label: item.group_label,
+            })
+            .eq("id", item.id);
+          if (error) throw error;
+        }
+        
+        // Refresh data
+        queryClient.invalidateQueries({ queryKey: ["scope-blocks", "estimate", estimateId] });
+        
+      } catch (error) {
+        console.error("Error saving changes:", error);
+        toast.error("Failed to save changes");
+      } finally {
+        setPendingChanges(false);
+      }
     },
-    [updateSectionTitle]
+    [estimateId, queryClient]
   );
 
-  const handleAddItem = useCallback(
-    (blockId: string, groupLabel?: string | null) => {
-      addCostItem.mutate({ scopeBlockId: blockId, groupLabel });
-    },
-    [addCostItem]
-  );
-
-  const handleUpdateItem = useCallback(
-    (itemId: string, updates: Partial<CostItem>) => {
-      updateCostItem.mutate({ id: itemId, updates });
-    },
-    [updateCostItem]
-  );
-
-  const handleDeleteItem = useCallback(
-    (itemId: string) => {
-      deleteCostItem.mutate(itemId);
-    },
-    [deleteCostItem]
-  );
-
-  const handleDeleteSection = useCallback(
-    (blockId: string) => {
-      deleteSection.mutate(blockId);
-    },
-    [deleteSection]
-  );
-
-  const formatMoney = (value: number) =>
-    `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  // Handle set as budget source
+  const handleSetAsBudgetSource = useCallback(() => {
+    syncToBudget.mutate();
+  }, [syncToBudget]);
 
   // Loading state
   if (estimateLoading || blocksLoading) {
@@ -426,7 +380,7 @@ export default function EstimateBuilderV2() {
 
   const projectId = estimate.projects?.id;
   const projectName = estimate.projects?.project_name;
-  const taxAmount = estimate.tax_amount || 0;
+  const isBudgetSourceLocked = estimate.is_budget_source === true;
 
   return (
     <Layout>
@@ -449,7 +403,7 @@ export default function EstimateBuilderV2() {
                   <Badge variant={estimate.status === "draft" ? "secondary" : "default"}>
                     {estimate.status}
                   </Badge>
-                  {estimate.is_budget_source && (
+                  {isBudgetSourceLocked && (
                     <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
                       Budget Source
                     </Badge>
@@ -470,44 +424,24 @@ export default function EstimateBuilderV2() {
                 <span className="hidden sm:inline">Add Section</span>
                 <span className="sm:hidden">Section</span>
               </Button>
-              <Button size="sm" onClick={() => setSyncDialogOpen(true)}>
-                <Zap className="h-4 w-4 mr-1.5" />
-                <span className="hidden sm:inline">Sync to Budget</span>
-                <span className="sm:hidden">Sync</span>
-              </Button>
             </div>
           </div>
         </div>
 
-        {/* Summary Cards */}
-        <EstimateSummaryCards scopeBlocks={scopeBlocks} taxAmount={taxAmount} />
-
-        {/* Sections */}
-        <div className="space-y-4">
-          {scopeBlocks.map((block) => (
-            <EstimateSectionCard
-              key={block.id}
-              id={block.id}
-              title={block.title}
-              items={block.scope_block_cost_items}
-              onTitleChange={(title) => handleTitleChange(block.id, title)}
-              onAddItem={(groupLabel) => handleAddItem(block.id, groupLabel)}
-              onUpdateItem={handleUpdateItem}
-              onDeleteItem={handleDeleteItem}
-              onDeleteSection={() => handleDeleteSection(block.id)}
-              isOnlySection={scopeBlocks.length === 1}
-            />
-          ))}
-        </div>
+        {/* ProjectEstimateEditor */}
+        <ProjectEstimateEditor
+          blocks={editorBlocks}
+          isBudgetSourceLocked={isBudgetSourceLocked}
+          onBlocksChange={handleBlocksChange}
+          onSetAsBudgetSource={handleSetAsBudgetSource}
+        />
 
         {/* Empty state */}
-        {scopeBlocks.length === 0 && !blocksLoading && (
-          <div className="text-center py-12 border-2 border-dashed rounded-lg">
-            <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+        {editorBlocks.length === 0 && (
+          <div className="text-center py-12 border-2 border-dashed rounded-xl">
+            <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
             <h3 className="text-lg font-medium mb-2">No sections yet</h3>
-            <p className="text-muted-foreground mb-4">
-              Add a section to start building your estimate
-            </p>
+            <p className="text-muted-foreground mb-4">Add a section to start building your estimate.</p>
             <Button onClick={() => addSection.mutate()}>
               <Plus className="h-4 w-4 mr-2" />
               Add Section
@@ -515,36 +449,6 @@ export default function EstimateBuilderV2() {
           </div>
         )}
       </div>
-
-      {/* Sync to Budget Dialog */}
-      <AlertDialog open={syncDialogOpen} onOpenChange={setSyncDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Sync Estimate to Budget?</AlertDialogTitle>
-            <AlertDialogDescription className="space-y-2">
-              <p>This will:</p>
-              <ul className="list-disc list-inside space-y-1 text-sm">
-                <li>Mark this estimate as the budget baseline</li>
-                <li>Create budget lines for each cost code</li>
-                <li>Replace any existing budget for this project</li>
-              </ul>
-              <p className="mt-4 font-medium text-foreground">
-                This action cannot be undone.
-              </p>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => syncToBudget.mutate()}
-              disabled={syncToBudget.isPending}
-            >
-              <Zap className="h-4 w-4 mr-2" />
-              {syncToBudget.isPending ? "Syncing..." : "Sync to Budget"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </Layout>
   );
 }
