@@ -54,7 +54,9 @@ export function useScopeBlocks(entityType: 'estimate' | 'proposal', entityId: st
       return data as ScopeBlock[];
     },
     enabled: !!entityId,
-    staleTime: 30000, // 30 seconds cache
+    staleTime: 30000, // 30 seconds - don't refetch within this window
+    gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
+    refetchOnWindowFocus: false, // Don't refetch on tab focus for better UX
   });
 }
 

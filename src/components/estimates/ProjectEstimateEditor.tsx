@@ -58,6 +58,7 @@ export interface EstimateEditorBlock {
 interface EstimateEditorProps {
   blocks: EstimateEditorBlock[];
   isBudgetSourceLocked?: boolean;
+  isBudgetSyncing?: boolean;
   onBlocksChange: (blocks: EstimateEditorBlock[]) => void;
   onSetAsBudgetSource?: () => void;
 }
@@ -181,9 +182,9 @@ const CATEGORY_LABELS: Record<BudgetCategory, string> = {
   other: "OTHER",
 };
 
-// ====== Summary Components ======
+// ====== Summary Components (Memoized) ======
 
-function SummaryCard({
+const SummaryCard = memo(function SummaryCard({
   label,
   value,
   subtitle,
@@ -227,16 +228,17 @@ function SummaryCard({
       )}
     </div>
   );
-}
+});
 
-function CategoryBreakdownCard({
+const CategoryBreakdownCard = memo(function CategoryBreakdownCard({
   totals,
 }: {
   totals: Record<BudgetCategory, number>;
 }) {
-  const entries = (
-    Object.entries(totals) as [BudgetCategory, number][]
-  ).filter(([, v]) => v > 0);
+  const entries = useMemo(
+    () => (Object.entries(totals) as [BudgetCategory, number][]).filter(([, v]) => v > 0),
+    [totals]
+  );
 
   return (
     <div className="rounded-xl p-4 border bg-card border-border">
@@ -262,9 +264,9 @@ function CategoryBreakdownCard({
       )}
     </div>
   );
-}
+});
 
-function ChipLabel({
+const ChipLabel = memo(function ChipLabel({
   label,
   amount,
   small,
@@ -286,13 +288,14 @@ function ChipLabel({
       {label} {formatCurrency(amount)}
     </span>
   );
-}
+});
 
 // ====== Top-level Component ======
 
 export const ProjectEstimateEditor: React.FC<EstimateEditorProps> = ({
   blocks,
   isBudgetSourceLocked,
+  isBudgetSyncing,
   onBlocksChange,
   onSetAsBudgetSource,
 }) => {
@@ -516,16 +519,19 @@ export const ProjectEstimateEditor: React.FC<EstimateEditorProps> = ({
             {onSetAsBudgetSource && (
               <button
                 type="button"
-                disabled={hasInvalidItems}
+                disabled={hasInvalidItems || isBudgetSyncing}
                 onClick={onSetAsBudgetSource}
                 className={cn(
-                  "inline-flex items-center rounded-full px-4 py-1.5 text-sm font-medium transition-all shrink-0",
-                  hasInvalidItems
+                  "inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-medium transition-all shrink-0",
+                  hasInvalidItems || isBudgetSyncing
                     ? "bg-muted text-muted-foreground cursor-not-allowed opacity-50"
                     : "bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm"
                 )}
               >
-                Set as Budget
+                {isBudgetSyncing && (
+                  <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                )}
+                {isBudgetSyncing ? "Syncing..." : "Set as Budget"}
               </button>
             )}
           </div>
@@ -1080,21 +1086,34 @@ const ItemRow = memo(function ItemRow({
   updateItem,
   deleteItem,
 }: ItemRowProps) {
-  // Local state for text fields - blur-to-save pattern
+  // Local state for ALL editable fields - blur-to-save pattern
   const [localDesc, setLocalDesc] = useState(item.description);
+  const [localQty, setLocalQty] = useState<string>(String(item.quantity || ""));
+  const [localRate, setLocalRate] = useState<string>(String(item.unit_price || ""));
+  const [localMarkup, setLocalMarkup] = useState<string>(String(item.markup_percent || ""));
   
-  // Sync local state when item changes from parent
+  // Sync local state when item changes from parent (e.g., after refetch)
   useEffect(() => {
     setLocalDesc(item.description);
-  }, [item.description]);
+    setLocalQty(String(item.quantity || ""));
+    setLocalRate(String(item.unit_price || ""));
+    setLocalMarkup(String(item.markup_percent || ""));
+  }, [item.id, item.description, item.quantity, item.unit_price, item.markup_percent]);
 
-  const total = useMemo(() => computeItemTotal(item), [item.quantity, item.unit_price, item.markup_percent]);
-  const invalid = !isItemValid(item);
+  // Compute total from LOCAL values for instant feedback
+  const localTotal = useMemo(() => {
+    const qty = parseFloat(localQty) || 0;
+    const rate = parseFloat(localRate) || 0;
+    const markup = parseFloat(localMarkup) || 0;
+    return qty * rate * (1 + markup / 100);
+  }, [localQty, localRate, localMarkup]);
+
   const missingCostCode = !item.cost_code_id || item.cost_code_id === "UNASSIGNED";
   const missingDesc = !localDesc?.trim();
-  const missingQty = (item.quantity || 0) <= 0;
+  const missingQty = (parseFloat(localQty) || 0) <= 0;
+  const invalid = missingCostCode || missingDesc || missingQty;
 
-  // Memoized handlers to prevent re-renders
+  // Memoized handlers
   const handleCostCodeChange = useCallback((codeId: string) => {
     updateItem(blockId, item.id, { cost_code_id: codeId });
   }, [updateItem, blockId, item.id]);
@@ -1110,17 +1129,27 @@ const ItemRow = memo(function ItemRow({
     }
   }, [localDesc, item.description, updateItem, blockId, item.id]);
 
-  const handleQtyChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    updateItem(blockId, item.id, { quantity: parseFloat(e.target.value) || 0 });
-  }, [updateItem, blockId, item.id]);
+  // Numeric field blur handlers - commit to parent
+  const handleQtyBlur = useCallback(() => {
+    const val = parseFloat(localQty) || 0;
+    if (val !== item.quantity) {
+      updateItem(blockId, item.id, { quantity: val });
+    }
+  }, [localQty, item.quantity, updateItem, blockId, item.id]);
 
-  const handleRateChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    updateItem(blockId, item.id, { unit_price: parseFloat(e.target.value) || 0 });
-  }, [updateItem, blockId, item.id]);
+  const handleRateBlur = useCallback(() => {
+    const val = parseFloat(localRate) || 0;
+    if (val !== item.unit_price) {
+      updateItem(blockId, item.id, { unit_price: val });
+    }
+  }, [localRate, item.unit_price, updateItem, blockId, item.id]);
 
-  const handleMarkupChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    updateItem(blockId, item.id, { markup_percent: parseFloat(e.target.value) || 0 });
-  }, [updateItem, blockId, item.id]);
+  const handleMarkupBlur = useCallback(() => {
+    const val = parseFloat(localMarkup) || 0;
+    if (val !== item.markup_percent) {
+      updateItem(blockId, item.id, { markup_percent: val });
+    }
+  }, [localMarkup, item.markup_percent, updateItem, blockId, item.id]);
 
   const handleUnitChange = useCallback((v: string) => {
     updateItem(blockId, item.id, { unit: v });
@@ -1165,7 +1194,7 @@ const ItemRow = memo(function ItemRow({
           error={missingCostCode ? "Required" : undefined}
         />
 
-        {/* Description - local state with blur-to-save */}
+        {/* Description - blur-to-save */}
         <input
           type="text"
           className={cn(
@@ -1178,17 +1207,18 @@ const ItemRow = memo(function ItemRow({
           onBlur={handleDescBlur}
         />
 
-        {/* Qty */}
+        {/* Qty - local state, blur-to-save */}
         <input
           type="number"
           className={cn(
             "h-7 px-1.5 text-xs text-right bg-transparent border rounded focus:ring-1 focus:ring-ring focus:border-ring transition-colors tabular-nums",
             missingQty ? "border-destructive/50" : "border-border/50"
           )}
-          value={item.quantity || ""}
+          value={localQty}
           placeholder="0"
           min={0}
-          onChange={handleQtyChange}
+          onChange={(e) => setLocalQty(e.target.value)}
+          onBlur={handleQtyBlur}
         />
 
         {/* Unit */}
@@ -1198,35 +1228,37 @@ const ItemRow = memo(function ItemRow({
           className="h-7 text-xs"
         />
 
-        {/* Rate */}
+        {/* Rate - local state, blur-to-save */}
         <input
           type="number"
           className="h-7 px-1.5 text-xs text-right bg-transparent border border-border/50 rounded focus:ring-1 focus:ring-ring focus:border-ring transition-colors tabular-nums"
-          value={item.unit_price || ""}
+          value={localRate}
           placeholder="0"
           min={0}
           step={0.01}
-          onChange={handleRateChange}
+          onChange={(e) => setLocalRate(e.target.value)}
+          onBlur={handleRateBlur}
         />
 
-        {/* Markup */}
+        {/* Markup - local state, blur-to-save */}
         <div className="relative">
           <input
             type="number"
             className="h-7 px-1.5 pr-4 w-full text-xs text-right bg-transparent border border-border/50 rounded focus:ring-1 focus:ring-ring focus:border-ring transition-colors tabular-nums"
-            value={item.markup_percent || ""}
+            value={localMarkup}
             placeholder="0"
             min={0}
-            onChange={handleMarkupChange}
+            onChange={(e) => setLocalMarkup(e.target.value)}
+            onBlur={handleMarkupBlur}
           />
           <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">
             %
           </span>
         </div>
 
-        {/* Total */}
+        {/* Total - computed from local values */}
         <div className="text-right font-medium tabular-nums text-foreground">
-          {formatCurrency(total)}
+          {formatCurrency(localTotal)}
         </div>
 
         {/* Delete */}
@@ -1265,7 +1297,7 @@ const ItemRow = memo(function ItemRow({
           </select>
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold tabular-nums">
-              {formatCurrency(total)}
+              {formatCurrency(localTotal)}
             </span>
             <button
               type="button"
@@ -1277,7 +1309,7 @@ const ItemRow = memo(function ItemRow({
           </div>
         </div>
 
-        {/* Description - local state with blur-to-save */}
+        {/* Description - blur-to-save */}
         <input
           type="text"
           className={cn(
@@ -1301,7 +1333,7 @@ const ItemRow = memo(function ItemRow({
           />
         </div>
 
-        {/* Numbers grid */}
+        {/* Numbers grid - all blur-to-save */}
         <div className="grid grid-cols-4 gap-2">
           <div>
             <label className="text-[10px] text-muted-foreground block mb-0.5">
@@ -1313,10 +1345,11 @@ const ItemRow = memo(function ItemRow({
                 "w-full h-7 px-1.5 text-xs text-right bg-transparent border rounded focus:ring-1 focus:ring-ring focus:border-ring transition-colors tabular-nums",
                 missingQty ? "border-destructive/50" : "border-border/50"
               )}
-              value={item.quantity || ""}
+              value={localQty}
               placeholder="0"
               min={0}
-              onChange={handleQtyChange}
+              onChange={(e) => setLocalQty(e.target.value)}
+              onBlur={handleQtyBlur}
             />
           </div>
           <div>
@@ -1336,11 +1369,12 @@ const ItemRow = memo(function ItemRow({
             <input
               type="number"
               className="w-full h-7 px-1.5 text-xs text-right bg-transparent border border-border/50 rounded focus:ring-1 focus:ring-ring focus:border-ring transition-colors tabular-nums"
-              value={item.unit_price || ""}
+              value={localRate}
               placeholder="0"
               min={0}
               step={0.01}
-              onChange={handleRateChange}
+              onChange={(e) => setLocalRate(e.target.value)}
+              onBlur={handleRateBlur}
             />
           </div>
           <div>
@@ -1351,10 +1385,11 @@ const ItemRow = memo(function ItemRow({
               <input
                 type="number"
                 className="w-full h-7 px-1.5 pr-4 text-xs text-right bg-transparent border border-border/50 rounded focus:ring-1 focus:ring-ring focus:border-ring transition-colors tabular-nums"
-                value={item.markup_percent || ""}
+                value={localMarkup}
                 placeholder="0"
                 min={0}
-                onChange={handleMarkupChange}
+                onChange={(e) => setLocalMarkup(e.target.value)}
+                onBlur={handleMarkupBlur}
               />
               <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">
                 %
