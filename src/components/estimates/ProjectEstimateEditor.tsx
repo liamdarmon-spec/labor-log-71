@@ -78,10 +78,17 @@ function groupItemsByArea(items: ScopeItem[]): AreaGroup[] {
   });
 }
 
+function computeItemBase(item: ScopeItem): number {
+  return (item.quantity || 0) * (item.unit_price || 0);
+}
+
+function computeItemMarkup(item: ScopeItem): number {
+  const base = computeItemBase(item);
+  return item.markup_percent ? base * (item.markup_percent / 100) : 0;
+}
+
 function computeItemTotal(item: ScopeItem): number {
-  const base = (item.quantity || 0) * (item.unit_price || 0);
-  const markup = item.markup_percent ? base * (item.markup_percent / 100) : 0;
-  return base + markup;
+  return computeItemBase(item) + computeItemMarkup(item);
 }
 
 function computeCategoryTotals(items: ScopeItem[]): Record<BudgetCategory, number> {
@@ -96,6 +103,10 @@ function computeCategoryTotals(items: ScopeItem[]): Record<BudgetCategory, numbe
     totals[i.category] += total;
   }
   return totals;
+}
+
+function computeTotalProfit(items: ScopeItem[]): number {
+  return items.reduce((sum, item) => sum + computeItemMarkup(item), 0);
 }
 
 function isItemValid(item: ScopeItem): boolean {
@@ -123,6 +134,7 @@ export const ProjectEstimateEditor: React.FC<EstimateEditorProps> = ({
 }) => {
   const flatItems = useMemo(() => blocks.flatMap((b) => b.items), [blocks]);
   const globalTotals = useMemo(() => computeCategoryTotals(flatItems), [flatItems]);
+  const totalProfit = useMemo(() => computeTotalProfit(flatItems), [flatItems]);
   const hasInvalidItems = useMemo(() => flatItems.some((i) => !isItemValid(i)), [flatItems]);
 
   // ---------- mutation helpers (immutable) ----------
@@ -213,20 +225,31 @@ export const ProjectEstimateEditor: React.FC<EstimateEditorProps> = ({
 
   // ---------- global totals ----------
 
-  const subtotal =
+  const total =
     globalTotals.labor + globalTotals.subs + globalTotals.materials + globalTotals.other;
-  const tax = 0; // reserved for future tax logic
-  const total = subtotal + tax;
+  const profitMargin = total > 0 ? (totalProfit / total) * 100 : 0;
 
   return (
-    <div className="space-y-4">
-      {/* Top Summary */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4 mb-6">
-        <SummaryCard label="Subtotal" value={subtotal} />
-        <SummaryCard label="Tax" value={tax} />
-        <SummaryCard label="Total" value={total} highlight />
-        <SummaryCard label="Items" value={flatItems.length} isCount />
-        <CategorySummaryCard totals={globalTotals} />
+    <div className="space-y-6">
+      {/* Top Summary - Clean 4-card grid */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <SummaryCard 
+          label="Estimate Total" 
+          value={total} 
+          highlight 
+        />
+        <SummaryCard 
+          label="Profit (Markup)" 
+          value={totalProfit} 
+          subtitle={`${profitMargin.toFixed(1)}% margin`}
+          variant="success"
+        />
+        <SummaryCard 
+          label="Line Items" 
+          value={flatItems.length} 
+          isCount 
+        />
+        <CategoryBreakdownCard totals={globalTotals} />
       </div>
 
       {/* Budget Source Banner */}
@@ -639,42 +662,65 @@ interface SummaryCardProps {
   value: number;
   highlight?: boolean;
   isCount?: boolean;
+  subtitle?: string;
+  variant?: "default" | "success";
 }
 
-const SummaryCard: React.FC<SummaryCardProps> = ({ label, value, highlight, isCount }) => (
+const SummaryCard: React.FC<SummaryCardProps> = ({ label, value, highlight, isCount, subtitle, variant }) => (
   <div
     className={cn(
-      "rounded-2xl border border-border bg-card px-4 py-3 flex flex-col justify-between",
-      highlight && "border-primary shadow-md"
+      "rounded-xl border bg-card p-4 flex flex-col",
+      highlight && "border-primary/50 bg-primary/5",
+      variant === "success" && "border-emerald-200 bg-emerald-50/50"
     )}
   >
-    <span className="text-xs text-muted-foreground">{label}</span>
-    <span className={cn("mt-1 text-lg font-semibold", highlight && "text-foreground")}>
+    <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{label}</span>
+    <span className={cn(
+      "mt-1 text-xl font-bold tabular-nums",
+      highlight && "text-primary",
+      variant === "success" && "text-emerald-600"
+    )}>
       {isCount ? value : formatCurrency(value)}
     </span>
+    {subtitle && (
+      <span className={cn(
+        "mt-0.5 text-[11px]",
+        variant === "success" ? "text-emerald-600/80" : "text-muted-foreground"
+      )}>{subtitle}</span>
+    )}
   </div>
 );
 
-const CategorySummaryCard: React.FC<{ totals: Record<BudgetCategory, number> }> = ({
-  totals,
-}) => (
-  <div className="col-span-2 md:col-span-1 rounded-2xl border border-border bg-card px-4 py-3 flex flex-col justify-between">
-    <span className="text-xs text-muted-foreground">By Category</span>
-    <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
-      <CategoryPill label="Labor" amount={totals.labor} />
-      <CategoryPill label="Subs" amount={totals.subs} />
-      <CategoryPill label="Materials" amount={totals.materials} />
-      <CategoryPill label="Other" amount={totals.other} />
+const CategoryBreakdownCard: React.FC<{ totals: Record<BudgetCategory, number> }> = ({ totals }) => {
+  const categories = [
+    { key: "labor", label: "Labor", color: "bg-blue-500" },
+    { key: "materials", label: "Materials", color: "bg-amber-500" },
+    { key: "subs", label: "Subs", color: "bg-purple-500" },
+    { key: "other", label: "Other", color: "bg-slate-400" },
+  ] as const;
+  
+  const total = totals.labor + totals.materials + totals.subs + totals.other;
+  
+  return (
+    <div className="rounded-xl border border-border bg-card p-4">
+      <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">By Category</span>
+      <div className="mt-2 space-y-1.5">
+        {categories.map(({ key, label, color }) => {
+          const pct = total > 0 ? (totals[key] / total) * 100 : 0;
+          return (
+            <div key={key} className="flex items-center justify-between text-xs">
+              <div className="flex items-center gap-1.5">
+                <span className={cn("w-2 h-2 rounded-full", color)} />
+                <span className="text-muted-foreground">{label}</span>
+              </div>
+              <span className="font-medium tabular-nums">{formatCurrency(totals[key])}</span>
+            </div>
+          );
+        })}
+      </div>
     </div>
-  </div>
-);
-
-const CategoryPill: React.FC<{ label: string; amount: number }> = ({ label, amount }) => (
-  <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5">
-    <span className="mr-1 text-muted-foreground">{label}:</span>
-    <span className="font-medium text-foreground">{formatCurrency(amount)}</span>
-  </span>
-);
+  );
+};
 
 const ChipLabel: React.FC<{ label: string; amount: number; small?: boolean }> = ({
   label,
