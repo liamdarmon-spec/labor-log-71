@@ -19,8 +19,9 @@ import { ProjectSubsTabV3 } from '@/components/project/ProjectSubsTabV3';
 import { ProjectDocumentsTab } from '@/components/project/ProjectDocumentsTab';
 import { ProjectLaborTab } from '@/components/project/ProjectLaborTab';
 import { ProjectTasksTab } from '@/components/project/ProjectTasksTab';
+import { ProjectChecklistsTab } from '@/components/checklists/ProjectChecklistsTab';
 
-const VALID_TABS = ['overview', 'estimates', 'proposals', 'budget', 'billing', 'financials', 'dashboard', 'labor', 'tasks', 'schedule', 'subs', 'documents'] as const;
+const VALID_TABS = ['overview', 'estimates', 'proposals', 'budget', 'billing', 'financials', 'dashboard', 'labor', 'tasks', 'checklists', 'schedule', 'subs', 'documents'] as const;
 type TabValue = typeof VALID_TABS[number];
 
 interface Project {
@@ -156,6 +157,9 @@ const ProjectDetail = () => {
               <TabsTrigger value="tasks" className="text-xs sm:text-sm px-3 sm:px-4 whitespace-nowrap">
                 Tasks
               </TabsTrigger>
+              <TabsTrigger value="checklists" className="text-xs sm:text-sm px-3 sm:px-4 whitespace-nowrap">
+                Checklists
+              </TabsTrigger>
               <TabsTrigger value="schedule" className="text-xs sm:text-sm px-3 sm:px-4 whitespace-nowrap">
                 Schedule
               </TabsTrigger>
@@ -202,6 +206,10 @@ const ProjectDetail = () => {
 
           <TabsContent value="tasks">
             <ProjectTasksTab projectId={project.id} />
+          </TabsContent>
+
+          <TabsContent value="checklists">
+            <ProjectChecklistsTab projectId={project.id} />
           </TabsContent>
 
           <TabsContent value="schedule">
