@@ -35,6 +35,7 @@ export interface CostItem {
   sort_order: number;
   area_label?: string | null;
   breakdown_notes?: string | null;
+  group_label?: string | null;
 }
 
 interface EstimateCostItemRowProps {
