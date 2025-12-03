@@ -2,6 +2,8 @@
 // Maps context to planned checklists
 
 import { ChecklistContext, DerivedFlags, DetectedArea, ProjectType } from './intel';
+import { AreaTradeMatrix, AreaType, TradeType, getAreasByType } from './areaTrade';
+import { findAreaTradeTemplates, getAreaTradeChecklistItems, AreaTradeChecklistItem } from './areaTradeTemplates';
 
 export interface ChecklistTemplate {
   id: string;
@@ -20,16 +22,20 @@ export interface PlannedChecklist {
   title: string;
   templateIds: string[];
   scopeBlockId?: string;
+  areaKey?: string;
+  trades?: string[];
   reasonTags: string[];
   riskLevel: 'low' | 'medium' | 'high';
   itemCount: number;
   enabled: boolean;
+  areaTradeItems?: AreaTradeChecklistItem[];
 }
 
 interface PlannerInput {
   projectType: ProjectType;
   context: ChecklistContext;
   templates: ChecklistTemplate[];
+  areaTradeMatrix?: AreaTradeMatrix;
 }
 
 // Generate unique temp ID
@@ -96,10 +102,11 @@ function findTemplates(
  * Plan checklists based on project context
  */
 export function planChecklists(input: PlannerInput): PlannedChecklist[] {
-  const { projectType, context, templates } = input;
+  const { projectType, context, templates, areaTradeMatrix } = input;
   const { derivedFlags, detectedAreas, riskScore } = context;
   const planned: PlannedChecklist[] = [];
   const addedTemplateIds = new Set<string>();
+  const addedAreaTradeKeys = new Set<string>();
   
   // Helper to add a planned checklist
   const addPlanned = (
@@ -281,6 +288,61 @@ export function planChecklists(input: PlannerInput): PlannedChecklist[] {
     finalWalkthrough.forEach(t => addPlanned(t, ['final', 'punch']));
   }
   
+  // === AREA × TRADE INTEGRATION ===
+  if (areaTradeMatrix) {
+    for (const areaScope of areaTradeMatrix.areaTradeScopes) {
+      const area = areaTradeMatrix.areas.find(a => a.key === areaScope.areaKey);
+      if (!area || areaScope.trades.length === 0) continue;
+      
+      // Get checklist items for this area/trade combination
+      const areaTradeItems = getAreaTradeChecklistItems(
+        area.type,
+        areaScope.trades,
+        projectType
+      );
+      
+      if (areaTradeItems.length === 0) continue;
+      
+      // Group by phase
+      const byPhase = new Map<string, AreaTradeChecklistItem[]>();
+      for (const item of areaTradeItems) {
+        const phase = item.phase;
+        if (!byPhase.has(phase)) {
+          byPhase.set(phase, []);
+        }
+        byPhase.get(phase)!.push(item);
+      }
+      
+      // Create a planned checklist for each phase that has items
+      for (const [phase, items] of byPhase) {
+        const areaTradeKey = `${areaScope.areaKey}-${phase}`;
+        if (addedAreaTradeKeys.has(areaTradeKey)) continue;
+        addedAreaTradeKeys.add(areaTradeKey);
+        
+        const reasonTags = [area.type, ...areaScope.trades.slice(0, 3), phase];
+        const riskLevel = determineRiskLevel(
+          items.flatMap(i => i.tags || []),
+          riskScore
+        );
+        
+        planned.push({
+          id: tempId(),
+          phase,
+          title: `${areaScope.areaKey} – ${capitalizePhase(phase)}`,
+          templateIds: [],
+          scopeBlockId: area.scopeBlockId,
+          areaKey: areaScope.areaKey,
+          trades: areaScope.trades,
+          reasonTags,
+          riskLevel,
+          itemCount: items.length,
+          enabled: true,
+          areaTradeItems: items,
+        });
+      }
+    }
+  }
+  
   // Sort by phase order, then by risk level
   const phaseOrder = ['precon', 'rough', 'finish', 'punch', 'warranty'];
   const riskOrder = { high: 0, medium: 1, low: 2 };
@@ -293,6 +355,10 @@ export function planChecklists(input: PlannerInput): PlannedChecklist[] {
   });
   
   return planned;
+}
+
+function capitalizePhase(phase: string): string {
+  return phase.charAt(0).toUpperCase() + phase.slice(1);
 }
 
 /**
