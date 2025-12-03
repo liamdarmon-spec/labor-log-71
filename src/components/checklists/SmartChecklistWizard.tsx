@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -6,18 +6,30 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Switch } from '@/components/ui/switch';
-import { Loader2, ChevronRight, ChevronLeft, CheckCircle2, ClipboardList, Sparkles } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { 
+  Loader2, ChevronRight, ChevronLeft, CheckCircle2, ClipboardList, 
+  Sparkles, AlertTriangle, Shield, Info 
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   ProjectType,
   ChecklistQuestion,
-  ChecklistTemplate,
   useChecklistQuestions,
   useChecklistTemplates,
   useChecklistAnswers,
   useSaveChecklistAnswers,
   useGenerateChecklists,
 } from '@/hooks/useChecklists';
+import { useScopeBlocks } from '@/hooks/useScopeBlocks';
+import { 
+  buildChecklistContext, 
+  getRiskLabel, 
+  ScopeBlockInput,
+  ChecklistContext 
+} from '@/lib/checklists/intel';
+import { planChecklists, PlannedChecklist } from '@/lib/checklists/planner';
 
 interface SmartChecklistWizardProps {
   open: boolean;
@@ -40,13 +52,11 @@ interface AnswerState {
   };
 }
 
-interface PlannedChecklist {
-  templateId: string;
-  title: string;
-  phase: string;
-  itemCount: number;
-  enabled: boolean;
-}
+const RISK_COLORS = {
+  low: 'bg-green-100 text-green-700',
+  medium: 'bg-amber-100 text-amber-700',
+  high: 'bg-red-100 text-red-700',
+};
 
 export function SmartChecklistWizard({
   open,
@@ -61,15 +71,34 @@ export function SmartChecklistWizard({
   const [step, setStep] = useState<WizardStep>('confirm');
   const [answers, setAnswers] = useState<AnswerState>({});
   const [plannedChecklists, setPlannedChecklists] = useState<PlannedChecklist[]>([]);
+  const [confirmingHighRisk, setConfirmingHighRisk] = useState<string | null>(null);
 
   const { data: questions = [], isLoading: questionsLoading } = useChecklistQuestions(projectType);
   const { data: templates = [], isLoading: templatesLoading } = useChecklistTemplates(projectType);
   const { data: existingAnswers = [] } = useChecklistAnswers(estimateId);
+  const { data: scopeBlocksRaw = [] } = useScopeBlocks('estimate', estimateId);
   const saveAnswers = useSaveChecklistAnswers();
   const generateChecklists = useGenerateChecklists();
 
+  // Transform scope blocks for intel
+  const scopeBlocks: ScopeBlockInput[] = useMemo(() => {
+    return scopeBlocksRaw.map(block => ({
+      id: block.id,
+      title: block.title || '',
+      costItems: (block.scope_block_cost_items || []).map((item) => ({
+        id: item.id,
+        cost_code_id: item.cost_code_id,
+        cost_code_category: item.category || null,
+        cost_code_code: null,
+        cost_code_name: item.description || null,
+        area_label: null,
+        group_label: null,
+      })),
+    }));
+  }, [scopeBlocksRaw]);
+
   // Initialize answers from existing
-  React.useEffect(() => {
+  useEffect(() => {
     if (existingAnswers.length > 0) {
       const initial: AnswerState = {};
       existingAnswers.forEach((a) => {
@@ -83,58 +112,66 @@ export function SmartChecklistWizard({
     }
   }, [existingAnswers]);
 
-  // Compute planned checklists based on project type, templates, and answers
-  const computePlannedChecklists = useMemo(() => {
-    if (!templates.length) return [];
-
-    const planned: PlannedChecklist[] = [];
-
-    templates.forEach((template) => {
-      // Include templates that match project type or are global
-      const shouldInclude = 
-        template.project_type === projectType ||
-        template.project_type === 'global';
-
-      // Additional logic based on answers
-      let includeBasedOnAnswers = true;
-
-      // Kitchen structural checklist only if wall removals
-      if (template.name.toLowerCase().includes('structural') && projectType === 'kitchen_remodel') {
-        const wallAnswer = answers[questions.find(q => q.code === 'has_wall_removals')?.id || ''];
-        includeBasedOnAnswers = wallAnswer?.valueBoolean === true;
-      }
-
-      // Bath waterproofing checklist only if wet area work
-      if (template.name.toLowerCase().includes('waterproofing') && projectType === 'bath_remodel') {
-        const wetAreaAnswer = answers[questions.find(q => q.code === 'wet_area_scope')?.id || ''];
-        const hasWetWork = wetAreaAnswer?.valueJson?.some(v => 
-          v.includes('shower pan') || v.includes('curbless')
-        );
-        includeBasedOnAnswers = hasWetWork ?? false;
-      }
-
-      // Occupied home checklist
-      if (template.name.toLowerCase().includes('occupied') && projectType === 'full_home_remodel') {
-        const occupiedAnswer = answers[questions.find(q => q.code === 'is_occupied')?.id || ''];
-        includeBasedOnAnswers = occupiedAnswer?.valueBoolean === true;
-      }
-
-      if (shouldInclude && includeBasedOnAnswers) {
-        planned.push({
-          templateId: template.id,
-          title: template.name,
-          phase: template.phase,
-          itemCount: template.items?.length || 0,
-          enabled: true,
-        });
+  // Convert answers to flat object for intel
+  const answersFlat = useMemo(() => {
+    const flat: Record<string, any> = {};
+    questions.forEach(q => {
+      const ans = answers[q.id];
+      if (ans) {
+        if (q.input_type === 'boolean') {
+          flat[q.code] = ans.valueBoolean;
+        } else if (q.input_type === 'single_select') {
+          flat[q.code] = ans.valueText;
+        } else if (q.input_type === 'multi_select') {
+          flat[q.code] = ans.valueJson;
+        } else {
+          flat[q.code] = ans.valueText;
+        }
       }
     });
+    return flat;
+  }, [answers, questions]);
 
-    return planned;
-  }, [templates, projectType, answers, questions]);
+  // Build context using the intelligence engine
+  const context: ChecklistContext = useMemo(() => {
+    return buildChecklistContext({
+      projectType,
+      scopeBlocks,
+      answers: answersFlat,
+    });
+  }, [projectType, scopeBlocks, answersFlat]);
+
+  const riskInfo = useMemo(() => getRiskLabel(context.riskScore), [context.riskScore]);
+
+  // Determine which questions are pre-answered by scope analysis
+  const questionStatus = useMemo(() => {
+    const status: Record<string, 'ask' | 'pre-answered' | 'hidden'> = {};
+    
+    questions.forEach(q => {
+      if (q.code === 'has_wall_removals' && context.derivedFlags.hasWallRemovals) {
+        status[q.id] = 'pre-answered';
+      } else if (q.code === 'waterproofing_level' && context.derivedFlags.hasCurblessShower) {
+        status[q.id] = 'pre-answered';
+      } else {
+        status[q.id] = 'ask';
+      }
+    });
+    
+    return status;
+  }, [questions, context.derivedFlags]);
+
+  // Plan checklists using the planner
+  const computePlannedChecklists = useMemo(() => {
+    if (!templates.length) return [];
+    return planChecklists({
+      projectType,
+      context,
+      templates: templates as any,
+    });
+  }, [templates, projectType, context]);
 
   // Update planned checklists when computed
-  React.useEffect(() => {
+  useEffect(() => {
     setPlannedChecklists(computePlannedChecklists);
   }, [computePlannedChecklists]);
 
@@ -146,7 +183,6 @@ export function SmartChecklistWizard({
     if (step === 'confirm') {
       setStep('questions');
     } else if (step === 'questions') {
-      // Save answers
       const answerList = Object.entries(answers).map(([questionId, value]) => ({
         questionId,
         valueBoolean: value.valueBoolean,
@@ -160,10 +196,9 @@ export function SmartChecklistWizard({
       
       setStep('preview');
     } else if (step === 'preview') {
-      // Generate checklists
       const selectedTemplateIds = plannedChecklists
         .filter((c) => c.enabled)
-        .map((c) => c.templateId);
+        .flatMap((c) => c.templateIds);
 
       if (selectedTemplateIds.length > 0) {
         await generateChecklists.mutateAsync({
@@ -188,11 +223,29 @@ export function SmartChecklistWizard({
   };
 
   const toggleChecklist = (index: number) => {
+    const checklist = plannedChecklists[index];
+    
+    if (checklist.enabled && checklist.riskLevel === 'high') {
+      setConfirmingHighRisk(checklist.id);
+      return;
+    }
+    
     setPlannedChecklists((prev) => {
       const updated = [...prev];
       updated[index] = { ...updated[index], enabled: !updated[index].enabled };
       return updated;
     });
+  };
+
+  const confirmDisableHighRisk = () => {
+    if (!confirmingHighRisk) return;
+    
+    setPlannedChecklists((prev) => {
+      return prev.map(c => 
+        c.id === confirmingHighRisk ? { ...c, enabled: false } : c
+      );
+    });
+    setConfirmingHighRisk(null);
   };
 
   const isLoading = questionsLoading || templatesLoading || saveAnswers.isPending || generateChecklists.isPending;
@@ -204,9 +257,12 @@ export function SmartChecklistWizard({
     other: 'Custom Project',
   }[projectType];
 
+  const enabledCount = plannedChecklists.filter(c => c.enabled).length;
+  const totalItems = plannedChecklists.filter(c => c.enabled).reduce((sum, c) => sum + c.itemCount, 0);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-xl max-h-[80vh] overflow-y-auto">
+      <DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-primary" />
@@ -242,6 +298,24 @@ export function SmartChecklistWizard({
         <div className="min-h-[300px]">
           {step === 'confirm' && (
             <div className="space-y-4">
+              {/* Risk Badge */}
+              <div className={cn(
+                'p-3 rounded-lg flex items-center gap-3',
+                RISK_COLORS[riskInfo.level]
+              )}>
+                {riskInfo.level === 'high' ? (
+                  <Shield className="h-5 w-5" />
+                ) : riskInfo.level === 'medium' ? (
+                  <AlertTriangle className="h-5 w-5" />
+                ) : (
+                  <CheckCircle2 className="h-5 w-5" />
+                )}
+                <div>
+                  <p className="font-medium text-sm">{riskInfo.label}</p>
+                  <p className="text-xs opacity-80">Risk score: {context.riskScore}/100</p>
+                </div>
+              </div>
+
               <div className="p-4 bg-muted rounded-lg space-y-3">
                 <div className="flex items-center gap-2">
                   <Badge variant="secondary">{projectTypeLabel}</Badge>
@@ -261,6 +335,34 @@ export function SmartChecklistWizard({
                   )}
                 </ul>
               </div>
+              
+              {/* Detected flags summary */}
+              {(context.derivedFlags.hasStructural || context.derivedFlags.hasWaterproofingScope) && (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm">
+                  <p className="font-medium text-amber-800 mb-2">Detected from scope:</p>
+                  <ul className="space-y-1 text-amber-700">
+                    {context.derivedFlags.hasStructural && (
+                      <li className="flex items-center gap-2">
+                        <CheckCircle2 className="h-4 w-4" />
+                        Structural work (walls, headers, beams)
+                      </li>
+                    )}
+                    {context.derivedFlags.hasWaterproofingScope && (
+                      <li className="flex items-center gap-2">
+                        <CheckCircle2 className="h-4 w-4" />
+                        Waterproofing / wet area work
+                      </li>
+                    )}
+                    {context.derivedFlags.includesElectricalHeavy && (
+                      <li className="flex items-center gap-2">
+                        <CheckCircle2 className="h-4 w-4" />
+                        Heavy electrical scope
+                      </li>
+                    )}
+                  </ul>
+                </div>
+              )}
+              
               <p className="text-sm text-muted-foreground">
                 Next, we'll ask a few quick questions to customize your checklists.
               </p>
@@ -271,30 +373,42 @@ export function SmartChecklistWizard({
             <div className="space-y-6">
               {questions.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
-                  No questions for this project type. Proceeding with default checklists.
+                  No additional questions needed. Proceeding with scope-based checklists.
                 </p>
               ) : (
-                questions.map((q) => (
-                  <QuestionField
-                    key={q.id}
-                    question={q}
-                    value={answers[q.id]}
-                    onChange={(val) => handleAnswerChange(q.id, val)}
-                  />
-                ))
+                questions.map((q) => {
+                  const status = questionStatus[q.id];
+                  if (status === 'hidden') return null;
+                  
+                  return (
+                    <QuestionField
+                      key={q.id}
+                      question={q}
+                      value={answers[q.id]}
+                      onChange={(val) => handleAnswerChange(q.id, val)}
+                      preAnswered={status === 'pre-answered'}
+                    />
+                  );
+                })
               )}
             </div>
           )}
 
           {step === 'preview' && (
             <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                Based on your answers, we'll create these checklists. Toggle off any you don't need.
-              </p>
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">
+                  {enabledCount} checklists · {totalItems} items
+                </p>
+                <Badge className={RISK_COLORS[riskInfo.level]}>
+                  {riskInfo.level.charAt(0).toUpperCase() + riskInfo.level.slice(1)} Risk
+                </Badge>
+              </div>
+              
               <div className="space-y-2">
                 {plannedChecklists.map((checklist, index) => (
                   <div
-                    key={checklist.templateId}
+                    key={checklist.id}
                     className={cn(
                       'flex items-center justify-between p-3 rounded-lg border',
                       checklist.enabled ? 'bg-card' : 'bg-muted/50 opacity-60'
@@ -306,10 +420,33 @@ export function SmartChecklistWizard({
                         onCheckedChange={() => toggleChecklist(index)}
                       />
                       <div>
-                        <p className="font-medium text-sm">{checklist.title}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium text-sm">{checklist.title}</p>
+                          <Badge 
+                            variant="outline" 
+                            className={cn('text-xs', RISK_COLORS[checklist.riskLevel])}
+                          >
+                            {checklist.riskLevel}
+                          </Badge>
+                        </div>
                         <p className="text-xs text-muted-foreground">
                           {checklist.itemCount} items · {checklist.phase}
                         </p>
+                        {checklist.reasonTags.length > 0 && (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <p className="text-xs text-primary cursor-help flex items-center gap-1 mt-1">
+                                  <Info className="h-3 w-3" />
+                                  Why included
+                                </p>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Because: {checklist.reasonTags.join(', ')}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
                       </div>
                     </div>
                     <Badge variant="outline" className="capitalize">
@@ -318,7 +455,8 @@ export function SmartChecklistWizard({
                   </div>
                 ))}
               </div>
-              {plannedChecklists.filter((c) => c.enabled).length === 0 && (
+              
+              {enabledCount === 0 && (
                 <p className="text-sm text-amber-600">
                   No checklists selected. Select at least one to continue.
                 </p>
@@ -331,11 +469,42 @@ export function SmartChecklistWizard({
               <CheckCircle2 className="h-16 w-16 text-green-500" />
               <h3 className="text-lg font-semibold">Checklists Created!</h3>
               <p className="text-sm text-muted-foreground text-center">
-                Your smart checklists have been generated. View them in the project's Checklists tab.
+                {enabledCount} checklists with {totalItems} items have been generated.
+                View them in the project's Checklists tab.
               </p>
             </div>
           )}
         </div>
+
+        {/* High-risk confirmation dialog */}
+        {confirmingHighRisk && (
+          <div className="p-4 bg-red-50 border border-red-200 rounded-lg space-y-3">
+            <div className="flex items-center gap-2 text-red-700">
+              <AlertTriangle className="h-5 w-5" />
+              <p className="font-medium">Disable high-risk checklist?</p>
+            </div>
+            <p className="text-sm text-red-600">
+              This checklist covers critical QA steps for waterproofing or structural work.
+              Skipping it may lead to missed inspections.
+            </p>
+            <div className="flex gap-2">
+              <Button 
+                size="sm" 
+                variant="outline" 
+                onClick={() => setConfirmingHighRisk(null)}
+              >
+                Keep it
+              </Button>
+              <Button 
+                size="sm" 
+                variant="destructive" 
+                onClick={confirmDisableHighRisk}
+              >
+                Disable anyway
+              </Button>
+            </div>
+          </div>
+        )}
 
         {/* Actions */}
         <div className="flex justify-between mt-4">
@@ -349,12 +518,12 @@ export function SmartChecklistWizard({
           )}
           <Button
             onClick={handleNext}
-            disabled={isLoading || (step === 'preview' && plannedChecklists.filter((c) => c.enabled).length === 0)}
+            disabled={isLoading || (step === 'preview' && enabledCount === 0)}
           >
             {isLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             {step === 'confirm' && 'Next'}
             {step === 'questions' && 'Continue'}
-            {step === 'preview' && 'Generate Checklists'}
+            {step === 'preview' && `Generate ${enabledCount} Checklists`}
             {step === 'complete' && 'Done'}
             {step !== 'complete' && <ChevronRight className="h-4 w-4 ml-1" />}
           </Button>
@@ -369,16 +538,25 @@ function QuestionField({
   question,
   value,
   onChange,
+  preAnswered = false,
 }: {
   question: ChecklistQuestion;
   value?: AnswerState[string];
   onChange: (val: AnswerState[string]) => void;
+  preAnswered?: boolean;
 }) {
   const options = question.options || [];
 
   return (
-    <div className="space-y-2">
-      <Label className="text-sm font-medium">{question.label}</Label>
+    <div className={cn('space-y-2', preAnswered && 'opacity-70')}>
+      <div className="flex items-center gap-2">
+        <Label className="text-sm font-medium">{question.label}</Label>
+        {preAnswered && (
+          <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+            Auto-detected
+          </Badge>
+        )}
+      </div>
       {question.help_text && (
         <p className="text-xs text-muted-foreground">{question.help_text}</p>
       )}
@@ -388,6 +566,7 @@ function QuestionField({
           <Switch
             checked={value?.valueBoolean ?? false}
             onCheckedChange={(checked) => onChange({ valueBoolean: checked })}
+            disabled={preAnswered}
           />
           <span className="text-sm">{value?.valueBoolean ? 'Yes' : 'No'}</span>
         </div>
@@ -397,6 +576,7 @@ function QuestionField({
         <RadioGroup
           value={value?.valueText || ''}
           onValueChange={(val) => onChange({ valueText: val })}
+          disabled={preAnswered}
         >
           {options.map((opt) => (
             <div key={opt} className="flex items-center gap-2">
@@ -416,6 +596,7 @@ function QuestionField({
               <Checkbox
                 id={`${question.id}-${opt}`}
                 checked={(value?.valueJson || []).includes(opt)}
+                disabled={preAnswered}
                 onCheckedChange={(checked) => {
                   const current = value?.valueJson || [];
                   const updated = checked
