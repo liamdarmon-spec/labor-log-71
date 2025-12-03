@@ -187,6 +187,7 @@ export function ProjectChecklistsTab({ projectId }: ProjectChecklistsTabProps) {
       {/* Checklist Detail Drawer */}
       <ChecklistDetailDrawer
         checklistId={selectedChecklistId}
+        projectId={projectId}
         open={!!selectedChecklistId}
         onOpenChange={(open) => !open && setSelectedChecklistId(null)}
       />
