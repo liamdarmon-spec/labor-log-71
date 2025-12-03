@@ -2255,6 +2255,13 @@ export type Database = {
             foreignKeyName: "project_budget_groups_project_budget_id_fkey"
             columns: ["project_budget_id"]
             isOneToOne: false
+            referencedRelation: "project_budget_vs_actual_view"
+            referencedColumns: ["project_budget_id"]
+          },
+          {
+            foreignKeyName: "project_budget_groups_project_budget_id_fkey"
+            columns: ["project_budget_id"]
+            isOneToOne: false
             referencedRelation: "project_budgets"
             referencedColumns: ["id"]
           },
@@ -2377,6 +2384,13 @@ export type Database = {
             foreignKeyName: "project_budget_lines_budget_id_fkey"
             columns: ["project_budget_id"]
             isOneToOne: false
+            referencedRelation: "project_budget_vs_actual_view"
+            referencedColumns: ["project_budget_id"]
+          },
+          {
+            foreignKeyName: "project_budget_lines_budget_id_fkey"
+            columns: ["project_budget_id"]
+            isOneToOne: false
             referencedRelation: "project_budgets"
             referencedColumns: ["id"]
           },
@@ -2400,6 +2414,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "project_budget_groups"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_budget_lines_project_budget_id_fkey"
+            columns: ["project_budget_id"]
+            isOneToOne: false
+            referencedRelation: "project_budget_vs_actual_view"
+            referencedColumns: ["project_budget_id"]
           },
           {
             foreignKeyName: "project_budget_lines_project_budget_id_fkey"
@@ -5780,19 +5801,27 @@ export type Database = {
       }
       project_budget_vs_actual_view: {
         Row: {
-          actual_labor_cost: number | null
-          actual_materials_cost: number | null
-          actual_other_cost: number | null
-          actual_subs_cost: number | null
+          labor_actual: number | null
           labor_budget: number | null
+          labor_unpaid: number | null
+          materials_actual: number | null
           materials_budget: number | null
+          materials_unpaid: number | null
+          other_actual: number | null
           other_budget: number | null
+          other_unpaid: number | null
+          profit: number | null
+          project_budget_id: string | null
           project_id: string | null
           project_name: string | null
-          remaining_budget: number | null
+          retention_held: number | null
+          subs_actual: number | null
           subs_budget: number | null
-          total_actual_cost: number | null
+          subs_unpaid: number | null
+          total_actual_costs: number | null
           total_budget: number | null
+          total_outstanding: number | null
+          total_revenue: number | null
         }
         Relationships: []
       }
@@ -6965,6 +6994,38 @@ export type Database = {
       get_material_actuals_by_project: {
         Args: { p_project_id: string }
         Returns: number
+      }
+      get_project_budget_overview: {
+        Args: { p_project_id: string }
+        Returns: {
+          labor_actual: number | null
+          labor_budget: number | null
+          labor_unpaid: number | null
+          materials_actual: number | null
+          materials_budget: number | null
+          materials_unpaid: number | null
+          other_actual: number | null
+          other_budget: number | null
+          other_unpaid: number | null
+          profit: number | null
+          project_budget_id: string | null
+          project_id: string | null
+          project_name: string | null
+          retention_held: number | null
+          subs_actual: number | null
+          subs_budget: number | null
+          subs_unpaid: number | null
+          total_actual_costs: number | null
+          total_budget: number | null
+          total_outstanding: number | null
+          total_revenue: number | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "project_budget_vs_actual_view"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       has_role: {
         Args: {
