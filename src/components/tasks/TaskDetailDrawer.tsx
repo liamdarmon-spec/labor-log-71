@@ -58,9 +58,40 @@ export function TaskDetailDrawer({ task, open, onOpenChange }: TaskDetailDrawerP
     }
   }, [task?.id, task?.title, task?.description]);
 
+  // Local optimistic state for instant UI feedback
+  const [optimisticStatus, setOptimisticStatus] = useState<string | null>(null);
+  const [optimisticDueDate, setOptimisticDueDate] = useState<string | null | undefined>(undefined);
+  const [datePopoverOpen, setDatePopoverOpen] = useState(false);
+
+  // Reset optimistic state when task changes
+  useEffect(() => {
+    setOptimisticStatus(null);
+    setOptimisticDueDate(undefined);
+  }, [task?.id]);
+
   const handleFieldUpdate = (field: string, value: string | null) => {
     if (!task) return;
-    updateTask.mutate({ id: task.id, updates: { [field]: value } });
+    
+    // Optimistic update for status
+    if (field === 'status') {
+      setOptimisticStatus(value);
+    }
+    // Optimistic update for due_date
+    if (field === 'due_date') {
+      setOptimisticDueDate(value);
+      setDatePopoverOpen(false);
+    }
+    
+    updateTask.mutate(
+      { id: task.id, updates: { [field]: value } },
+      {
+        onSettled: () => {
+          // Clear optimistic state after mutation completes
+          if (field === 'status') setOptimisticStatus(null);
+          if (field === 'due_date') setOptimisticDueDate(undefined);
+        },
+      }
+    );
   };
 
   const handleTitleBlur = () => {
@@ -135,20 +166,24 @@ export function TaskDetailDrawer({ task, open, onOpenChange }: TaskDetailDrawerP
             <div className="grid grid-cols-3 gap-2">
               {STATUS_OPTIONS.map((opt) => {
                 const Icon = opt.icon;
-                const isSelected = task.status === opt.value;
+                // Use optimistic status for immediate feedback
+                const currentStatus = optimisticStatus ?? task.status;
+                const isSelected = currentStatus === opt.value;
                 return (
                   <button
                     key={opt.value}
+                    type="button"
                     onClick={() => handleFieldUpdate('status', opt.value)}
                     className={cn(
-                      'flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all',
+                      'flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-colors duration-75 select-none touch-manipulation',
+                      'active:scale-[0.98] active:opacity-80',
                       isSelected 
                         ? 'border-primary bg-primary/5 shadow-sm' 
                         : 'border-transparent bg-muted/50 hover:bg-muted hover:border-muted-foreground/20'
                     )}
                   >
-                    <Icon className={cn('w-5 h-5', isSelected ? opt.color : 'text-muted-foreground')} />
-                    <span className={cn('text-xs font-medium', isSelected ? 'text-foreground' : 'text-muted-foreground')}>
+                    <Icon className={cn('w-5 h-5 transition-colors duration-75', isSelected ? opt.color : 'text-muted-foreground')} />
+                    <span className={cn('text-xs font-medium transition-colors duration-75', isSelected ? 'text-foreground' : 'text-muted-foreground')}>
                       {opt.label}
                     </span>
                   </button>
@@ -272,28 +307,41 @@ export function TaskDetailDrawer({ task, open, onOpenChange }: TaskDetailDrawerP
               <CalendarIcon className="w-3.5 h-3.5" />
               Due Date
             </Label>
-            <Popover>
+            <Popover open={datePopoverOpen} onOpenChange={setDatePopoverOpen}>
               <PopoverTrigger asChild>
-                <Button variant="ghost" className="w-full h-11 justify-start text-left font-normal bg-muted/50 hover:bg-muted">
+                <Button 
+                  type="button"
+                  variant="ghost" 
+                  className="w-full h-11 justify-start text-left font-normal bg-muted/50 hover:bg-muted active:scale-[0.99] transition-transform duration-75 touch-manipulation"
+                >
                   <CalendarIcon className="mr-3 h-4 w-4 text-muted-foreground" />
-                  {task.due_date ? format(parseISO(task.due_date), 'EEEE, MMMM d, yyyy') : 'No due date'}
+                  {(() => {
+                    // Use optimistic due date for immediate feedback
+                    const displayDate = optimisticDueDate !== undefined ? optimisticDueDate : task.due_date;
+                    return displayDate ? format(parseISO(displayDate), 'EEEE, MMMM d, yyyy') : 'No due date';
+                  })()}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0 bg-popover" align="start">
                 <Calendar
                   mode="single"
-                  selected={task.due_date ? parseISO(task.due_date) : undefined}
+                  selected={(() => {
+                    const displayDate = optimisticDueDate !== undefined ? optimisticDueDate : task.due_date;
+                    return displayDate ? parseISO(displayDate) : undefined;
+                  })()}
                   onSelect={(date) =>
                     handleFieldUpdate('due_date', date ? format(date, 'yyyy-MM-dd') : null)
                   }
-                  className="pointer-events-auto"
+                  className="p-3 pointer-events-auto"
+                  initialFocus
                 />
-                {task.due_date && (
-                  <div className="p-2 border-t">
+                {(optimisticDueDate !== undefined ? optimisticDueDate : task.due_date) && (
+                  <div className="p-2 border-t border-border">
                     <Button
+                      type="button"
                       variant="ghost"
                       size="sm"
-                      className="w-full text-muted-foreground"
+                      className="w-full text-muted-foreground active:scale-[0.98] transition-transform duration-75 touch-manipulation"
                       onClick={() => handleFieldUpdate('due_date', null)}
                     >
                       Clear date
@@ -329,8 +377,9 @@ export function TaskDetailDrawer({ task, open, onOpenChange }: TaskDetailDrawerP
           {/* Delete button */}
           <div className="pt-2">
             <Button
+              type="button"
               variant="destructive"
-              className="w-full h-11"
+              className="w-full h-11 active:scale-[0.98] transition-transform duration-75 touch-manipulation"
               onClick={handleDelete}
               disabled={deleteTask.isPending}
             >
