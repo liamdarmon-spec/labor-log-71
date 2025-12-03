@@ -27,13 +27,13 @@ export function ScheduleFilters({ projectId, workerId, onChange }: ScheduleFilte
   };
 
   return (
-    <div className="flex flex-col sm:flex-row gap-3">
+    <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
       <Select value={projectId || 'all'} onValueChange={handleProjectChange}>
-        <SelectTrigger className="w-full sm:w-[220px]">
-          <SelectValue placeholder="All projects" />
+        <SelectTrigger className="w-full sm:w-[180px] h-9 text-xs">
+          <SelectValue placeholder="All Projects" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">All projects</SelectItem>
+          <SelectItem value="all">All Projects</SelectItem>
           {projects.map((project) => (
             <SelectItem key={project.id} value={project.id}>
               {project.project_name}
@@ -43,11 +43,11 @@ export function ScheduleFilters({ projectId, workerId, onChange }: ScheduleFilte
       </Select>
 
       <Select value={workerId || 'all'} onValueChange={handleWorkerChange}>
-        <SelectTrigger className="w-full sm:w-[200px]">
-          <SelectValue placeholder="All people" />
+        <SelectTrigger className="w-full sm:w-[160px] h-9 text-xs">
+          <SelectValue placeholder="All People" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">All people</SelectItem>
+          <SelectItem value="all">All People</SelectItem>
           {workers.map((worker) => (
             <SelectItem key={worker.id} value={worker.id}>
               {worker.name}
