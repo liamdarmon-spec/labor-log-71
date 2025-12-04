@@ -2,13 +2,14 @@ import { useState, useMemo } from 'react';
 import { Layout } from '@/components/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Upload, FileText, FileCheck, Receipt, FileSignature } from 'lucide-react';
+import { Upload, FileText, FileCheck, Receipt, FileSignature, Sparkles, Loader2 } from 'lucide-react';
 import { DocumentHubFilters } from '@/components/documents/DocumentHubFilters';
 import { DocumentHubTable } from '@/components/documents/DocumentHubTable';
 import { UploadDocumentDialog } from '@/components/documents/UploadDocumentDialog';
 import { DocumentDetailDrawer } from '@/components/documents/DocumentDetailDrawer';
-import { useDocumentsList, DocumentRecord } from '@/hooks/useDocumentsHub';
+import { useDocumentsList, DocumentRecord, useAnalyzeDocument } from '@/hooks/useDocumentsHub';
 import { DocumentType } from '@/lib/documents/storagePaths';
+import { useToast } from '@/hooks/use-toast';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,6 +25,11 @@ export default function Documents() {
   const [uploadDefaultType, setUploadDefaultType] = useState<DocumentType>('other');
   const [selectedDoc, setSelectedDoc] = useState<DocumentRecord | null>(null);
   const [detailDrawerOpen, setDetailDrawerOpen] = useState(false);
+  const [bulkAnalyzing, setBulkAnalyzing] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState({ current: 0, total: 0 });
+
+  const { toast } = useToast();
+  const analyzeDocument = useAnalyzeDocument();
 
   const { data: documents, isLoading } = useDocumentsList({
     projectId: projectFilter,
@@ -58,16 +64,56 @@ export default function Documents() {
     });
   }, [documents, typeFilters, searchTerm]);
 
-  // Stats
+  // Stats including AI status
   const stats = useMemo(() => {
-    if (!documents) return { total: 0, invoices: 0, receipts: 0, contracts: 0 };
+    if (!documents) return { total: 0, invoices: 0, receipts: 0, contracts: 0, analyzed: 0, unanalyzed: 0 };
+    
+    const analyzed = documents.filter(d => 
+      d.ai_last_run_status?.startsWith('success') || 
+      (d.ai_last_run_at && !d.ai_last_run_status?.startsWith('error'))
+    ).length;
+    
     return {
       total: documents.length,
       invoices: documents.filter(d => d.document_type === 'invoice' || d.doc_type === 'invoice').length,
       receipts: documents.filter(d => d.document_type === 'receipt' || d.doc_type === 'receipt').length,
       contracts: documents.filter(d => d.document_type === 'contract' || d.doc_type === 'contract').length,
+      analyzed,
+      unanalyzed: documents.length - analyzed,
     };
   }, [documents]);
+
+  // Get documents that need analysis
+  const unanalyzedDocs = useMemo(() => {
+    if (!documents) return [];
+    return documents.filter(d => 
+      !d.ai_last_run_at || 
+      d.ai_last_run_status?.startsWith('error')
+    );
+  }, [documents]);
+
+  // Bulk analyze handler
+  const handleBulkAnalyze = async () => {
+    if (unanalyzedDocs.length === 0) return;
+    
+    setBulkAnalyzing(true);
+    setBulkProgress({ current: 0, total: unanalyzedDocs.length });
+    
+    for (let i = 0; i < unanalyzedDocs.length; i++) {
+      try {
+        await analyzeDocument.mutateAsync(unanalyzedDocs[i].id);
+      } catch (error) {
+        // Continue with next doc on error
+      }
+      setBulkProgress({ current: i + 1, total: unanalyzedDocs.length });
+    }
+    
+    setBulkAnalyzing(false);
+    toast({
+      title: 'Bulk analysis complete',
+      description: `Analyzed ${unanalyzedDocs.length} documents`,
+    });
+  };
 
   const handleUploadWithType = (type: DocumentType) => {
     setUploadDefaultType(type);
@@ -126,11 +172,17 @@ export default function Documents() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
           <Card>
             <CardContent className="pt-4 pb-4">
               <div className="text-2xl font-bold">{stats.total}</div>
               <p className="text-xs text-muted-foreground">Total Documents</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-4 pb-4">
+              <div className="text-2xl font-bold text-emerald-600">{stats.analyzed}</div>
+              <p className="text-xs text-muted-foreground">AI Analyzed</p>
             </CardContent>
           </Card>
           <Card>
@@ -152,6 +204,34 @@ export default function Documents() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Bulk Analyze Button */}
+        {stats.unanalyzed > 0 && (
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              onClick={handleBulkAnalyze}
+              disabled={bulkAnalyzing}
+            >
+              {bulkAnalyzing ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Analyzing {bulkProgress.current}/{bulkProgress.total}...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  Analyze {stats.unanalyzed} Unprocessed
+                </>
+              )}
+            </Button>
+            {bulkAnalyzing && (
+              <span className="text-sm text-muted-foreground">
+                Please wait...
+              </span>
+            )}
+          </div>
+        )}
 
         {/* Filters */}
         <Card>
