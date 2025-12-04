@@ -1,302 +1,211 @@
+import { useState, useMemo } from 'react';
 import { Layout } from '@/components/Layout';
-import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
-import { Upload, Search, FileText, Image, FileCheck, FileSignature, Building2, Shield, Camera, FileWarning, Sparkles } from 'lucide-react';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { format, differenceInDays } from 'date-fns';
+import { Upload, FileText, FileCheck, Receipt, FileSignature } from 'lucide-react';
+import { DocumentHubFilters } from '@/components/documents/DocumentHubFilters';
+import { DocumentHubTable } from '@/components/documents/DocumentHubTable';
+import { UploadDocumentDialog } from '@/components/documents/UploadDocumentDialog';
 import { DocumentDetailDrawer } from '@/components/documents/DocumentDetailDrawer';
-
-const documentTypeIcons = {
-  plans: Building2,
-  receipts: FileText,
-  invoices: FileCheck,
-  contracts: FileSignature,
-  submittals: FileText,
-  permits: Shield,
-  photos: Camera,
-  proposals: FileWarning,
-  other: FileText,
-};
-
-const documentTypeColors = {
-  plans: 'bg-blue-500',
-  receipts: 'bg-green-500',
-  invoices: 'bg-purple-500',
-  contracts: 'bg-orange-500',
-  submittals: 'bg-cyan-500',
-  permits: 'bg-red-500',
-  photos: 'bg-pink-500',
-  proposals: 'bg-yellow-500',
-  other: 'bg-gray-500',
-};
+import { useDocumentsList, DocumentRecord } from '@/hooks/useDocumentsHub';
+import { DocumentType } from '@/lib/documents/storagePaths';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 export default function Documents() {
+  const [projectFilter, setProjectFilter] = useState<string | null>(null);
+  const [typeFilters, setTypeFilters] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [typeFilter, setTypeFilter] = useState<string>('all');
-  const [projectFilter, setProjectFilter] = useState<string>('all');
-  const [complianceFilter, setComplianceFilter] = useState<string>('all');
-  const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
-  const [detailDrawerOpen, setDetailDrawerOpen] = useState(false);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [uploadDefaultType, setUploadDefaultType] = useState<DocumentType>('other');
+  const [selectedDoc, setSelectedDoc] = useState<DocumentRecord | null>(null);
+  const [detailDrawerOpen, setDetailDrawerOpen] = useState(false);
 
-  const { data: documents, isLoading } = useQuery({
-    queryKey: ['documents', typeFilter, projectFilter],
-    queryFn: async () => {
-      let query = supabase
-        .from('documents')
-        .select(`
-          *,
-          projects (project_name),
-          cost_codes (code, name)
-        `)
-        .order('created_at', { ascending: false });
-
-      if (typeFilter !== 'all') {
-        query = query.eq('document_type', typeFilter);
-      }
-
-      if (projectFilter !== 'all') {
-        query = query.eq('project_id', projectFilter);
-      }
-
-      const { data, error } = await query;
-      if (error) throw error;
-      return data;
-    },
+  const { data: documents, isLoading } = useDocumentsList({
+    projectId: projectFilter,
+    isArchived: false,
   });
 
-  const { data: projects } = useQuery({
-    queryKey: ['projects'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('projects')
-        .select('id, project_name')
-        .order('project_name');
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  const filteredDocuments = documents?.filter(doc => {
-    // Text search across multiple AI fields
-    const matchesSearch = 
-      doc.file_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      doc.extracted_text?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      doc.ai_summary?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      doc.ai_title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      doc.ai_counterparty_name?.toLowerCase().includes(searchTerm.toLowerCase());
+  // Client-side filtering for search and types
+  const filteredDocuments = useMemo(() => {
+    if (!documents) return [];
     
-    // Compliance filter
-    if (complianceFilter !== 'all') {
-      const now = new Date();
-      if (complianceFilter === 'expiring') {
-        if (!doc.ai_expiration_date) return false;
-        const daysUntil = differenceInDays(new Date(doc.ai_expiration_date), now);
-        return daysUntil >= 0 && daysUntil <= 90;
-      } else if (complianceFilter === 'expired') {
-        if (!doc.ai_expiration_date) return false;
-        return new Date(doc.ai_expiration_date) < now;
+    return documents.filter(doc => {
+      // Type filter
+      if (typeFilters.length > 0) {
+        const docType = doc.document_type || doc.doc_type || 'other';
+        if (!typeFilters.includes(docType)) return false;
       }
-    }
+      
+      // Search filter
+      if (searchTerm) {
+        const term = searchTerm.toLowerCase();
+        const matchesSearch = 
+          doc.file_name?.toLowerCase().includes(term) ||
+          doc.title?.toLowerCase().includes(term) ||
+          doc.ai_summary?.toLowerCase().includes(term) ||
+          doc.ai_title?.toLowerCase().includes(term) ||
+          doc.notes?.toLowerCase().includes(term) ||
+          doc.tags?.some(tag => tag.toLowerCase().includes(term));
+        if (!matchesSearch) return false;
+      }
+      
+      return true;
+    });
+  }, [documents, typeFilters, searchTerm]);
 
-    return matchesSearch;
-  });
+  // Stats
+  const stats = useMemo(() => {
+    if (!documents) return { total: 0, invoices: 0, receipts: 0, contracts: 0 };
+    return {
+      total: documents.length,
+      invoices: documents.filter(d => d.document_type === 'invoice' || d.doc_type === 'invoice').length,
+      receipts: documents.filter(d => d.document_type === 'receipt' || d.doc_type === 'receipt').length,
+      contracts: documents.filter(d => d.document_type === 'contract' || d.doc_type === 'contract').length,
+    };
+  }, [documents]);
 
-  const stats = {
-    total: documents?.length || 0,
-    aiClassified: documents?.filter(d => d.ai_last_run_status === 'success').length || 0,
-    receipts: documents?.filter(d => d.document_type === 'receipts' || d.ai_doc_type === 'receipt').length || 0,
-    invoices: documents?.filter(d => d.document_type === 'invoices' || d.ai_doc_type === 'invoice').length || 0,
+  const handleUploadWithType = (type: DocumentType) => {
+    setUploadDefaultType(type);
+    setUploadDialogOpen(true);
+  };
+
+  const handleDocumentClick = (doc: DocumentRecord) => {
+    setSelectedDoc(doc);
+    setDetailDrawerOpen(true);
   };
 
   return (
     <Layout>
       <div className="space-y-6">
+        {/* Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold">Documents</h1>
-            <p className="text-sm sm:text-base text-muted-foreground">AI-powered document management and organization</p>
+            <p className="text-sm text-muted-foreground">
+              Central document hub for all your project files
+            </p>
           </div>
-          <Button className="w-full sm:w-auto" onClick={() => setUploadDialogOpen(true)}>
-            <Upload className="h-4 w-4 mr-2" />
-            <span className="hidden sm:inline">Upload Documents</span>
-            <span className="sm:hidden">Upload</span>
-          </Button>
+          
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button>
+                <Upload className="h-4 w-4 mr-2" />
+                Upload
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => handleUploadWithType('invoice')}>
+                <FileCheck className="mr-2 h-4 w-4" />
+                Upload Invoice
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleUploadWithType('receipt')}>
+                <Receipt className="mr-2 h-4 w-4" />
+                Upload Receipt
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleUploadWithType('contract')}>
+                <FileSignature className="mr-2 h-4 w-4" />
+                Upload Contract
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleUploadWithType('permit')}>
+                Upload Permit
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleUploadWithType('plan')}>
+                Upload Plan
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleUploadWithType('other')}>
+                <FileText className="mr-2 h-4 w-4" />
+                Upload Other
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <Card>
-            <CardContent className="pt-6">
+            <CardContent className="pt-4 pb-4">
               <div className="text-2xl font-bold">{stats.total}</div>
-              <p className="text-sm text-muted-foreground">Total Documents</p>
+              <p className="text-xs text-muted-foreground">Total Documents</p>
             </CardContent>
           </Card>
           <Card>
-            <CardContent className="pt-6">
-              <div className="text-2xl font-bold">{stats.aiClassified}</div>
-              <p className="text-sm text-muted-foreground">AI Classified</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-2xl font-bold">{stats.receipts}</div>
-              <p className="text-sm text-muted-foreground">Receipts</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
+            <CardContent className="pt-4 pb-4">
               <div className="text-2xl font-bold">{stats.invoices}</div>
-              <p className="text-sm text-muted-foreground">Invoices</p>
+              <p className="text-xs text-muted-foreground">Invoices</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-4 pb-4">
+              <div className="text-2xl font-bold">{stats.receipts}</div>
+              <p className="text-xs text-muted-foreground">Receipts</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-4 pb-4">
+              <div className="text-2xl font-bold">{stats.contracts}</div>
+              <p className="text-xs text-muted-foreground">Contracts</p>
             </CardContent>
           </Card>
         </div>
 
         {/* Filters */}
         <Card>
-          <CardContent className="pt-4 sm:pt-6">
-            <div className="grid grid-cols-1 gap-3 sm:gap-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                <Input
-                  placeholder="Search documents..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <Select value={typeFilter} onValueChange={setTypeFilter}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="All Types" />
-                  </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Types</SelectItem>
-                  <SelectItem value="plans">Plans</SelectItem>
-                  <SelectItem value="receipts">Receipts</SelectItem>
-                  <SelectItem value="invoices">Invoices</SelectItem>
-                  <SelectItem value="contracts">Contracts</SelectItem>
-                  <SelectItem value="submittals">Submittals</SelectItem>
-                  <SelectItem value="permits">Permits</SelectItem>
-                  <SelectItem value="photos">Photos</SelectItem>
-                  <SelectItem value="proposals">Proposals</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
-                </SelectContent>
-              </Select>
-                <Select value={projectFilter} onValueChange={setProjectFilter}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="All Projects" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Projects</SelectItem>
-                    {projects?.map(project => (
-                      <SelectItem key={project.id} value={project.id}>
-                        {project.project_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+          <CardContent className="pt-4">
+            <DocumentHubFilters
+              projectId={projectFilter}
+              onProjectChange={setProjectFilter}
+              selectedTypes={typeFilters}
+              onTypesChange={setTypeFilters}
+              searchTerm={searchTerm}
+              onSearchChange={setSearchTerm}
+              showProjectFilter={true}
+            />
           </CardContent>
         </Card>
 
         {/* Documents Table */}
         <Card>
           <CardHeader>
-            <CardTitle>All Documents</CardTitle>
+            <CardTitle>
+              All Documents
+              {filteredDocuments.length !== (documents?.length || 0) && (
+                <span className="text-sm font-normal text-muted-foreground ml-2">
+                  ({filteredDocuments.length} of {documents?.length || 0})
+                </span>
+              )}
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            {isLoading ? (
-              <div className="text-center py-8">Loading documents...</div>
-            ) : filteredDocuments && filteredDocuments.length > 0 ? (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Type</TableHead>
-                    <TableHead>File Name</TableHead>
-                    <TableHead>Project</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Cost Code</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredDocuments.map((doc: any) => {
-                    const Icon = documentTypeIcons[doc.document_type as keyof typeof documentTypeIcons] || FileText;
-                    return (
-                      <TableRow 
-                        key={doc.id} 
-                        className="cursor-pointer hover:bg-muted/50"
-                        onClick={() => {
-                          setSelectedDocId(doc.id);
-                          setDetailDrawerOpen(true);
-                        }}
-                      >
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <div className={`p-2 rounded ${documentTypeColors[doc.document_type as keyof typeof documentTypeColors]}`}>
-                              <Icon className="h-4 w-4 text-white" />
-                            </div>
-                            <span className="capitalize">{doc.document_type}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="font-medium">{doc.file_name}</TableCell>
-                        <TableCell>{doc.projects?.project_name || '-'}</TableCell>
-                        <TableCell>
-                          {doc.document_date ? format(new Date(doc.document_date), 'MMM d, yyyy') : '-'}
-                        </TableCell>
-                        <TableCell>
-                          {doc.cost_codes ? (
-                            <Badge variant="outline">
-                              {doc.cost_codes.code}
-                            </Badge>
-                          ) : '-'}
-                        </TableCell>
-                        <TableCell>
-                          {doc.amount ? `$${doc.amount.toLocaleString()}` : '-'}
-                        </TableCell>
-                        <TableCell>
-                          {doc.auto_classified && (
-                            <Badge variant="secondary">AI Classified</Badge>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            ) : (
-              <div className="text-center py-12">
-                <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground mb-2">No documents found</p>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Upload your first document to get started
-                </p>
-                <Button>
-                  <Upload className="h-4 w-4 mr-2" />
-                  Upload Document
-                </Button>
-              </div>
-            )}
+            <DocumentHubTable
+              documents={filteredDocuments}
+              onDocumentClick={handleDocumentClick}
+              showProjectColumn={true}
+              isLoading={isLoading}
+            />
           </CardContent>
         </Card>
-
-        {selectedDocId && (
-          <DocumentDetailDrawer
-            documentId={selectedDocId}
-            open={detailDrawerOpen}
-            onOpenChange={setDetailDrawerOpen}
-          />
-        )}
       </div>
+
+      {/* Upload Dialog */}
+      <UploadDocumentDialog
+        open={uploadDialogOpen}
+        onOpenChange={setUploadDialogOpen}
+        defaultType={uploadDefaultType}
+      />
+
+      {/* Detail Drawer */}
+      {selectedDoc && (
+        <DocumentDetailDrawer
+          documentId={selectedDoc.id}
+          open={detailDrawerOpen}
+          onOpenChange={setDetailDrawerOpen}
+        />
+      )}
     </Layout>
   );
 }
