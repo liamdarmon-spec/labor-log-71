@@ -1,12 +1,11 @@
-import { Layout } from '@/components/Layout';
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ProjectHeader } from '@/components/project/ProjectHeader';
+import { Button } from '@/components/ui/button';
+import { ArrowLeft } from 'lucide-react';
+import { Layout } from '@/components/Layout';
+import { ProjectShell } from '@/components/project/ProjectShell';
 import { ProjectOverviewTab } from '@/components/project/ProjectOverviewTab';
 import { ProjectEstimatesV3 } from '@/components/project/ProjectEstimatesV3';
 import { ProjectProposalsTabV3 } from '@/components/project/ProjectProposalsTabV3';
@@ -21,7 +20,11 @@ import { ProjectLaborTab } from '@/components/project/ProjectLaborTab';
 import { ProjectTasksTab } from '@/components/project/ProjectTasksTab';
 import { ProjectChecklistsTab } from '@/components/checklists/ProjectChecklistsTab';
 
-const VALID_TABS = ['overview', 'estimates', 'proposals', 'budget', 'billing', 'financials', 'dashboard', 'labor', 'tasks', 'checklists', 'schedule', 'subs', 'documents'] as const;
+const VALID_TABS = [
+  'overview', 'estimates', 'proposals', 'budget', 'billing', 
+  'financials', 'dashboard', 'labor', 'tasks', 'checklists', 
+  'schedule', 'subs', 'documents', 'photos', 'settings'
+] as const;
 type TabValue = typeof VALID_TABS[number];
 
 interface Project {
@@ -37,7 +40,7 @@ interface Project {
 const ProjectDetail = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -46,12 +49,6 @@ const ProjectDetail = () => {
   const activeTab: TabValue = VALID_TABS.includes(tabParam as TabValue)
     ? (tabParam as TabValue)
     : 'overview';
-
-  const handleTabChange = (value: string) => {
-    const next = new URLSearchParams(searchParams);
-    next.set('tab', value);
-    setSearchParams(next);
-  };
 
   useEffect(() => {
     if (projectId) {
@@ -79,20 +76,29 @@ const ProjectDetail = () => {
     }
   };
 
+  // Loading state
   if (loading) {
     return (
-      <Layout>
-        <div className="space-y-6">
-          <Button variant="ghost" onClick={() => navigate('/projects')}>
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Projects
-          </Button>
-          <Skeleton className="h-96" />
+      <Layout hideNav>
+        <div className="flex min-h-screen">
+          <div className="hidden lg:block w-[240px] border-r bg-sidebar-background">
+            <Skeleton className="h-full" />
+          </div>
+          <div className="flex-1 p-6 space-y-6">
+            <Button variant="ghost" onClick={() => navigate('/projects')}>
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Projects
+            </Button>
+            <Skeleton className="h-12 w-64" />
+            <Skeleton className="h-32" />
+            <Skeleton className="h-96" />
+          </div>
         </div>
       </Layout>
     );
   }
 
+  // Not found state
   if (!project) {
     return (
       <Layout>
@@ -109,122 +115,61 @@ const ProjectDetail = () => {
     );
   }
 
-  return (
-    <Layout>
-      <div className="space-y-6">
-        <Button variant="ghost" onClick={() => navigate('/projects')}>
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Projects
-        </Button>
-
-        <ProjectHeader
-          projectId={project.id}
-          projectName={project.project_name}
-          clientName={project.client_name}
-          address={project.address}
-          status={project.status}
-          companyId={project.company_id}
-        />
-
-        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4 sm:space-y-6">
-          {/* Mobile: Scrollable horizontal tabs */}
-          <div className="overflow-x-auto -mx-3 px-3 sm:mx-0 sm:px-0 pb-1">
-            <TabsList className="inline-flex w-auto min-w-full lg:grid lg:w-full lg:grid-cols-12 h-auto">
-              <TabsTrigger value="overview" className="text-xs sm:text-sm px-3 sm:px-4 whitespace-nowrap">
-                Overview
-              </TabsTrigger>
-              <TabsTrigger value="estimates" className="text-xs sm:text-sm px-3 sm:px-4 whitespace-nowrap">
-                Estimates
-              </TabsTrigger>
-              <TabsTrigger value="proposals" className="text-xs sm:text-sm px-3 sm:px-4 whitespace-nowrap">
-                Proposals
-              </TabsTrigger>
-              <TabsTrigger value="budget" className="text-xs sm:text-sm px-3 sm:px-4 whitespace-nowrap">
-                Budget
-              </TabsTrigger>
-              <TabsTrigger value="billing" className="text-xs sm:text-sm px-3 sm:px-4 whitespace-nowrap">
-                Billing
-              </TabsTrigger>
-              <TabsTrigger value="financials" className="text-xs sm:text-sm px-3 sm:px-4 whitespace-nowrap">
-                Financials
-              </TabsTrigger>
-              <TabsTrigger value="dashboard" className="text-xs sm:text-sm px-3 sm:px-4 whitespace-nowrap">
-                Dashboard
-              </TabsTrigger>
-              <TabsTrigger value="labor" className="text-xs sm:text-sm px-3 sm:px-4 whitespace-nowrap">
-                Labor
-              </TabsTrigger>
-              <TabsTrigger value="tasks" className="text-xs sm:text-sm px-3 sm:px-4 whitespace-nowrap">
-                Tasks
-              </TabsTrigger>
-              <TabsTrigger value="checklists" className="text-xs sm:text-sm px-3 sm:px-4 whitespace-nowrap">
-                Checklists
-              </TabsTrigger>
-              <TabsTrigger value="schedule" className="text-xs sm:text-sm px-3 sm:px-4 whitespace-nowrap">
-                Schedule
-              </TabsTrigger>
-              <TabsTrigger value="subs" className="text-xs sm:text-sm px-3 sm:px-4 whitespace-nowrap">
-                Subs
-              </TabsTrigger>
-              <TabsTrigger value="documents" className="text-xs sm:text-sm px-3 sm:px-4 whitespace-nowrap">
-                Documents
-              </TabsTrigger>
-            </TabsList>
+  // Render the appropriate tab content
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case 'overview':
+        return <ProjectOverviewTab projectId={project.id} />;
+      case 'estimates':
+        return <ProjectEstimatesV3 projectId={project.id} />;
+      case 'proposals':
+        return <ProjectProposalsTabV3 projectId={project.id} />;
+      case 'budget':
+        return <ProjectBudgetTabV2 projectId={project.id} />;
+      case 'billing':
+        return <ProjectBillingTab projectId={project.id} />;
+      case 'financials':
+        return <ProjectFinancialsTab projectId={project.id} />;
+      case 'dashboard':
+        return <ProjectFinancialDashboard projectId={project.id} />;
+      case 'labor':
+        return <ProjectLaborTab projectId={project.id} />;
+      case 'tasks':
+        return <ProjectTasksTab projectId={project.id} />;
+      case 'checklists':
+        return <ProjectChecklistsTab projectId={project.id} />;
+      case 'schedule':
+        return <ProjectScheduleTabV2 projectId={project.id} />;
+      case 'subs':
+        return <ProjectSubsTabV3 projectId={project.id} />;
+      case 'documents':
+        return <ProjectDocumentsTab projectId={project.id} />;
+      case 'photos':
+        return (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground">Photos feature coming soon</p>
           </div>
+        );
+      case 'settings':
+        return (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground">Project settings coming soon</p>
+          </div>
+        );
+      default:
+        return <ProjectOverviewTab projectId={project.id} />;
+    }
+  };
 
-          <TabsContent value="overview">
-            <ProjectOverviewTab projectId={project.id} />
-          </TabsContent>
-
-          <TabsContent value="estimates">
-            <ProjectEstimatesV3 projectId={project.id} />
-          </TabsContent>
-
-          <TabsContent value="proposals">
-            <ProjectProposalsTabV3 projectId={project.id} />
-          </TabsContent>
-
-          <TabsContent value="budget">
-            <ProjectBudgetTabV2 projectId={project.id} />
-          </TabsContent>
-
-          <TabsContent value="billing">
-            <ProjectBillingTab projectId={project.id} />
-          </TabsContent>
-
-          <TabsContent value="financials">
-            <ProjectFinancialsTab projectId={project.id} />
-          </TabsContent>
-
-          <TabsContent value="dashboard">
-            <ProjectFinancialDashboard projectId={project.id} />
-          </TabsContent>
-
-          <TabsContent value="labor">
-            <ProjectLaborTab projectId={project.id} />
-          </TabsContent>
-
-          <TabsContent value="tasks">
-            <ProjectTasksTab projectId={project.id} />
-          </TabsContent>
-
-          <TabsContent value="checklists">
-            <ProjectChecklistsTab projectId={project.id} />
-          </TabsContent>
-
-          <TabsContent value="schedule">
-            <ProjectScheduleTabV2 projectId={project.id} />
-          </TabsContent>
-
-          <TabsContent value="subs">
-            <ProjectSubsTabV3 projectId={project.id} />
-          </TabsContent>
-
-          <TabsContent value="documents">
-            <ProjectDocumentsTab projectId={project.id} />
-          </TabsContent>
-        </Tabs>
-      </div>
+  return (
+    <Layout hideNav>
+      <ProjectShell 
+        project={project} 
+        activeTab={activeTab}
+        showSummaryBar={activeTab === 'overview'}
+      >
+        {renderTabContent()}
+      </ProjectShell>
     </Layout>
   );
 };

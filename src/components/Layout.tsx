@@ -13,9 +13,10 @@ import {
 
 interface LayoutProps {
   children: React.ReactNode;
+  hideNav?: boolean;
 }
 
-export const Layout = ({ children }: LayoutProps) => {
+export const Layout = ({ children, hideNav = false }: LayoutProps) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { t, i18n } = useTranslation();
@@ -24,6 +25,15 @@ export const Layout = ({ children }: LayoutProps) => {
     i18n.changeLanguage(lng);
     localStorage.setItem('language', lng);
   };
+
+  // If hideNav is true, render a minimal shell without the header/nav
+  if (hideNav) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-muted/30 to-background">
+        {children}
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/30 to-background">
