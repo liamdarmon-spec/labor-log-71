@@ -677,6 +677,39 @@ export default function EstimateBuilderV2() {
           isBudgetSyncing={syncToBudget.isPending}
           onBlocksChange={handleBlocksChange}
           onSetAsBudgetSource={handleSetAsBudgetSource}
+          onReorderItems={async (blockId, items) => {
+            // Batch update sort_order for items
+            const promises = items.map((item) =>
+              supabase
+                .from("scope_block_cost_items")
+                .update({
+                  sort_order: item.sort_order,
+                  area_label: item.area_label,
+                  group_label: item.group_label,
+                })
+                .eq("id", item.id)
+            );
+            const results = await Promise.all(promises);
+            const errors = results.filter((r) => r.error);
+            if (errors.length > 0) {
+              toast.error("Failed to reorder items");
+              queryClient.invalidateQueries({ queryKey: ["scope-blocks", estimateId] });
+            }
+          }}
+          onReorderSections={async (sections) => {
+            const promises = sections.map((section) =>
+              supabase
+                .from("scope_blocks")
+                .update({ sort_order: section.sort_order })
+                .eq("id", section.id)
+            );
+            const results = await Promise.all(promises);
+            const errors = results.filter((r) => r.error);
+            if (errors.length > 0) {
+              toast.error("Failed to reorder sections");
+              queryClient.invalidateQueries({ queryKey: ["scope-blocks", estimateId] });
+            }
+          }}
         />
 
         {/* Empty state */}

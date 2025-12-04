@@ -91,6 +91,19 @@ function transformToEditorBlocks(dbBlocks: ScopeBlockDB[]): EstimateEditorBlock[
   }));
 }
 
+// Reorder payload types
+export interface ReorderItemPayload {
+  id: string;
+  sort_order: number;
+  area_label: string | null;
+  group_label: string | null;
+}
+
+export interface ReorderSectionPayload {
+  id: string;
+  sort_order: number;
+}
+
 export function useEstimateBlocks(estimateId: string | undefined) {
   const queryClient = useQueryClient();
 
@@ -124,9 +137,9 @@ export function useEstimateBlocks(estimateId: string | undefined) {
       return transformToEditorBlocks(sorted);
     },
     enabled: !!estimateId,
-    staleTime: 30000, // 30 seconds cache
-    gcTime: 5 * 60 * 1000, // Keep in garbage collection for 5 minutes
-    refetchOnWindowFocus: false, // Don't refetch on window focus for better UX
+    staleTime: 30000,
+    gcTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 
   // Create item mutation
@@ -140,7 +153,6 @@ export function useEstimateBlocks(estimateId: string | undefined) {
       areaLabel?: string | null;
       groupLabel?: string | null;
     }) => {
-      // Get max sort_order for this block
       const { data: existingItems } = await supabase
         .from("scope_block_cost_items")
         .select("sort_order")
@@ -186,10 +198,8 @@ export function useEstimateBlocks(estimateId: string | undefined) {
       id,
       ...updates
     }: Partial<ScopeItem> & { id: string }) => {
-      // Recalculate line_total if needed
       let finalUpdates: any = { ...updates };
       
-      // Clamp values to prevent NaN and negative values
       if (updates.quantity !== undefined) {
         finalUpdates.quantity = Math.max(0, updates.quantity || 0);
       }
@@ -327,6 +337,80 @@ export function useEstimateBlocks(estimateId: string | undefined) {
     },
   });
 
+  // ====== REORDER MUTATIONS ======
+
+  // Reorder items within a block (batch update sort_order, area_label, group_label)
+  const reorderItemsMutation = useMutation({
+    mutationFn: async ({
+      blockId,
+      items,
+    }: {
+      blockId: string;
+      items: ReorderItemPayload[];
+    }) => {
+      // Use upsert to batch update multiple items
+      const updates = items.map((item) => ({
+        id: item.id,
+        scope_block_id: blockId,
+        sort_order: item.sort_order,
+        area_label: item.area_label,
+        group_label: item.group_label,
+      }));
+
+      // Batch update using multiple individual updates (Supabase doesn't support bulk upsert on id)
+      const promises = updates.map((update) =>
+        supabase
+          .from("scope_block_cost_items")
+          .update({
+            sort_order: update.sort_order,
+            area_label: update.area_label,
+            group_label: update.group_label,
+          })
+          .eq("id", update.id)
+      );
+
+      const results = await Promise.all(promises);
+      const errors = results.filter((r) => r.error);
+      if (errors.length > 0) {
+        throw new Error(errors[0].error?.message || "Failed to reorder items");
+      }
+    },
+    onError: (error: Error) => {
+      toast.error("Failed to reorder items: " + error.message);
+      // Invalidate to restore correct order
+      queryClient.invalidateQueries({ queryKey: ["estimate-blocks", estimateId] });
+    },
+    onSuccess: () => {
+      // Silently invalidate to confirm order
+      queryClient.invalidateQueries({ queryKey: ["estimate-blocks", estimateId] });
+    },
+  });
+
+  // Reorder sections (scope_blocks)
+  const reorderSectionsMutation = useMutation({
+    mutationFn: async (sections: ReorderSectionPayload[]) => {
+      const promises = sections.map((section) =>
+        supabase
+          .from("scope_blocks")
+          .update({ sort_order: section.sort_order })
+          .eq("id", section.id)
+      );
+
+      const results = await Promise.all(promises);
+      const errors = results.filter((r) => r.error);
+      if (errors.length > 0) {
+        throw new Error(errors[0].error?.message || "Failed to reorder sections");
+      }
+    },
+    onError: (error: Error) => {
+      toast.error("Failed to reorder sections: " + error.message);
+      queryClient.invalidateQueries({ queryKey: ["estimate-blocks", estimateId] });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["estimate-blocks", estimateId] });
+    },
+  });
+
   // Callbacks
   const onItemCreate = useCallback(
     (blockId: string, areaLabel?: string | null, groupLabel?: string | null) => {
@@ -368,12 +452,28 @@ export function useEstimateBlocks(estimateId: string | undefined) {
     [renameGroupMutation]
   );
 
+  const onReorderItems = useCallback(
+    (blockId: string, items: ReorderItemPayload[]) => {
+      reorderItemsMutation.mutate({ blockId, items });
+    },
+    [reorderItemsMutation]
+  );
+
+  const onReorderSections = useCallback(
+    (sections: ReorderSectionPayload[]) => {
+      reorderSectionsMutation.mutate(sections);
+    },
+    [reorderSectionsMutation]
+  );
+
   const isMutating =
     createItemMutation.isPending ||
     updateItemMutation.isPending ||
     deleteItemMutation.isPending ||
     renameAreaMutation.isPending ||
-    renameGroupMutation.isPending;
+    renameGroupMutation.isPending ||
+    reorderItemsMutation.isPending ||
+    reorderSectionsMutation.isPending;
 
   return {
     blocks,
@@ -385,6 +485,8 @@ export function useEstimateBlocks(estimateId: string | undefined) {
     onItemDelete,
     onAreaRename,
     onGroupRename,
+    onReorderItems,
+    onReorderSections,
     invalidate: () =>
       queryClient.invalidateQueries({ queryKey: ["estimate-blocks", estimateId] }),
   };
