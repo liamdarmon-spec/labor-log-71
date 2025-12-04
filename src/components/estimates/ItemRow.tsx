@@ -125,16 +125,14 @@ function ItemRowComponent({ item, onUpdate, onDelete }: ItemRowProps) {
           invalid ? "bg-destructive/5" : "hover:bg-muted/30"
         )}
       >
-        {/* Category - locked when cost_code_id is set */}
+        {/* Category Type selector */}
         <select
           className={cn(
             "h-7 text-[11px] font-medium rounded border-0 bg-transparent cursor-pointer focus:ring-1 focus:ring-ring",
-            CATEGORY_COLORS[item.category],
-            item.cost_code_id && "opacity-70"
+            CATEGORY_COLORS[item.category]
           )}
           value={item.category}
           onChange={(e) => handleCategoryChange(e.target.value as BudgetCategory)}
-          disabled={!!item.cost_code_id && item.cost_code_id !== "UNASSIGNED"}
         >
           <option value="labor">LAB</option>
           <option value="subs">SUBS</option>
@@ -244,7 +242,6 @@ function ItemRowComponent({ item, onUpdate, onDelete }: ItemRowProps) {
             )}
             value={item.category}
             onChange={(e) => handleCategoryChange(e.target.value as BudgetCategory)}
-            disabled={!!item.cost_code_id && item.cost_code_id !== "UNASSIGNED"}
           >
             <option value="labor">LAB</option>
             <option value="subs">SUBS</option>

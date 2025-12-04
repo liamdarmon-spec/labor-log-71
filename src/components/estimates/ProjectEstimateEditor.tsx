@@ -76,6 +76,7 @@ interface EstimateEditorProps {
   onMoveItems?: (moves: MoveItemPayload[]) => void;
   onReorderSections?: (sections: ReorderSectionPayload[]) => void;
   onUpdateSection?: (blockId: string, patch: { title?: string; description?: string }) => void;
+  onDeleteSection?: (blockId: string) => void;
 }
 
 // ====== Helpers ======
@@ -338,6 +339,7 @@ export const ProjectEstimateEditor: React.FC<EstimateEditorProps> = ({
   onMoveItems,
   onReorderSections,
   onUpdateSection,
+  onDeleteSection,
 }) => {
   const [activeItemId, setActiveItemId] = useState<UniqueIdentifier | null>(null);
   const [activeSectionId, setActiveSectionId] = useState<UniqueIdentifier | null>(null);
@@ -870,6 +872,7 @@ export const ProjectEstimateEditor: React.FC<EstimateEditorProps> = ({
                   renameArea={renameArea}
                   renameGroup={renameGroup}
                   onUpdateSection={onUpdateSection}
+                  onDeleteSection={onDeleteSection}
                 />
               ))}
             </SortableContext>
@@ -925,6 +928,7 @@ interface SortableBlockSectionProps {
   renameArea: (blockId: string, oldName: string | null, newName: string | null) => void;
   renameGroup: (blockId: string, areaLabel: string | null, oldGroup: string | null, newGroup: string | null) => void;
   onUpdateSection?: (blockId: string, patch: { title?: string; description?: string }) => void;
+  onDeleteSection?: (blockId: string) => void;
 }
 
 const SortableBlockSection = memo(function SortableBlockSection({
@@ -939,10 +943,12 @@ const SortableBlockSection = memo(function SortableBlockSection({
   renameArea,
   renameGroup,
   onUpdateSection,
+  onDeleteSection,
 }: SortableBlockSectionProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [localTitle, setLocalTitle] = useState(b.block.title || "");
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const titleInputRef = useRef<HTMLInputElement>(null);
 
   const {
@@ -1081,8 +1087,57 @@ const SortableBlockSection = memo(function SortableBlockSection({
           <span className="text-muted-foreground">
             {b.items.length} items · {formatCurrency(blockTotal)}
           </span>
+          {/* Delete section button */}
+          {onDeleteSection && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded transition-colors"
+                  onClick={() => setShowDeleteConfirm(true)}
+                  aria-label="Delete section"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="text-xs">
+                Delete section
+              </TooltipContent>
+            </Tooltip>
+          )}
         </div>
       </header>
+
+      {/* Delete confirmation dialog */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-card border border-border rounded-xl shadow-lg p-6 max-w-md mx-4">
+            <h3 className="text-lg font-semibold text-foreground mb-2">Delete Section?</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              This will permanently delete "{b.block.title || "Untitled Section"}" and all {b.items.length} item{b.items.length !== 1 ? "s" : ""} inside it. This action cannot be undone.
+            </p>
+            <div className="flex items-center justify-end gap-2">
+              <button
+                type="button"
+                className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                onClick={() => setShowDeleteConfirm(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="px-4 py-2 text-sm font-medium bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-lg transition-colors"
+                onClick={() => {
+                  onDeleteSection?.(b.block.id);
+                  setShowDeleteConfirm(false);
+                }}
+              >
+                Delete Section
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <AnimatePresence initial={false}>
         {!isCollapsed && (
