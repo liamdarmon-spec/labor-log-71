@@ -1,5 +1,5 @@
 // Estimate Export Utilities - CSV and PDF generation
-// Apple-grade, Procore-quality design
+// Forma Homes Client Estimate (Pre-Proposal) Format
 
 import { jsPDF } from "jspdf";
 
@@ -19,6 +19,7 @@ export interface ExportItem {
   unit_price: number;
   markup_percent: number;
   line_total: number;
+  is_allowance?: boolean;
 }
 
 export interface ExportBlock {
@@ -41,31 +42,17 @@ export interface EstimateExportData {
 
 const CATEGORY_LABELS: Record<BudgetCategory, string> = {
   labor: "Labor",
-  subs: "Subs",
+  subs: "Subcontractors",
   materials: "Materials",
   other: "Other",
 };
 
-const CATEGORY_SHORT: Record<BudgetCategory, string> = {
-  labor: "L",
-  subs: "S",
-  materials: "M",
-  other: "O",
-};
-
 // RGB colors for categories
 const CATEGORY_COLORS: Record<BudgetCategory, { r: number; g: number; b: number }> = {
-  labor: { r: 59, g: 130, b: 246 },    // Blue
-  subs: { r: 245, g: 158, b: 11 },     // Amber/Yellow
-  materials: { r: 16, g: 185, b: 129 }, // Emerald/Green
-  other: { r: 107, g: 114, b: 128 },   // Gray
-};
-
-const CATEGORY_BG: Record<BudgetCategory, { r: number; g: number; b: number }> = {
-  labor: { r: 239, g: 246, b: 255 },
-  subs: { r: 255, g: 251, b: 235 },
-  materials: { r: 236, g: 253, b: 245 },
-  other: { r: 249, g: 250, b: 251 },
+  labor: { r: 59, g: 130, b: 246 },
+  subs: { r: 245, g: 158, b: 11 },
+  materials: { r: 16, g: 185, b: 129 },
+  other: { r: 107, g: 114, b: 128 },
 };
 
 function formatCurrency(value: number): string {
@@ -75,22 +62,6 @@ function formatCurrency(value: number): string {
     currency: "USD",
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  });
-}
-
-function formatCurrencyShort(value: number): string {
-  if (!Number.isFinite(value)) return "$0";
-  if (value >= 1000000) {
-    return `$${(value / 1000000).toFixed(1)}M`;
-  }
-  if (value >= 1000) {
-    return `$${(value / 1000).toFixed(1)}K`;
-  }
-  return value.toLocaleString("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
   });
 }
 
@@ -176,28 +147,30 @@ export interface EstimateExportDataExtended extends EstimateExportData {
   projectDescription?: string;
   projectManager?: string;
   scopeSummary?: string;
-  inclusions?: string;
-  exclusions?: string;
-  timeline?: { phase: string; duration: string; notes?: string }[];
-  paymentSchedule?: { milestone: string; description: string; amount: string }[];
-  warrantyText?: string;
+  inclusions?: string[];
+  exclusions?: string[];
+  projectNotes?: string;
+  companyName?: string;
+  companyLicense?: string;
+  companyEmail?: string;
+  companyPhone?: string;
 }
 
 function computeTotals(items: ExportItem[]): PDFTotals {
   const totals: PDFTotals = { labor: 0, subs: 0, materials: 0, other: 0, total: 0 };
   for (const item of items) {
-    const lineTotal = (item.quantity || 0) * (item.unit_price || 0) * (1 + (item.markup_percent || 0) / 100);
+    const lineTotal = item.line_total || (item.quantity || 0) * (item.unit_price || 0) * (1 + (item.markup_percent || 0) / 100);
     totals[item.category] += lineTotal;
     totals.total += lineTotal;
   }
   return totals;
 }
 
-// Design constants - Apple-grade typography
+// Design constants
 const PDF_DESIGN = {
   pageMargin: 20,
-  sectionSpacing: 16,
-  rowHeight: 7,
+  sectionSpacing: 12,
+  rowHeight: 6,
   colors: {
     text: { r: 17, g: 24, b: 39 },
     textMuted: { r: 107, g: 114, b: 128 },
@@ -208,12 +181,12 @@ const PDF_DESIGN = {
     accent: { r: 59, g: 130, b: 246 },
   },
   fonts: {
-    title: 24,
-    header: 16,
-    subtitle: 12,
-    body: 10,
-    small: 9,
-    tiny: 8,
+    title: 20,
+    header: 14,
+    subtitle: 11,
+    body: 9,
+    small: 8,
+    tiny: 7,
   },
 };
 
@@ -229,6 +202,64 @@ function drawRoundedRectPDF(
 ) {
   const r = Math.min(radius, height / 2, width / 2);
   doc.roundedRect(x, y, width, height, r, r, fill ? (stroke ? "FD" : "F") : "S");
+}
+
+// Group items by area and then by group
+interface GroupedItems {
+  areaLabel: string;
+  areaTotal: number;
+  groups: {
+    groupLabel: string;
+    groupTotal: number;
+    items: ExportItem[];
+  }[];
+}
+
+function groupItemsByAreaAndGroup(items: ExportItem[]): GroupedItems[] {
+  const areaMap = new Map<string, Map<string, ExportItem[]>>();
+  
+  for (const item of items) {
+    const area = item.area_label || "General";
+    const group = item.group_label || "General Tasks";
+    
+    if (!areaMap.has(area)) {
+      areaMap.set(area, new Map());
+    }
+    const groupMap = areaMap.get(area)!;
+    if (!groupMap.has(group)) {
+      groupMap.set(group, []);
+    }
+    groupMap.get(group)!.push(item);
+  }
+  
+  const result: GroupedItems[] = [];
+  
+  for (const [areaLabel, groupMap] of areaMap) {
+    const groups: GroupedItems["groups"] = [];
+    let areaTotal = 0;
+    
+    for (const [groupLabel, groupItems] of groupMap) {
+      const groupTotal = groupItems.reduce((sum, item) => {
+        const lineTotal = item.line_total || (item.quantity || 0) * (item.unit_price || 0) * (1 + (item.markup_percent || 0) / 100);
+        return sum + lineTotal;
+      }, 0);
+      areaTotal += groupTotal;
+      
+      groups.push({
+        groupLabel,
+        groupTotal,
+        items: groupItems,
+      });
+    }
+    
+    result.push({
+      areaLabel,
+      areaTotal,
+      groups,
+    });
+  }
+  
+  return result;
 }
 
 export function generateEstimatePDF(data: EstimateExportData | EstimateExportDataExtended): jsPDF {
@@ -256,531 +287,518 @@ export function generateEstimatePDF(data: EstimateExportData | EstimateExportDat
 
   const allItems = data.blocks.flatMap((b) => b.items);
   const grandTotals = computeTotals(allItems);
+  const allowanceItems = allItems.filter(item => item.is_allowance);
+  
+  const companyName = extData.companyName || "FORMA HOMES";
+  const companyLicense = extData.companyLicense || "#######";
+  const companyEmail = extData.companyEmail || "hello@formahomes.com";
+  const companyPhone = extData.companyPhone || "(###) ###-####";
 
-  // ======== 1. HEADER SECTION ========
+  // ======== HEADER - COMPANY INFO ========
   
-  // Logo placeholder (top right) - simple text for now
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(PDF_DESIGN.colors.accent.r, PDF_DESIGN.colors.accent.g, PDF_DESIGN.colors.accent.b);
-  doc.text("FORMA HOMES", pageWidth - margin, y + 4, { align: "right" });
-  
-  // Title
   doc.setFontSize(PDF_DESIGN.fonts.title);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(PDF_DESIGN.colors.text.r, PDF_DESIGN.colors.text.g, PDF_DESIGN.colors.text.b);
-  doc.text(data.title || "Project Estimate", margin, y + 8);
+  doc.text(companyName, margin, y + 6);
   
-  y += 14;
-  
-  // Subtitle info
-  doc.setFontSize(PDF_DESIGN.fonts.body);
+  doc.setFontSize(PDF_DESIGN.fonts.small);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(PDF_DESIGN.colors.textMuted.r, PDF_DESIGN.colors.textMuted.g, PDF_DESIGN.colors.textMuted.b);
+  doc.text("Licensed, Bonded & Insured", margin, y + 12);
+  doc.text(`Contractor License: ${companyLicense}`, margin, y + 16);
+  doc.text(`${companyEmail} | ${companyPhone}`, margin, y + 20);
   
-  const headerInfo: string[] = [];
-  if (extData.clientName) headerInfo.push(`Client: ${extData.clientName}`);
-  if (data.projectName) headerInfo.push(`Project: ${data.projectName}`);
-  if (extData.projectAddress) headerInfo.push(`Address: ${extData.projectAddress}`);
-  
-  headerInfo.forEach((line, i) => {
-    doc.text(line, margin, y + (i * 5));
-  });
-  
-  y += Math.max(headerInfo.length * 5, 5) + 3;
-  
-  // Status and date row
-  doc.setFontSize(PDF_DESIGN.fonts.small);
-  const statusLine = `Status: ${data.status} • Generated: ${new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })} • ID: ${data.estimateId.slice(0, 8)}`;
-  doc.text(statusLine, margin, y);
-  
-  y += 12;
+  y += 28;
   
   // Divider
   doc.setDrawColor(PDF_DESIGN.colors.border.r, PDF_DESIGN.colors.border.g, PDF_DESIGN.colors.border.b);
   doc.setLineWidth(0.3);
   doc.line(margin, y, pageWidth - margin, y);
-  
-  y += 10;
+  y += 8;
 
-  // ======== 2. PROJECT OVERVIEW (if available) ========
+  // ======== PROJECT ESTIMATE (PRE-PROPOSAL) HEADER ========
   
-  if (extData.projectDescription || extData.projectManager || extData.scopeSummary) {
-    doc.setFontSize(PDF_DESIGN.fonts.subtitle);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(PDF_DESIGN.colors.text.r, PDF_DESIGN.colors.text.g, PDF_DESIGN.colors.text.b);
-    doc.text("Project Overview", margin, y);
-    y += 6;
-    
-    doc.setFontSize(PDF_DESIGN.fonts.body);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(PDF_DESIGN.colors.textMuted.r, PDF_DESIGN.colors.textMuted.g, PDF_DESIGN.colors.textMuted.b);
-    
-    if (extData.projectDescription) {
-      const descLines = doc.splitTextToSize(extData.projectDescription, contentWidth);
-      doc.text(descLines, margin, y);
-      y += descLines.length * 4 + 3;
-    }
-    
-    if (extData.projectManager) {
-      doc.text(`Project Lead: ${extData.projectManager}`, margin, y);
-      y += 5;
-    }
-    
-    if (extData.scopeSummary) {
-      const scopeLines = doc.splitTextToSize(`Scope: ${extData.scopeSummary}`, contentWidth);
-      doc.text(scopeLines, margin, y);
-      y += scopeLines.length * 4 + 3;
-    }
-    
-    y += 8;
-  }
-
-  // ======== 3. TOTALS SUMMARY BAR ========
-  
-  const tileWidth = (contentWidth - 12) / 4;
-  const tileHeight = 22;
-  const categories: BudgetCategory[] = ["labor", "subs", "materials", "other"];
-  
-  categories.forEach((cat, i) => {
-    const tx = margin + i * (tileWidth + 4);
-    const color = CATEGORY_COLORS[cat];
-    const bg = CATEGORY_BG[cat];
-    const value = grandTotals[cat];
-    
-    // Tile background
-    doc.setFillColor(bg.r, bg.g, bg.b);
-    drawRoundedRectPDF(doc, tx, y, tileWidth, tileHeight, 4);
-    
-    // Category label
-    doc.setFontSize(PDF_DESIGN.fonts.tiny);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(color.r, color.g, color.b);
-    doc.text(CATEGORY_LABELS[cat].toUpperCase(), tx + tileWidth / 2, y + 7, { align: "center" });
-    
-    // Value
-    doc.setFontSize(PDF_DESIGN.fonts.subtitle);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(PDF_DESIGN.colors.text.r, PDF_DESIGN.colors.text.g, PDF_DESIGN.colors.text.b);
-    doc.text(formatCurrency(value), tx + tileWidth / 2, y + 15, { align: "center" });
-  });
-  
-  y += tileHeight + 8;
-  
-  // Grand Total
-  doc.setFillColor(PDF_DESIGN.colors.cardBg.r, PDF_DESIGN.colors.cardBg.g, PDF_DESIGN.colors.cardBg.b);
-  drawRoundedRectPDF(doc, margin, y, contentWidth, 18, 4);
-  
-  doc.setFontSize(PDF_DESIGN.fonts.small);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(PDF_DESIGN.colors.textMuted.r, PDF_DESIGN.colors.textMuted.g, PDF_DESIGN.colors.textMuted.b);
-  doc.text("GRAND TOTAL", margin + contentWidth / 2, y + 6, { align: "center" });
-  
-  doc.setFontSize(20);
+  doc.setFontSize(PDF_DESIGN.fonts.header);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(PDF_DESIGN.colors.text.r, PDF_DESIGN.colors.text.g, PDF_DESIGN.colors.text.b);
-  doc.text(formatCurrency(grandTotals.total), margin + contentWidth / 2, y + 14, { align: "center" });
+  doc.text("PROJECT ESTIMATE (PRE-PROPOSAL)", margin, y);
+  y += 6;
   
-  y += 28;
+  doc.setFontSize(PDF_DESIGN.fonts.body);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(PDF_DESIGN.colors.textMuted.r, PDF_DESIGN.colors.textMuted.g, PDF_DESIGN.colors.textMuted.b);
+  doc.text("This is not a contract.", margin, y);
+  y += 4;
+  
+  doc.setFont("helvetica", "normal");
+  const disclaimerText = "This document outlines the anticipated project scope and estimated pricing. A formal Home Improvement Contract will follow upon approval.";
+  const disclaimerLines = doc.splitTextToSize(disclaimerText, contentWidth);
+  doc.text(disclaimerLines, margin, y);
+  y += disclaimerLines.length * 3.5 + 8;
+  
+  // Divider
+  doc.line(margin, y, pageWidth - margin, y);
+  y += 8;
 
-  // ======== 4. SCOPE OF WORK SECTION ========
+  // ======== PROJECT INFORMATION ========
   
-  if (data.blocks.length > 0) {
-    checkPageBreak(20);
-    
-    doc.setFontSize(PDF_DESIGN.fonts.header);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(PDF_DESIGN.colors.text.r, PDF_DESIGN.colors.text.g, PDF_DESIGN.colors.text.b);
-    doc.text("Scope of Work", margin, y);
-    y += 8;
-    
-    doc.setFontSize(PDF_DESIGN.fonts.body);
-    doc.setFont("helvetica", "normal");
+  doc.setFontSize(PDF_DESIGN.fonts.subtitle);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(PDF_DESIGN.colors.text.r, PDF_DESIGN.colors.text.g, PDF_DESIGN.colors.text.b);
+  doc.text("PROJECT INFORMATION", margin, y);
+  y += 6;
+  
+  doc.setFontSize(PDF_DESIGN.fonts.body);
+  doc.setFont("helvetica", "normal");
+  
+  const projectInfo = [
+    { label: "Client", value: extData.clientName || "—" },
+    { label: "Property Address", value: extData.projectAddress || "—" },
+    { label: "Estimate Date", value: new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }) },
+    { label: "Project Name", value: data.projectName || data.title || "—" },
+    { label: "Prepared By", value: companyName },
+  ];
+  
+  for (const info of projectInfo) {
     doc.setTextColor(PDF_DESIGN.colors.textMuted.r, PDF_DESIGN.colors.textMuted.g, PDF_DESIGN.colors.textMuted.b);
-    
-    for (const block of data.blocks) {
-      checkPageBreak(12);
-      
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(PDF_DESIGN.colors.text.r, PDF_DESIGN.colors.text.g, PDF_DESIGN.colors.text.b);
-      doc.text(`• ${block.block.title}`, margin + 2, y);
-      y += 5;
-      
-      // List first few item descriptions
-      const itemDescs = block.items
-        .filter(item => item.description && item.description.trim())
-        .slice(0, 5);
-      
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(PDF_DESIGN.colors.textMuted.r, PDF_DESIGN.colors.textMuted.g, PDF_DESIGN.colors.textMuted.b);
-      
-      for (const item of itemDescs) {
-        checkPageBreak(5);
-        const shortDesc = item.description.length > 60 ? item.description.slice(0, 60) + "..." : item.description;
-        doc.text(`   – ${shortDesc}`, margin + 4, y);
-        y += 4;
-      }
-      
-      if (block.items.length > 5) {
-        doc.text(`   + ${block.items.length - 5} more items...`, margin + 4, y);
-        y += 4;
-      }
-      
-      y += 3;
-    }
-    
-    y += 8;
+    doc.setFont("helvetica", "bold");
+    doc.text(`${info.label}:`, margin, y);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(PDF_DESIGN.colors.text.r, PDF_DESIGN.colors.text.g, PDF_DESIGN.colors.text.b);
+    doc.text(info.value, margin + 35, y);
+    y += 5;
   }
-
-  // ======== 5. DETAILED COST SECTIONS ========
   
+  y += 8;
+  doc.line(margin, y, pageWidth - margin, y);
+  y += 10;
+
+  // ======== EXECUTIVE SUMMARY ========
+  
+  doc.setFontSize(PDF_DESIGN.fonts.header);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(PDF_DESIGN.colors.text.r, PDF_DESIGN.colors.text.g, PDF_DESIGN.colors.text.b);
+  doc.text("EXECUTIVE SUMMARY", margin, y);
+  y += 7;
+  
+  doc.setFontSize(PDF_DESIGN.fonts.body);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(PDF_DESIGN.colors.textMuted.r, PDF_DESIGN.colors.textMuted.g, PDF_DESIGN.colors.textMuted.b);
+  
+  const summaryText1 = `Thank you for considering ${companyName} for your upcoming project. Below is a detailed pre-proposal estimate based on the current project scope and selections. This document is intended to verify scope and general pricing before contract execution.`;
+  const summaryLines1 = doc.splitTextToSize(summaryText1, contentWidth);
+  doc.text(summaryLines1, margin, y);
+  y += summaryLines1.length * 3.5 + 4;
+  
+  const summaryText2 = "Once approved, we will prepare a formal contract with defined payment schedule, terms, permitting requirements, schedule constraints, and final material selections.";
+  const summaryLines2 = doc.splitTextToSize(summaryText2, contentWidth);
+  doc.text(summaryLines2, margin, y);
+  y += summaryLines2.length * 3.5 + 10;
+  
+  doc.line(margin, y, pageWidth - margin, y);
+  y += 10;
+
+  // ======== ESTIMATE SUMMARY TABLE ========
+  
+  doc.setFontSize(PDF_DESIGN.fonts.header);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(PDF_DESIGN.colors.text.r, PDF_DESIGN.colors.text.g, PDF_DESIGN.colors.text.b);
+  doc.text("ESTIMATE SUMMARY", margin, y);
+  y += 8;
+  
+  // Summary table
+  const categories: { key: BudgetCategory; label: string }[] = [
+    { key: "labor", label: "Labor (Estimated)" },
+    { key: "subs", label: "Subcontractors" },
+    { key: "materials", label: "Materials" },
+    { key: "other", label: "Other" },
+  ];
+  
+  // Table header
+  doc.setFillColor(PDF_DESIGN.colors.cardBg.r, PDF_DESIGN.colors.cardBg.g, PDF_DESIGN.colors.cardBg.b);
+  doc.rect(margin, y, contentWidth, 7, "F");
+  
+  doc.setFontSize(PDF_DESIGN.fonts.small);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(PDF_DESIGN.colors.textMuted.r, PDF_DESIGN.colors.textMuted.g, PDF_DESIGN.colors.textMuted.b);
+  doc.text("Category", margin + 4, y + 5);
+  doc.text("Amount", pageWidth - margin - 4, y + 5, { align: "right" });
+  y += 9;
+  
+  // Category rows
+  doc.setFontSize(PDF_DESIGN.fonts.body);
+  for (const cat of categories) {
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(PDF_DESIGN.colors.text.r, PDF_DESIGN.colors.text.g, PDF_DESIGN.colors.text.b);
+    doc.text(cat.label, margin + 4, y + 4);
+    
+    doc.setFont("helvetica", "bold");
+    doc.text(formatCurrency(grandTotals[cat.key]), pageWidth - margin - 4, y + 4, { align: "right" });
+    
+    y += 7;
+    
+    // Light divider
+    doc.setDrawColor(240, 240, 240);
+    doc.line(margin, y, pageWidth - margin, y);
+  }
+  
+  // Grand total row
+  y += 2;
+  doc.setFillColor(PDF_DESIGN.colors.text.r, PDF_DESIGN.colors.text.g, PDF_DESIGN.colors.text.b);
+  doc.rect(margin, y, contentWidth, 10, "F");
+  
+  doc.setFontSize(PDF_DESIGN.fonts.body);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(255, 255, 255);
+  doc.text("Estimated Project Total", margin + 4, y + 7);
+  doc.setFontSize(PDF_DESIGN.fonts.subtitle);
+  doc.text(formatCurrency(grandTotals.total), pageWidth - margin - 4, y + 7, { align: "right" });
+  
+  y += 18;
+  doc.line(margin, y, pageWidth - margin, y);
+  y += 10;
+
+  // ======== DETAILED SCOPE OF WORK ========
+  
+  checkPageBreak(30);
+  
+  doc.setFontSize(PDF_DESIGN.fonts.header);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(PDF_DESIGN.colors.text.r, PDF_DESIGN.colors.text.g, PDF_DESIGN.colors.text.b);
+  doc.text("DETAILED SCOPE OF WORK", margin, y);
+  y += 6;
+  
+  // Hybrid view notice
+  doc.setFontSize(PDF_DESIGN.fonts.small);
+  doc.setFont("helvetica", "italic");
+  doc.setTextColor(PDF_DESIGN.colors.textMuted.r, PDF_DESIGN.colors.textMuted.g, PDF_DESIGN.colors.textMuted.b);
+  doc.text("Hybrid View: Line items are shown with descriptions and totals only.", margin, y);
+  doc.text("Unit pricing, internal labor rates, and markup breakdowns are hidden.", margin, y + 4);
+  y += 12;
+  
+  // Process each section (block)
   for (const block of data.blocks) {
-    checkPageBreak(30);
+    checkPageBreak(25);
     
     const sectionTotals = computeTotals(block.items);
+    const groupedItems = groupItemsByAreaAndGroup(block.items);
     
-    // Section header card
+    // Section header
     doc.setFillColor(PDF_DESIGN.colors.cardBg.r, PDF_DESIGN.colors.cardBg.g, PDF_DESIGN.colors.cardBg.b);
-    drawRoundedRectPDF(doc, margin, y, contentWidth, 12, 4);
+    drawRoundedRectPDF(doc, margin, y, contentWidth, 10, 3);
     
     doc.setFontSize(PDF_DESIGN.fonts.subtitle);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(PDF_DESIGN.colors.text.r, PDF_DESIGN.colors.text.g, PDF_DESIGN.colors.text.b);
-    doc.text(block.block.title || "Cost Items", margin + 4, y + 8);
+    doc.text(block.block.title || "Cost Items", margin + 4, y + 7);
     
-    // Section total right
-    doc.setFontSize(PDF_DESIGN.fonts.body);
-    doc.text(`Total: ${formatCurrency(sectionTotals.total)}`, pageWidth - margin - 4, y + 8, { align: "right" });
+    doc.text(`Section Total: ${formatCurrency(sectionTotals.total)}`, pageWidth - margin - 4, y + 7, { align: "right" });
+    y += 14;
     
-    y += 16;
-    
-    // Column headers
-    const cols = {
-      desc: margin + 2,
-      qty: margin + 95,
-      unit: margin + 115,
-      rate: margin + 135,
-      markup: margin + 155,
-      total: pageWidth - margin - 2,
-    };
-    
-    doc.setFillColor(245, 245, 247);
-    doc.rect(margin, y, contentWidth, 6, "F");
-    
-    doc.setFontSize(PDF_DESIGN.fonts.tiny);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(PDF_DESIGN.colors.textMuted.r, PDF_DESIGN.colors.textMuted.g, PDF_DESIGN.colors.textMuted.b);
-    
-    doc.text("DESCRIPTION", cols.desc, y + 4);
-    doc.text("QTY", cols.qty, y + 4, { align: "right" });
-    doc.text("UNIT", cols.unit, y + 4, { align: "right" });
-    doc.text("RATE", cols.rate, y + 4, { align: "right" });
-    doc.text("M/U", cols.markup, y + 4, { align: "right" });
-    doc.text("TOTAL", cols.total, y + 4, { align: "right" });
-    
-    y += 8;
-    
-    // Items
     if (block.items.length === 0) {
       doc.setFontSize(PDF_DESIGN.fonts.body);
       doc.setFont("helvetica", "italic");
       doc.setTextColor(PDF_DESIGN.colors.textLight.r, PDF_DESIGN.colors.textLight.g, PDF_DESIGN.colors.textLight.b);
-      doc.text("No cost items added yet.", margin + contentWidth / 2, y + 3, { align: "center" });
-      y += 10;
+      doc.text("No cost items added yet.", margin + 4, y);
+      y += 8;
     } else {
-      let rowIdx = 0;
-      for (const item of block.items) {
-        checkPageBreak(PDF_DESIGN.rowHeight + 1);
+      // Process areas and groups
+      for (const area of groupedItems) {
+        checkPageBreak(18);
         
-        // Alternate row bg
-        if (rowIdx % 2 === 1) {
-          doc.setFillColor(252, 252, 253);
-          doc.rect(margin, y, contentWidth, PDF_DESIGN.rowHeight, "F");
-        }
-        
-        const rowY = y + PDF_DESIGN.rowHeight / 2 + 1.5;
-        
-        // Category tag
-        const catColor = CATEGORY_COLORS[item.category];
-        const catBg = CATEGORY_BG[item.category];
-        doc.setFillColor(catBg.r, catBg.g, catBg.b);
-        drawRoundedRectPDF(doc, cols.desc, rowY - 2.5, 6, 5, 1);
-        doc.setFontSize(6);
+        // Area header
+        doc.setFontSize(PDF_DESIGN.fonts.body);
         doc.setFont("helvetica", "bold");
-        doc.setTextColor(catColor.r, catColor.g, catColor.b);
-        doc.text(CATEGORY_SHORT[item.category], cols.desc + 3, rowY + 0.5, { align: "center" });
+        doc.setTextColor(PDF_DESIGN.colors.accent.r, PDF_DESIGN.colors.accent.g, PDF_DESIGN.colors.accent.b);
+        doc.text(`▸ ${area.areaLabel}`, margin + 2, y);
         
-        // Description
-        doc.setFontSize(PDF_DESIGN.fonts.small);
+        doc.setTextColor(PDF_DESIGN.colors.textMuted.r, PDF_DESIGN.colors.textMuted.g, PDF_DESIGN.colors.textMuted.b);
         doc.setFont("helvetica", "normal");
+        doc.text(`Area Total: ${formatCurrency(area.areaTotal)}`, pageWidth - margin - 4, y, { align: "right" });
+        y += 6;
         
-        let desc = item.description || "";
-        const costCode = data.costCodes?.get(item.cost_code_id || "");
-        const codeStr = costCode?.code || item.cost_code_code || "";
-        if (codeStr && !desc.startsWith(codeStr)) {
-          desc = `${codeStr} – ${desc}`;
-        }
-        
-        // Truncate
-        const maxDescWidth = cols.qty - cols.desc - 12;
-        while (doc.getTextWidth(desc) > maxDescWidth && desc.length > 10) {
-          desc = desc.substring(0, desc.length - 4) + "...";
-        }
-        
-        if (!item.cost_code_id || item.cost_code_id === "UNASSIGNED") {
-          doc.setTextColor(PDF_DESIGN.colors.textLight.r, PDF_DESIGN.colors.textLight.g, PDF_DESIGN.colors.textLight.b);
-          doc.setFont("helvetica", "italic");
-        } else {
+        for (const group of area.groups) {
+          checkPageBreak(15);
+          
+          // Group header
+          doc.setFontSize(PDF_DESIGN.fonts.small);
+          doc.setFont("helvetica", "bold");
           doc.setTextColor(PDF_DESIGN.colors.text.r, PDF_DESIGN.colors.text.g, PDF_DESIGN.colors.text.b);
-        }
-        doc.text(desc || "No description", cols.desc + 8, rowY);
-        
-        doc.setFont("helvetica", "normal");
-        doc.setTextColor(PDF_DESIGN.colors.text.r, PDF_DESIGN.colors.text.g, PDF_DESIGN.colors.text.b);
-        
-        // Qty, Unit, Rate, Markup, Total
-        doc.text(String(item.quantity || 0), cols.qty, rowY, { align: "right" });
-        
-        doc.setTextColor(PDF_DESIGN.colors.textMuted.r, PDF_DESIGN.colors.textMuted.g, PDF_DESIGN.colors.textMuted.b);
-        doc.text(item.unit || "ea", cols.unit, rowY, { align: "right" });
-        
-        doc.setTextColor(PDF_DESIGN.colors.text.r, PDF_DESIGN.colors.text.g, PDF_DESIGN.colors.text.b);
-        doc.text(formatCurrency(item.unit_price || 0), cols.rate, rowY, { align: "right" });
-        
-        doc.setTextColor(PDF_DESIGN.colors.textMuted.r, PDF_DESIGN.colors.textMuted.g, PDF_DESIGN.colors.textMuted.b);
-        doc.text(item.markup_percent > 0 ? `${item.markup_percent}%` : "—", cols.markup, rowY, { align: "right" });
-        
-        const lineTotal = (item.quantity || 0) * (item.unit_price || 0) * (1 + (item.markup_percent || 0) / 100);
-        doc.setFont("helvetica", "bold");
-        doc.setTextColor(PDF_DESIGN.colors.text.r, PDF_DESIGN.colors.text.g, PDF_DESIGN.colors.text.b);
-        doc.text(formatCurrency(lineTotal), cols.total, rowY, { align: "right" });
-        
-        y += PDF_DESIGN.rowHeight;
-        rowIdx++;
-      }
-    }
-    
-    // Section subtotal bar
-    if (block.items.length > 0) {
-      y += 2;
-      doc.setFillColor(245, 245, 247);
-      drawRoundedRectPDF(doc, margin, y, contentWidth, 8, 2);
-      
-      const subY = y + 5.5;
-      let subX = margin + 4;
-      
-      categories.forEach((cat) => {
-        const val = sectionTotals[cat];
-        if (val > 0) {
-          const color = CATEGORY_COLORS[cat];
-          doc.setFontSize(7);
+          doc.text(`• ${group.groupLabel}`, margin + 6, y);
+          
           doc.setFont("helvetica", "normal");
-          doc.setTextColor(color.r, color.g, color.b);
-          const catText = `${CATEGORY_LABELS[cat]}: ${formatCurrency(val)}`;
-          doc.text(catText, subX, subY);
-          subX += doc.getTextWidth(catText) + 6;
+          doc.setTextColor(PDF_DESIGN.colors.textMuted.r, PDF_DESIGN.colors.textMuted.g, PDF_DESIGN.colors.textMuted.b);
+          doc.text(`Group Total: ${formatCurrency(group.groupTotal)}`, pageWidth - margin - 4, y, { align: "right" });
+          y += 5;
+          
+          // Table header for items
+          doc.setFillColor(250, 250, 252);
+          doc.rect(margin + 8, y, contentWidth - 8, 5, "F");
+          
+          doc.setFontSize(PDF_DESIGN.fonts.tiny);
+          doc.setFont("helvetica", "bold");
+          doc.setTextColor(PDF_DESIGN.colors.textMuted.r, PDF_DESIGN.colors.textMuted.g, PDF_DESIGN.colors.textMuted.b);
+          doc.text("Description", margin + 10, y + 3.5);
+          doc.text("Total", pageWidth - margin - 4, y + 3.5, { align: "right" });
+          y += 6;
+          
+          // Items (description + total only)
+          for (const item of group.items) {
+            checkPageBreak(6);
+            
+            const lineTotal = item.line_total || (item.quantity || 0) * (item.unit_price || 0) * (1 + (item.markup_percent || 0) / 100);
+            
+            doc.setFontSize(PDF_DESIGN.fonts.small);
+            doc.setFont("helvetica", "normal");
+            doc.setTextColor(PDF_DESIGN.colors.text.r, PDF_DESIGN.colors.text.g, PDF_DESIGN.colors.text.b);
+            
+            // Truncate description if too long
+            let desc = item.description || "No description";
+            const maxDescWidth = contentWidth - 45;
+            while (doc.getTextWidth(desc) > maxDescWidth && desc.length > 10) {
+              desc = desc.substring(0, desc.length - 4) + "...";
+            }
+            
+            doc.text(desc, margin + 10, y + 3);
+            
+            doc.setFont("helvetica", "bold");
+            doc.text(formatCurrency(lineTotal), pageWidth - margin - 4, y + 3, { align: "right" });
+            
+            y += 5;
+          }
+          
+          y += 3;
         }
-      });
-      
-      doc.setFontSize(PDF_DESIGN.fonts.small);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(PDF_DESIGN.colors.text.r, PDF_DESIGN.colors.text.g, PDF_DESIGN.colors.text.b);
-      doc.text(`Section Total: ${formatCurrency(sectionTotals.total)}`, cols.total, subY, { align: "right" });
-      
-      y += 12;
+        
+        // Subtle divider between areas
+        doc.setDrawColor(PDF_DESIGN.colors.border.r, PDF_DESIGN.colors.border.g, PDF_DESIGN.colors.border.b);
+        doc.line(margin + 4, y, pageWidth - margin - 4, y);
+        y += 5;
+      }
     }
     
     y += PDF_DESIGN.sectionSpacing;
   }
 
-  // ======== 6. OPTIONS / ADD-ONS (if any optional items) ========
+  // ======== ALLOWANCES (IF APPLICABLE) ========
   
-  const optionalItems = allItems.filter(item => (item as any).is_optional);
-  if (optionalItems.length > 0) {
-    checkPageBreak(20);
-    
-    doc.setFontSize(PDF_DESIGN.fonts.header);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(PDF_DESIGN.colors.text.r, PDF_DESIGN.colors.text.g, PDF_DESIGN.colors.text.b);
-    doc.text("Optional Upgrades", margin, y);
-    y += 8;
-    
-    for (const item of optionalItems) {
-      checkPageBreak(8);
-      doc.setFontSize(PDF_DESIGN.fonts.body);
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(PDF_DESIGN.colors.text.r, PDF_DESIGN.colors.text.g, PDF_DESIGN.colors.text.b);
-      const lineTotal = (item.quantity || 0) * (item.unit_price || 0) * (1 + (item.markup_percent || 0) / 100);
-      doc.text(`• ${item.description} — ${formatCurrency(lineTotal)}`, margin + 2, y);
-      y += 5;
-    }
-    
-    y += 10;
-  }
-
-  // ======== 7. INCLUSIONS & EXCLUSIONS ========
-  
-  if (extData.inclusions || extData.exclusions) {
-    checkPageBreak(30);
-    
-    const colWidth = (contentWidth - 8) / 2;
-    
-    if (extData.inclusions) {
-      doc.setFontSize(PDF_DESIGN.fonts.subtitle);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(PDF_DESIGN.colors.text.r, PDF_DESIGN.colors.text.g, PDF_DESIGN.colors.text.b);
-      doc.text("Inclusions", margin, y);
-      
-      doc.setFontSize(PDF_DESIGN.fonts.body);
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(PDF_DESIGN.colors.textMuted.r, PDF_DESIGN.colors.textMuted.g, PDF_DESIGN.colors.textMuted.b);
-      const incLines = doc.splitTextToSize(extData.inclusions, colWidth);
-      doc.text(incLines, margin, y + 6);
-    }
-    
-    if (extData.exclusions) {
-      const exX = margin + colWidth + 8;
-      doc.setFontSize(PDF_DESIGN.fonts.subtitle);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(PDF_DESIGN.colors.text.r, PDF_DESIGN.colors.text.g, PDF_DESIGN.colors.text.b);
-      doc.text("Exclusions", exX, y);
-      
-      doc.setFontSize(PDF_DESIGN.fonts.body);
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(PDF_DESIGN.colors.textMuted.r, PDF_DESIGN.colors.textMuted.g, PDF_DESIGN.colors.textMuted.b);
-      const exLines = doc.splitTextToSize(extData.exclusions, colWidth);
-      doc.text(exLines, exX, y + 6);
-    }
-    
-    y += 30;
-  }
-
-  // ======== 8. TIMELINE (if available) ========
-  
-  if (extData.timeline && extData.timeline.length > 0) {
+  if (allowanceItems.length > 0) {
     checkPageBreak(25);
     
+    doc.line(margin, y, pageWidth - margin, y);
+    y += 10;
+    
     doc.setFontSize(PDF_DESIGN.fonts.header);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(PDF_DESIGN.colors.text.r, PDF_DESIGN.colors.text.g, PDF_DESIGN.colors.text.b);
-    doc.text("Project Timeline", margin, y);
+    doc.text("ALLOWANCES (IF APPLICABLE)", margin, y);
+    y += 6;
+    
+    doc.setFontSize(PDF_DESIGN.fonts.small);
+    doc.setFont("helvetica", "italic");
+    doc.setTextColor(PDF_DESIGN.colors.textMuted.r, PDF_DESIGN.colors.textMuted.g, PDF_DESIGN.colors.textMuted.b);
+    doc.text("These amounts represent flexible allocations. Final pricing may vary depending on selections.", margin, y);
     y += 8;
     
     // Table header
-    doc.setFillColor(245, 245, 247);
+    doc.setFillColor(PDF_DESIGN.colors.cardBg.r, PDF_DESIGN.colors.cardBg.g, PDF_DESIGN.colors.cardBg.b);
     doc.rect(margin, y, contentWidth, 6, "F");
     
     doc.setFontSize(PDF_DESIGN.fonts.tiny);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(PDF_DESIGN.colors.textMuted.r, PDF_DESIGN.colors.textMuted.g, PDF_DESIGN.colors.textMuted.b);
-    doc.text("PHASE", margin + 4, y + 4);
-    doc.text("DURATION", margin + 70, y + 4);
-    doc.text("NOTES", margin + 110, y + 4);
+    doc.text("Allowance Item", margin + 4, y + 4);
+    doc.text("Amount", pageWidth - margin - 4, y + 4, { align: "right" });
     y += 8;
     
-    for (const row of extData.timeline) {
+    for (const item of allowanceItems) {
       checkPageBreak(6);
+      const lineTotal = item.line_total || (item.quantity || 0) * (item.unit_price || 0) * (1 + (item.markup_percent || 0) / 100);
+      
       doc.setFontSize(PDF_DESIGN.fonts.body);
       doc.setFont("helvetica", "normal");
       doc.setTextColor(PDF_DESIGN.colors.text.r, PDF_DESIGN.colors.text.g, PDF_DESIGN.colors.text.b);
-      doc.text(row.phase, margin + 4, y + 3);
-      doc.text(row.duration, margin + 70, y + 3);
-      doc.setTextColor(PDF_DESIGN.colors.textMuted.r, PDF_DESIGN.colors.textMuted.g, PDF_DESIGN.colors.textMuted.b);
-      doc.text(row.notes || "—", margin + 110, y + 3);
+      doc.text(item.description || "Allowance", margin + 4, y + 3);
+      doc.text(formatCurrency(lineTotal), pageWidth - margin - 4, y + 3, { align: "right" });
       y += 6;
     }
     
-    y += 10;
+    y += 8;
   }
 
-  // ======== 9. PAYMENT SCHEDULE ========
+  // ======== WHAT'S INCLUDED ========
   
-  checkPageBreak(35);
+  checkPageBreak(30);
+  doc.line(margin, y, pageWidth - margin, y);
+  y += 10;
   
   doc.setFontSize(PDF_DESIGN.fonts.header);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(PDF_DESIGN.colors.text.r, PDF_DESIGN.colors.text.g, PDF_DESIGN.colors.text.b);
-  doc.text("Payment Schedule", margin, y);
+  doc.text("WHAT'S INCLUDED", margin, y);
   y += 8;
   
-  const paymentSchedule = extData.paymentSchedule || [
-    { milestone: "Deposit", description: "Due upon contract signing", amount: "20%" },
-    { milestone: "After Rough Trades", description: "Plumbing, electrical, HVAC rough-in complete", amount: "40%" },
-    { milestone: "After Cabinets/Countertops", description: "Cabinets installed, countertops templated", amount: "30%" },
-    { milestone: "Final Payment", description: "Project completion and walkthrough", amount: "10%" },
+  const defaultInclusions = extData.inclusions || [
+    "Labor, materials, and subcontractors as outlined above",
+    "Site protection, dust barriers, and cleanup",
+    "Project management and scheduling",
+    "Communication via project portal",
+    "Standard disposal of construction debris",
   ];
   
-  for (const payment of paymentSchedule) {
-    checkPageBreak(10);
+  doc.setFontSize(PDF_DESIGN.fonts.body);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(PDF_DESIGN.colors.text.r, PDF_DESIGN.colors.text.g, PDF_DESIGN.colors.text.b);
+  
+  for (const item of defaultInclusions) {
+    checkPageBreak(5);
+    doc.text(`✓ ${item}`, margin + 2, y);
+    y += 5;
+  }
+  
+  y += 8;
+
+  // ======== EXCLUSIONS & ASSUMPTIONS ========
+  
+  checkPageBreak(30);
+  doc.line(margin, y, pageWidth - margin, y);
+  y += 10;
+  
+  doc.setFontSize(PDF_DESIGN.fonts.header);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(PDF_DESIGN.colors.text.r, PDF_DESIGN.colors.text.g, PDF_DESIGN.colors.text.b);
+  doc.text("EXCLUSIONS & ASSUMPTIONS", margin, y);
+  y += 8;
+  
+  const defaultExclusions = extData.exclusions || [
+    "Engineering fees (unless listed)",
+    "HOA fees / city special assessments",
+    "Unseen conditions (rot, plumbing issues, electrical hazards, etc.)",
+    "Material upgrades beyond allowances",
+    "After-hours or weekend work",
+    "Changes requested after contract signing",
+  ];
+  
+  doc.setFontSize(PDF_DESIGN.fonts.body);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(PDF_DESIGN.colors.text.r, PDF_DESIGN.colors.text.g, PDF_DESIGN.colors.text.b);
+  
+  for (const item of defaultExclusions) {
+    checkPageBreak(5);
+    doc.text(`✗ ${item}`, margin + 2, y);
+    y += 5;
+  }
+  
+  y += 4;
+  doc.setFont("helvetica", "italic");
+  doc.setTextColor(PDF_DESIGN.colors.textMuted.r, PDF_DESIGN.colors.textMuted.g, PDF_DESIGN.colors.textMuted.b);
+  doc.text("If anything listed is unclear, please ask — clarity avoids change orders later.", margin + 2, y);
+  y += 10;
+
+  // ======== PROJECT NOTES ========
+  
+  if (extData.projectNotes) {
+    checkPageBreak(25);
+    doc.line(margin, y, pageWidth - margin, y);
+    y += 10;
     
-    doc.setFillColor(PDF_DESIGN.colors.cardBg.r, PDF_DESIGN.colors.cardBg.g, PDF_DESIGN.colors.cardBg.b);
-    drawRoundedRectPDF(doc, margin, y, contentWidth, 10, 3);
-    
-    doc.setFontSize(PDF_DESIGN.fonts.body);
+    doc.setFontSize(PDF_DESIGN.fonts.header);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(PDF_DESIGN.colors.text.r, PDF_DESIGN.colors.text.g, PDF_DESIGN.colors.text.b);
-    doc.text(payment.milestone, margin + 4, y + 6);
+    doc.text("PROJECT NOTES", margin, y);
+    y += 8;
     
+    doc.setFontSize(PDF_DESIGN.fonts.body);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(PDF_DESIGN.colors.textMuted.r, PDF_DESIGN.colors.textMuted.g, PDF_DESIGN.colors.textMuted.b);
-    doc.text(payment.description, margin + 50, y + 6);
-    
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(PDF_DESIGN.colors.accent.r, PDF_DESIGN.colors.accent.g, PDF_DESIGN.colors.accent.b);
-    doc.text(payment.amount, pageWidth - margin - 4, y + 6, { align: "right" });
-    
-    y += 12;
+    const notesLines = doc.splitTextToSize(extData.projectNotes, contentWidth);
+    doc.text(notesLines, margin, y);
+    y += notesLines.length * 4 + 8;
+  }
+
+  // ======== NEXT STEPS ========
+  
+  checkPageBreak(35);
+  doc.line(margin, y, pageWidth - margin, y);
+  y += 10;
+  
+  doc.setFontSize(PDF_DESIGN.fonts.header);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(PDF_DESIGN.colors.text.r, PDF_DESIGN.colors.text.g, PDF_DESIGN.colors.text.b);
+  doc.text("NEXT STEPS", margin, y);
+  y += 8;
+  
+  const nextSteps = [
+    "Review the scope above",
+    "Confirm general accuracy",
+    "Approve the estimate to proceed",
+    `${companyName} will generate your formal Home Improvement Contract`,
+    "Upon contract signing and deposit, scheduling begins",
+  ];
+  
+  doc.setFontSize(PDF_DESIGN.fonts.body);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(PDF_DESIGN.colors.text.r, PDF_DESIGN.colors.text.g, PDF_DESIGN.colors.text.b);
+  
+  for (let i = 0; i < nextSteps.length; i++) {
+    checkPageBreak(5);
+    doc.text(`${i + 1}. ${nextSteps[i]}`, margin + 2, y);
+    y += 5;
   }
   
   y += 10;
 
-  // ======== 10. WARRANTY SECTION ========
+  // ======== CLIENT APPROVAL (NON-BINDING) ========
   
-  checkPageBreak(25);
-  
-  doc.setFontSize(PDF_DESIGN.fonts.header);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(PDF_DESIGN.colors.text.r, PDF_DESIGN.colors.text.g, PDF_DESIGN.colors.text.b);
-  doc.text("Warranty", margin, y);
-  y += 8;
-  
-  const warrantyText = extData.warrantyText || 
-    "Forma Homes provides a 1-year workmanship warranty on all labor performed. Manufacturer warranties apply to materials, cabinets, appliances, and fixtures as provided by the respective manufacturers.";
-  
-  doc.setFontSize(PDF_DESIGN.fonts.body);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(PDF_DESIGN.colors.textMuted.r, PDF_DESIGN.colors.textMuted.g, PDF_DESIGN.colors.textMuted.b);
-  const warrantyLines = doc.splitTextToSize(warrantyText, contentWidth);
-  doc.text(warrantyLines, margin, y);
-  
-  y += warrantyLines.length * 4 + 15;
-
-  // ======== 11. SIGNATURE BLOCK ========
-  
-  checkPageBreak(40);
-  
-  doc.setFontSize(PDF_DESIGN.fonts.header);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(PDF_DESIGN.colors.text.r, PDF_DESIGN.colors.text.g, PDF_DESIGN.colors.text.b);
-  doc.text("Acceptance", margin, y);
+  checkPageBreak(50);
+  doc.line(margin, y, pageWidth - margin, y);
   y += 10;
   
-  // Signature lines
+  doc.setFontSize(PDF_DESIGN.fonts.header);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(PDF_DESIGN.colors.text.r, PDF_DESIGN.colors.text.g, PDF_DESIGN.colors.text.b);
+  doc.text("CLIENT APPROVAL (NON-BINDING)", margin, y);
+  y += 6;
+  
   doc.setFontSize(PDF_DESIGN.fonts.body);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(PDF_DESIGN.colors.textMuted.r, PDF_DESIGN.colors.textMuted.g, PDF_DESIGN.colors.textMuted.b);
+  doc.text("This pre-proposal is intended to confirm direction.", margin, y);
+  y += 4;
+  doc.text("A formal contract will follow in accordance with CSLB requirements.", margin, y);
+  y += 12;
+  
+  // Signature lines
+  doc.setTextColor(PDF_DESIGN.colors.text.r, PDF_DESIGN.colors.text.g, PDF_DESIGN.colors.text.b);
+  doc.setFont("helvetica", "bold");
   
   doc.text("Client Name:", margin, y);
   doc.setDrawColor(PDF_DESIGN.colors.border.r, PDF_DESIGN.colors.border.g, PDF_DESIGN.colors.border.b);
-  doc.line(margin + 30, y, margin + 100, y);
-  y += 12;
+  doc.line(margin + 30, y + 1, margin + 120, y + 1);
+  y += 14;
   
   doc.text("Signature:", margin, y);
-  doc.line(margin + 30, y, margin + 100, y);
-  y += 12;
+  doc.line(margin + 30, y + 1, margin + 120, y + 1);
+  y += 14;
   
   doc.text("Date:", margin, y);
-  doc.line(margin + 30, y, margin + 70, y);
+  doc.line(margin + 30, y + 1, margin + 80, y + 1);
+  y += 16;
+
+  // ======== FOOTER ========
+  
+  doc.line(margin, y, pageWidth - margin, y);
+  y += 8;
+  
+  doc.setFontSize(PDF_DESIGN.fonts.small);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(PDF_DESIGN.colors.accent.r, PDF_DESIGN.colors.accent.g, PDF_DESIGN.colors.accent.b);
+  doc.text(`${companyName} — BUILT WITH CARE`, margin + contentWidth / 2, y, { align: "center" });
+  y += 4;
+  
+  doc.setFont("helvetica", "italic");
+  doc.setTextColor(PDF_DESIGN.colors.textMuted.r, PDF_DESIGN.colors.textMuted.g, PDF_DESIGN.colors.textMuted.b);
+  doc.text("This estimate was generated by Forma's project management system.", margin + contentWidth / 2, y, { align: "center" });
 
   return doc;
 }
