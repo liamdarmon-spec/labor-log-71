@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { format, startOfWeek, endOfWeek, subDays } from 'date-fns';
 import { CheckSquare, CalendarDays, Plus } from 'lucide-react';
 
-import { SnapshotBar, SnapshotBarProps } from '@/components/project-hub/SnapshotBar';
 import { ActionRow, ActionRowProps } from '@/components/project-hub/ActionRow';
 import { WeeklySummary, WeeklySummaryProps } from '@/components/project-hub/WeeklySummary';
 import { BudgetMiniOverview, BudgetMiniOverviewProps, BudgetCategorySummary } from '@/components/project-hub/BudgetMiniOverview';
@@ -37,20 +36,6 @@ export function ProjectOverviewTab({ projectId }: ProjectOverviewTabProps) {
   const sevenDaysAgo = format(subDays(new Date(), 7), 'yyyy-MM-dd');
 
   // ========== DATA QUERIES ==========
-
-  // Project details
-  const { data: project, isLoading: loadingProject } = useQuery({
-    queryKey: ['project-overview-details', projectId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('projects')
-        .select('project_name, client_name, status')
-        .eq('id', projectId)
-        .single();
-      if (error) throw error;
-      return data;
-    },
-  });
 
   // Schedule health + weekly data
   const { data: scheduleData, isLoading: loadingSchedule } = useQuery({
@@ -190,12 +175,11 @@ export function ProjectOverviewTab({ projectId }: ProjectOverviewTabProps) {
   });
 
   // ========== LOADING STATE ==========
-  const isLoading = loadingProject || loadingSchedule || loadingBudget || loadingTasks || loadingWorkforce;
+  const isLoading = loadingSchedule || loadingBudget || loadingTasks || loadingWorkforce;
 
   if (isLoading) {
     return (
       <div className="space-y-4 pt-2 pb-6">
-        <Skeleton className="h-28 rounded-xl" />
         <Skeleton className="h-8 w-96" />
         <Skeleton className="h-20 rounded-xl" />
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
@@ -208,16 +192,6 @@ export function ProjectOverviewTab({ projectId }: ProjectOverviewTabProps) {
   }
 
   // ========== DERIVE PROPS ==========
-
-  const snapshotProps: SnapshotBarProps = {
-    projectName: project?.project_name || 'Project',
-    projectStatus: project?.status,
-    clientName: project?.client_name,
-    scheduleHealthPercent: scheduleData?.scheduleHealthPercent,
-    budgetVariance: budgetData?.budgetVariance,
-    weeklyLaborHours: scheduleData?.hoursLoggedThisWeek,
-    openTasksCount: taskCounts?.open ?? 0,
-  };
 
   const actionHandlers: ActionRowProps = {
     onNewTask: undefined, // CreateTaskDialog uses trigger pattern below
@@ -249,10 +223,7 @@ export function ProjectOverviewTab({ projectId }: ProjectOverviewTabProps) {
   // ========== RENDER ==========
 
   return (
-    <div className="space-y-4 pt-2 pb-6">
-      {/* Top KPI Bar */}
-      <SnapshotBar {...snapshotProps} />
-      
+    <div className="space-y-4 pb-6">
       {/* Action Row - Horizontally scrollable on mobile */}
       <div className="overflow-x-auto -mx-2 px-2 pb-1">
         <div className="flex items-center gap-1.5 min-w-max">
