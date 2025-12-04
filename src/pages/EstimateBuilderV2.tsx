@@ -696,6 +696,26 @@ export default function EstimateBuilderV2() {
               queryClient.invalidateQueries({ queryKey: ["scope-blocks", estimateId] });
             }
           }}
+          onMoveItems={async (moves) => {
+            // Handle cross-section moves
+            const promises = moves.map((move) =>
+              supabase
+                .from("scope_block_cost_items")
+                .update({
+                  scope_block_id: move.scope_block_id,
+                  area_label: move.area_label,
+                  group_label: move.group_label,
+                  sort_order: move.sort_order,
+                })
+                .eq("id", move.id)
+            );
+            const results = await Promise.all(promises);
+            const errors = results.filter((r) => r.error);
+            if (errors.length > 0) {
+              toast.error("Failed to move item");
+              queryClient.invalidateQueries({ queryKey: ["scope-blocks", estimateId] });
+            }
+          }}
           onReorderSections={async (sections) => {
             const promises = sections.map((section) =>
               supabase

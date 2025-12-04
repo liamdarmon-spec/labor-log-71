@@ -1,6 +1,6 @@
 // ProjectEstimateEditor.tsx
 // Clean, industry-standard hierarchy: SECTION → AREA → GROUP → ITEM
-// With full drag & drop support using @dnd-kit
+// With full drag & drop support using @dnd-kit - supports cross-section dragging
 
 import React, { useMemo, useCallback, useState, memo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -15,6 +15,9 @@ import {
   DragStartEvent,
   DragEndEvent,
   UniqueIdentifier,
+  DragOverEvent,
+  pointerWithin,
+  rectIntersection,
 } from "@dnd-kit/core";
 import {
   arrayMove,
@@ -43,7 +46,7 @@ import {
 import { AreaHeader } from "./AreaHeader";
 import { GroupHeader } from "./GroupHeader";
 import { ItemRow, ScopeItem } from "./ItemRow";
-import { ReorderItemPayload, ReorderSectionPayload } from "@/hooks/useEstimateBlocks";
+import { ReorderItemPayload, ReorderSectionPayload, MoveItemPayload } from "@/hooks/useEstimateBlocks";
 
 // ====== Types ======
 
@@ -70,6 +73,7 @@ interface EstimateEditorProps {
   onBlocksChange: (blocks: EstimateEditorBlock[]) => void;
   onSetAsBudgetSource?: () => void;
   onReorderItems?: (blockId: string, items: ReorderItemPayload[]) => void;
+  onMoveItems?: (moves: MoveItemPayload[]) => void;
   onReorderSections?: (sections: ReorderSectionPayload[]) => void;
 }
 
@@ -330,16 +334,29 @@ export const ProjectEstimateEditor: React.FC<EstimateEditorProps> = ({
   onBlocksChange,
   onSetAsBudgetSource,
   onReorderItems,
+  onMoveItems,
   onReorderSections,
 }) => {
   const [activeItemId, setActiveItemId] = useState<UniqueIdentifier | null>(null);
   const [activeSectionId, setActiveSectionId] = useState<UniqueIdentifier | null>(null);
+  const [dragMode, setDragMode] = useState<"section" | "item" | null>(null);
 
   const flatItems = useMemo(() => blocks.flatMap((b) => b.items), [blocks]);
   const globalTotals = useMemo(() => computeCategoryTotals(flatItems), [flatItems]);
   const totalProfit = useMemo(() => computeTotalProfit(flatItems), [flatItems]);
   const hasInvalidItems = useMemo(() => flatItems.some((i) => !isItemValid(i)), [flatItems]);
   const invalidCount = useMemo(() => flatItems.filter((i) => !isItemValid(i)).length, [flatItems]);
+
+  // Build a lookup map for finding which block an item belongs to
+  const itemToBlockMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const b of blocks) {
+      for (const item of b.items) {
+        map.set(item.id, b.block.id);
+      }
+    }
+    return map;
+  }, [blocks]);
 
   // DnD sensors with activation constraints
   const sensors = useSensors(
@@ -355,6 +372,9 @@ export const ProjectEstimateEditor: React.FC<EstimateEditorProps> = ({
 
   // Section IDs for sortable
   const sectionIds = useMemo(() => blocks.map((b) => b.block.id), [blocks]);
+
+  // All item IDs for global sortable context
+  const allItemIds = useMemo(() => flatItems.map((i) => i.id), [flatItems]);
 
   // Find active item for drag overlay
   const activeItem = useMemo(() => {
@@ -523,11 +543,13 @@ export const ProjectEstimateEditor: React.FC<EstimateEditorProps> = ({
   // Section drag handlers
   const handleSectionDragStart = useCallback((event: DragStartEvent) => {
     setActiveSectionId(event.active.id);
+    setDragMode("section");
   }, []);
 
   const handleSectionDragEnd = useCallback(
     (event: DragEndEvent) => {
       setActiveSectionId(null);
+      setDragMode(null);
       const { active, over } = event;
       if (!over || active.id === over.id) return;
 
@@ -551,6 +573,191 @@ export const ProjectEstimateEditor: React.FC<EstimateEditorProps> = ({
       }
     },
     [blocks, onBlocksChange, onReorderSections]
+  );
+
+  // Item drag handlers (global - supports cross-section)
+  const handleItemDragStart = useCallback((event: DragStartEvent) => {
+    setActiveItemId(event.active.id);
+    setDragMode("item");
+  }, []);
+
+  const handleItemDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      const activeId = activeItemId;
+      setActiveItemId(null);
+      setDragMode(null);
+      
+      const { active, over } = event;
+      if (!over || active.id === over.id || !activeId) return;
+
+      const activeIdStr = String(activeId);
+      const overIdStr = String(over.id);
+
+      // Find source block and item
+      const sourceBlockId = itemToBlockMap.get(activeIdStr);
+      if (!sourceBlockId) return;
+
+      const sourceBlock = blocks.find((b) => b.block.id === sourceBlockId);
+      if (!sourceBlock) return;
+
+      const movedItem = sourceBlock.items.find((i) => i.id === activeIdStr);
+      if (!movedItem) return;
+
+      // Find target: could be another item (we drop before/after) or could be a block ID (drop on section)
+      let targetBlockId = itemToBlockMap.get(overIdStr);
+      let targetItem: ScopeItem | null = null;
+
+      if (targetBlockId) {
+        // Over is an item
+        const tb = blocks.find((b) => b.block.id === targetBlockId);
+        targetItem = tb?.items.find((i) => i.id === overIdStr) || null;
+      } else {
+        // Over might be a block (section) ID
+        const blockMatch = blocks.find((b) => b.block.id === overIdStr);
+        if (blockMatch) {
+          targetBlockId = blockMatch.block.id;
+        }
+      }
+
+      if (!targetBlockId) return;
+
+      const targetBlock = blocks.find((b) => b.block.id === targetBlockId);
+      if (!targetBlock) return;
+
+      // Determine target area/group from target item (or use null for ungrouped)
+      const targetAreaLabel = targetItem?.area_label ?? null;
+      const targetGroupLabel = targetItem?.group_label ?? null;
+
+      // Check if same block
+      const isSameBlock = sourceBlockId === targetBlockId;
+
+      if (isSameBlock) {
+        // Reorder within same block
+        const oldIndex = sourceBlock.items.findIndex((i) => i.id === activeIdStr);
+        const newIndex = targetItem
+          ? sourceBlock.items.findIndex((i) => i.id === overIdStr)
+          : sourceBlock.items.length;
+
+        if (oldIndex === -1 || newIndex === -1) return;
+
+        const newItems = arrayMove(sourceBlock.items, oldIndex, newIndex);
+        
+        // Update area/group if dropping on different area
+        const updatedItems = newItems.map((item, idx) => ({
+          ...item,
+          area_label:
+            item.id === activeIdStr && targetItem
+              ? targetAreaLabel
+              : item.area_label,
+          group_label:
+            item.id === activeIdStr && targetItem
+              ? targetGroupLabel
+              : item.group_label,
+          sort_order: (idx + 1) * 10,
+        }));
+
+        // Update local state
+        const newBlocks = blocks.map((b) =>
+          b.block.id === sourceBlockId ? { ...b, items: updatedItems } : b
+        );
+        onBlocksChange(newBlocks);
+
+        // Persist
+        if (onReorderItems) {
+          const payload: ReorderItemPayload[] = updatedItems.map((item) => ({
+            id: item.id,
+            sort_order: item.sort_order || 0,
+            area_label: item.area_label,
+            group_label: item.group_label,
+          }));
+          onReorderItems(sourceBlockId, payload);
+        }
+      } else {
+        // Cross-section move
+        // Remove from source, add to target
+        const sourceItems = sourceBlock.items.filter((i) => i.id !== activeIdStr);
+        
+        // Insert at appropriate position in target
+        const targetIndex = targetItem
+          ? targetBlock.items.findIndex((i) => i.id === overIdStr)
+          : targetBlock.items.length;
+        
+        const updatedMovedItem: ScopeItem = {
+          ...movedItem,
+          scope_block_id: targetBlockId,
+          area_label: targetAreaLabel,
+          group_label: targetGroupLabel,
+        };
+
+        const targetItems = [...targetBlock.items];
+        targetItems.splice(targetIndex, 0, updatedMovedItem);
+
+        // Recompute sort_order for both blocks
+        const reorderedSourceItems = sourceItems.map((item, idx) => ({
+          ...item,
+          sort_order: (idx + 1) * 10,
+        }));
+
+        const reorderedTargetItems = targetItems.map((item, idx) => ({
+          ...item,
+          sort_order: (idx + 1) * 10,
+        }));
+
+        // Update local state
+        const newBlocks = blocks.map((b) => {
+          if (b.block.id === sourceBlockId) {
+            return { ...b, items: reorderedSourceItems };
+          }
+          if (b.block.id === targetBlockId) {
+            return { ...b, items: reorderedTargetItems };
+          }
+          return b;
+        });
+        onBlocksChange(newBlocks);
+
+        // Persist: use moveItems for cross-block, reorder for source cleanup
+        if (onMoveItems) {
+          // Move the item to the new block
+          const movePayload: MoveItemPayload[] = [
+            {
+              id: activeIdStr,
+              scope_block_id: targetBlockId,
+              area_label: targetAreaLabel,
+              group_label: targetGroupLabel,
+              sort_order: reorderedTargetItems.find((i) => i.id === activeIdStr)?.sort_order || 0,
+            },
+          ];
+          onMoveItems(movePayload);
+        }
+
+        // Update sort_order for remaining source items
+        if (onReorderItems && reorderedSourceItems.length > 0) {
+          const sourcePayload: ReorderItemPayload[] = reorderedSourceItems.map((item) => ({
+            id: item.id,
+            sort_order: item.sort_order || 0,
+            area_label: item.area_label,
+            group_label: item.group_label,
+          }));
+          onReorderItems(sourceBlockId, sourcePayload);
+        }
+
+        // Update sort_order for target items (except the moved one, already handled)
+        if (onReorderItems) {
+          const targetPayload: ReorderItemPayload[] = reorderedTargetItems
+            .filter((i) => i.id !== activeIdStr)
+            .map((item) => ({
+              id: item.id,
+              sort_order: item.sort_order || 0,
+              area_label: item.area_label,
+              group_label: item.group_label,
+            }));
+          if (targetPayload.length > 0) {
+            onReorderItems(targetBlockId, targetPayload);
+          }
+        }
+      }
+    },
+    [activeItemId, blocks, itemToBlockMap, onBlocksChange, onReorderItems, onMoveItems]
   );
 
   const total = globalTotals.labor + globalTotals.subs + globalTotals.materials + globalTotals.other;
@@ -622,34 +829,51 @@ export const ProjectEstimateEditor: React.FC<EstimateEditorProps> = ({
           </div>
         )}
 
-        {/* Sections with DnD */}
+        {/* Unified DnD Context for Items (cross-section support) */}
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
-          onDragStart={handleSectionDragStart}
-          onDragEnd={handleSectionDragEnd}
+          onDragStart={(event) => {
+            // Determine if this is a section or item drag
+            const id = String(event.active.id);
+            if (sectionIds.includes(id)) {
+              handleSectionDragStart(event);
+            } else {
+              handleItemDragStart(event);
+            }
+          }}
+          onDragEnd={(event) => {
+            if (dragMode === "section") {
+              handleSectionDragEnd(event);
+            } else if (dragMode === "item") {
+              handleItemDragEnd(event);
+            }
+          }}
         >
+          {/* Section-level sortable context */}
           <SortableContext items={sectionIds} strategy={verticalListSortingStrategy}>
-            {blocks.map((b) => (
-              <SortableBlockSection
-                key={b.block.id}
-                block={b}
-                updateItem={updateItem}
-                addItem={addItem}
-                addAreaToBlock={addAreaToBlock}
-                addGroupToArea={addGroupToArea}
-                deleteItem={deleteItem}
-                deleteArea={deleteArea}
-                deleteGroup={deleteGroup}
-                renameArea={renameArea}
-                renameGroup={renameGroup}
-                onReorderItems={onReorderItems}
-              />
-            ))}
+            {/* Item-level sortable context (all items across all blocks) */}
+            <SortableContext items={allItemIds} strategy={verticalListSortingStrategy}>
+              {blocks.map((b) => (
+                <SortableBlockSection
+                  key={b.block.id}
+                  block={b}
+                  updateItem={updateItem}
+                  addItem={addItem}
+                  addAreaToBlock={addAreaToBlock}
+                  addGroupToArea={addGroupToArea}
+                  deleteItem={deleteItem}
+                  deleteArea={deleteArea}
+                  deleteGroup={deleteGroup}
+                  renameArea={renameArea}
+                  renameGroup={renameGroup}
+                />
+              ))}
+            </SortableContext>
           </SortableContext>
 
           <DragOverlay>
-            {activeSection && (
+            {activeSection && dragMode === "section" && (
               <div className="opacity-90 shadow-2xl rounded-2xl border border-primary/30 bg-card overflow-hidden">
                 <header className="flex items-center gap-2 px-4 py-3 border-b border-border bg-muted/30">
                   <GripVertical className="h-4 w-4 text-primary shrink-0" />
@@ -660,6 +884,21 @@ export const ProjectEstimateEditor: React.FC<EstimateEditorProps> = ({
                     {activeSection.items.length} items
                   </span>
                 </header>
+              </div>
+            )}
+            {activeItem && dragMode === "item" && (
+              <div className="opacity-95 shadow-2xl scale-[1.02] bg-background rounded-lg border border-primary/20">
+                <div className="flex items-stretch">
+                  <div className="flex items-center justify-center w-6 shrink-0 text-primary">
+                    <GripVertical className="h-3.5 w-3.5" />
+                  </div>
+                  <div className="flex-1 min-w-0 py-2 px-2 text-sm">
+                    <span className="font-medium">{activeItem.description || "New Item"}</span>
+                    <span className="text-muted-foreground ml-2">
+                      {formatCurrency(activeItem.line_total || 0)}
+                    </span>
+                  </div>
+                </div>
               </div>
             )}
           </DragOverlay>
@@ -682,7 +921,6 @@ interface SortableBlockSectionProps {
   deleteGroup: (blockId: string, areaLabel: string | null, groupLabel: string | null) => void;
   renameArea: (blockId: string, oldName: string | null, newName: string | null) => void;
   renameGroup: (blockId: string, areaLabel: string | null, oldGroup: string | null, newGroup: string | null) => void;
-  onReorderItems?: (blockId: string, items: ReorderItemPayload[]) => void;
 }
 
 const SortableBlockSection = memo(function SortableBlockSection({
@@ -696,10 +934,8 @@ const SortableBlockSection = memo(function SortableBlockSection({
   deleteGroup,
   renameArea,
   renameGroup,
-  onReorderItems,
 }: SortableBlockSectionProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [activeItemId, setActiveItemId] = useState<UniqueIdentifier | null>(null);
 
   const {
     attributes,
@@ -720,79 +956,6 @@ const SortableBlockSection = memo(function SortableBlockSection({
   const areaGroups = useMemo(() => groupItemsByArea(b.items), [b.items]);
   const blockTotals = useMemo(() => computeCategoryTotals(b.items), [b.items]);
   const blockTotal = blockTotals.labor + blockTotals.subs + blockTotals.materials + blockTotals.other;
-
-  // Item IDs for sortable context (all items in this block)
-  const itemIds = useMemo(() => b.items.map((i) => i.id), [b.items]);
-
-  // DnD sensors for items
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 5,
-      },
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  );
-
-  // Find active item for overlay
-  const activeItem = useMemo(() => {
-    if (!activeItemId) return null;
-    return b.items.find((i) => i.id === activeItemId) || null;
-  }, [activeItemId, b.items]);
-
-  const handleItemDragStart = useCallback((event: DragStartEvent) => {
-    setActiveItemId(event.active.id);
-  }, []);
-
-  const handleItemDragEnd = useCallback(
-    (event: DragEndEvent) => {
-      setActiveItemId(null);
-      const { active, over } = event;
-      if (!over || active.id === over.id) return;
-
-      const oldIndex = b.items.findIndex((i) => i.id === active.id);
-      const newIndex = b.items.findIndex((i) => i.id === over.id);
-
-      if (oldIndex === -1 || newIndex === -1) return;
-
-      // Get target item's area and group
-      const targetItem = b.items[newIndex];
-      const movedItem = b.items[oldIndex];
-
-      // Create new items array with reordered item
-      const newItems = arrayMove(b.items, oldIndex, newIndex);
-
-      // If moving to a different area/group, update the moved item's labels
-      const updatedItems = newItems.map((item, idx) => {
-        if (item.id === movedItem.id && (movedItem.area_label !== targetItem.area_label || movedItem.group_label !== targetItem.group_label)) {
-          return {
-            ...item,
-            area_label: targetItem.area_label,
-            group_label: targetItem.group_label,
-            sort_order: (idx + 1) * 10,
-          };
-        }
-        return {
-          ...item,
-          sort_order: (idx + 1) * 10,
-        };
-      });
-
-      // Persist to backend
-      if (onReorderItems) {
-        const payload: ReorderItemPayload[] = updatedItems.map((item) => ({
-          id: item.id,
-          sort_order: item.sort_order || 0,
-          area_label: item.area_label,
-          group_label: item.group_label,
-        }));
-        onReorderItems(b.block.id, payload);
-      }
-    },
-    [b.items, b.block.id, onReorderItems]
-  );
 
   return (
     <section
@@ -881,51 +1044,24 @@ const SortableBlockSection = memo(function SortableBlockSection({
               <div></div>
             </div>
 
-            {/* Items with DnD context */}
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragStart={handleItemDragStart}
-              onDragEnd={handleItemDragEnd}
-            >
-              <SortableContext items={itemIds} strategy={verticalListSortingStrategy}>
-                <div className="divide-y divide-border/50">
-                  {areaGroups.map((ag) => (
-                    <AreaSection
-                      key={ag.area ?? "_ungrouped"}
-                      blockId={b.block.id}
-                      areaGroup={ag}
-                      updateItem={updateItem}
-                      addItem={addItem}
-                      addGroupToArea={addGroupToArea}
-                      deleteItem={deleteItem}
-                      deleteArea={deleteArea}
-                      deleteGroup={deleteGroup}
-                      renameArea={renameArea}
-                      renameGroup={renameGroup}
-                    />
-                  ))}
-                </div>
-              </SortableContext>
-
-              <DragOverlay>
-                {activeItem && (
-                  <div className="opacity-95 shadow-2xl scale-[1.02] bg-background rounded-lg border border-primary/20">
-                    <div className="flex items-stretch">
-                      <div className="flex items-center justify-center w-6 shrink-0 text-primary">
-                        <GripVertical className="h-3.5 w-3.5" />
-                      </div>
-                      <div className="flex-1 min-w-0 py-2 px-2 text-sm">
-                        <span className="font-medium">{activeItem.description || "New Item"}</span>
-                        <span className="text-muted-foreground ml-2">
-                          {formatCurrency(activeItem.line_total || 0)}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </DragOverlay>
-            </DndContext>
+            {/* Items - rendered directly (DnD context is at parent level) */}
+            <div className="divide-y divide-border/50">
+              {areaGroups.map((ag) => (
+                <AreaSection
+                  key={ag.area ?? "_ungrouped"}
+                  blockId={b.block.id}
+                  areaGroup={ag}
+                  updateItem={updateItem}
+                  addItem={addItem}
+                  addGroupToArea={addGroupToArea}
+                  deleteItem={deleteItem}
+                  deleteArea={deleteArea}
+                  deleteGroup={deleteGroup}
+                  renameArea={renameArea}
+                  renameGroup={renameGroup}
+                />
+              ))}
+            </div>
 
             {/* Footer actions */}
             <div className="px-4 py-3 border-t border-border flex items-center justify-between gap-2 bg-muted/10">
