@@ -169,6 +169,20 @@ interface PDFTotals {
   total: number;
 }
 
+// Extended data interface for proposal-style PDF
+export interface EstimateExportDataExtended extends EstimateExportData {
+  clientName?: string;
+  projectAddress?: string;
+  projectDescription?: string;
+  projectManager?: string;
+  scopeSummary?: string;
+  inclusions?: string;
+  exclusions?: string;
+  timeline?: { phase: string; duration: string; notes?: string }[];
+  paymentSchedule?: { milestone: string; description: string; amount: string }[];
+  warrantyText?: string;
+}
+
 function computeTotals(items: ExportItem[]): PDFTotals {
   const totals: PDFTotals = { labor: 0, subs: 0, materials: 0, other: 0, total: 0 };
   for (const item of items) {
@@ -179,35 +193,31 @@ function computeTotals(items: ExportItem[]): PDFTotals {
   return totals;
 }
 
-// Design constants
-const DESIGN = {
-  pageMargin: 15, // ~40px at 72dpi
-  sectionSpacing: 10,
-  rowHeight: 5.5,
-  cardRadius: 3,
+// Design constants - Apple-grade typography
+const PDF_DESIGN = {
+  pageMargin: 20,
+  sectionSpacing: 16,
+  rowHeight: 7,
   colors: {
-    text: { r: 17, g: 24, b: 39 },           // Gray-900
-    textMuted: { r: 107, g: 114, b: 128 },   // Gray-500
-    textLight: { r: 156, g: 163, b: 175 },   // Gray-400
-    border: { r: 229, g: 231, b: 235 },      // Gray-200
-    borderLight: { r: 243, g: 244, b: 246 }, // Gray-100
-    cardBg: { r: 250, g: 250, b: 250 },      // Gray-50
-    headerBg: { r: 249, g: 250, b: 251 },    // Gray-50
+    text: { r: 17, g: 24, b: 39 },
+    textMuted: { r: 107, g: 114, b: 128 },
+    textLight: { r: 156, g: 163, b: 175 },
+    border: { r: 229, g: 231, b: 235 },
+    cardBg: { r: 249, g: 250, b: 251 },
     white: { r: 255, g: 255, b: 255 },
-    accent: { r: 59, g: 130, b: 246 },       // Blue-500
+    accent: { r: 59, g: 130, b: 246 },
   },
   fonts: {
-    header: 18,
-    title: 14,
-    subtitle: 11,
-    body: 9,
-    small: 8,
-    tiny: 7,
+    title: 24,
+    header: 16,
+    subtitle: 12,
+    body: 10,
+    small: 9,
+    tiny: 8,
   },
 };
 
-// Helper to draw rounded rectangle
-function drawRoundedRect(
+function drawRoundedRectPDF(
   doc: jsPDF,
   x: number,
   y: number,
@@ -221,22 +231,22 @@ function drawRoundedRect(
   doc.roundedRect(x, y, width, height, r, r, fill ? (stroke ? "FD" : "F") : "S");
 }
 
-export function generateEstimatePDF(data: EstimateExportData): jsPDF {
+export function generateEstimatePDF(data: EstimateExportData | EstimateExportDataExtended): jsPDF {
   const doc = new jsPDF({
     orientation: "portrait",
     unit: "mm",
     format: "letter",
   });
 
+  const extData = data as EstimateExportDataExtended;
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
-  const margin = DESIGN.pageMargin;
+  const margin = PDF_DESIGN.pageMargin;
   const contentWidth = pageWidth - margin * 2;
   let y = margin;
 
-  // Helper to add new page with header
   const checkPageBreak = (neededHeight: number): boolean => {
-    if (y + neededHeight > pageHeight - margin - 10) {
+    if (y + neededHeight > pageHeight - margin - 15) {
       doc.addPage();
       y = margin;
       return true;
@@ -244,337 +254,321 @@ export function generateEstimatePDF(data: EstimateExportData): jsPDF {
     return false;
   };
 
-  // Draw category pill
-  const drawCategoryPill = (x: number, cy: number, category: BudgetCategory) => {
-    const color = CATEGORY_COLORS[category];
-    const bg = CATEGORY_BG[category];
-    const label = CATEGORY_SHORT[category];
-    
-    doc.setFillColor(bg.r, bg.g, bg.b);
-    drawRoundedRect(doc, x, cy - 2, 6, 4, 1);
-    doc.setFontSize(6);
-    doc.setTextColor(color.r, color.g, color.b);
-    doc.setFont("helvetica", "bold");
-    doc.text(label, x + 3, cy + 0.3, { align: "center" });
-    doc.setTextColor(DESIGN.colors.text.r, DESIGN.colors.text.g, DESIGN.colors.text.b);
-  };
+  const allItems = data.blocks.flatMap((b) => b.items);
+  const grandTotals = computeTotals(allItems);
 
-  // ======== HEADER SECTION ========
+  // ======== 1. HEADER SECTION ========
   
-  // Left side - Title
+  // Logo placeholder (top right) - simple text for now
   doc.setFontSize(10);
   doc.setFont("helvetica", "bold");
-  doc.setTextColor(DESIGN.colors.accent.r, DESIGN.colors.accent.g, DESIGN.colors.accent.b);
-  doc.text("ESTIMATE", margin, y + 3);
+  doc.setTextColor(PDF_DESIGN.colors.accent.r, PDF_DESIGN.colors.accent.g, PDF_DESIGN.colors.accent.b);
+  doc.text("FORMA HOMES", pageWidth - margin, y + 4, { align: "right" });
   
-  y += 8;
-  
-  doc.setFontSize(DESIGN.fonts.header);
+  // Title
+  doc.setFontSize(PDF_DESIGN.fonts.title);
   doc.setFont("helvetica", "bold");
-  doc.setTextColor(DESIGN.colors.text.r, DESIGN.colors.text.g, DESIGN.colors.text.b);
-  doc.text(data.title || "Untitled Estimate", margin, y + 3);
+  doc.setTextColor(PDF_DESIGN.colors.text.r, PDF_DESIGN.colors.text.g, PDF_DESIGN.colors.text.b);
+  doc.text(data.title || "Project Estimate", margin, y + 8);
   
-  y += 9;
+  y += 14;
   
-  doc.setFontSize(DESIGN.fonts.body);
+  // Subtitle info
+  doc.setFontSize(PDF_DESIGN.fonts.body);
   doc.setFont("helvetica", "normal");
-  doc.setTextColor(DESIGN.colors.textMuted.r, DESIGN.colors.textMuted.g, DESIGN.colors.textMuted.b);
+  doc.setTextColor(PDF_DESIGN.colors.textMuted.r, PDF_DESIGN.colors.textMuted.g, PDF_DESIGN.colors.textMuted.b);
   
-  const metaItems: string[] = [];
-  if (data.projectName) metaItems.push(data.projectName);
-  metaItems.push(`Status: ${data.status}`);
-  metaItems.push(`Generated: ${new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}`);
-  doc.text(metaItems.join("  •  "), margin, y + 2);
+  const headerInfo: string[] = [];
+  if (extData.clientName) headerInfo.push(`Client: ${extData.clientName}`);
+  if (data.projectName) headerInfo.push(`Project: ${data.projectName}`);
+  if (extData.projectAddress) headerInfo.push(`Address: ${extData.projectAddress}`);
+  
+  headerInfo.forEach((line, i) => {
+    doc.text(line, margin, y + (i * 5));
+  });
+  
+  y += Math.max(headerInfo.length * 5, 5) + 3;
+  
+  // Status and date row
+  doc.setFontSize(PDF_DESIGN.fonts.small);
+  const statusLine = `Status: ${data.status} • Generated: ${new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })} • ID: ${data.estimateId.slice(0, 8)}`;
+  doc.text(statusLine, margin, y);
+  
+  y += 12;
+  
+  // Divider
+  doc.setDrawColor(PDF_DESIGN.colors.border.r, PDF_DESIGN.colors.border.g, PDF_DESIGN.colors.border.b);
+  doc.setLineWidth(0.3);
+  doc.line(margin, y, pageWidth - margin, y);
   
   y += 10;
 
-  // ======== SUMMARY CARD ========
+  // ======== 2. PROJECT OVERVIEW (if available) ========
   
-  const allItems = data.blocks.flatMap((b) => b.items);
-  const grandTotals = computeTotals(allItems);
+  if (extData.projectDescription || extData.projectManager || extData.scopeSummary) {
+    doc.setFontSize(PDF_DESIGN.fonts.subtitle);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(PDF_DESIGN.colors.text.r, PDF_DESIGN.colors.text.g, PDF_DESIGN.colors.text.b);
+    doc.text("Project Overview", margin, y);
+    y += 6;
+    
+    doc.setFontSize(PDF_DESIGN.fonts.body);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(PDF_DESIGN.colors.textMuted.r, PDF_DESIGN.colors.textMuted.g, PDF_DESIGN.colors.textMuted.b);
+    
+    if (extData.projectDescription) {
+      const descLines = doc.splitTextToSize(extData.projectDescription, contentWidth);
+      doc.text(descLines, margin, y);
+      y += descLines.length * 4 + 3;
+    }
+    
+    if (extData.projectManager) {
+      doc.text(`Project Lead: ${extData.projectManager}`, margin, y);
+      y += 5;
+    }
+    
+    if (extData.scopeSummary) {
+      const scopeLines = doc.splitTextToSize(`Scope: ${extData.scopeSummary}`, contentWidth);
+      doc.text(scopeLines, margin, y);
+      y += scopeLines.length * 4 + 3;
+    }
+    
+    y += 8;
+  }
+
+  // ======== 3. TOTALS SUMMARY BAR ========
   
-  // Summary card background
-  doc.setFillColor(DESIGN.colors.cardBg.r, DESIGN.colors.cardBg.g, DESIGN.colors.cardBg.b);
-  doc.setDrawColor(DESIGN.colors.border.r, DESIGN.colors.border.g, DESIGN.colors.border.b);
-  drawRoundedRect(doc, margin, y, contentWidth, 28, DESIGN.cardRadius, true, true);
-  
-  // Total estimate (left side)
-  const cardY = y + 6;
-  doc.setFontSize(8);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(DESIGN.colors.textMuted.r, DESIGN.colors.textMuted.g, DESIGN.colors.textMuted.b);
-  doc.text("TOTAL ESTIMATE", margin + 6, cardY);
-  
-  doc.setFontSize(20);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(DESIGN.colors.text.r, DESIGN.colors.text.g, DESIGN.colors.text.b);
-  doc.text(formatCurrency(grandTotals.total), margin + 6, cardY + 10);
-  
-  // Category breakdown (right side)
+  const tileWidth = (contentWidth - 12) / 4;
+  const tileHeight = 22;
   const categories: BudgetCategory[] = ["labor", "subs", "materials", "other"];
-  const pillStartX = margin + 75;
-  const pillSpacing = 32;
   
   categories.forEach((cat, i) => {
-    const px = pillStartX + i * pillSpacing;
+    const tx = margin + i * (tileWidth + 4);
     const color = CATEGORY_COLORS[cat];
     const bg = CATEGORY_BG[cat];
     const value = grandTotals[cat];
     
-    // Category pill background
+    // Tile background
     doc.setFillColor(bg.r, bg.g, bg.b);
-    drawRoundedRect(doc, px, cardY - 1, 28, 18, 2);
+    drawRoundedRectPDF(doc, tx, y, tileWidth, tileHeight, 4);
     
     // Category label
-    doc.setFontSize(7);
+    doc.setFontSize(PDF_DESIGN.fonts.tiny);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(color.r, color.g, color.b);
-    doc.text(CATEGORY_LABELS[cat].toUpperCase(), px + 14, cardY + 3, { align: "center" });
+    doc.text(CATEGORY_LABELS[cat].toUpperCase(), tx + tileWidth / 2, y + 7, { align: "center" });
     
-    // Category value
-    doc.setFontSize(9);
+    // Value
+    doc.setFontSize(PDF_DESIGN.fonts.subtitle);
     doc.setFont("helvetica", "bold");
-    doc.setTextColor(DESIGN.colors.text.r, DESIGN.colors.text.g, DESIGN.colors.text.b);
-    doc.text(formatCurrencyShort(value), px + 14, cardY + 10, { align: "center" });
+    doc.setTextColor(PDF_DESIGN.colors.text.r, PDF_DESIGN.colors.text.g, PDF_DESIGN.colors.text.b);
+    doc.text(formatCurrency(value), tx + tileWidth / 2, y + 15, { align: "center" });
   });
   
-  y += 34;
+  y += tileHeight + 8;
+  
+  // Grand Total
+  doc.setFillColor(PDF_DESIGN.colors.cardBg.r, PDF_DESIGN.colors.cardBg.g, PDF_DESIGN.colors.cardBg.b);
+  drawRoundedRectPDF(doc, margin, y, contentWidth, 18, 4);
+  
+  doc.setFontSize(PDF_DESIGN.fonts.small);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(PDF_DESIGN.colors.textMuted.r, PDF_DESIGN.colors.textMuted.g, PDF_DESIGN.colors.textMuted.b);
+  doc.text("GRAND TOTAL", margin + contentWidth / 2, y + 6, { align: "center" });
+  
+  doc.setFontSize(20);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(PDF_DESIGN.colors.text.r, PDF_DESIGN.colors.text.g, PDF_DESIGN.colors.text.b);
+  doc.text(formatCurrency(grandTotals.total), margin + contentWidth / 2, y + 14, { align: "center" });
+  
+  y += 28;
 
-  // ======== SECTIONS ========
+  // ======== 4. SCOPE OF WORK SECTION ========
+  
+  if (data.blocks.length > 0) {
+    checkPageBreak(20);
+    
+    doc.setFontSize(PDF_DESIGN.fonts.header);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(PDF_DESIGN.colors.text.r, PDF_DESIGN.colors.text.g, PDF_DESIGN.colors.text.b);
+    doc.text("Scope of Work", margin, y);
+    y += 8;
+    
+    doc.setFontSize(PDF_DESIGN.fonts.body);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(PDF_DESIGN.colors.textMuted.r, PDF_DESIGN.colors.textMuted.g, PDF_DESIGN.colors.textMuted.b);
+    
+    for (const block of data.blocks) {
+      checkPageBreak(12);
+      
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(PDF_DESIGN.colors.text.r, PDF_DESIGN.colors.text.g, PDF_DESIGN.colors.text.b);
+      doc.text(`• ${block.block.title}`, margin + 2, y);
+      y += 5;
+      
+      // List first few item descriptions
+      const itemDescs = block.items
+        .filter(item => item.description && item.description.trim())
+        .slice(0, 5);
+      
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(PDF_DESIGN.colors.textMuted.r, PDF_DESIGN.colors.textMuted.g, PDF_DESIGN.colors.textMuted.b);
+      
+      for (const item of itemDescs) {
+        checkPageBreak(5);
+        const shortDesc = item.description.length > 60 ? item.description.slice(0, 60) + "..." : item.description;
+        doc.text(`   – ${shortDesc}`, margin + 4, y);
+        y += 4;
+      }
+      
+      if (block.items.length > 5) {
+        doc.text(`   + ${block.items.length - 5} more items...`, margin + 4, y);
+        y += 4;
+      }
+      
+      y += 3;
+    }
+    
+    y += 8;
+  }
+
+  // ======== 5. DETAILED COST SECTIONS ========
   
   for (const block of data.blocks) {
-    checkPageBreak(35);
+    checkPageBreak(30);
     
     const sectionTotals = computeTotals(block.items);
     
-    // Section card
-    doc.setFillColor(DESIGN.colors.white.r, DESIGN.colors.white.g, DESIGN.colors.white.b);
-    doc.setDrawColor(DESIGN.colors.border.r, DESIGN.colors.border.g, DESIGN.colors.border.b);
+    // Section header card
+    doc.setFillColor(PDF_DESIGN.colors.cardBg.r, PDF_DESIGN.colors.cardBg.g, PDF_DESIGN.colors.cardBg.b);
+    drawRoundedRectPDF(doc, margin, y, contentWidth, 12, 4);
     
-    // Calculate section height dynamically
-    let sectionContentHeight = 0;
-    
-    // Section header bar
-    doc.setFillColor(DESIGN.colors.headerBg.r, DESIGN.colors.headerBg.g, DESIGN.colors.headerBg.b);
-    drawRoundedRect(doc, margin, y, contentWidth, 10, DESIGN.cardRadius);
-    
-    // Section title
-    doc.setFontSize(DESIGN.fonts.subtitle);
+    doc.setFontSize(PDF_DESIGN.fonts.subtitle);
     doc.setFont("helvetica", "bold");
-    doc.setTextColor(DESIGN.colors.text.r, DESIGN.colors.text.g, DESIGN.colors.text.b);
-    doc.text(block.block.title || "Untitled Section", margin + 5, y + 6.5);
+    doc.setTextColor(PDF_DESIGN.colors.text.r, PDF_DESIGN.colors.text.g, PDF_DESIGN.colors.text.b);
+    doc.text(block.block.title || "Cost Items", margin + 4, y + 8);
     
-    // Section totals (right side)
-    let totalX = pageWidth - margin - 5;
-    doc.setFontSize(DESIGN.fonts.body);
-    doc.setFont("helvetica", "bold");
-    doc.text(formatCurrency(sectionTotals.total), totalX, y + 6.5, { align: "right" });
+    // Section total right
+    doc.setFontSize(PDF_DESIGN.fonts.body);
+    doc.text(`Total: ${formatCurrency(sectionTotals.total)}`, pageWidth - margin - 4, y + 8, { align: "right" });
     
-    totalX -= 35;
+    y += 16;
     
-    // Category mini-totals in header
-    [...categories].reverse().forEach((cat) => {
-      const val = sectionTotals[cat];
-      if (val > 0) {
-        const color = CATEGORY_COLORS[cat];
-        doc.setFontSize(7);
-        doc.setFont("helvetica", "normal");
-        doc.setTextColor(color.r, color.g, color.b);
-        const catText = `${CATEGORY_SHORT[cat]} ${formatCurrencyShort(val)}`;
-        doc.text(catText, totalX, y + 6.5, { align: "right" });
-        totalX -= doc.getTextWidth(catText) + 5;
-      }
-    });
-    
-    y += 12;
-    
-    // Table header
-    doc.setFillColor(DESIGN.colors.borderLight.r, DESIGN.colors.borderLight.g, DESIGN.colors.borderLight.b);
-    doc.rect(margin, y, contentWidth, 6, "F");
-    
-    doc.setFontSize(DESIGN.fonts.tiny);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(DESIGN.colors.textMuted.r, DESIGN.colors.textMuted.g, DESIGN.colors.textMuted.b);
-    
-    // Column positions
+    // Column headers
     const cols = {
-      cat: margin + 3,
-      desc: margin + 12,
-      qty: margin + 110,
-      unit: margin + 125,
-      rate: margin + 140,
+      desc: margin + 2,
+      qty: margin + 95,
+      unit: margin + 115,
+      rate: margin + 135,
       markup: margin + 155,
-      total: pageWidth - margin - 3,
+      total: pageWidth - margin - 2,
     };
     
-    doc.text("", cols.cat, y + 4);
+    doc.setFillColor(245, 245, 247);
+    doc.rect(margin, y, contentWidth, 6, "F");
+    
+    doc.setFontSize(PDF_DESIGN.fonts.tiny);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(PDF_DESIGN.colors.textMuted.r, PDF_DESIGN.colors.textMuted.g, PDF_DESIGN.colors.textMuted.b);
+    
     doc.text("DESCRIPTION", cols.desc, y + 4);
     doc.text("QTY", cols.qty, y + 4, { align: "right" });
     doc.text("UNIT", cols.unit, y + 4, { align: "right" });
     doc.text("RATE", cols.rate, y + 4, { align: "right" });
-    doc.text("MARKUP", cols.markup, y + 4, { align: "right" });
+    doc.text("M/U", cols.markup, y + 4, { align: "right" });
     doc.text("TOTAL", cols.total, y + 4, { align: "right" });
     
-    y += 7;
+    y += 8;
     
-    // Group items by area
-    const areaMap = new Map<string | null, ExportItem[]>();
-    const areaOrder: (string | null)[] = [];
-    for (const item of block.items) {
-      const key = item.area_label;
-      if (!areaMap.has(key)) {
-        areaMap.set(key, []);
-        areaOrder.push(key);
-      }
-      areaMap.get(key)!.push(item);
-    }
-    
-    // Empty section handling
+    // Items
     if (block.items.length === 0) {
-      checkPageBreak(10);
-      doc.setFontSize(DESIGN.fonts.body);
+      doc.setFontSize(PDF_DESIGN.fonts.body);
       doc.setFont("helvetica", "italic");
-      doc.setTextColor(DESIGN.colors.textLight.r, DESIGN.colors.textLight.g, DESIGN.colors.textLight.b);
-      doc.text("No cost items added yet", margin + contentWidth / 2, y + 4, { align: "center" });
+      doc.setTextColor(PDF_DESIGN.colors.textLight.r, PDF_DESIGN.colors.textLight.g, PDF_DESIGN.colors.textLight.b);
+      doc.text("No cost items added yet.", margin + contentWidth / 2, y + 3, { align: "center" });
       y += 10;
-    }
-    
-    let rowIndex = 0;
-    
-    for (const areaLabel of areaOrder) {
-      const areaItems = areaMap.get(areaLabel)!;
-      
-      // Area header
-      if (areaLabel) {
-        checkPageBreak(10);
+    } else {
+      let rowIdx = 0;
+      for (const item of block.items) {
+        checkPageBreak(PDF_DESIGN.rowHeight + 1);
         
-        doc.setFillColor(252, 252, 253);
-        doc.rect(margin, y, contentWidth, 6, "F");
+        // Alternate row bg
+        if (rowIdx % 2 === 1) {
+          doc.setFillColor(252, 252, 253);
+          doc.rect(margin, y, contentWidth, PDF_DESIGN.rowHeight, "F");
+        }
         
-        doc.setFontSize(DESIGN.fonts.small);
+        const rowY = y + PDF_DESIGN.rowHeight / 2 + 1.5;
+        
+        // Category tag
+        const catColor = CATEGORY_COLORS[item.category];
+        const catBg = CATEGORY_BG[item.category];
+        doc.setFillColor(catBg.r, catBg.g, catBg.b);
+        drawRoundedRectPDF(doc, cols.desc, rowY - 2.5, 6, 5, 1);
+        doc.setFontSize(6);
         doc.setFont("helvetica", "bold");
-        doc.setTextColor(DESIGN.colors.text.r, DESIGN.colors.text.g, DESIGN.colors.text.b);
-        doc.text(`▸ ${areaLabel}`, margin + 5, y + 4);
+        doc.setTextColor(catColor.r, catColor.g, catColor.b);
+        doc.text(CATEGORY_SHORT[item.category], cols.desc + 3, rowY + 0.5, { align: "center" });
         
-        const areaTotals = computeTotals(areaItems);
-        doc.setFontSize(DESIGN.fonts.small);
+        // Description
+        doc.setFontSize(PDF_DESIGN.fonts.small);
         doc.setFont("helvetica", "normal");
-        doc.setTextColor(DESIGN.colors.textMuted.r, DESIGN.colors.textMuted.g, DESIGN.colors.textMuted.b);
-        doc.text(formatCurrency(areaTotals.total), cols.total, y + 4, { align: "right" });
         
-        y += 7;
-      }
-      
-      // Group items by group_label
-      const groupMap = new Map<string | null, ExportItem[]>();
-      const groupOrder: (string | null)[] = [];
-      for (const item of areaItems) {
-        const key = item.group_label;
-        if (!groupMap.has(key)) {
-          groupMap.set(key, []);
-          groupOrder.push(key);
+        let desc = item.description || "";
+        const costCode = data.costCodes?.get(item.cost_code_id || "");
+        const codeStr = costCode?.code || item.cost_code_code || "";
+        if (codeStr && !desc.startsWith(codeStr)) {
+          desc = `${codeStr} – ${desc}`;
         }
-        groupMap.get(key)!.push(item);
-      }
-      
-      for (const groupLabel of groupOrder) {
-        const groupItems = groupMap.get(groupLabel)!;
         
-        // Group header
-        if (groupLabel) {
-          checkPageBreak(8);
-          
-          doc.setFontSize(DESIGN.fonts.small);
+        // Truncate
+        const maxDescWidth = cols.qty - cols.desc - 12;
+        while (doc.getTextWidth(desc) > maxDescWidth && desc.length > 10) {
+          desc = desc.substring(0, desc.length - 4) + "...";
+        }
+        
+        if (!item.cost_code_id || item.cost_code_id === "UNASSIGNED") {
+          doc.setTextColor(PDF_DESIGN.colors.textLight.r, PDF_DESIGN.colors.textLight.g, PDF_DESIGN.colors.textLight.b);
           doc.setFont("helvetica", "italic");
-          doc.setTextColor(DESIGN.colors.textMuted.r, DESIGN.colors.textMuted.g, DESIGN.colors.textMuted.b);
-          doc.text(`    ${groupLabel}`, margin + 8, y + 3);
-          
-          y += 5;
+        } else {
+          doc.setTextColor(PDF_DESIGN.colors.text.r, PDF_DESIGN.colors.text.g, PDF_DESIGN.colors.text.b);
         }
+        doc.text(desc || "No description", cols.desc + 8, rowY);
         
-        // Items
-        for (const item of groupItems) {
-          checkPageBreak(DESIGN.rowHeight + 1);
-          
-          // Alternate row background
-          if (rowIndex % 2 === 1) {
-            doc.setFillColor(252, 252, 253);
-            doc.rect(margin, y, contentWidth, DESIGN.rowHeight, "F");
-          }
-          
-          const rowY = y + DESIGN.rowHeight / 2 + 1;
-          
-          // Category tag
-          drawCategoryPill(cols.cat, rowY, item.category);
-          
-          // Description
-          doc.setFontSize(DESIGN.fonts.small);
-          doc.setFont("helvetica", "normal");
-          doc.setTextColor(DESIGN.colors.text.r, DESIGN.colors.text.g, DESIGN.colors.text.b);
-          
-          let desc = item.description || "";
-          const costCode = data.costCodes?.get(item.cost_code_id || "");
-          const codeStr = costCode?.code || item.cost_code_code || "";
-          if (codeStr && !desc.startsWith(codeStr)) {
-            desc = `${codeStr} - ${desc}`;
-          }
-          
-          // Truncate if too long
-          const maxDescWidth = cols.qty - cols.desc - 8;
-          while (doc.getTextWidth(desc) > maxDescWidth && desc.length > 10) {
-            desc = desc.substring(0, desc.length - 4) + "...";
-          }
-          
-          // Show "Unassigned" for missing cost codes
-          if (!item.cost_code_id || item.cost_code_id === "UNASSIGNED") {
-            doc.setTextColor(DESIGN.colors.textLight.r, DESIGN.colors.textLight.g, DESIGN.colors.textLight.b);
-            doc.setFont("helvetica", "italic");
-          }
-          doc.text(desc || "No description", cols.desc, rowY);
-          
-          // Reset text color
-          doc.setFont("helvetica", "normal");
-          doc.setTextColor(DESIGN.colors.text.r, DESIGN.colors.text.g, DESIGN.colors.text.b);
-          
-          // Qty
-          doc.text(String(item.quantity || 0), cols.qty, rowY, { align: "right" });
-          
-          // Unit
-          doc.setTextColor(DESIGN.colors.textMuted.r, DESIGN.colors.textMuted.g, DESIGN.colors.textMuted.b);
-          doc.text(item.unit || "ea", cols.unit, rowY, { align: "right" });
-          
-          // Rate
-          doc.setTextColor(DESIGN.colors.text.r, DESIGN.colors.text.g, DESIGN.colors.text.b);
-          doc.text(formatCurrency(item.unit_price || 0), cols.rate, rowY, { align: "right" });
-          
-          // Markup
-          doc.setTextColor(DESIGN.colors.textMuted.r, DESIGN.colors.textMuted.g, DESIGN.colors.textMuted.b);
-          const markupStr = item.markup_percent > 0 ? `${item.markup_percent}%` : "—";
-          doc.text(markupStr, cols.markup, rowY, { align: "right" });
-          
-          // Total
-          const lineTotal = (item.quantity || 0) * (item.unit_price || 0) * (1 + (item.markup_percent || 0) / 100);
-          doc.setFont("helvetica", "bold");
-          doc.setTextColor(DESIGN.colors.text.r, DESIGN.colors.text.g, DESIGN.colors.text.b);
-          doc.text(formatCurrency(lineTotal), cols.total, rowY, { align: "right" });
-          
-          y += DESIGN.rowHeight;
-          rowIndex++;
-        }
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(PDF_DESIGN.colors.text.r, PDF_DESIGN.colors.text.g, PDF_DESIGN.colors.text.b);
+        
+        // Qty, Unit, Rate, Markup, Total
+        doc.text(String(item.quantity || 0), cols.qty, rowY, { align: "right" });
+        
+        doc.setTextColor(PDF_DESIGN.colors.textMuted.r, PDF_DESIGN.colors.textMuted.g, PDF_DESIGN.colors.textMuted.b);
+        doc.text(item.unit || "ea", cols.unit, rowY, { align: "right" });
+        
+        doc.setTextColor(PDF_DESIGN.colors.text.r, PDF_DESIGN.colors.text.g, PDF_DESIGN.colors.text.b);
+        doc.text(formatCurrency(item.unit_price || 0), cols.rate, rowY, { align: "right" });
+        
+        doc.setTextColor(PDF_DESIGN.colors.textMuted.r, PDF_DESIGN.colors.textMuted.g, PDF_DESIGN.colors.textMuted.b);
+        doc.text(item.markup_percent > 0 ? `${item.markup_percent}%` : "—", cols.markup, rowY, { align: "right" });
+        
+        const lineTotal = (item.quantity || 0) * (item.unit_price || 0) * (1 + (item.markup_percent || 0) / 100);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(PDF_DESIGN.colors.text.r, PDF_DESIGN.colors.text.g, PDF_DESIGN.colors.text.b);
+        doc.text(formatCurrency(lineTotal), cols.total, rowY, { align: "right" });
+        
+        y += PDF_DESIGN.rowHeight;
+        rowIdx++;
       }
     }
     
     // Section subtotal bar
     if (block.items.length > 0) {
       y += 2;
+      doc.setFillColor(245, 245, 247);
+      drawRoundedRectPDF(doc, margin, y, contentWidth, 8, 2);
       
-      doc.setFillColor(DESIGN.colors.borderLight.r, DESIGN.colors.borderLight.g, DESIGN.colors.borderLight.b);
-      drawRoundedRect(doc, margin, y, contentWidth, 8, 2);
+      const subY = y + 5.5;
+      let subX = margin + 4;
       
-      const subY = y + 5;
-      let subX = margin + 5;
-      
-      // Category subtotals
       categories.forEach((cat) => {
         const val = sectionTotals[cat];
         if (val > 0) {
@@ -584,83 +578,214 @@ export function generateEstimatePDF(data: EstimateExportData): jsPDF {
           doc.setTextColor(color.r, color.g, color.b);
           const catText = `${CATEGORY_LABELS[cat]}: ${formatCurrency(val)}`;
           doc.text(catText, subX, subY);
-          subX += doc.getTextWidth(catText) + 8;
+          subX += doc.getTextWidth(catText) + 6;
         }
       });
       
-      // Section total
-      doc.setFontSize(DESIGN.fonts.body);
+      doc.setFontSize(PDF_DESIGN.fonts.small);
       doc.setFont("helvetica", "bold");
-      doc.setTextColor(DESIGN.colors.text.r, DESIGN.colors.text.g, DESIGN.colors.text.b);
+      doc.setTextColor(PDF_DESIGN.colors.text.r, PDF_DESIGN.colors.text.g, PDF_DESIGN.colors.text.b);
       doc.text(`Section Total: ${formatCurrency(sectionTotals.total)}`, cols.total, subY, { align: "right" });
       
       y += 12;
     }
     
-    y += DESIGN.sectionSpacing;
+    y += PDF_DESIGN.sectionSpacing;
   }
 
-  // ======== GRAND TOTAL FOOTER ========
+  // ======== 6. OPTIONS / ADD-ONS (if any optional items) ========
   
-  checkPageBreak(30);
+  const optionalItems = allItems.filter(item => (item as any).is_optional);
+  if (optionalItems.length > 0) {
+    checkPageBreak(20);
+    
+    doc.setFontSize(PDF_DESIGN.fonts.header);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(PDF_DESIGN.colors.text.r, PDF_DESIGN.colors.text.g, PDF_DESIGN.colors.text.b);
+    doc.text("Optional Upgrades", margin, y);
+    y += 8;
+    
+    for (const item of optionalItems) {
+      checkPageBreak(8);
+      doc.setFontSize(PDF_DESIGN.fonts.body);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(PDF_DESIGN.colors.text.r, PDF_DESIGN.colors.text.g, PDF_DESIGN.colors.text.b);
+      const lineTotal = (item.quantity || 0) * (item.unit_price || 0) * (1 + (item.markup_percent || 0) / 100);
+      doc.text(`• ${item.description} — ${formatCurrency(lineTotal)}`, margin + 2, y);
+      y += 5;
+    }
+    
+    y += 10;
+  }
+
+  // ======== 7. INCLUSIONS & EXCLUSIONS ========
   
-  // Top border
-  doc.setDrawColor(DESIGN.colors.border.r, DESIGN.colors.border.g, DESIGN.colors.border.b);
-  doc.setLineWidth(0.3);
-  doc.line(margin, y, pageWidth - margin, y);
+  if (extData.inclusions || extData.exclusions) {
+    checkPageBreak(30);
+    
+    const colWidth = (contentWidth - 8) / 2;
+    
+    if (extData.inclusions) {
+      doc.setFontSize(PDF_DESIGN.fonts.subtitle);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(PDF_DESIGN.colors.text.r, PDF_DESIGN.colors.text.g, PDF_DESIGN.colors.text.b);
+      doc.text("Inclusions", margin, y);
+      
+      doc.setFontSize(PDF_DESIGN.fonts.body);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(PDF_DESIGN.colors.textMuted.r, PDF_DESIGN.colors.textMuted.g, PDF_DESIGN.colors.textMuted.b);
+      const incLines = doc.splitTextToSize(extData.inclusions, colWidth);
+      doc.text(incLines, margin, y + 6);
+    }
+    
+    if (extData.exclusions) {
+      const exX = margin + colWidth + 8;
+      doc.setFontSize(PDF_DESIGN.fonts.subtitle);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(PDF_DESIGN.colors.text.r, PDF_DESIGN.colors.text.g, PDF_DESIGN.colors.text.b);
+      doc.text("Exclusions", exX, y);
+      
+      doc.setFontSize(PDF_DESIGN.fonts.body);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(PDF_DESIGN.colors.textMuted.r, PDF_DESIGN.colors.textMuted.g, PDF_DESIGN.colors.textMuted.b);
+      const exLines = doc.splitTextToSize(extData.exclusions, colWidth);
+      doc.text(exLines, exX, y + 6);
+    }
+    
+    y += 30;
+  }
+
+  // ======== 8. TIMELINE (if available) ========
   
+  if (extData.timeline && extData.timeline.length > 0) {
+    checkPageBreak(25);
+    
+    doc.setFontSize(PDF_DESIGN.fonts.header);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(PDF_DESIGN.colors.text.r, PDF_DESIGN.colors.text.g, PDF_DESIGN.colors.text.b);
+    doc.text("Project Timeline", margin, y);
+    y += 8;
+    
+    // Table header
+    doc.setFillColor(245, 245, 247);
+    doc.rect(margin, y, contentWidth, 6, "F");
+    
+    doc.setFontSize(PDF_DESIGN.fonts.tiny);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(PDF_DESIGN.colors.textMuted.r, PDF_DESIGN.colors.textMuted.g, PDF_DESIGN.colors.textMuted.b);
+    doc.text("PHASE", margin + 4, y + 4);
+    doc.text("DURATION", margin + 70, y + 4);
+    doc.text("NOTES", margin + 110, y + 4);
+    y += 8;
+    
+    for (const row of extData.timeline) {
+      checkPageBreak(6);
+      doc.setFontSize(PDF_DESIGN.fonts.body);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(PDF_DESIGN.colors.text.r, PDF_DESIGN.colors.text.g, PDF_DESIGN.colors.text.b);
+      doc.text(row.phase, margin + 4, y + 3);
+      doc.text(row.duration, margin + 70, y + 3);
+      doc.setTextColor(PDF_DESIGN.colors.textMuted.r, PDF_DESIGN.colors.textMuted.g, PDF_DESIGN.colors.textMuted.b);
+      doc.text(row.notes || "—", margin + 110, y + 3);
+      y += 6;
+    }
+    
+    y += 10;
+  }
+
+  // ======== 9. PAYMENT SCHEDULE ========
+  
+  checkPageBreak(35);
+  
+  doc.setFontSize(PDF_DESIGN.fonts.header);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(PDF_DESIGN.colors.text.r, PDF_DESIGN.colors.text.g, PDF_DESIGN.colors.text.b);
+  doc.text("Payment Schedule", margin, y);
   y += 8;
   
-  // Grand total card
-  doc.setFillColor(DESIGN.colors.cardBg.r, DESIGN.colors.cardBg.g, DESIGN.colors.cardBg.b);
-  doc.setDrawColor(DESIGN.colors.border.r, DESIGN.colors.border.g, DESIGN.colors.border.b);
-  drawRoundedRect(doc, margin, y, contentWidth, 25, DESIGN.cardRadius, true, true);
+  const paymentSchedule = extData.paymentSchedule || [
+    { milestone: "Deposit", description: "Due upon contract signing", amount: "20%" },
+    { milestone: "After Rough Trades", description: "Plumbing, electrical, HVAC rough-in complete", amount: "40%" },
+    { milestone: "After Cabinets/Countertops", description: "Cabinets installed, countertops templated", amount: "30%" },
+    { milestone: "Final Payment", description: "Project completion and walkthrough", amount: "10%" },
+  ];
   
-  const footerY = y + 8;
-  
-  // Category breakdown
-  let catX = margin + 8;
-  categories.forEach((cat) => {
-    const val = grandTotals[cat];
-    const color = CATEGORY_COLORS[cat];
-    const pct = grandTotals.total > 0 ? ((val / grandTotals.total) * 100).toFixed(1) : "0.0";
+  for (const payment of paymentSchedule) {
+    checkPageBreak(10);
     
-    // Category pill
-    doc.setFillColor(CATEGORY_BG[cat].r, CATEGORY_BG[cat].g, CATEGORY_BG[cat].b);
-    drawRoundedRect(doc, catX, footerY - 3, 30, 15, 2);
+    doc.setFillColor(PDF_DESIGN.colors.cardBg.r, PDF_DESIGN.colors.cardBg.g, PDF_DESIGN.colors.cardBg.b);
+    drawRoundedRectPDF(doc, margin, y, contentWidth, 10, 3);
     
-    doc.setFontSize(7);
+    doc.setFontSize(PDF_DESIGN.fonts.body);
     doc.setFont("helvetica", "bold");
-    doc.setTextColor(color.r, color.g, color.b);
-    doc.text(CATEGORY_LABELS[cat].toUpperCase(), catX + 15, footerY, { align: "center" });
+    doc.setTextColor(PDF_DESIGN.colors.text.r, PDF_DESIGN.colors.text.g, PDF_DESIGN.colors.text.b);
+    doc.text(payment.milestone, margin + 4, y + 6);
     
-    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(PDF_DESIGN.colors.textMuted.r, PDF_DESIGN.colors.textMuted.g, PDF_DESIGN.colors.textMuted.b);
+    doc.text(payment.description, margin + 50, y + 6);
+    
     doc.setFont("helvetica", "bold");
-    doc.setTextColor(DESIGN.colors.text.r, DESIGN.colors.text.g, DESIGN.colors.text.b);
-    doc.text(formatCurrencyShort(val), catX + 15, footerY + 6, { align: "center" });
+    doc.setTextColor(PDF_DESIGN.colors.accent.r, PDF_DESIGN.colors.accent.g, PDF_DESIGN.colors.accent.b);
+    doc.text(payment.amount, pageWidth - margin - 4, y + 6, { align: "right" });
     
-    doc.setFontSize(6);
-    doc.setTextColor(DESIGN.colors.textMuted.r, DESIGN.colors.textMuted.g, DESIGN.colors.textMuted.b);
-    doc.text(`${pct}%`, catX + 15, footerY + 10, { align: "center" });
-    
-    catX += 35;
-  });
+    y += 12;
+  }
   
-  // Grand total
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(DESIGN.colors.textMuted.r, DESIGN.colors.textMuted.g, DESIGN.colors.textMuted.b);
-  doc.text("GRAND TOTAL", pageWidth - margin - 8, footerY - 1, { align: "right" });
+  y += 10;
+
+  // ======== 10. WARRANTY SECTION ========
   
-  doc.setFontSize(18);
+  checkPageBreak(25);
+  
+  doc.setFontSize(PDF_DESIGN.fonts.header);
   doc.setFont("helvetica", "bold");
-  doc.setTextColor(DESIGN.colors.text.r, DESIGN.colors.text.g, DESIGN.colors.text.b);
-  doc.text(formatCurrency(grandTotals.total), pageWidth - margin - 8, footerY + 9, { align: "right" });
+  doc.setTextColor(PDF_DESIGN.colors.text.r, PDF_DESIGN.colors.text.g, PDF_DESIGN.colors.text.b);
+  doc.text("Warranty", margin, y);
+  y += 8;
+  
+  const warrantyText = extData.warrantyText || 
+    "Forma Homes provides a 1-year workmanship warranty on all labor performed. Manufacturer warranties apply to materials, cabinets, appliances, and fixtures as provided by the respective manufacturers.";
+  
+  doc.setFontSize(PDF_DESIGN.fonts.body);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(PDF_DESIGN.colors.textMuted.r, PDF_DESIGN.colors.textMuted.g, PDF_DESIGN.colors.textMuted.b);
+  const warrantyLines = doc.splitTextToSize(warrantyText, contentWidth);
+  doc.text(warrantyLines, margin, y);
+  
+  y += warrantyLines.length * 4 + 15;
+
+  // ======== 11. SIGNATURE BLOCK ========
+  
+  checkPageBreak(40);
+  
+  doc.setFontSize(PDF_DESIGN.fonts.header);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(PDF_DESIGN.colors.text.r, PDF_DESIGN.colors.text.g, PDF_DESIGN.colors.text.b);
+  doc.text("Acceptance", margin, y);
+  y += 10;
+  
+  // Signature lines
+  doc.setFontSize(PDF_DESIGN.fonts.body);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(PDF_DESIGN.colors.textMuted.r, PDF_DESIGN.colors.textMuted.g, PDF_DESIGN.colors.textMuted.b);
+  
+  doc.text("Client Name:", margin, y);
+  doc.setDrawColor(PDF_DESIGN.colors.border.r, PDF_DESIGN.colors.border.g, PDF_DESIGN.colors.border.b);
+  doc.line(margin + 30, y, margin + 100, y);
+  y += 12;
+  
+  doc.text("Signature:", margin, y);
+  doc.line(margin + 30, y, margin + 100, y);
+  y += 12;
+  
+  doc.text("Date:", margin, y);
+  doc.line(margin + 30, y, margin + 70, y);
 
   return doc;
 }
 
-export function downloadPDF(data: EstimateExportData): void {
+export function downloadPDF(data: EstimateExportData | EstimateExportDataExtended): void {
   try {
     const doc = generateEstimatePDF(data);
     doc.save(`estimate-${data.estimateId}.pdf`);
