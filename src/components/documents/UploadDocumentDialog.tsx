@@ -5,9 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
-import { Switch } from '@/components/ui/switch';
-import { Upload, X, FileText, Loader2, Sparkles } from 'lucide-react';
-import { useUploadDocument, useAnalyzeDocument, UploadDocumentParams } from '@/hooks/useDocumentsHub';
+import { Upload, X, FileText, Loader2 } from 'lucide-react';
+import { useUploadDocument, UploadDocumentParams } from '@/hooks/useDocumentsHub';
 import { getDocumentTypeOptions, inferDocumentType, DocumentType } from '@/lib/documents/storagePaths';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -42,10 +41,12 @@ export function UploadDocumentDialog({
   const [projectId, setProjectId] = useState<string | null>(initialProjectId || null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [autoRunAI, setAutoRunAI] = useState(true);
+  // AI auto-analysis temporarily disabled
+  // const [autoRunAI, setAutoRunAI] = useState(true);
 
   const uploadDocument = useUploadDocument();
-  const analyzeDocument = useAnalyzeDocument();
+  // AI analysis hook - temporarily not used
+  // const analyzeDocument = useAnalyzeDocument();
   const { toast } = useToast();
 
   const { data: projects } = useQuery({
@@ -130,23 +131,9 @@ export function UploadDocumentDialog({
       }
     }
 
-    // Auto-run AI analysis on all uploaded documents (in background)
-    if (uploadedDocIds.length > 0 && autoRunAI) {
-      toast({
-        title: 'Upload successful',
-        description: (
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-4 w-4" />
-            <span>AI analysis started in the background</span>
-          </div>
-        ),
-      });
-
-      // Run AI analysis for each document in background (don't await)
-      uploadedDocIds.forEach((docId) => {
-        analyzeDocument.mutate(docId);
-      });
-    } else if (uploadedDocIds.length > 0) {
+    // AI auto-analysis TEMPORARILY DISABLED
+    // Documents upload without triggering AI analysis
+    if (uploadedDocIds.length > 0) {
       toast({
         title: 'Upload successful',
         description: `${uploadedDocIds.length} document(s) uploaded`,
@@ -218,7 +205,7 @@ export function UploadDocumentDialog({
             />
           </div>
 
-          {/* Auto AI toggle */}
+          {/* AI auto-analysis toggle - TEMPORARILY HIDDEN
           <div className="flex items-center justify-between bg-muted/50 rounded-md px-3 py-2">
             <div className="flex items-center gap-2 text-sm">
               <Sparkles className="h-4 w-4 text-primary" />
@@ -230,6 +217,7 @@ export function UploadDocumentDialog({
               disabled={isUploading}
             />
           </div>
+          */}
 
           {/* File list */}
           {files.length > 0 && (

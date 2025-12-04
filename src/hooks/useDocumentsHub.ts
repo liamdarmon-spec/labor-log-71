@@ -9,11 +9,12 @@ import {
 } from '@/lib/documents/storagePaths';
 
 // ============================================
-// AI Analysis Hook
+// AI Analysis Hook (TEMPORARILY DISABLED)
 // ============================================
 
 /**
  * Run AI analysis on a document
+ * TEMPORARILY DISABLED - uncomment the supabase.functions.invoke call to re-enable
  */
 export function useAnalyzeDocument() {
   const queryClient = useQueryClient();
@@ -21,17 +22,23 @@ export function useAnalyzeDocument() {
 
   return useMutation({
     mutationFn: async (documentId: string) => {
-      // Call the existing analyze-document edge function
+      // TEMPORARILY DISABLED - AI analysis is disabled
+      // To re-enable, uncomment the block below and remove this return
+      console.log('[AI DISABLED] Skipping AI analysis for document:', documentId);
+      return { disabled: true, message: 'AI analysis is temporarily disabled' };
+
+      /* UNCOMMENT TO RE-ENABLE AI ANALYSIS
       const { data, error } = await supabase.functions.invoke('analyze-document', {
         body: { documentId },
       });
 
       if (error) throw error;
       return data;
+      */
     },
     onSuccess: (_, documentId) => {
-      toast({ title: 'AI analysis completed' });
-      // Invalidate queries to refresh document data
+      // TEMPORARILY DISABLED - Don't show success toast for disabled feature
+      // toast({ title: 'AI analysis completed' });
       queryClient.invalidateQueries({ queryKey: ['documents-hub'] });
       queryClient.invalidateQueries({ queryKey: ['documents-list'] });
       queryClient.invalidateQueries({ queryKey: ['documents'] });
