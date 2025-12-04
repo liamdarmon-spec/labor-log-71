@@ -3,26 +3,12 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
-import { Separator } from '@/components/ui/separator';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { 
   FileText, 
-  Calendar, 
-  DollarSign, 
-  Building2, 
-  Tag, 
-  AlertCircle,
-  CheckCircle,
-  Clock,
-  RefreshCw,
   ExternalLink,
   Download,
-  Sparkles,
-  Loader2,
-  ChevronDown,
-  Code
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -35,8 +21,6 @@ interface DocumentDetailDrawerProps {
 export function DocumentDetailDrawer({ documentId, open, onOpenChange }: DocumentDetailDrawerProps) {
   const [document, setDocument] = useState<any>(null);
   const [loading, setLoading] = useState(false);
-  const [analyzing, setAnalyzing] = useState(false);
-  const [showExtractedText, setShowExtractedText] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -70,55 +54,8 @@ export function DocumentDetailDrawer({ documentId, open, onOpenChange }: Documen
     }
   };
 
-  const handleRunAI = async () => {
-    if (!documentId) return;
-
-    setAnalyzing(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('analyze-document', {
-        body: { documentId },
-      });
-
-      if (error) throw error;
-
-      toast({
-        title: 'Success',
-        description: 'AI analysis completed',
-      });
-
-      // Refresh document
-      fetchDocument();
-    } catch (error: any) {
-      console.error('Error analyzing document:', error);
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to analyze document',
-        variant: 'destructive',
-      });
-    } finally {
-      setAnalyzing(false);
-    }
-  };
-
-  const getStatusBadge = (status: string | null) => {
-    if (!status) return null;
-    
-    const variants: Record<string, { variant: any; icon: any }> = {
-      'success': { variant: 'default', icon: CheckCircle },
-      'pending': { variant: 'secondary', icon: Clock },
-      'error': { variant: 'destructive', icon: AlertCircle },
-    };
-
-    const config = variants[status.split(':')[0]] || variants['error'];
-    const Icon = config.icon;
-
-    return (
-      <Badge variant={config.variant} className="gap-1">
-        <Icon className="h-3 w-3" />
-        {status}
-      </Badge>
-    );
-  };
+  // AI ANALYSIS TEMPORARILY DISABLED
+  // const handleRunAI = async () => { ... }
 
   if (!document && !loading) {
     return null;
@@ -171,19 +108,43 @@ export function DocumentDetailDrawer({ documentId, open, onOpenChange }: Documen
                   <p className="font-medium">{document.file_name}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Manual Type</p>
-                  <Badge variant="outline">{document.doc_type || 'Unknown'}</Badge>
+                  <p className="text-sm text-muted-foreground">Type</p>
+                  <Badge variant="outline">{document.doc_type || document.document_type || 'Unknown'}</Badge>
                 </div>
+                {document.title && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Title</p>
+                    <p className="font-medium">{document.title}</p>
+                  </div>
+                )}
                 <div>
                   <p className="text-sm text-muted-foreground">Uploaded</p>
                   <p className="text-sm">
                     {document.uploaded_at ? format(new Date(document.uploaded_at), 'PPp') : 'Unknown'}
                   </p>
                 </div>
+                {document.notes && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Notes</p>
+                    <p className="text-sm">{document.notes}</p>
+                  </div>
+                )}
+                {document.tags && document.tags.length > 0 && (
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-2">Tags</p>
+                    <div className="flex flex-wrap gap-1">
+                      {document.tags.map((tag: string, idx: number) => (
+                        <Badge key={idx} variant="secondary">
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
-            {/* AI Summary */}
+            {/* AI ANALYSIS SECTION - TEMPORARILY HIDDEN
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -191,196 +152,13 @@ export function DocumentDetailDrawer({ documentId, open, onOpenChange }: Documen
                     <Sparkles className="h-5 w-5 text-primary" />
                     <CardTitle className="text-sm">AI Analysis</CardTitle>
                   </div>
-                  {document.ai_last_run_status && getStatusBadge(document.ai_last_run_status)}
                 </div>
               </CardHeader>
-              <CardContent className="space-y-4">
-                {!document.ai_last_run_at ? (
-                  <div className="text-center py-6">
-                    <p className="text-sm text-muted-foreground mb-4">
-                      This document hasn't been analyzed yet
-                    </p>
-                    <Button onClick={handleRunAI} disabled={analyzing}>
-                      {analyzing ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Analyzing...
-                        </>
-                      ) : (
-                        <>
-                          <Sparkles className="h-4 w-4 mr-2" />
-                          Run AI Analysis
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                ) : (
-                  <>
-                    {document.ai_title && (
-                      <div>
-                        <p className="text-sm text-muted-foreground">AI Title</p>
-                        <p className="font-medium">{document.ai_title}</p>
-                      </div>
-                    )}
-
-                    {document.ai_doc_type && (
-                      <div>
-                        <p className="text-sm text-muted-foreground">AI Type</p>
-                        <Badge variant="default">{document.ai_doc_type}</Badge>
-                      </div>
-                    )}
-
-                    {document.ai_counterparty_name && (
-                      <div className="flex items-center gap-2">
-                        <Building2 className="h-4 w-4 text-muted-foreground" />
-                        <div>
-                          <p className="text-sm text-muted-foreground">Counterparty</p>
-                          <p className="font-medium">{document.ai_counterparty_name}</p>
-                        </div>
-                      </div>
-                    )}
-
-                    {(document.ai_effective_date || document.ai_expiration_date) && (
-                      <div className="grid grid-cols-2 gap-4">
-                        {document.ai_effective_date && (
-                          <div className="flex items-center gap-2">
-                            <Calendar className="h-4 w-4 text-muted-foreground" />
-                            <div>
-                              <p className="text-sm text-muted-foreground">Effective</p>
-                              <p className="text-sm">{format(new Date(document.ai_effective_date), 'PP')}</p>
-                            </div>
-                          </div>
-                        )}
-                        {document.ai_expiration_date && (
-                          <div className="flex items-center gap-2">
-                            <Calendar className="h-4 w-4 text-muted-foreground" />
-                            <div>
-                              <p className="text-sm text-muted-foreground">Expires</p>
-                              <p className="text-sm">{format(new Date(document.ai_expiration_date), 'PP')}</p>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {document.ai_total_amount && (
-                      <div className="flex items-center gap-2">
-                        <DollarSign className="h-4 w-4 text-muted-foreground" />
-                        <div>
-                          <p className="text-sm text-muted-foreground">Amount</p>
-                          <p className="font-medium">
-                            {new Intl.NumberFormat('en-US', {
-                              style: 'currency',
-                              currency: document.ai_currency || 'USD',
-                            }).format(document.ai_total_amount)}
-                          </p>
-                        </div>
-                      </div>
-                    )}
-
-                    {document.ai_tags && document.ai_tags.length > 0 && (
-                      <div>
-                        <p className="text-sm text-muted-foreground mb-2">AI Tags</p>
-                        <div className="flex flex-wrap gap-1">
-                          {document.ai_tags.map((tag: string, idx: number) => (
-                            <Badge key={idx} variant="secondary">
-                              {tag}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {document.ai_summary && (
-                      <div>
-                        <p className="text-sm text-muted-foreground">Summary</p>
-                        <p className="text-sm mt-1">{document.ai_summary}</p>
-                      </div>
-                    )}
-
-                    <Separator />
-
-                    <div className="flex items-center justify-between">
-                      <div className="text-sm text-muted-foreground">
-                        Last analyzed: {format(new Date(document.ai_last_run_at), 'PPp')}
-                      </div>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={handleRunAI}
-                        disabled={analyzing}
-                      >
-                        {analyzing ? (
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        ) : (
-                          <RefreshCw className="h-4 w-4 mr-2" />
-                        )}
-                        {analyzing ? 'Running...' : 'Re-run'}
-                      </Button>
-                    </div>
-
-                    {/* Raw AI Data (Debug) */}
-                    {document.ai_extracted_data && (
-                      <Collapsible>
-                        <CollapsibleTrigger asChild>
-                          <Button variant="ghost" size="sm" className="gap-2 w-full justify-start">
-                            <Code className="h-4 w-4" />
-                            <span>Raw AI Data (debug)</span>
-                            <ChevronDown className="h-4 w-4 ml-auto" />
-                          </Button>
-                        </CollapsibleTrigger>
-                        <CollapsibleContent>
-                          <div className="bg-muted p-4 rounded-md mt-2 max-h-[200px] overflow-y-auto">
-                            <pre className="text-xs font-mono whitespace-pre-wrap">
-                              {JSON.stringify(document.ai_extracted_data, null, 2)}
-                            </pre>
-                          </div>
-                        </CollapsibleContent>
-                      </Collapsible>
-                    )}
-                  </>
-                )}
+              <CardContent>
+                AI analysis is temporarily disabled.
               </CardContent>
             </Card>
-
-            {/* Compliance Info (if linked to sub) */}
-            {document.owner_type === 'sub' && (document.ai_doc_type === 'COI' || document.ai_doc_type === 'W9' || document.ai_doc_type === 'license') && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-sm">Compliance Status</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    {document.ai_doc_type === 'COI' && (
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm">COI Tracking</span>
-                        <Badge variant={document.ai_expiration_date && new Date(document.ai_expiration_date) > new Date() ? 'default' : 'destructive'}>
-                          {document.ai_expiration_date ? 
-                            new Date(document.ai_expiration_date) > new Date() ? 'Active' : 'Expired' 
-                            : 'Unknown'}
-                        </Badge>
-                      </div>
-                    )}
-                    {document.ai_doc_type === 'W9' && (
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm">W-9 Status</span>
-                        <Badge variant="default">Received</Badge>
-                      </div>
-                    )}
-                    {document.ai_doc_type === 'license' && (
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm">License Status</span>
-                        <Badge variant={document.ai_expiration_date && new Date(document.ai_expiration_date) > new Date() ? 'default' : 'destructive'}>
-                          {document.ai_expiration_date ? 
-                            new Date(document.ai_expiration_date) > new Date() ? 'Valid' : 'Expired' 
-                            : 'Unknown'}
-                        </Badge>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+            */}
           </div>
         )}
       </DrawerContent>
