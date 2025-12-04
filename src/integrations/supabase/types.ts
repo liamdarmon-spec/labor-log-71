@@ -1298,6 +1298,35 @@ export type Database = {
           },
         ]
       }
+      document_tags: {
+        Row: {
+          created_at: string
+          document_id: string
+          id: string
+          tag: string
+        }
+        Insert: {
+          created_at?: string
+          document_id: string
+          id?: string
+          tag: string
+        }
+        Update: {
+          created_at?: string
+          document_id?: string
+          id?: string
+          tag?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_tags_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       documents: {
         Row: {
           ai_counterparty_name: string | null
@@ -1326,12 +1355,18 @@ export type Database = {
           file_size: number | null
           file_url: string
           id: string
+          is_archived: boolean
+          is_private: boolean
           mime_type: string | null
+          notes: string | null
           owner_id: string | null
           owner_type: string | null
           project_id: string | null
+          related_cost_id: string | null
+          related_invoice_id: string | null
           size_bytes: number | null
           source: string | null
+          source_context: string | null
           status: string | null
           storage_path: string | null
           tags: string[] | null
@@ -1340,6 +1375,8 @@ export type Database = {
           uploaded_at: string | null
           uploaded_by: string | null
           vendor_name: string | null
+          version_group_id: string | null
+          version_number: number
         }
         Insert: {
           ai_counterparty_name?: string | null
@@ -1368,12 +1405,18 @@ export type Database = {
           file_size?: number | null
           file_url: string
           id?: string
+          is_archived?: boolean
+          is_private?: boolean
           mime_type?: string | null
+          notes?: string | null
           owner_id?: string | null
           owner_type?: string | null
           project_id?: string | null
+          related_cost_id?: string | null
+          related_invoice_id?: string | null
           size_bytes?: number | null
           source?: string | null
+          source_context?: string | null
           status?: string | null
           storage_path?: string | null
           tags?: string[] | null
@@ -1382,6 +1425,8 @@ export type Database = {
           uploaded_at?: string | null
           uploaded_by?: string | null
           vendor_name?: string | null
+          version_group_id?: string | null
+          version_number?: number
         }
         Update: {
           ai_counterparty_name?: string | null
@@ -1410,12 +1455,18 @@ export type Database = {
           file_size?: number | null
           file_url?: string
           id?: string
+          is_archived?: boolean
+          is_private?: boolean
           mime_type?: string | null
+          notes?: string | null
           owner_id?: string | null
           owner_type?: string | null
           project_id?: string | null
+          related_cost_id?: string | null
+          related_invoice_id?: string | null
           size_bytes?: number | null
           source?: string | null
+          source_context?: string | null
           status?: string | null
           storage_path?: string | null
           tags?: string[] | null
@@ -1424,6 +1475,8 @@ export type Database = {
           uploaded_at?: string | null
           uploaded_by?: string | null
           vendor_name?: string | null
+          version_group_id?: string | null
+          version_number?: number
         }
         Relationships: [
           {
@@ -1480,6 +1533,20 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_related_cost_id_fkey"
+            columns: ["related_cost_id"]
+            isOneToOne: false
+            referencedRelation: "costs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_related_invoice_id_fkey"
+            columns: ["related_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
             referencedColumns: ["id"]
           },
         ]
