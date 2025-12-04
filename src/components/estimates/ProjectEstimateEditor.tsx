@@ -769,6 +769,18 @@ const AreaSection = memo(function AreaSection({
                 />
               )
             )}
+            
+            {/* Add Item button at the bottom of area */}
+            <div className="px-4 py-2 mt-1">
+              <button
+                type="button"
+                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                onClick={() => addItem(blockId, ag.area, null)}
+              >
+                <Plus className="h-3 w-3" />
+                Add Item
+              </button>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -834,6 +846,18 @@ const GroupSubSection = memo(function GroupSubSection({
                 onDelete={() => deleteItem(blockId, item.id)}
               />
             ))}
+            
+            {/* Add Item button at the bottom of group */}
+            <div className="py-2">
+              <button
+                type="button"
+                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                onClick={() => addItem(blockId, areaLabel, sg.group)}
+              >
+                <Plus className="h-3 w-3" />
+                Add Item
+              </button>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

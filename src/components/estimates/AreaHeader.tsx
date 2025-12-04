@@ -135,11 +135,12 @@ function AreaHeaderComponent({
             />
           ) : (
             <span
-              className="text-sm font-semibold text-foreground truncate cursor-text hover:text-primary transition-colors"
+              className="text-sm font-semibold text-foreground truncate cursor-text hover:text-primary hover:underline underline-offset-2 transition-colors group/title"
               onClick={(e) => {
                 e.stopPropagation();
                 setIsEditing(true);
               }}
+              title="Click to rename"
             >
               {areaLabel}
             </span>
