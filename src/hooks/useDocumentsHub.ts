@@ -9,6 +9,46 @@ import {
 } from '@/lib/documents/storagePaths';
 
 // ============================================
+// AI Analysis Hook
+// ============================================
+
+/**
+ * Run AI analysis on a document
+ */
+export function useAnalyzeDocument() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (documentId: string) => {
+      // Call the existing analyze-document edge function
+      const { data, error } = await supabase.functions.invoke('analyze-document', {
+        body: { documentId },
+      });
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (_, documentId) => {
+      toast({ title: 'AI analysis completed' });
+      // Invalidate queries to refresh document data
+      queryClient.invalidateQueries({ queryKey: ['documents-hub'] });
+      queryClient.invalidateQueries({ queryKey: ['documents-list'] });
+      queryClient.invalidateQueries({ queryKey: ['documents'] });
+      queryClient.invalidateQueries({ queryKey: ['document', documentId] });
+    },
+    onError: (error: any) => {
+      console.error('AI analysis error:', error);
+      toast({
+        title: 'AI analysis failed',
+        description: error.message || 'You can try again.',
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
+// ============================================
 // Types
 // ============================================
 
@@ -38,9 +78,14 @@ export interface DocumentRecord {
   ai_doc_type: string | null;
   ai_summary: string | null;
   ai_last_run_status: string | null;
+  ai_last_run_at: string | null;
   ai_title: string | null;
   ai_counterparty_name: string | null;
   ai_total_amount: number | null;
+  ai_tags: string[] | null;
+  ai_effective_date: string | null;
+  ai_expiration_date: string | null;
+  ai_currency: string | null;
   owner_type: string | null;
   owner_id: string | null;
   // Joined data

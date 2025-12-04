@@ -3,14 +3,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
-import { Upload, X, FileText, Loader2 } from 'lucide-react';
-import { useUploadDocument, UploadDocumentParams } from '@/hooks/useDocumentsHub';
+import { Upload, X, FileText, Loader2, Sparkles } from 'lucide-react';
+import { useUploadDocument, useAnalyzeDocument, UploadDocumentParams } from '@/hooks/useDocumentsHub';
 import { getDocumentTypeOptions, inferDocumentType, DocumentType } from '@/lib/documents/storagePaths';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 interface UploadDocumentDialogProps {
   open: boolean;
@@ -43,6 +43,8 @@ export function UploadDocumentDialog({
   const [uploadProgress, setUploadProgress] = useState(0);
 
   const uploadDocument = useUploadDocument();
+  const analyzeDocument = useAnalyzeDocument();
+  const { toast } = useToast();
 
   const { data: projects } = useQuery({
     queryKey: ['projects-for-upload'],
@@ -101,10 +103,11 @@ export function UploadDocumentDialog({
     
     const total = files.length;
     let completed = 0;
+    const uploadedDocIds: string[] = [];
 
     for (const fileData of files) {
       try {
-        await uploadDocument.mutateAsync({
+        const result = await uploadDocument.mutateAsync({
           projectId,
           file: fileData.file,
           documentType: fileData.documentType,
@@ -113,11 +116,34 @@ export function UploadDocumentDialog({
           notes: fileData.notes || undefined,
           tags: fileData.tags ? fileData.tags.split(',').map(t => t.trim()).filter(Boolean) : undefined,
         });
+        
+        if (result?.id) {
+          uploadedDocIds.push(result.id);
+        }
+        
         completed++;
         setUploadProgress((completed / total) * 100);
       } catch (error) {
         // Error already handled by mutation
       }
+    }
+
+    // Auto-run AI analysis on all uploaded documents (in background)
+    if (uploadedDocIds.length > 0) {
+      toast({
+        title: 'Upload successful',
+        description: (
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4" />
+            <span>AI analysis started in the background</span>
+          </div>
+        ),
+      });
+
+      // Run AI analysis for each document in background (don't await)
+      uploadedDocIds.forEach((docId) => {
+        analyzeDocument.mutate(docId);
+      });
     }
 
     setIsUploading(false);
@@ -183,6 +209,12 @@ export function UploadDocumentDialog({
               className="hidden"
               onChange={handleFileSelect}
             />
+          </div>
+
+          {/* Auto AI notice */}
+          <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 rounded-md px-3 py-2">
+            <Sparkles className="h-3.5 w-3.5" />
+            <span>AI analysis will run automatically after upload</span>
           </div>
 
           {/* File list */}

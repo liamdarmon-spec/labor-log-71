@@ -3,13 +3,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Upload, FileText, X } from 'lucide-react';
+import { Upload, FileText, X, Sparkles } from 'lucide-react';
 import { DocumentHubFilters } from '@/components/documents/DocumentHubFilters';
 import { DocumentHubTable } from '@/components/documents/DocumentHubTable';
 import { DocumentDetailDrawer } from '@/components/documents/DocumentDetailDrawer';
-import { useDocumentsList, useUploadDocument, DocumentRecord } from '@/hooks/useDocumentsHub';
+import { useDocumentsList, useUploadDocument, useAnalyzeDocument, DocumentRecord } from '@/hooks/useDocumentsHub';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { getDocumentTypeOptions, inferDocumentType, DocumentType } from '@/lib/documents/storagePaths';
+import { useToast } from '@/hooks/use-toast';
 
 interface ProjectDocumentsTabProps {
   projectId: string;
@@ -38,7 +39,9 @@ export function ProjectDocumentsTab({ projectId }: ProjectDocumentsTabProps) {
   });
 
   const uploadDocument = useUploadDocument();
+  const analyzeDocument = useAnalyzeDocument();
   const documentTypes = getDocumentTypeOptions();
+  const { toast } = useToast();
 
   // Client-side filtering
   const filteredDocuments = useMemo(() => {
@@ -93,6 +96,7 @@ export function ProjectDocumentsTab({ projectId }: ProjectDocumentsTabProps) {
 
   const uploadAllFiles = async () => {
     const pending = pendingFiles.filter(f => f.status === 'pending');
+    const uploadedDocIds: string[] = [];
     
     for (const pf of pending) {
       setPendingFiles(prev => 
@@ -100,12 +104,16 @@ export function ProjectDocumentsTab({ projectId }: ProjectDocumentsTabProps) {
       );
       
       try {
-        await uploadDocument.mutateAsync({
+        const result = await uploadDocument.mutateAsync({
           projectId,
           file: pf.file,
           documentType: pf.type,
           sourceContext: 'project_upload',
         });
+        
+        if (result?.id) {
+          uploadedDocIds.push(result.id);
+        }
         
         setPendingFiles(prev => 
           prev.map(f => f.id === pf.id ? { ...f, status: 'done', progress: 100 } : f)
@@ -115,6 +123,24 @@ export function ProjectDocumentsTab({ projectId }: ProjectDocumentsTabProps) {
           prev.map(f => f.id === pf.id ? { ...f, status: 'error', progress: 0 } : f)
         );
       }
+    }
+    
+    // Auto-run AI analysis on all uploaded documents (in background)
+    if (uploadedDocIds.length > 0) {
+      toast({
+        title: 'Upload successful',
+        description: (
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4" />
+            <span>AI analysis started in the background</span>
+          </div>
+        ),
+      });
+
+      // Run AI analysis for each document in background (don't await)
+      uploadedDocIds.forEach((docId) => {
+        analyzeDocument.mutate(docId);
+      });
     }
     
     // Clear completed files after a short delay
@@ -175,6 +201,12 @@ export function ProjectDocumentsTab({ projectId }: ProjectDocumentsTabProps) {
                 onChange={(e) => e.target.files && addFiles(Array.from(e.target.files))}
               />
             </div>
+          </div>
+
+          {/* Auto AI notice */}
+          <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 rounded-md px-3 py-2 mt-3">
+            <Sparkles className="h-3.5 w-3.5" />
+            <span>AI analysis will run automatically after upload</span>
           </div>
 
           {/* Pending files */}
