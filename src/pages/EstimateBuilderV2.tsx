@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
-import { useParams, useNavigate, useBlocker } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Layout } from "@/components/Layout";
@@ -129,12 +129,7 @@ export default function EstimateBuilderV2() {
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [isMigrating, setIsMigrating] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-
-  // Navigation blocker for unsaved changes
-  const blocker = useBlocker(
-    ({ currentLocation, nextLocation }) =>
-      hasUnsavedChanges && currentLocation.pathname !== nextLocation.pathname
-  );
+  const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
 
   // Browser beforeunload handler
   useEffect(() => {
@@ -149,6 +144,27 @@ export default function EstimateBuilderV2() {
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [hasUnsavedChanges]);
+
+  // Safe navigation function that checks for unsaved changes
+  const safeNavigate = useCallback((path: string) => {
+    if (hasUnsavedChanges) {
+      setPendingNavigation(path);
+    } else {
+      navigate(path);
+    }
+  }, [hasUnsavedChanges, navigate]);
+
+  const confirmNavigation = useCallback(() => {
+    if (pendingNavigation) {
+      setHasUnsavedChanges(false);
+      navigate(pendingNavigation);
+      setPendingNavigation(null);
+    }
+  }, [pendingNavigation, navigate]);
+
+  const cancelNavigation = useCallback(() => {
+    setPendingNavigation(null);
+  }, []);
   
   // Track existing items for diffing
   const existingItemsRef = useRef<Map<string, string>>(new Map()); // id -> serialized
@@ -630,7 +646,7 @@ export default function EstimateBuilderV2() {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => navigate(`/projects/${projectId}?tab=estimates`)}
+              onClick={() => safeNavigate(`/projects/${projectId}?tab=estimates`)}
               className="shrink-0"
             >
               <ArrowLeft className="h-4 w-4" />
@@ -834,7 +850,7 @@ export default function EstimateBuilderV2() {
       </div>
 
       {/* Unsaved changes confirmation dialog */}
-      <AlertDialog open={blocker.state === "blocked"}>
+      <AlertDialog open={pendingNavigation !== null}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Unsaved Changes</AlertDialogTitle>
@@ -843,10 +859,10 @@ export default function EstimateBuilderV2() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => blocker.reset?.()}>
+            <AlertDialogCancel onClick={cancelNavigation}>
               Stay on Page
             </AlertDialogCancel>
-            <AlertDialogAction onClick={() => blocker.proceed?.()}>
+            <AlertDialogAction onClick={confirmNavigation}>
               Leave Page
             </AlertDialogAction>
           </AlertDialogFooter>
