@@ -1,9 +1,13 @@
 // ItemRow.tsx - Clean item row with category, cost code, description, qty, unit, rate, markup, total
+// With autosave integration and save status indicators
+
 import React, { memo, useState, useCallback, useEffect, useMemo } from "react";
-import { Trash2 } from "lucide-react";
+import { Trash2, GripVertical } from "lucide-react";
 import { CostCodeSelect } from "@/components/cost-codes/CostCodeSelect";
 import { UnitSelect } from "@/components/shared/UnitSelect";
 import { cn } from "@/lib/utils";
+import { RowSaveIndicator } from "./SaveStatusIndicator";
+import type { SaveStatus } from "@/hooks/useItemAutosave";
 
 export type BudgetCategory = "labor" | "subs" | "materials" | "other";
 
@@ -26,7 +30,13 @@ export interface ScopeItem {
 interface ItemRowProps {
   item: ScopeItem;
   onUpdate: (patch: Partial<ScopeItem>) => void;
+  onUpdateImmediate?: (patch: Partial<ScopeItem>) => void;
   onDelete: () => void;
+  saveStatus?: SaveStatus;
+  saveError?: string;
+  onRetry?: () => void;
+  isDragging?: boolean;
+  dragHandleProps?: React.HTMLAttributes<HTMLDivElement>;
 }
 
 const CATEGORY_COLORS: Record<BudgetCategory, string> = {
@@ -46,20 +56,39 @@ function formatCurrency(value: number): string {
   });
 }
 
-function ItemRowComponent({ item, onUpdate, onDelete }: ItemRowProps) {
+function ItemRowComponent({ 
+  item, 
+  onUpdate, 
+  onUpdateImmediate,
+  onDelete,
+  saveStatus = "idle",
+  saveError,
+  onRetry,
+  isDragging,
+  dragHandleProps,
+}: ItemRowProps) {
   // Local state for blur-to-save pattern
   const [localDesc, setLocalDesc] = useState(item.description);
   const [localQty, setLocalQty] = useState(String(item.quantity || ""));
   const [localRate, setLocalRate] = useState(String(item.unit_price || ""));
   const [localMarkup, setLocalMarkup] = useState(String(item.markup_percent || ""));
 
-  // Sync when item changes externally
+  // Sync when item changes externally (but not during active editing)
   useEffect(() => {
     setLocalDesc(item.description);
+  }, [item.id, item.description]);
+  
+  useEffect(() => {
     setLocalQty(String(item.quantity || ""));
+  }, [item.id, item.quantity]);
+  
+  useEffect(() => {
     setLocalRate(String(item.unit_price || ""));
+  }, [item.id, item.unit_price]);
+  
+  useEffect(() => {
     setLocalMarkup(String(item.markup_percent || ""));
-  }, [item.id, item.description, item.quantity, item.unit_price, item.markup_percent]);
+  }, [item.id, item.markup_percent]);
 
   // Compute total from local values for instant feedback
   const localTotal = useMemo(() => {
@@ -75,14 +104,17 @@ function ItemRowComponent({ item, onUpdate, onDelete }: ItemRowProps) {
   const missingQty = (parseFloat(localQty) || 0) <= 0;
   const invalid = missingCostCode || missingDesc || missingQty;
 
+  // Use immediate update for dropdowns, debounced for text/numbers
+  const immediateUpdate = onUpdateImmediate || onUpdate;
+
   // Handlers
   const handleCategoryChange = useCallback((cat: BudgetCategory) => {
-    onUpdate({ category: cat });
-  }, [onUpdate]);
+    immediateUpdate({ category: cat });
+  }, [immediateUpdate]);
 
   const handleCostCodeChange = useCallback((codeId: string) => {
-    onUpdate({ cost_code_id: codeId });
-  }, [onUpdate]);
+    immediateUpdate({ cost_code_id: codeId });
+  }, [immediateUpdate]);
 
   const handleDescBlur = useCallback(() => {
     const trimmed = localDesc?.trim() || "";
@@ -113,18 +145,27 @@ function ItemRowComponent({ item, onUpdate, onDelete }: ItemRowProps) {
   }, [localMarkup, item.markup_percent, onUpdate]);
 
   const handleUnitChange = useCallback((unit: string) => {
-    onUpdate({ unit });
-  }, [onUpdate]);
+    immediateUpdate({ unit });
+  }, [immediateUpdate]);
 
   return (
     <>
       {/* Desktop layout */}
       <div
         className={cn(
-          "hidden lg:grid grid-cols-[60px_minmax(120px,1fr)_minmax(180px,2fr)_65px_60px_75px_65px_85px_36px] items-center gap-1.5 px-4 py-1.5 text-xs transition-colors",
-          invalid ? "bg-destructive/5" : "hover:bg-muted/30"
+          "hidden lg:grid grid-cols-[24px_60px_minmax(120px,1fr)_minmax(180px,2fr)_65px_60px_75px_65px_85px_24px_36px] items-center gap-1.5 px-4 py-1.5 text-xs transition-colors",
+          invalid ? "bg-destructive/5" : "hover:bg-muted/30",
+          isDragging && "opacity-50 bg-muted"
         )}
       >
+        {/* Drag handle */}
+        <div 
+          {...dragHandleProps}
+          className="flex items-center justify-center cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground"
+        >
+          <GripVertical className="h-3.5 w-3.5" />
+        </div>
+
         {/* Category Type selector */}
         <select
           className={cn(
@@ -216,6 +257,13 @@ function ItemRowComponent({ item, onUpdate, onDelete }: ItemRowProps) {
           {formatCurrency(localTotal)}
         </div>
 
+        {/* Save status */}
+        <RowSaveIndicator 
+          status={saveStatus} 
+          error={saveError}
+          onRetry={onRetry}
+        />
+
         {/* Delete */}
         <button
           type="button"
@@ -230,25 +278,39 @@ function ItemRowComponent({ item, onUpdate, onDelete }: ItemRowProps) {
       <div
         className={cn(
           "lg:hidden p-3 mb-2 rounded-xl border transition-colors",
-          invalid ? "bg-destructive/5 border-destructive/20" : "bg-card border-border/50"
+          invalid ? "bg-destructive/5 border-destructive/20" : "bg-card border-border/50",
+          isDragging && "opacity-50"
         )}
       >
-        {/* Top row: category + total + delete */}
+        {/* Top row: drag handle + category + save status + total + delete */}
         <div className="flex items-center justify-between gap-2 mb-2">
-          <select
-            className={cn(
-              "h-7 px-2 text-[11px] font-medium rounded border-0 cursor-pointer",
-              CATEGORY_COLORS[item.category]
-            )}
-            value={item.category}
-            onChange={(e) => handleCategoryChange(e.target.value as BudgetCategory)}
-          >
-            <option value="labor">LAB</option>
-            <option value="subs">SUBS</option>
-            <option value="materials">MAT</option>
-            <option value="other">OTHER</option>
-          </select>
           <div className="flex items-center gap-2">
+            <div 
+              {...dragHandleProps}
+              className="cursor-grab active:cursor-grabbing text-muted-foreground"
+            >
+              <GripVertical className="h-4 w-4" />
+            </div>
+            <select
+              className={cn(
+                "h-7 px-2 text-[11px] font-medium rounded border-0 cursor-pointer",
+                CATEGORY_COLORS[item.category]
+              )}
+              value={item.category}
+              onChange={(e) => handleCategoryChange(e.target.value as BudgetCategory)}
+            >
+              <option value="labor">LAB</option>
+              <option value="subs">SUBS</option>
+              <option value="materials">MAT</option>
+              <option value="other">OTHER</option>
+            </select>
+          </div>
+          <div className="flex items-center gap-2">
+            <RowSaveIndicator 
+              status={saveStatus} 
+              error={saveError}
+              onRetry={onRetry}
+            />
             <span className="text-sm font-semibold tabular-nums">
               {formatCurrency(localTotal)}
             </span>
