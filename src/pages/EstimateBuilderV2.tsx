@@ -7,9 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, FileText, Check } from "lucide-react";
+import { ArrowLeft, Plus, FileText, Check, Download, FileSpreadsheet } from "lucide-react";
 import { getUnassignedCostCodeId } from "@/lib/costCodes";
 import { checkEstimateNeedsMigration, migrateEstimateToScopeBlocks } from "@/lib/estimateMigration";
+import { downloadCSV, downloadPDF, type EstimateExportData } from "@/lib/estimateExport";
 import {
   ProjectEstimateEditor,
   type EstimateEditorBlock,
@@ -17,6 +18,12 @@ import {
   type BudgetCategory,
 } from "@/components/estimates/ProjectEstimateEditor";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface CostItemDB {
   id: string;
@@ -170,6 +177,20 @@ export default function EstimateBuilderV2() {
     staleTime: 30000, // 30s - don't refetch within this window
     gcTime: 5 * 60 * 1000, // 5 minutes
     refetchOnWindowFocus: false, // Don't refetch on tab focus
+  });
+
+  // Fetch cost codes for export
+  const { data: costCodes = [] } = useQuery({
+    queryKey: ["cost-codes-map"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("cost_codes")
+        .select("id, code, name")
+        .eq("is_active", true);
+      if (error) throw error;
+      return data || [];
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
   // Sync local state when DB data changes
@@ -476,6 +497,45 @@ export default function EstimateBuilderV2() {
     syncToBudget.mutate();
   }, [syncToBudget]);
 
+  // Export handlers
+  const handleExportCSV = useCallback(() => {
+    try {
+      const costCodeMap = new Map(costCodes.map(cc => [cc.id, { code: cc.code, name: cc.name }]));
+      const exportData: EstimateExportData = {
+        estimateId: estimateId!,
+        title: estimate?.title || "Untitled Estimate",
+        projectName: estimate?.projects?.project_name,
+        status: estimate?.status || "draft",
+        blocks: localBlocks,
+        costCodes: costCodeMap,
+      };
+      downloadCSV(exportData);
+      toast.success("CSV exported successfully");
+    } catch (error) {
+      console.error("CSV export error:", error);
+      toast.error("Failed to export CSV. Please try again.");
+    }
+  }, [estimateId, estimate, localBlocks, costCodes]);
+
+  const handleExportPDF = useCallback(() => {
+    try {
+      const costCodeMap = new Map(costCodes.map(cc => [cc.id, { code: cc.code, name: cc.name }]));
+      const exportData: EstimateExportData = {
+        estimateId: estimateId!,
+        title: estimate?.title || "Untitled Estimate",
+        projectName: estimate?.projects?.project_name,
+        status: estimate?.status || "draft",
+        blocks: localBlocks,
+        costCodes: costCodeMap,
+      };
+      downloadPDF(exportData);
+      toast.success("PDF exported successfully");
+    } catch (error) {
+      console.error("PDF export error:", error);
+      toast.error("Failed to export PDF. Please try again.");
+    }
+  }, [estimateId, estimate, localBlocks, costCodes]);
+
   // Loading state
   if (estimateLoading || blocksLoading || isMigrating) {
     return (
@@ -573,6 +633,26 @@ export default function EstimateBuilderV2() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {/* Export dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Download className="h-4 w-4 mr-1.5" />
+                  <span className="hidden sm:inline">Export</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={handleExportCSV}>
+                  <FileSpreadsheet className="h-4 w-4 mr-2" />
+                  Export CSV
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleExportPDF}>
+                  <FileText className="h-4 w-4 mr-2" />
+                  Export PDF
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            
             <Button 
               variant="outline" 
               size="sm" 
