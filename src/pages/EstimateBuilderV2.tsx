@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useBlocker } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Layout } from "@/components/Layout";
@@ -24,6 +24,16 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface CostItemDB {
   id: string;
@@ -118,6 +128,27 @@ export default function EstimateBuilderV2() {
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [isMigrating, setIsMigrating] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
+  // Navigation blocker for unsaved changes
+  const blocker = useBlocker(
+    ({ currentLocation, nextLocation }) =>
+      hasUnsavedChanges && currentLocation.pathname !== nextLocation.pathname
+  );
+
+  // Browser beforeunload handler
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = "";
+        return "";
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [hasUnsavedChanges]);
   
   // Track existing items for diffing
   const existingItemsRef = useRef<Map<string, string>>(new Map()); // id -> serialized
@@ -378,6 +409,7 @@ export default function EstimateBuilderV2() {
       // Skip if nothing changed
       if (toDelete.length === 0 && toCreate.length === 0 && toUpdate.length === 0) {
         setIsSaving(false);
+        setHasUnsavedChanges(false);
         return;
       }
       
@@ -452,6 +484,7 @@ export default function EstimateBuilderV2() {
       
       // Mark as saved
       setLastSaved(new Date());
+      setHasUnsavedChanges(false);
       
     } catch (error) {
       console.error("Error saving changes:", error);
@@ -473,6 +506,7 @@ export default function EstimateBuilderV2() {
   const handleBlocksChange = useCallback((newBlocks: EstimateEditorBlock[]) => {
     // Update local state immediately for responsive UI
     setLocalBlocks(newBlocks);
+    setHasUnsavedChanges(true);
     
     // Debounce the save
     if (saveTimeoutRef.current) {
@@ -798,6 +832,26 @@ export default function EstimateBuilderV2() {
           </div>
         )}
       </div>
+
+      {/* Unsaved changes confirmation dialog */}
+      <AlertDialog open={blocker.state === "blocked"}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Unsaved Changes</AlertDialogTitle>
+            <AlertDialogDescription>
+              You have unsaved changes. Are you sure you want to leave? Your changes will be lost.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => blocker.reset?.()}>
+              Stay on Page
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={() => blocker.proceed?.()}>
+              Leave Page
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Layout>
   );
 }
