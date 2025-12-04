@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
+import { Switch } from '@/components/ui/switch';
 import { Upload, X, FileText, Loader2, Sparkles } from 'lucide-react';
 import { useUploadDocument, useAnalyzeDocument, UploadDocumentParams } from '@/hooks/useDocumentsHub';
 import { getDocumentTypeOptions, inferDocumentType, DocumentType } from '@/lib/documents/storagePaths';
@@ -41,6 +42,7 @@ export function UploadDocumentDialog({
   const [projectId, setProjectId] = useState<string | null>(initialProjectId || null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [autoRunAI, setAutoRunAI] = useState(true);
 
   const uploadDocument = useUploadDocument();
   const analyzeDocument = useAnalyzeDocument();
@@ -129,7 +131,7 @@ export function UploadDocumentDialog({
     }
 
     // Auto-run AI analysis on all uploaded documents (in background)
-    if (uploadedDocIds.length > 0) {
+    if (uploadedDocIds.length > 0 && autoRunAI) {
       toast({
         title: 'Upload successful',
         description: (
@@ -143,6 +145,11 @@ export function UploadDocumentDialog({
       // Run AI analysis for each document in background (don't await)
       uploadedDocIds.forEach((docId) => {
         analyzeDocument.mutate(docId);
+      });
+    } else if (uploadedDocIds.length > 0) {
+      toast({
+        title: 'Upload successful',
+        description: `${uploadedDocIds.length} document(s) uploaded`,
       });
     }
 
@@ -211,10 +218,17 @@ export function UploadDocumentDialog({
             />
           </div>
 
-          {/* Auto AI notice */}
-          <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 rounded-md px-3 py-2">
-            <Sparkles className="h-3.5 w-3.5" />
-            <span>AI analysis will run automatically after upload</span>
+          {/* Auto AI toggle */}
+          <div className="flex items-center justify-between bg-muted/50 rounded-md px-3 py-2">
+            <div className="flex items-center gap-2 text-sm">
+              <Sparkles className="h-4 w-4 text-primary" />
+              <span>Auto-run AI analysis after upload</span>
+            </div>
+            <Switch
+              checked={autoRunAI}
+              onCheckedChange={setAutoRunAI}
+              disabled={isUploading}
+            />
           </div>
 
           {/* File list */}

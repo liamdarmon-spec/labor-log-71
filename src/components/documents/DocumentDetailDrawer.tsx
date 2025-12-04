@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { Separator } from '@/components/ui/separator';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { 
@@ -18,7 +19,10 @@ import {
   RefreshCw,
   ExternalLink,
   Download,
-  Sparkles
+  Sparkles,
+  Loader2,
+  ChevronDown,
+  Code
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -197,8 +201,17 @@ export function DocumentDetailDrawer({ documentId, open, onOpenChange }: Documen
                       This document hasn't been analyzed yet
                     </p>
                     <Button onClick={handleRunAI} disabled={analyzing}>
-                      <Sparkles className="h-4 w-4 mr-2" />
-                      {analyzing ? 'Analyzing...' : 'Run AI Analysis'}
+                      {analyzing ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Analyzing...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="h-4 w-4 mr-2" />
+                          Run AI Analysis
+                        </>
+                      )}
                     </Button>
                   </div>
                 ) : (
@@ -297,27 +310,33 @@ export function DocumentDetailDrawer({ documentId, open, onOpenChange }: Documen
                         onClick={handleRunAI}
                         disabled={analyzing}
                       >
-                        <RefreshCw className="h-4 w-4 mr-2" />
-                        Re-run
+                        {analyzing ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <RefreshCw className="h-4 w-4 mr-2" />
+                        )}
+                        {analyzing ? 'Running...' : 'Re-run'}
                       </Button>
                     </div>
 
-                    {document.ai_summary && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setShowExtractedText(!showExtractedText)}
-                      >
-                        {showExtractedText ? 'Hide' : 'Show'} Extracted Text
-                      </Button>
-                    )}
-
-                    {showExtractedText && document.ai_summary && (
-                      <div className="bg-muted p-4 rounded-md">
-                        <p className="text-xs font-mono whitespace-pre-wrap">
-                          {document.ai_summary}
-                        </p>
-                      </div>
+                    {/* Raw AI Data (Debug) */}
+                    {document.ai_extracted_data && (
+                      <Collapsible>
+                        <CollapsibleTrigger asChild>
+                          <Button variant="ghost" size="sm" className="gap-2 w-full justify-start">
+                            <Code className="h-4 w-4" />
+                            <span>Raw AI Data (debug)</span>
+                            <ChevronDown className="h-4 w-4 ml-auto" />
+                          </Button>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                          <div className="bg-muted p-4 rounded-md mt-2 max-h-[200px] overflow-y-auto">
+                            <pre className="text-xs font-mono whitespace-pre-wrap">
+                              {JSON.stringify(document.ai_extracted_data, null, 2)}
+                            </pre>
+                          </div>
+                        </CollapsibleContent>
+                      </Collapsible>
                     )}
                   </>
                 )}
