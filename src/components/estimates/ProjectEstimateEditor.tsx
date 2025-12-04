@@ -1,9 +1,29 @@
 // ProjectEstimateEditor.tsx
 // Clean, industry-standard hierarchy: SECTION → AREA → GROUP → ITEM
-// No sub-areas, no sub-groups, no hidden nesting.
+// With full drag & drop support using @dnd-kit
 
 import React, { useMemo, useCallback, useState, memo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import {
+  DndContext,
+  DragOverlay,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragStartEvent,
+  DragEndEvent,
+  UniqueIdentifier,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import {
   GripVertical,
   Plus,
@@ -23,6 +43,7 @@ import {
 import { AreaHeader } from "./AreaHeader";
 import { GroupHeader } from "./GroupHeader";
 import { ItemRow, ScopeItem } from "./ItemRow";
+import { ReorderItemPayload, ReorderSectionPayload } from "@/hooks/useEstimateBlocks";
 
 // ====== Types ======
 
@@ -48,6 +69,8 @@ interface EstimateEditorProps {
   isBudgetSyncing?: boolean;
   onBlocksChange: (blocks: EstimateEditorBlock[]) => void;
   onSetAsBudgetSource?: () => void;
+  onReorderItems?: (blockId: string, items: ReorderItemPayload[]) => void;
+  onReorderSections?: (sections: ReorderSectionPayload[]) => void;
 }
 
 // ====== Helpers ======
@@ -223,6 +246,81 @@ const CategoryBreakdownCard = memo(function CategoryBreakdownCard({
   );
 });
 
+// ====== Sortable Item Row Wrapper ======
+
+interface SortableItemRowProps {
+  item: ScopeItem;
+  blockId: string;
+  updateItem: (blockId: string, itemId: string, patch: Partial<ScopeItem>) => void;
+  deleteItem: (blockId: string, itemId: string) => void;
+}
+
+const SortableItemRow = memo(function SortableItemRow({
+  item,
+  blockId,
+  updateItem,
+  deleteItem,
+}: SortableItemRowProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    setActivatorNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: item.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 50 : undefined,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        "relative group flex items-stretch",
+        isDragging && "opacity-50 shadow-lg scale-[1.01] bg-background rounded-lg z-50"
+      )}
+    >
+      {/* Drag handle */}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            ref={setActivatorNodeRef}
+            type="button"
+            className={cn(
+              "flex items-center justify-center w-6 shrink-0 cursor-grab active:cursor-grabbing",
+              "text-muted-foreground/30 hover:text-muted-foreground transition-colors",
+              "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1 rounded"
+            )}
+            {...attributes}
+            {...listeners}
+            aria-label="Drag to reorder"
+          >
+            <GripVertical className="h-3.5 w-3.5" />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="left" className="text-xs">
+          Drag to reorder
+        </TooltipContent>
+      </Tooltip>
+
+      {/* Item content */}
+      <div className="flex-1 min-w-0">
+        <ItemRow
+          item={item}
+          onUpdate={(patch) => updateItem(blockId, item.id, patch)}
+          onDelete={() => deleteItem(blockId, item.id)}
+        />
+      </div>
+    </div>
+  );
+});
+
 // ====== Main Component ======
 
 export const ProjectEstimateEditor: React.FC<EstimateEditorProps> = ({
@@ -231,12 +329,48 @@ export const ProjectEstimateEditor: React.FC<EstimateEditorProps> = ({
   isBudgetSyncing,
   onBlocksChange,
   onSetAsBudgetSource,
+  onReorderItems,
+  onReorderSections,
 }) => {
+  const [activeItemId, setActiveItemId] = useState<UniqueIdentifier | null>(null);
+  const [activeSectionId, setActiveSectionId] = useState<UniqueIdentifier | null>(null);
+
   const flatItems = useMemo(() => blocks.flatMap((b) => b.items), [blocks]);
   const globalTotals = useMemo(() => computeCategoryTotals(flatItems), [flatItems]);
   const totalProfit = useMemo(() => computeTotalProfit(flatItems), [flatItems]);
   const hasInvalidItems = useMemo(() => flatItems.some((i) => !isItemValid(i)), [flatItems]);
   const invalidCount = useMemo(() => flatItems.filter((i) => !isItemValid(i)).length, [flatItems]);
+
+  // DnD sensors with activation constraints
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5, // 5px threshold before drag starts
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  // Section IDs for sortable
+  const sectionIds = useMemo(() => blocks.map((b) => b.block.id), [blocks]);
+
+  // Find active item for drag overlay
+  const activeItem = useMemo(() => {
+    if (!activeItemId) return null;
+    for (const block of blocks) {
+      const item = block.items.find((i) => i.id === activeItemId);
+      if (item) return item;
+    }
+    return null;
+  }, [activeItemId, blocks]);
+
+  // Find active section for drag overlay
+  const activeSection = useMemo(() => {
+    if (!activeSectionId) return null;
+    return blocks.find((b) => b.block.id === activeSectionId) || null;
+  }, [activeSectionId, blocks]);
 
   // Mutation helpers
   const updateItem = useCallback(
@@ -259,6 +393,7 @@ export const ProjectEstimateEditor: React.FC<EstimateEditorProps> = ({
       onBlocksChange(
         blocks.map((b) => {
           if (b.block.id !== blockId) return b;
+          const maxSortOrder = Math.max(...b.items.map((i) => i.sort_order || 0), 0);
           const newItem: ScopeItem = {
             id: crypto.randomUUID(),
             scope_block_id: blockId,
@@ -272,6 +407,7 @@ export const ProjectEstimateEditor: React.FC<EstimateEditorProps> = ({
             unit_price: 0,
             markup_percent: 0,
             line_total: 0,
+            sort_order: maxSortOrder + 10,
           };
           return { ...b, items: [...b.items, newItem] };
         })
@@ -384,6 +520,39 @@ export const ProjectEstimateEditor: React.FC<EstimateEditorProps> = ({
     [blocks, onBlocksChange]
   );
 
+  // Section drag handlers
+  const handleSectionDragStart = useCallback((event: DragStartEvent) => {
+    setActiveSectionId(event.active.id);
+  }, []);
+
+  const handleSectionDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      setActiveSectionId(null);
+      const { active, over } = event;
+      if (!over || active.id === over.id) return;
+
+      const oldIndex = blocks.findIndex((b) => b.block.id === active.id);
+      const newIndex = blocks.findIndex((b) => b.block.id === over.id);
+
+      if (oldIndex === -1 || newIndex === -1) return;
+
+      const newBlocks = arrayMove(blocks, oldIndex, newIndex);
+      
+      // Update local state immediately (optimistic)
+      onBlocksChange(newBlocks);
+
+      // Persist to backend
+      if (onReorderSections) {
+        const payload: ReorderSectionPayload[] = newBlocks.map((b, idx) => ({
+          id: b.block.id,
+          sort_order: (idx + 1) * 10,
+        }));
+        onReorderSections(payload);
+      }
+    },
+    [blocks, onBlocksChange, onReorderSections]
+  );
+
   const total = globalTotals.labor + globalTotals.subs + globalTotals.materials + globalTotals.other;
   const profitMargin = total > 0 ? (totalProfit / total) * 100 : 0;
 
@@ -453,30 +622,56 @@ export const ProjectEstimateEditor: React.FC<EstimateEditorProps> = ({
           </div>
         )}
 
-        {/* Blocks */}
-        {blocks.map((b) => (
-          <BlockSection
-            key={b.block.id}
-            block={b}
-            updateItem={updateItem}
-            addItem={addItem}
-            addAreaToBlock={addAreaToBlock}
-            addGroupToArea={addGroupToArea}
-            deleteItem={deleteItem}
-            deleteArea={deleteArea}
-            deleteGroup={deleteGroup}
-            renameArea={renameArea}
-            renameGroup={renameGroup}
-          />
-        ))}
+        {/* Sections with DnD */}
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragStart={handleSectionDragStart}
+          onDragEnd={handleSectionDragEnd}
+        >
+          <SortableContext items={sectionIds} strategy={verticalListSortingStrategy}>
+            {blocks.map((b) => (
+              <SortableBlockSection
+                key={b.block.id}
+                block={b}
+                updateItem={updateItem}
+                addItem={addItem}
+                addAreaToBlock={addAreaToBlock}
+                addGroupToArea={addGroupToArea}
+                deleteItem={deleteItem}
+                deleteArea={deleteArea}
+                deleteGroup={deleteGroup}
+                renameArea={renameArea}
+                renameGroup={renameGroup}
+                onReorderItems={onReorderItems}
+              />
+            ))}
+          </SortableContext>
+
+          <DragOverlay>
+            {activeSection && (
+              <div className="opacity-90 shadow-2xl rounded-2xl border border-primary/30 bg-card overflow-hidden">
+                <header className="flex items-center gap-2 px-4 py-3 border-b border-border bg-muted/30">
+                  <GripVertical className="h-4 w-4 text-primary shrink-0" />
+                  <span className="font-semibold text-foreground">
+                    {activeSection.block.title || "Untitled Section"}
+                  </span>
+                  <span className="text-xs text-muted-foreground ml-auto">
+                    {activeSection.items.length} items
+                  </span>
+                </header>
+              </div>
+            )}
+          </DragOverlay>
+        </DndContext>
       </div>
     </TooltipProvider>
   );
 };
 
-// ====== Block Section ======
+// ====== Sortable Block Section ======
 
-interface BlockSectionProps {
+interface SortableBlockSectionProps {
   block: EstimateEditorBlock;
   updateItem: (blockId: string, itemId: string, patch: Partial<ScopeItem>) => void;
   addItem: (blockId: string, area: string | null, group: string | null) => void;
@@ -487,9 +682,10 @@ interface BlockSectionProps {
   deleteGroup: (blockId: string, areaLabel: string | null, groupLabel: string | null) => void;
   renameArea: (blockId: string, oldName: string | null, newName: string | null) => void;
   renameGroup: (blockId: string, areaLabel: string | null, oldGroup: string | null, newGroup: string | null) => void;
+  onReorderItems?: (blockId: string, items: ReorderItemPayload[]) => void;
 }
 
-const BlockSection = memo(function BlockSection({
+const SortableBlockSection = memo(function SortableBlockSection({
   block: b,
   updateItem,
   addItem,
@@ -500,21 +696,139 @@ const BlockSection = memo(function BlockSection({
   deleteGroup,
   renameArea,
   renameGroup,
-}: BlockSectionProps) {
+  onReorderItems,
+}: SortableBlockSectionProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [activeItemId, setActiveItemId] = useState<UniqueIdentifier | null>(null);
+
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    setActivatorNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: b.block.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 40 : undefined,
+  };
+
   const areaGroups = useMemo(() => groupItemsByArea(b.items), [b.items]);
   const blockTotals = useMemo(() => computeCategoryTotals(b.items), [b.items]);
   const blockTotal = blockTotals.labor + blockTotals.subs + blockTotals.materials + blockTotals.other;
 
+  // Item IDs for sortable context (all items in this block)
+  const itemIds = useMemo(() => b.items.map((i) => i.id), [b.items]);
+
+  // DnD sensors for items
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  // Find active item for overlay
+  const activeItem = useMemo(() => {
+    if (!activeItemId) return null;
+    return b.items.find((i) => i.id === activeItemId) || null;
+  }, [activeItemId, b.items]);
+
+  const handleItemDragStart = useCallback((event: DragStartEvent) => {
+    setActiveItemId(event.active.id);
+  }, []);
+
+  const handleItemDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      setActiveItemId(null);
+      const { active, over } = event;
+      if (!over || active.id === over.id) return;
+
+      const oldIndex = b.items.findIndex((i) => i.id === active.id);
+      const newIndex = b.items.findIndex((i) => i.id === over.id);
+
+      if (oldIndex === -1 || newIndex === -1) return;
+
+      // Get target item's area and group
+      const targetItem = b.items[newIndex];
+      const movedItem = b.items[oldIndex];
+
+      // Create new items array with reordered item
+      const newItems = arrayMove(b.items, oldIndex, newIndex);
+
+      // If moving to a different area/group, update the moved item's labels
+      const updatedItems = newItems.map((item, idx) => {
+        if (item.id === movedItem.id && (movedItem.area_label !== targetItem.area_label || movedItem.group_label !== targetItem.group_label)) {
+          return {
+            ...item,
+            area_label: targetItem.area_label,
+            group_label: targetItem.group_label,
+            sort_order: (idx + 1) * 10,
+          };
+        }
+        return {
+          ...item,
+          sort_order: (idx + 1) * 10,
+        };
+      });
+
+      // Persist to backend
+      if (onReorderItems) {
+        const payload: ReorderItemPayload[] = updatedItems.map((item) => ({
+          id: item.id,
+          sort_order: item.sort_order || 0,
+          area_label: item.area_label,
+          group_label: item.group_label,
+        }));
+        onReorderItems(b.block.id, payload);
+      }
+    },
+    [b.items, b.block.id, onReorderItems]
+  );
+
   return (
-    <section className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
+    <section
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        "rounded-2xl border border-border bg-card shadow-sm overflow-hidden",
+        isDragging && "opacity-50 shadow-xl ring-2 ring-primary/20"
+      )}
+    >
       {/* Block header */}
       <header
         className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/30 cursor-pointer select-none"
         onClick={() => setIsCollapsed(!isCollapsed)}
       >
         <div className="flex items-center gap-2 min-w-0">
-          <GripVertical className="h-4 w-4 text-muted-foreground shrink-0 cursor-grab" />
+          {/* Section drag handle */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                ref={setActivatorNodeRef}
+                type="button"
+                className="cursor-grab active:cursor-grabbing p-1 -ml-1 text-muted-foreground/60 hover:text-muted-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1 rounded"
+                onClick={(e) => e.stopPropagation()}
+                {...attributes}
+                {...listeners}
+                aria-label="Drag to reorder section"
+              >
+                <GripVertical className="h-4 w-4" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="left" className="text-xs">
+              Drag to reorder section
+            </TooltipContent>
+          </Tooltip>
+
           <motion.div animate={{ rotate: isCollapsed ? 0 : 90 }} transition={{ duration: 0.2 }}>
             <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
           </motion.div>
@@ -554,7 +868,8 @@ const BlockSection = memo(function BlockSection({
             transition={{ duration: 0.25, ease: "easeInOut" }}
           >
             {/* Table header - desktop only */}
-            <div className="hidden lg:grid grid-cols-[60px_minmax(120px,1fr)_minmax(180px,2fr)_65px_60px_75px_65px_85px_36px] gap-1.5 px-4 py-2 text-xs font-medium text-muted-foreground border-b border-border bg-muted/20">
+            <div className="hidden lg:grid grid-cols-[24px_60px_minmax(120px,1fr)_minmax(180px,2fr)_65px_60px_75px_65px_85px_36px] gap-1.5 px-4 py-2 text-xs font-medium text-muted-foreground border-b border-border bg-muted/20">
+              <div></div>
               <div>Type</div>
               <div>Cost Code</div>
               <div>Description</div>
@@ -566,24 +881,51 @@ const BlockSection = memo(function BlockSection({
               <div></div>
             </div>
 
-            {/* Areas */}
-            <div className="divide-y divide-border/50">
-              {areaGroups.map((ag) => (
-                <AreaSection
-                  key={ag.area ?? "_ungrouped"}
-                  blockId={b.block.id}
-                  areaGroup={ag}
-                  updateItem={updateItem}
-                  addItem={addItem}
-                  addGroupToArea={addGroupToArea}
-                  deleteItem={deleteItem}
-                  deleteArea={deleteArea}
-                  deleteGroup={deleteGroup}
-                  renameArea={renameArea}
-                  renameGroup={renameGroup}
-                />
-              ))}
-            </div>
+            {/* Items with DnD context */}
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragStart={handleItemDragStart}
+              onDragEnd={handleItemDragEnd}
+            >
+              <SortableContext items={itemIds} strategy={verticalListSortingStrategy}>
+                <div className="divide-y divide-border/50">
+                  {areaGroups.map((ag) => (
+                    <AreaSection
+                      key={ag.area ?? "_ungrouped"}
+                      blockId={b.block.id}
+                      areaGroup={ag}
+                      updateItem={updateItem}
+                      addItem={addItem}
+                      addGroupToArea={addGroupToArea}
+                      deleteItem={deleteItem}
+                      deleteArea={deleteArea}
+                      deleteGroup={deleteGroup}
+                      renameArea={renameArea}
+                      renameGroup={renameGroup}
+                    />
+                  ))}
+                </div>
+              </SortableContext>
+
+              <DragOverlay>
+                {activeItem && (
+                  <div className="opacity-95 shadow-2xl scale-[1.02] bg-background rounded-lg border border-primary/20">
+                    <div className="flex items-stretch">
+                      <div className="flex items-center justify-center w-6 shrink-0 text-primary">
+                        <GripVertical className="h-3.5 w-3.5" />
+                      </div>
+                      <div className="flex-1 min-w-0 py-2 px-2 text-sm">
+                        <span className="font-medium">{activeItem.description || "New Item"}</span>
+                        <span className="text-muted-foreground ml-2">
+                          {formatCurrency(activeItem.line_total || 0)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </DragOverlay>
+            </DndContext>
 
             {/* Footer actions */}
             <div className="px-4 py-3 border-t border-border flex items-center justify-between gap-2 bg-muted/10">
@@ -693,11 +1035,12 @@ const AreaSection = memo(function AreaSection({
 
         {/* Ungrouped items */}
         {ungroupedItems.map((item) => (
-          <ItemRow
+          <SortableItemRow
             key={item.id}
             item={item}
-            onUpdate={(patch) => updateItem(blockId, item.id, patch)}
-            onDelete={() => deleteItem(blockId, item.id)}
+            blockId={blockId}
+            updateItem={updateItem}
+            deleteItem={deleteItem}
           />
         ))}
 
@@ -747,11 +1090,12 @@ const AreaSection = memo(function AreaSection({
                 // Ungrouped items within area
                 <div key="_ungrouped" className="px-2">
                   {sg.items.map((item) => (
-                    <ItemRow
+                    <SortableItemRow
                       key={item.id}
                       item={item}
-                      onUpdate={(patch) => updateItem(blockId, item.id, patch)}
-                      onDelete={() => deleteItem(blockId, item.id)}
+                      blockId={blockId}
+                      updateItem={updateItem}
+                      deleteItem={deleteItem}
                     />
                   ))}
                 </div>
@@ -839,11 +1183,12 @@ const GroupSubSection = memo(function GroupSubSection({
             className="ml-4 mt-1"
           >
             {sg.items.map((item) => (
-              <ItemRow
+              <SortableItemRow
                 key={item.id}
                 item={item}
-                onUpdate={(patch) => updateItem(blockId, item.id, patch)}
-                onDelete={() => deleteItem(blockId, item.id)}
+                blockId={blockId}
+                updateItem={updateItem}
+                deleteItem={deleteItem}
               />
             ))}
             

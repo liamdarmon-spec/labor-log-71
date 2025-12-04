@@ -20,6 +20,7 @@ export interface ScopeItem {
   unit_price: number;
   markup_percent: number;
   line_total: number;
+  sort_order?: number;
 }
 
 interface ItemRowProps {
