@@ -77,6 +77,11 @@ interface EstimateEditorProps {
   onReorderSections?: (sections: ReorderSectionPayload[]) => void;
   onUpdateSection?: (blockId: string, patch: { title?: string; description?: string }) => void;
   onDeleteSection?: (blockId: string) => void;
+  // Per-row autosave handlers
+  onItemUpdate?: (itemId: string, patch: Partial<ScopeItem>) => void;
+  onItemUpdateImmediate?: (itemId: string, patch: Partial<ScopeItem>) => void;
+  getItemSaveStatus?: (itemId: string) => { status: string; error?: string };
+  onItemRetry?: (itemId: string, values: Partial<ScopeItem>) => void;
 }
 
 // ====== Helpers ======
@@ -258,14 +263,20 @@ interface SortableItemRowProps {
   item: ScopeItem;
   blockId: string;
   updateItem: (blockId: string, itemId: string, patch: Partial<ScopeItem>) => void;
+  updateItemImmediate?: (blockId: string, itemId: string, patch: Partial<ScopeItem>) => void;
   deleteItem: (blockId: string, itemId: string) => void;
+  getItemSaveStatus?: (itemId: string) => { status: string; error?: string };
+  onItemRetry?: (itemId: string, values: Partial<ScopeItem>) => void;
 }
 
 const SortableItemRow = memo(function SortableItemRow({
   item,
   blockId,
   updateItem,
+  updateItemImmediate,
   deleteItem,
+  getItemSaveStatus,
+  onItemRetry,
 }: SortableItemRowProps) {
   const {
     attributes,
@@ -282,6 +293,8 @@ const SortableItemRow = memo(function SortableItemRow({
     transition,
     zIndex: isDragging ? 50 : undefined,
   };
+
+  const saveState = getItemSaveStatus ? getItemSaveStatus(item.id) : { status: "idle" };
 
   return (
     <div
@@ -320,7 +333,11 @@ const SortableItemRow = memo(function SortableItemRow({
         <ItemRow
           item={item}
           onUpdate={(patch) => updateItem(blockId, item.id, patch)}
+          onUpdateImmediate={updateItemImmediate ? (patch) => updateItemImmediate(blockId, item.id, patch) : undefined}
           onDelete={() => deleteItem(blockId, item.id)}
+          saveStatus={saveState.status as any}
+          saveError={saveState.error}
+          onRetry={onItemRetry ? () => onItemRetry(item.id, item) : undefined}
         />
       </div>
     </div>
@@ -340,6 +357,10 @@ export const ProjectEstimateEditor: React.FC<EstimateEditorProps> = ({
   onReorderSections,
   onUpdateSection,
   onDeleteSection,
+  onItemUpdate,
+  onItemUpdateImmediate,
+  getItemSaveStatus,
+  onItemRetry,
 }) => {
   const [activeItemId, setActiveItemId] = useState<UniqueIdentifier | null>(null);
   const [activeSectionId, setActiveSectionId] = useState<UniqueIdentifier | null>(null);
@@ -396,9 +417,10 @@ export const ProjectEstimateEditor: React.FC<EstimateEditorProps> = ({
     return blocks.find((b) => b.block.id === activeSectionId) || null;
   }, [activeSectionId, blocks]);
 
-  // Mutation helpers
+  // Mutation helpers - use autosave handlers if provided
   const updateItem = useCallback(
     (blockId: string, itemId: string, patch: Partial<ScopeItem>) => {
+      // Update local state immediately
       onBlocksChange(
         blocks.map((b) => {
           if (b.block.id !== blockId) return b;
@@ -408,8 +430,34 @@ export const ProjectEstimateEditor: React.FC<EstimateEditorProps> = ({
           };
         })
       );
+      // Use autosave handler if provided
+      if (onItemUpdate) {
+        onItemUpdate(itemId, patch);
+      }
     },
-    [blocks, onBlocksChange]
+    [blocks, onBlocksChange, onItemUpdate]
+  );
+
+  const updateItemImmediate = useCallback(
+    (blockId: string, itemId: string, patch: Partial<ScopeItem>) => {
+      // Update local state immediately
+      onBlocksChange(
+        blocks.map((b) => {
+          if (b.block.id !== blockId) return b;
+          return {
+            ...b,
+            items: b.items.map((it) => (it.id === itemId ? { ...it, ...patch } : it)),
+          };
+        })
+      );
+      // Use immediate autosave handler if provided, fallback to debounced
+      if (onItemUpdateImmediate) {
+        onItemUpdateImmediate(itemId, patch);
+      } else if (onItemUpdate) {
+        onItemUpdate(itemId, patch);
+      }
+    },
+    [blocks, onBlocksChange, onItemUpdate, onItemUpdateImmediate]
   );
 
   const addItem = useCallback(
@@ -863,6 +911,7 @@ export const ProjectEstimateEditor: React.FC<EstimateEditorProps> = ({
                   key={b.block.id}
                   block={b}
                   updateItem={updateItem}
+                  updateItemImmediate={updateItemImmediate}
                   addItem={addItem}
                   addAreaToBlock={addAreaToBlock}
                   addGroupToArea={addGroupToArea}
@@ -873,6 +922,8 @@ export const ProjectEstimateEditor: React.FC<EstimateEditorProps> = ({
                   renameGroup={renameGroup}
                   onUpdateSection={onUpdateSection}
                   onDeleteSection={onDeleteSection}
+                  getItemSaveStatus={getItemSaveStatus}
+                  onItemRetry={onItemRetry}
                 />
               ))}
             </SortableContext>
@@ -919,6 +970,7 @@ export const ProjectEstimateEditor: React.FC<EstimateEditorProps> = ({
 interface SortableBlockSectionProps {
   block: EstimateEditorBlock;
   updateItem: (blockId: string, itemId: string, patch: Partial<ScopeItem>) => void;
+  updateItemImmediate?: (blockId: string, itemId: string, patch: Partial<ScopeItem>) => void;
   addItem: (blockId: string, area: string | null, group: string | null) => void;
   addAreaToBlock: (blockId: string) => void;
   addGroupToArea: (blockId: string, areaLabel: string | null) => void;
@@ -929,11 +981,14 @@ interface SortableBlockSectionProps {
   renameGroup: (blockId: string, areaLabel: string | null, oldGroup: string | null, newGroup: string | null) => void;
   onUpdateSection?: (blockId: string, patch: { title?: string; description?: string }) => void;
   onDeleteSection?: (blockId: string) => void;
+  getItemSaveStatus?: (itemId: string) => { status: string; error?: string };
+  onItemRetry?: (itemId: string, values: Partial<ScopeItem>) => void;
 }
 
 const SortableBlockSection = memo(function SortableBlockSection({
   block: b,
   updateItem,
+  updateItemImmediate,
   addItem,
   addAreaToBlock,
   addGroupToArea,
@@ -944,6 +999,8 @@ const SortableBlockSection = memo(function SortableBlockSection({
   renameGroup,
   onUpdateSection,
   onDeleteSection,
+  getItemSaveStatus,
+  onItemRetry,
 }: SortableBlockSectionProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -1169,6 +1226,7 @@ const SortableBlockSection = memo(function SortableBlockSection({
                   blockId={b.block.id}
                   areaGroup={ag}
                   updateItem={updateItem}
+                  updateItemImmediate={updateItemImmediate}
                   addItem={addItem}
                   addGroupToArea={addGroupToArea}
                   deleteItem={deleteItem}
@@ -1176,6 +1234,8 @@ const SortableBlockSection = memo(function SortableBlockSection({
                   deleteGroup={deleteGroup}
                   renameArea={renameArea}
                   renameGroup={renameGroup}
+                  getItemSaveStatus={getItemSaveStatus}
+                  onItemRetry={onItemRetry}
                 />
               ))}
             </div>
@@ -1233,6 +1293,7 @@ interface AreaSectionProps {
   blockId: string;
   areaGroup: AreaGroup;
   updateItem: (blockId: string, itemId: string, patch: Partial<ScopeItem>) => void;
+  updateItemImmediate?: (blockId: string, itemId: string, patch: Partial<ScopeItem>) => void;
   addItem: (blockId: string, area: string | null, group: string | null) => void;
   addGroupToArea: (blockId: string, areaLabel: string | null) => void;
   deleteItem: (blockId: string, itemId: string) => void;
@@ -1240,12 +1301,15 @@ interface AreaSectionProps {
   deleteGroup: (blockId: string, areaLabel: string | null, groupLabel: string | null) => void;
   renameArea: (blockId: string, oldName: string | null, newName: string | null) => void;
   renameGroup: (blockId: string, areaLabel: string | null, oldGroup: string | null, newGroup: string | null) => void;
+  getItemSaveStatus?: (itemId: string) => { status: string; error?: string };
+  onItemRetry?: (itemId: string, values: Partial<ScopeItem>) => void;
 }
 
 const AreaSection = memo(function AreaSection({
   blockId,
   areaGroup: ag,
   updateItem,
+  updateItemImmediate,
   addItem,
   addGroupToArea,
   deleteItem,
@@ -1253,6 +1317,8 @@ const AreaSection = memo(function AreaSection({
   deleteGroup,
   renameArea,
   renameGroup,
+  getItemSaveStatus,
+  onItemRetry,
 }: AreaSectionProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const areaTotals = useMemo(() => computeCategoryTotals(ag.items), [ag.items]);
@@ -1279,10 +1345,13 @@ const AreaSection = memo(function AreaSection({
             areaLabel={null}
             subGroup={sg}
             updateItem={updateItem}
+            updateItemImmediate={updateItemImmediate}
             addItem={addItem}
             deleteItem={deleteItem}
             deleteGroup={deleteGroup}
             renameGroup={renameGroup}
+            getItemSaveStatus={getItemSaveStatus}
+            onItemRetry={onItemRetry}
           />
         ))}
 
@@ -1293,7 +1362,10 @@ const AreaSection = memo(function AreaSection({
             item={item}
             blockId={blockId}
             updateItem={updateItem}
+            updateItemImmediate={updateItemImmediate}
             deleteItem={deleteItem}
+            getItemSaveStatus={getItemSaveStatus}
+            onItemRetry={onItemRetry}
           />
         ))}
 
@@ -1340,7 +1412,7 @@ const AreaSection = memo(function AreaSection({
           >
             {subGroups.map((sg) =>
               sg.group === null ? (
-                // Ungrouped items within area
+              // Ungrouped items within area
                 <div key="_ungrouped" className="px-2">
                   {sg.items.map((item) => (
                     <SortableItemRow
@@ -1348,7 +1420,10 @@ const AreaSection = memo(function AreaSection({
                       item={item}
                       blockId={blockId}
                       updateItem={updateItem}
+                      updateItemImmediate={updateItemImmediate}
                       deleteItem={deleteItem}
+                      getItemSaveStatus={getItemSaveStatus}
+                      onItemRetry={onItemRetry}
                     />
                   ))}
                 </div>
@@ -1359,10 +1434,13 @@ const AreaSection = memo(function AreaSection({
                   areaLabel={ag.area}
                   subGroup={sg}
                   updateItem={updateItem}
+                  updateItemImmediate={updateItemImmediate}
                   addItem={addItem}
                   deleteItem={deleteItem}
                   deleteGroup={deleteGroup}
                   renameGroup={renameGroup}
+                  getItemSaveStatus={getItemSaveStatus}
+                  onItemRetry={onItemRetry}
                 />
               )
             )}
@@ -1392,10 +1470,13 @@ interface GroupSubSectionProps {
   areaLabel: string | null;
   subGroup: SubGroup;
   updateItem: (blockId: string, itemId: string, patch: Partial<ScopeItem>) => void;
+  updateItemImmediate?: (blockId: string, itemId: string, patch: Partial<ScopeItem>) => void;
   addItem: (blockId: string, area: string | null, group: string | null) => void;
   deleteItem: (blockId: string, itemId: string) => void;
   deleteGroup: (blockId: string, areaLabel: string | null, groupLabel: string | null) => void;
   renameGroup: (blockId: string, areaLabel: string | null, oldGroup: string | null, newGroup: string | null) => void;
+  getItemSaveStatus?: (itemId: string) => { status: string; error?: string };
+  onItemRetry?: (itemId: string, values: Partial<ScopeItem>) => void;
 }
 
 const GroupSubSection = memo(function GroupSubSection({
@@ -1403,10 +1484,13 @@ const GroupSubSection = memo(function GroupSubSection({
   areaLabel,
   subGroup: sg,
   updateItem,
+  updateItemImmediate,
   addItem,
   deleteItem,
   deleteGroup,
   renameGroup,
+  getItemSaveStatus,
+  onItemRetry,
 }: GroupSubSectionProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const groupTotals = useMemo(() => computeCategoryTotals(sg.items), [sg.items]);
@@ -1441,7 +1525,10 @@ const GroupSubSection = memo(function GroupSubSection({
                 item={item}
                 blockId={blockId}
                 updateItem={updateItem}
+                updateItemImmediate={updateItemImmediate}
                 deleteItem={deleteItem}
+                getItemSaveStatus={getItemSaveStatus}
+                onItemRetry={onItemRetry}
               />
             ))}
             

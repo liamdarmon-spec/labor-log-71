@@ -711,6 +711,10 @@ export default function EstimateBuilderV2() {
           isBudgetSyncing={syncToBudget.isPending}
           onBlocksChange={handleBlocksChange}
           onSetAsBudgetSource={handleSetAsBudgetSource}
+          onItemUpdate={handleItemUpdate}
+          onItemUpdateImmediate={handleItemUpdateImmediate}
+          getItemSaveStatus={(itemId) => autosave.getRowState(itemId)}
+          onItemRetry={(itemId, values) => autosave.retrySave(itemId, { id: itemId, ...values })}
           onReorderItems={async (blockId, items) => {
             // Batch update sort_order for items
             const promises = items.map((item) =>
