@@ -2,7 +2,7 @@
 // Clean, industry-standard hierarchy: SECTION → AREA → GROUP → ITEM
 // With full drag & drop support using @dnd-kit - supports cross-section dragging
 
-import React, { useMemo, useCallback, useState, memo } from "react";
+import React, { useMemo, useCallback, useState, memo, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   DndContext,
@@ -75,6 +75,7 @@ interface EstimateEditorProps {
   onReorderItems?: (blockId: string, items: ReorderItemPayload[]) => void;
   onMoveItems?: (moves: MoveItemPayload[]) => void;
   onReorderSections?: (sections: ReorderSectionPayload[]) => void;
+  onUpdateSection?: (blockId: string, patch: { title?: string; description?: string }) => void;
 }
 
 // ====== Helpers ======
@@ -336,6 +337,7 @@ export const ProjectEstimateEditor: React.FC<EstimateEditorProps> = ({
   onReorderItems,
   onMoveItems,
   onReorderSections,
+  onUpdateSection,
 }) => {
   const [activeItemId, setActiveItemId] = useState<UniqueIdentifier | null>(null);
   const [activeSectionId, setActiveSectionId] = useState<UniqueIdentifier | null>(null);
@@ -867,6 +869,7 @@ export const ProjectEstimateEditor: React.FC<EstimateEditorProps> = ({
                   deleteGroup={deleteGroup}
                   renameArea={renameArea}
                   renameGroup={renameGroup}
+                  onUpdateSection={onUpdateSection}
                 />
               ))}
             </SortableContext>
@@ -921,6 +924,7 @@ interface SortableBlockSectionProps {
   deleteGroup: (blockId: string, areaLabel: string | null, groupLabel: string | null) => void;
   renameArea: (blockId: string, oldName: string | null, newName: string | null) => void;
   renameGroup: (blockId: string, areaLabel: string | null, oldGroup: string | null, newGroup: string | null) => void;
+  onUpdateSection?: (blockId: string, patch: { title?: string; description?: string }) => void;
 }
 
 const SortableBlockSection = memo(function SortableBlockSection({
@@ -934,8 +938,12 @@ const SortableBlockSection = memo(function SortableBlockSection({
   deleteGroup,
   renameArea,
   renameGroup,
+  onUpdateSection,
 }: SortableBlockSectionProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [localTitle, setLocalTitle] = useState(b.block.title || "");
+  const titleInputRef = useRef<HTMLInputElement>(null);
 
   const {
     attributes,
@@ -957,6 +965,37 @@ const SortableBlockSection = memo(function SortableBlockSection({
   const blockTotals = useMemo(() => computeCategoryTotals(b.items), [b.items]);
   const blockTotal = blockTotals.labor + blockTotals.subs + blockTotals.materials + blockTotals.other;
 
+  // Sync local title when block changes
+  useEffect(() => {
+    setLocalTitle(b.block.title || "");
+  }, [b.block.title]);
+
+  // Focus input when editing starts
+  useEffect(() => {
+    if (isEditingTitle && titleInputRef.current) {
+      titleInputRef.current.focus();
+      titleInputRef.current.select();
+    }
+  }, [isEditingTitle]);
+
+  const handleTitleSave = useCallback(() => {
+    const trimmed = localTitle.trim();
+    if (trimmed && trimmed !== b.block.title && onUpdateSection) {
+      onUpdateSection(b.block.id, { title: trimmed });
+    }
+    setIsEditingTitle(false);
+  }, [localTitle, b.block.title, b.block.id, onUpdateSection]);
+
+  const handleTitleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleTitleSave();
+    } else if (e.key === "Escape") {
+      setLocalTitle(b.block.title || "");
+      setIsEditingTitle(false);
+    }
+  }, [handleTitleSave, b.block.title]);
+
   return (
     <section
       ref={setNodeRef}
@@ -967,11 +1006,8 @@ const SortableBlockSection = memo(function SortableBlockSection({
       )}
     >
       {/* Block header */}
-      <header
-        className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/30 cursor-pointer select-none"
-        onClick={() => setIsCollapsed(!isCollapsed)}
-      >
-        <div className="flex items-center gap-2 min-w-0">
+      <header className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/30">
+        <div className="flex items-center gap-2 min-w-0 flex-1">
           {/* Section drag handle */}
           <Tooltip>
             <TooltipTrigger asChild>
@@ -979,7 +1015,6 @@ const SortableBlockSection = memo(function SortableBlockSection({
                 ref={setActivatorNodeRef}
                 type="button"
                 className="cursor-grab active:cursor-grabbing p-1 -ml-1 text-muted-foreground/60 hover:text-muted-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1 rounded"
-                onClick={(e) => e.stopPropagation()}
                 {...attributes}
                 {...listeners}
                 aria-label="Drag to reorder section"
@@ -992,12 +1027,39 @@ const SortableBlockSection = memo(function SortableBlockSection({
             </TooltipContent>
           </Tooltip>
 
-          <motion.div animate={{ rotate: isCollapsed ? 0 : 90 }} transition={{ duration: 0.2 }}>
-            <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-          </motion.div>
-          <div className="min-w-0">
-            <div className="font-semibold text-foreground truncate">{b.block.title || "Untitled Section"}</div>
-            {b.block.description && (
+          <button
+            type="button"
+            className="p-0.5 text-muted-foreground hover:text-foreground transition-colors"
+            onClick={() => setIsCollapsed(!isCollapsed)}
+          >
+            <motion.div animate={{ rotate: isCollapsed ? 0 : 90 }} transition={{ duration: 0.2 }}>
+              <ChevronRight className="h-4 w-4 shrink-0" />
+            </motion.div>
+          </button>
+
+          <div className="min-w-0 flex-1">
+            {isEditingTitle ? (
+              <input
+                ref={titleInputRef}
+                type="text"
+                value={localTitle}
+                onChange={(e) => setLocalTitle(e.target.value)}
+                onBlur={handleTitleSave}
+                onKeyDown={handleTitleKeyDown}
+                className="w-full font-semibold text-foreground bg-transparent border-b-2 border-primary outline-none px-1 py-0.5"
+                placeholder="Section title"
+              />
+            ) : (
+              <button
+                type="button"
+                className="font-semibold text-foreground truncate text-left hover:text-primary transition-colors cursor-text"
+                onClick={() => setIsEditingTitle(true)}
+                title="Click to edit section title"
+              >
+                {b.block.title || "Untitled Section"}
+              </button>
+            )}
+            {b.block.description && !isEditingTitle && (
               <div className="text-xs text-muted-foreground truncate">{b.block.description}</div>
             )}
           </div>

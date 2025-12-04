@@ -438,6 +438,30 @@ export function useEstimateBlocks(estimateId: string | undefined) {
     },
   });
 
+  // Update section (scope_block) title/description
+  const updateSectionMutation = useMutation({
+    mutationFn: async ({
+      blockId,
+      patch,
+    }: {
+      blockId: string;
+      patch: { title?: string; description?: string };
+    }) => {
+      const { error } = await supabase
+        .from("scope_blocks")
+        .update(patch)
+        .eq("id", blockId);
+      if (error) throw error;
+    },
+    onError: (error: Error) => {
+      toast.error("Failed to update section: " + error.message);
+      queryClient.invalidateQueries({ queryKey: ["estimate-blocks", estimateId] });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["estimate-blocks", estimateId] });
+    },
+  });
+
   // Callbacks
   const onItemCreate = useCallback(
     (blockId: string, areaLabel?: string | null, groupLabel?: string | null) => {
@@ -500,6 +524,13 @@ export function useEstimateBlocks(estimateId: string | undefined) {
     [reorderSectionsMutation]
   );
 
+  const onUpdateSection = useCallback(
+    (blockId: string, patch: { title?: string; description?: string }) => {
+      updateSectionMutation.mutate({ blockId, patch });
+    },
+    [updateSectionMutation]
+  );
+
   const isMutating =
     createItemMutation.isPending ||
     updateItemMutation.isPending ||
@@ -508,7 +539,8 @@ export function useEstimateBlocks(estimateId: string | undefined) {
     renameGroupMutation.isPending ||
     reorderItemsMutation.isPending ||
     moveItemsMutation.isPending ||
-    reorderSectionsMutation.isPending;
+    reorderSectionsMutation.isPending ||
+    updateSectionMutation.isPending;
 
   return {
     blocks,
@@ -523,6 +555,7 @@ export function useEstimateBlocks(estimateId: string | undefined) {
     onReorderItems,
     onMoveItems,
     onReorderSections,
+    onUpdateSection,
     invalidate: () =>
       queryClient.invalidateQueries({ queryKey: ["estimate-blocks", estimateId] }),
   };
