@@ -133,11 +133,12 @@ function GroupHeaderComponent({
             />
           ) : (
             <span
-              className="text-xs font-medium text-foreground truncate cursor-text hover:text-primary transition-colors"
+              className="text-xs font-medium text-foreground truncate cursor-text hover:text-primary hover:underline underline-offset-2 transition-colors"
               onClick={(e) => {
                 e.stopPropagation();
                 setIsEditing(true);
               }}
+              title="Click to rename"
             >
               {groupLabel}
             </span>

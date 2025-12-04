@@ -140,7 +140,17 @@ export function useEstimateBlocks(estimateId: string | undefined) {
       areaLabel?: string | null;
       groupLabel?: string | null;
     }) => {
+      // Get max sort_order for this block
+      const { data: existingItems } = await supabase
+        .from("scope_block_cost_items")
+        .select("sort_order")
+        .eq("scope_block_id", blockId)
+        .order("sort_order", { ascending: false })
+        .limit(1);
+      
+      const maxOrder = existingItems?.[0]?.sort_order ?? -1;
       const unassignedId = await getUnassignedCostCodeId();
+      
       const { data, error } = await supabase
         .from("scope_block_cost_items")
         .insert({
@@ -155,7 +165,7 @@ export function useEstimateBlocks(estimateId: string | undefined) {
           line_total: 0,
           area_label: areaLabel ?? null,
           group_label: groupLabel ?? null,
-          sort_order: 999,
+          sort_order: maxOrder + 1,
         })
         .select()
         .single();
@@ -164,6 +174,9 @@ export function useEstimateBlocks(estimateId: string | undefined) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["estimate-blocks", estimateId] });
+    },
+    onError: (error: Error) => {
+      toast.error("Failed to create item: " + error.message);
     },
   });
 
@@ -175,6 +188,18 @@ export function useEstimateBlocks(estimateId: string | undefined) {
     }: Partial<ScopeItem> & { id: string }) => {
       // Recalculate line_total if needed
       let finalUpdates: any = { ...updates };
+      
+      // Clamp values to prevent NaN and negative values
+      if (updates.quantity !== undefined) {
+        finalUpdates.quantity = Math.max(0, updates.quantity || 0);
+      }
+      if (updates.unit_price !== undefined) {
+        finalUpdates.unit_price = Math.max(0, updates.unit_price || 0);
+      }
+      if (updates.markup_percent !== undefined) {
+        finalUpdates.markup_percent = Math.max(0, updates.markup_percent || 0);
+      }
+      
       if (
         updates.quantity !== undefined ||
         updates.unit_price !== undefined ||
@@ -187,9 +212,9 @@ export function useEstimateBlocks(estimateId: string | undefined) {
           .single();
 
         if (current) {
-          const qty = updates.quantity ?? current.quantity;
-          const unitPrice = updates.unit_price ?? current.unit_price;
-          const markup = updates.markup_percent ?? current.markup_percent;
+          const qty = Math.max(0, finalUpdates.quantity ?? current.quantity ?? 0);
+          const unitPrice = Math.max(0, finalUpdates.unit_price ?? current.unit_price ?? 0);
+          const markup = Math.max(0, finalUpdates.markup_percent ?? current.markup_percent ?? 0);
           finalUpdates.line_total = qty * unitPrice * (1 + markup / 100);
         }
       }
@@ -206,6 +231,9 @@ export function useEstimateBlocks(estimateId: string | undefined) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["estimate-blocks", estimateId] });
     },
+    onError: (error: Error) => {
+      toast.error("Failed to update item: " + error.message);
+    },
   });
 
   // Delete item mutation
@@ -219,6 +247,9 @@ export function useEstimateBlocks(estimateId: string | undefined) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["estimate-blocks", estimateId] });
+    },
+    onError: (error: Error) => {
+      toast.error("Failed to delete item: " + error.message);
     },
   });
 
@@ -249,6 +280,9 @@ export function useEstimateBlocks(estimateId: string | undefined) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["estimate-blocks", estimateId] });
+    },
+    onError: (error: Error) => {
+      toast.error("Failed to rename area: " + error.message);
     },
   });
 
@@ -287,6 +321,9 @@ export function useEstimateBlocks(estimateId: string | undefined) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["estimate-blocks", estimateId] });
+    },
+    onError: (error: Error) => {
+      toast.error("Failed to rename group: " + error.message);
     },
   });
 
