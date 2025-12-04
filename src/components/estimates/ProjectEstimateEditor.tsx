@@ -1,8 +1,9 @@
 // ProjectEstimateEditor.tsx
-// Best-in-class grouped estimate editor: Block → Area → Group → Item
-// Optional areas and groups for flexible organization
+// Clean, industry-standard hierarchy: SECTION → AREA → GROUP → ITEM
+// No sub-areas, no sub-groups, no hidden nesting.
 
-import React, { useMemo, useCallback, useState, useEffect, memo } from "react";
+import React, { useMemo, useCallback, useState, memo } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   GripVertical,
   Plus,
@@ -11,10 +12,7 @@ import {
   ChevronRight,
   AlertCircle,
   Layers,
-  FolderOpen,
 } from "lucide-react";
-import { CostCodeSelect } from "@/components/cost-codes/CostCodeSelect";
-import { UnitSelect } from "@/components/shared/UnitSelect";
 import { cn } from "@/lib/utils";
 import {
   Tooltip,
@@ -22,6 +20,9 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { AreaHeader } from "./AreaHeader";
+import { GroupHeader } from "./GroupHeader";
+import { ItemRow, ScopeItem } from "./ItemRow";
 
 // ====== Types ======
 
@@ -34,21 +35,7 @@ export interface ScopeBlock {
   sort_order?: number | null;
 }
 
-export interface ScopeItem {
-  id: string;
-  scope_block_id: string;
-  area_label: string | null;
-  group_label: string | null;
-  category: BudgetCategory;
-  cost_code_id: string | null;
-  description: string;
-  quantity: number;
-  unit: string;
-  unit_price: number;
-  markup_percent: number;
-  line_total: number;
-  notes?: string | null;
-}
+export type { ScopeItem };
 
 export interface EstimateEditorBlock {
   block: ScopeBlock;
@@ -77,82 +64,54 @@ interface SubGroup {
 
 function groupItemsByArea(items: ScopeItem[]): AreaGroup[] {
   const map = new Map<string | null, ScopeItem[]>();
+  const order: (string | null)[] = [];
+  
   for (const item of items) {
     const key = item.area_label || null;
-    if (!map.has(key)) map.set(key, []);
+    if (!map.has(key)) {
+      map.set(key, []);
+      order.push(key);
+    }
     map.get(key)!.push(item);
   }
 
-  const groups: AreaGroup[] = [];
-  for (const [area, areaItems] of map.entries()) {
-    groups.push({ area, items: areaItems });
-  }
-
-  return groups.sort((a, b) => {
-    if (a.area === null && b.area === null) return 0;
-    if (a.area === null) return 1;
-    if (b.area === null) return -1;
-    return a.area.localeCompare(b.area);
-  });
+  return order.map(area => ({ area, items: map.get(area)! }));
 }
 
 function groupItemsByGroup(items: ScopeItem[]): SubGroup[] {
   const map = new Map<string | null, ScopeItem[]>();
+  const order: (string | null)[] = [];
+  
   for (const item of items) {
     const key = item.group_label || null;
-    if (!map.has(key)) map.set(key, []);
+    if (!map.has(key)) {
+      map.set(key, []);
+      order.push(key);
+    }
     map.get(key)!.push(item);
   }
 
-  const groups: SubGroup[] = [];
-  for (const [group, groupItems] of map.entries()) {
-    groups.push({ group, items: groupItems });
-  }
-
-  return groups.sort((a, b) => {
-    if (a.group === null && b.group === null) return 0;
-    if (a.group === null) return 1;
-    if (b.group === null) return -1;
-    return a.group.localeCompare(b.group);
-  });
+  return order.map(group => ({ group, items: map.get(group)! }));
 }
 
-function computeItemBase(item: ScopeItem): number {
-  return (item.quantity || 0) * (item.unit_price || 0);
-}
-
-function computeItemMarkup(item: ScopeItem): number {
-  const base = computeItemBase(item);
-  return item.markup_percent ? base * (item.markup_percent / 100) : 0;
-}
-
-function computeItemTotal(item: ScopeItem): number {
-  return computeItemBase(item) + computeItemMarkup(item);
-}
-
-function computeCategoryTotals(
-  items: ScopeItem[]
-): Record<BudgetCategory, number> {
-  const totals: Record<BudgetCategory, number> = {
-    labor: 0,
-    subs: 0,
-    materials: 0,
-    other: 0,
-  };
+function computeCategoryTotals(items: ScopeItem[]): Record<BudgetCategory, number> {
+  const totals: Record<BudgetCategory, number> = { labor: 0, subs: 0, materials: 0, other: 0 };
   for (const i of items) {
-    const total = computeItemTotal(i);
+    const total = (i.quantity || 0) * (i.unit_price || 0) * (1 + (i.markup_percent || 0) / 100);
     totals[i.category] += total;
   }
   return totals;
 }
 
 function computeTotalProfit(items: ScopeItem[]): number {
-  return items.reduce((sum, item) => sum + computeItemMarkup(item), 0);
+  return items.reduce((sum, item) => {
+    const base = (item.quantity || 0) * (item.unit_price || 0);
+    return sum + base * ((item.markup_percent || 0) / 100);
+  }, 0);
 }
 
 function isItemValid(item: ScopeItem): boolean {
-  const hasCostCode =
-    !!item.cost_code_id && item.cost_code_id !== "UNASSIGNED";
+  const hasCostCode = !!item.cost_code_id && item.cost_code_id !== "UNASSIGNED";
   const qtyValid = (item.quantity || 0) > 0;
   const descValid = !!item.description?.trim();
   return hasCostCode && qtyValid && descValid;
@@ -170,7 +129,7 @@ function formatCurrency(value: number): string {
 
 const CATEGORY_COLORS: Record<BudgetCategory, string> = {
   labor: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
-  subs: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400",
+  subs: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
   materials: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
   other: "bg-slate-100 text-slate-600 dark:bg-slate-800/50 dark:text-slate-400",
 };
@@ -182,7 +141,7 @@ const CATEGORY_LABELS: Record<BudgetCategory, string> = {
   other: "OTHER",
 };
 
-// ====== Summary Components (Memoized) ======
+// ====== Summary Components ======
 
 const SummaryCard = memo(function SummaryCard({
   label,
@@ -202,7 +161,7 @@ const SummaryCard = memo(function SummaryCard({
   return (
     <div
       className={cn(
-        "rounded-xl p-4 border transition-all",
+        "rounded-2xl p-4 border transition-all",
         highlight
           ? "bg-primary/5 border-primary/20"
           : variant === "success"
@@ -241,10 +200,8 @@ const CategoryBreakdownCard = memo(function CategoryBreakdownCard({
   );
 
   return (
-    <div className="rounded-xl p-4 border bg-card border-border">
-      <p className="text-xs font-medium text-muted-foreground mb-2">
-        By Category
-      </p>
+    <div className="rounded-2xl p-4 border bg-card border-border">
+      <p className="text-xs font-medium text-muted-foreground mb-2">By Category</p>
       {entries.length === 0 ? (
         <p className="text-sm text-muted-foreground">No costs yet</p>
       ) : (
@@ -266,31 +223,7 @@ const CategoryBreakdownCard = memo(function CategoryBreakdownCard({
   );
 });
 
-const ChipLabel = memo(function ChipLabel({
-  label,
-  amount,
-  small,
-}: {
-  label: string;
-  amount: number;
-  small?: boolean;
-}) {
-  if (amount <= 0) return null;
-  const cat = label.toLowerCase() as BudgetCategory;
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full font-medium",
-        small ? "text-[10px]" : "text-[11px]",
-        CATEGORY_COLORS[cat] || CATEGORY_COLORS.other
-      )}
-    >
-      {label} {formatCurrency(amount)}
-    </span>
-  );
-});
-
-// ====== Top-level Component ======
+// ====== Main Component ======
 
 export const ProjectEstimateEditor: React.FC<EstimateEditorProps> = ({
   blocks,
@@ -300,21 +233,12 @@ export const ProjectEstimateEditor: React.FC<EstimateEditorProps> = ({
   onSetAsBudgetSource,
 }) => {
   const flatItems = useMemo(() => blocks.flatMap((b) => b.items), [blocks]);
-  const globalTotals = useMemo(
-    () => computeCategoryTotals(flatItems),
-    [flatItems]
-  );
+  const globalTotals = useMemo(() => computeCategoryTotals(flatItems), [flatItems]);
   const totalProfit = useMemo(() => computeTotalProfit(flatItems), [flatItems]);
-  const hasInvalidItems = useMemo(
-    () => flatItems.some((i) => !isItemValid(i)),
-    [flatItems]
-  );
-  const invalidCount = useMemo(
-    () => flatItems.filter((i) => !isItemValid(i)).length,
-    [flatItems]
-  );
+  const hasInvalidItems = useMemo(() => flatItems.some((i) => !isItemValid(i)), [flatItems]);
+  const invalidCount = useMemo(() => flatItems.filter((i) => !isItemValid(i)).length, [flatItems]);
 
-  // Mutation helpers (immutable)
+  // Mutation helpers
   const updateItem = useCallback(
     (blockId: string, itemId: string, patch: Partial<ScopeItem>) => {
       onBlocksChange(
@@ -322,9 +246,7 @@ export const ProjectEstimateEditor: React.FC<EstimateEditorProps> = ({
           if (b.block.id !== blockId) return b;
           return {
             ...b,
-            items: b.items.map((it) =>
-              it.id === itemId ? { ...it, ...patch } : it
-            ),
+            items: b.items.map((it) => (it.id === itemId ? { ...it, ...patch } : it)),
           };
         })
       );
@@ -361,14 +283,10 @@ export const ProjectEstimateEditor: React.FC<EstimateEditorProps> = ({
   const addAreaToBlock = useCallback(
     (blockId: string) => {
       const block = blocks.find((b) => b.block.id === blockId);
-      const usedNames = new Set(
-        block?.items.map((i) => i.area_label).filter(Boolean) as string[]
-      );
+      const usedNames = new Set(block?.items.map((i) => i.area_label).filter(Boolean) as string[]);
       let name = "New Area";
       let idx = 2;
-      while (usedNames.has(name)) {
-        name = `New Area ${idx++}`;
-      }
+      while (usedNames.has(name)) name = `New Area ${idx++}`;
       addItem(blockId, name, null);
     },
     [blocks, addItem]
@@ -377,17 +295,11 @@ export const ProjectEstimateEditor: React.FC<EstimateEditorProps> = ({
   const addGroupToArea = useCallback(
     (blockId: string, areaLabel: string | null) => {
       const block = blocks.find((b) => b.block.id === blockId);
-      const areaItems = block?.items.filter(
-        (i) => i.area_label === areaLabel
-      );
-      const usedGroups = new Set(
-        areaItems?.map((i) => i.group_label).filter(Boolean) as string[]
-      );
+      const areaItems = block?.items.filter((i) => i.area_label === areaLabel);
+      const usedGroups = new Set(areaItems?.map((i) => i.group_label).filter(Boolean) as string[]);
       let name = "New Group";
       let idx = 2;
-      while (usedGroups.has(name)) {
-        name = `New Group ${idx++}`;
-      }
+      while (usedGroups.has(name)) name = `New Group ${idx++}`;
       addItem(blockId, areaLabel, name);
     },
     [blocks, addItem]
@@ -399,6 +311,35 @@ export const ProjectEstimateEditor: React.FC<EstimateEditorProps> = ({
         blocks.map((b) => {
           if (b.block.id !== blockId) return b;
           return { ...b, items: b.items.filter((i) => i.id !== itemId) };
+        })
+      );
+    },
+    [blocks, onBlocksChange]
+  );
+
+  const deleteArea = useCallback(
+    (blockId: string, areaLabel: string | null) => {
+      onBlocksChange(
+        blocks.map((b) => {
+          if (b.block.id !== blockId) return b;
+          return { ...b, items: b.items.filter((i) => i.area_label !== areaLabel) };
+        })
+      );
+    },
+    [blocks, onBlocksChange]
+  );
+
+  const deleteGroup = useCallback(
+    (blockId: string, areaLabel: string | null, groupLabel: string | null) => {
+      onBlocksChange(
+        blocks.map((b) => {
+          if (b.block.id !== blockId) return b;
+          return {
+            ...b,
+            items: b.items.filter(
+              (i) => !(i.area_label === areaLabel && i.group_label === groupLabel)
+            ),
+          };
         })
       );
     },
@@ -424,12 +365,7 @@ export const ProjectEstimateEditor: React.FC<EstimateEditorProps> = ({
   );
 
   const renameGroup = useCallback(
-    (
-      blockId: string,
-      areaLabel: string | null,
-      oldGroup: string | null,
-      newGroup: string | null
-    ) => {
+    (blockId: string, areaLabel: string | null, oldGroup: string | null, newGroup: string | null) => {
       const cleaned = newGroup?.trim() || null;
       onBlocksChange(
         blocks.map((b) => {
@@ -448,12 +384,7 @@ export const ProjectEstimateEditor: React.FC<EstimateEditorProps> = ({
     [blocks, onBlocksChange]
   );
 
-  // Totals
-  const total =
-    globalTotals.labor +
-    globalTotals.subs +
-    globalTotals.materials +
-    globalTotals.other;
+  const total = globalTotals.labor + globalTotals.subs + globalTotals.materials + globalTotals.other;
   const profitMargin = total > 0 ? (totalProfit / total) * 100 : 0;
 
   return (
@@ -472,11 +403,7 @@ export const ProjectEstimateEditor: React.FC<EstimateEditorProps> = ({
             <SummaryCard
               label="Line Items"
               value={flatItems.length}
-              subtitle={
-                invalidCount > 0
-                  ? `${invalidCount} need attention`
-                  : "All valid"
-              }
+              subtitle={invalidCount > 0 ? `${invalidCount} need attention` : "All valid"}
               isCount
             />
             <CategoryBreakdownCard totals={globalTotals} />
@@ -485,32 +412,21 @@ export const ProjectEstimateEditor: React.FC<EstimateEditorProps> = ({
 
         {/* Budget Source Banner */}
         {isBudgetSourceLocked ? (
-          <div className="rounded-xl border border-emerald-200 bg-emerald-50 dark:bg-emerald-900/20 dark:border-emerald-800 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-400 flex items-center gap-2">
-            <span className="flex-1">
-              This estimate is the active project budget.
-            </span>
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 dark:bg-emerald-900/20 dark:border-emerald-800 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-400 flex items-center gap-2">
+            <span className="flex-1">This estimate is the active project budget.</span>
           </div>
         ) : (
           <div
             className={cn(
-              "rounded-xl border px-4 py-3 text-sm flex items-center justify-between gap-3",
+              "rounded-2xl border px-4 py-3 text-sm flex items-center justify-between gap-3",
               hasInvalidItems
                 ? "bg-amber-50 border-amber-200 dark:bg-amber-900/20 dark:border-amber-800"
                 : "bg-muted/50 border-border"
             )}
           >
             <div className="flex items-center gap-2 flex-1">
-              {hasInvalidItems && (
-                <AlertCircle className="h-4 w-4 text-amber-500 shrink-0" />
-              )}
-              <span
-                className={cn(
-                  "text-sm",
-                  hasInvalidItems
-                    ? "text-amber-700 dark:text-amber-400"
-                    : "text-muted-foreground"
-                )}
-              >
+              {hasInvalidItems && <AlertCircle className="h-4 w-4 text-amber-500 shrink-0" />}
+              <span className={cn("text-sm", hasInvalidItems ? "text-amber-700 dark:text-amber-400" : "text-muted-foreground")}>
                 {hasInvalidItems
                   ? `${invalidCount} item${invalidCount > 1 ? "s" : ""} missing cost codes, quantities, or descriptions.`
                   : "Ready to make this your project budget?"}
@@ -547,6 +463,8 @@ export const ProjectEstimateEditor: React.FC<EstimateEditorProps> = ({
             addAreaToBlock={addAreaToBlock}
             addGroupToArea={addGroupToArea}
             deleteItem={deleteItem}
+            deleteArea={deleteArea}
+            deleteGroup={deleteGroup}
             renameArea={renameArea}
             renameGroup={renameGroup}
           />
@@ -560,30 +478,15 @@ export const ProjectEstimateEditor: React.FC<EstimateEditorProps> = ({
 
 interface BlockSectionProps {
   block: EstimateEditorBlock;
-  updateItem: (
-    blockId: string,
-    itemId: string,
-    patch: Partial<ScopeItem>
-  ) => void;
-  addItem: (
-    blockId: string,
-    area: string | null,
-    group: string | null
-  ) => void;
+  updateItem: (blockId: string, itemId: string, patch: Partial<ScopeItem>) => void;
+  addItem: (blockId: string, area: string | null, group: string | null) => void;
   addAreaToBlock: (blockId: string) => void;
   addGroupToArea: (blockId: string, areaLabel: string | null) => void;
   deleteItem: (blockId: string, itemId: string) => void;
-  renameArea: (
-    blockId: string,
-    oldName: string | null,
-    newName: string | null
-  ) => void;
-  renameGroup: (
-    blockId: string,
-    areaLabel: string | null,
-    oldGroup: string | null,
-    newGroup: string | null
-  ) => void;
+  deleteArea: (blockId: string, areaLabel: string | null) => void;
+  deleteGroup: (blockId: string, areaLabel: string | null, groupLabel: string | null) => void;
+  renameArea: (blockId: string, oldName: string | null, newName: string | null) => void;
+  renameGroup: (blockId: string, areaLabel: string | null, oldGroup: string | null, newGroup: string | null) => void;
 }
 
 const BlockSection = memo(function BlockSection({
@@ -593,23 +496,15 @@ const BlockSection = memo(function BlockSection({
   addAreaToBlock,
   addGroupToArea,
   deleteItem,
+  deleteArea,
+  deleteGroup,
   renameArea,
   renameGroup,
 }: BlockSectionProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const areaGroups = useMemo(() => groupItemsByArea(b.items), [b.items]);
-  const blockTotals = useMemo(
-    () => computeCategoryTotals(b.items),
-    [b.items]
-  );
-  const blockTotal =
-    blockTotals.labor +
-    blockTotals.subs +
-    blockTotals.materials +
-    blockTotals.other;
-
-  // Check if any areas or groups are used
-  const hasAreas = b.items.some((i) => i.area_label !== null);
+  const blockTotals = useMemo(() => computeCategoryTotals(b.items), [b.items]);
+  const blockTotal = blockTotals.labor + blockTotals.subs + blockTotals.materials + blockTotals.other;
 
   return (
     <section className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
@@ -619,94 +514,104 @@ const BlockSection = memo(function BlockSection({
         onClick={() => setIsCollapsed(!isCollapsed)}
       >
         <div className="flex items-center gap-2 min-w-0">
-          <GripVertical className="h-4 w-4 text-muted-foreground shrink-0" />
-          {isCollapsed ? (
+          <GripVertical className="h-4 w-4 text-muted-foreground shrink-0 cursor-grab" />
+          <motion.div animate={{ rotate: isCollapsed ? 0 : 90 }} transition={{ duration: 0.2 }}>
             <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-          ) : (
-            <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
-          )}
+          </motion.div>
           <div className="min-w-0">
-            <div className="font-semibold text-foreground truncate">
-              {b.block.title || "Untitled Section"}
-            </div>
+            <div className="font-semibold text-foreground truncate">{b.block.title || "Untitled Section"}</div>
             {b.block.description && (
-              <div className="text-xs text-muted-foreground truncate">
-                {b.block.description}
-              </div>
+              <div className="text-xs text-muted-foreground truncate">{b.block.description}</div>
             )}
           </div>
         </div>
         <div className="flex items-center gap-2 text-xs shrink-0">
-          <ChipLabel label="LAB" amount={blockTotals.labor} />
-          <ChipLabel label="SUBS" amount={blockTotals.subs} />
-          <ChipLabel label="MAT" amount={blockTotals.materials} />
-          <ChipLabel label="OTHER" amount={blockTotals.other} />
-          <span className="text-muted-foreground hidden sm:inline">
-            · {b.items.length} items · {formatCurrency(blockTotal)}
+          {(Object.entries(blockTotals) as [BudgetCategory, number][])
+            .filter(([, v]) => v > 0)
+            .map(([cat, amt]) => (
+              <span
+                key={cat}
+                className={cn(
+                  "hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium",
+                  CATEGORY_COLORS[cat]
+                )}
+              >
+                {CATEGORY_LABELS[cat]} {formatCurrency(amt)}
+              </span>
+            ))}
+          <span className="text-muted-foreground">
+            {b.items.length} items · {formatCurrency(blockTotal)}
           </span>
         </div>
       </header>
 
-      {!isCollapsed && (
-        <>
-          {/* Table header - desktop only */}
-          <div className="hidden lg:grid grid-cols-[60px_minmax(120px,1fr)_minmax(180px,2fr)_65px_60px_75px_65px_85px_36px] gap-1.5 px-4 py-2 text-xs font-medium text-muted-foreground border-b border-border bg-muted/20">
-            <div>Type</div>
-            <div>Cost Code</div>
-            <div>Description</div>
-            <div className="text-right">Qty</div>
-            <div>Unit</div>
-            <div className="text-right">Rate</div>
-            <div className="text-right">Markup</div>
-            <div className="text-right">Total</div>
-            <div></div>
-          </div>
+      <AnimatePresence initial={false}>
+        {!isCollapsed && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.25, ease: "easeInOut" }}
+          >
+            {/* Table header - desktop only */}
+            <div className="hidden lg:grid grid-cols-[60px_minmax(120px,1fr)_minmax(180px,2fr)_65px_60px_75px_65px_85px_36px] gap-1.5 px-4 py-2 text-xs font-medium text-muted-foreground border-b border-border bg-muted/20">
+              <div>Type</div>
+              <div>Cost Code</div>
+              <div>Description</div>
+              <div className="text-right">Qty</div>
+              <div>Unit</div>
+              <div className="text-right">Rate</div>
+              <div className="text-right">Markup</div>
+              <div className="text-right">Total</div>
+              <div></div>
+            </div>
 
-          {/* Areas */}
-          {areaGroups.map((ag) => (
-            <AreaSection
-              key={ag.area ?? "_ungrouped"}
-              blockId={b.block.id}
-              areaGroup={ag}
-              hasAreas={hasAreas}
-              updateItem={updateItem}
-              addItem={addItem}
-              addGroupToArea={addGroupToArea}
-              deleteItem={deleteItem}
-              renameArea={renameArea}
-              renameGroup={renameGroup}
-            />
-          ))}
+            {/* Areas */}
+            <div className="divide-y divide-border/50">
+              {areaGroups.map((ag) => (
+                <AreaSection
+                  key={ag.area ?? "_ungrouped"}
+                  blockId={b.block.id}
+                  areaGroup={ag}
+                  updateItem={updateItem}
+                  addItem={addItem}
+                  addGroupToArea={addGroupToArea}
+                  deleteItem={deleteItem}
+                  deleteArea={deleteArea}
+                  deleteGroup={deleteGroup}
+                  renameArea={renameArea}
+                  renameGroup={renameGroup}
+                />
+              ))}
+            </div>
 
-          {/* Footer actions */}
-          <div className="px-4 py-3 border-t border-border flex items-center justify-between gap-2 bg-muted/10">
-            <div className="flex items-center gap-3">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      addAreaToBlock(b.block.id);
-                    }}
-                  >
-                    <Layers className="h-3.5 w-3.5" />
-                    Add Area
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" className="max-w-xs">
-                  <p className="text-xs">
-                    Use areas to group items by room or phase (e.g. Kitchen,
-                    Primary Bath). Optional.
-                  </p>
-                </TooltipContent>
-              </Tooltip>
+            {/* Footer actions */}
+            <div className="px-4 py-3 border-t border-border flex items-center justify-between gap-2 bg-muted/10">
+              <div className="flex items-center gap-3">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        addAreaToBlock(b.block.id);
+                      }}
+                    >
+                      <Layers className="h-3.5 w-3.5" />
+                      Add Area
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="max-w-xs">
+                    <p className="text-xs">
+                      Area = physical location (Kitchen, Bathroom, Exterior). Optional but enabled by default.
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
 
-              {!hasAreas && (
                 <button
                   type="button"
-                  className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
                   onClick={(e) => {
                     e.stopPropagation();
                     addItem(b.block.id, null, null);
@@ -715,14 +620,14 @@ const BlockSection = memo(function BlockSection({
                   <Plus className="h-3.5 w-3.5" />
                   Add Item
                 </button>
-              )}
+              </div>
+              <span className="text-xs font-medium text-muted-foreground">
+                Section: {formatCurrency(blockTotal)}
+              </span>
             </div>
-            <span className="text-xs font-medium text-muted-foreground">
-              Section: {formatCurrency(blockTotal)}
-            </span>
-          </div>
-        </>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </section>
   );
 });
@@ -732,71 +637,72 @@ const BlockSection = memo(function BlockSection({
 interface AreaSectionProps {
   blockId: string;
   areaGroup: AreaGroup;
-  hasAreas: boolean;
-  updateItem: (
-    blockId: string,
-    itemId: string,
-    patch: Partial<ScopeItem>
-  ) => void;
-  addItem: (
-    blockId: string,
-    area: string | null,
-    group: string | null
-  ) => void;
+  updateItem: (blockId: string, itemId: string, patch: Partial<ScopeItem>) => void;
+  addItem: (blockId: string, area: string | null, group: string | null) => void;
   addGroupToArea: (blockId: string, areaLabel: string | null) => void;
   deleteItem: (blockId: string, itemId: string) => void;
-  renameArea: (
-    blockId: string,
-    oldName: string | null,
-    newName: string | null
-  ) => void;
-  renameGroup: (
-    blockId: string,
-    areaLabel: string | null,
-    oldGroup: string | null,
-    newGroup: string | null
-  ) => void;
+  deleteArea: (blockId: string, areaLabel: string | null) => void;
+  deleteGroup: (blockId: string, areaLabel: string | null, groupLabel: string | null) => void;
+  renameArea: (blockId: string, oldName: string | null, newName: string | null) => void;
+  renameGroup: (blockId: string, areaLabel: string | null, oldGroup: string | null, newGroup: string | null) => void;
 }
 
 const AreaSection = memo(function AreaSection({
   blockId,
   areaGroup: ag,
-  hasAreas,
   updateItem,
   addItem,
   addGroupToArea,
   deleteItem,
+  deleteArea,
+  deleteGroup,
   renameArea,
   renameGroup,
 }: AreaSectionProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const areaTotals = useMemo(
-    () => computeCategoryTotals(ag.items),
-    [ag.items]
-  );
-  const areaTotal =
-    areaTotals.labor +
-    areaTotals.subs +
-    areaTotals.materials +
-    areaTotals.other;
-
+  const areaTotals = useMemo(() => computeCategoryTotals(ag.items), [ag.items]);
   const subGroups = useMemo(() => groupItemsByGroup(ag.items), [ag.items]);
-  const hasGroups = ag.items.some((i) => i.group_label !== null);
 
-  // If no areas used, just show a flat list
-  if (!hasAreas && ag.area === null) {
+  // Ungrouped items (area_label === null) render flat
+  if (ag.area === null) {
+    const ungroupedItems = subGroups.find((sg) => sg.group === null)?.items || [];
+    const groupedSubGroups = subGroups.filter((sg) => sg.group !== null);
+
     return (
-      <div className="px-2 py-1">
-        {ag.items.map((item) => (
-          <ItemRow
-            key={item.id}
+      <div className="py-2">
+        {/* Ungrouped section header */}
+        <div className="px-4 py-2 flex items-center justify-between text-xs text-muted-foreground">
+          <span className="font-medium">Ungrouped</span>
+          <span>{ag.items.length} items</span>
+        </div>
+
+        {/* Grouped items within ungrouped area */}
+        {groupedSubGroups.map((sg) => (
+          <GroupSubSection
+            key={sg.group!}
             blockId={blockId}
-            item={item}
+            areaLabel={null}
+            subGroup={sg}
             updateItem={updateItem}
+            addItem={addItem}
             deleteItem={deleteItem}
+            deleteGroup={deleteGroup}
+            renameGroup={renameGroup}
           />
         ))}
-        <div className="px-2 py-2">
+
+        {/* Ungrouped items */}
+        {ungroupedItems.map((item) => (
+          <ItemRow
+            key={item.id}
+            item={item}
+            onUpdate={(patch) => updateItem(blockId, item.id, patch)}
+            onDelete={() => deleteItem(blockId, item.id)}
+          />
+        ))}
+
+        {/* Add item button */}
+        <div className="px-4 py-2">
           <button
             type="button"
             className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
@@ -810,595 +716,128 @@ const AreaSection = memo(function AreaSection({
     );
   }
 
-  const areaLabel = ag.area ?? "Ungrouped";
-
+  // Named area
   return (
-    <div className="border-b border-border/50 last:border-b-0">
-      {/* Area header */}
-      <button
-        type="button"
-        className="w-full flex items-center justify-between px-4 py-2 bg-muted/40 hover:bg-muted/60 transition-colors text-left"
-        onClick={() => setIsCollapsed(!isCollapsed)}
-      >
-        <div className="flex items-center gap-2 min-w-0">
-          {isCollapsed ? (
-            <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-          ) : (
-            <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
-          )}
-          <Layers className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-          <span className="text-sm font-medium text-foreground truncate">
-            {areaLabel}
-          </span>
-          {ag.area === null && (
-            <span className="text-[11px] text-muted-foreground">
-              (items without area)
-            </span>
-          )}
-          <span className="text-[11px] text-muted-foreground">
-            ({ag.items.length})
-          </span>
-        </div>
-        <div className="hidden sm:flex items-center gap-1.5 text-[11px] shrink-0">
-          <ChipLabel label="LAB" amount={areaTotals.labor} small />
-          <ChipLabel label="SUBS" amount={areaTotals.subs} small />
-          <ChipLabel label="MAT" amount={areaTotals.materials} small />
-          <ChipLabel label="OTHER" amount={areaTotals.other} small />
-          <span className="text-muted-foreground ml-1">
-            {formatCurrency(areaTotal)}
-          </span>
-        </div>
-      </button>
+    <div className="py-2">
+      <div className="px-2">
+        <AreaHeader
+          areaLabel={ag.area}
+          itemCount={ag.items.length}
+          totals={areaTotals}
+          isCollapsed={isCollapsed}
+          onToggle={() => setIsCollapsed(!isCollapsed)}
+          onRename={(newName) => renameArea(blockId, ag.area, newName)}
+          onDelete={() => deleteArea(blockId, ag.area)}
+          onAddItem={() => addItem(blockId, ag.area, null)}
+          onAddGroup={() => addGroupToArea(blockId, ag.area)}
+        />
+      </div>
 
-      {!isCollapsed && (
-        <div className="px-2 py-1">
-          {/* Editable area name */}
-          {ag.area !== null && (
-            <div className="px-2 pb-1">
-              <input
-                className="bg-transparent text-xs text-muted-foreground border-none outline-none px-1 py-0.5 rounded focus:bg-background focus:ring-1 focus:ring-ring w-36"
-                defaultValue={areaLabel}
-                placeholder="Area name"
-                onClick={(e) => e.stopPropagation()}
-                onBlur={(e) =>
-                  renameArea(blockId, ag.area, e.target.value || null)
-                }
-              />
-            </div>
-          )}
-
-          {/* Groups or flat items */}
-          {hasGroups ? (
-            subGroups.map((sg) => (
-              <GroupSection
-                key={sg.group ?? "_nogroup"}
-                blockId={blockId}
-                areaLabel={ag.area}
-                subGroup={sg}
-                updateItem={updateItem}
-                addItem={addItem}
-                deleteItem={deleteItem}
-                renameGroup={renameGroup}
-              />
-            ))
-          ) : (
-            <>
-              {ag.items.map((item) => (
-                <ItemRow
-                  key={item.id}
+      <AnimatePresence initial={false}>
+        {!isCollapsed && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2, ease: "easeInOut" }}
+            className="mt-2"
+          >
+            {subGroups.map((sg) =>
+              sg.group === null ? (
+                // Ungrouped items within area
+                <div key="_ungrouped" className="px-2">
+                  {sg.items.map((item) => (
+                    <ItemRow
+                      key={item.id}
+                      item={item}
+                      onUpdate={(patch) => updateItem(blockId, item.id, patch)}
+                      onDelete={() => deleteItem(blockId, item.id)}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <GroupSubSection
+                  key={sg.group}
                   blockId={blockId}
-                  item={item}
+                  areaLabel={ag.area}
+                  subGroup={sg}
                   updateItem={updateItem}
+                  addItem={addItem}
                   deleteItem={deleteItem}
+                  deleteGroup={deleteGroup}
+                  renameGroup={renameGroup}
                 />
-              ))}
-            </>
-          )}
-
-          {/* Area footer */}
-          <div className="px-2 py-2 flex items-center gap-3">
-            <button
-              type="button"
-              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-              onClick={() => addItem(blockId, ag.area, null)}
-            >
-              <Plus className="h-3 w-3" />
-              Add Item
-            </button>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                  onClick={() => addGroupToArea(blockId, ag.area)}
-                >
-                  <FolderOpen className="h-3 w-3" />
-                  Add Group
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom" className="max-w-xs">
-                <p className="text-xs">
-                  Use groups inside an area (e.g. Demo, Framing, Finishes).
-                  Optional.
-                </p>
-              </TooltipContent>
-            </Tooltip>
-          </div>
-        </div>
-      )}
+              )
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 });
 
-// ====== Group Section ======
+// ====== Group Sub-Section ======
 
-interface GroupSectionProps {
+interface GroupSubSectionProps {
   blockId: string;
   areaLabel: string | null;
   subGroup: SubGroup;
-  updateItem: (
-    blockId: string,
-    itemId: string,
-    patch: Partial<ScopeItem>
-  ) => void;
-  addItem: (
-    blockId: string,
-    area: string | null,
-    group: string | null
-  ) => void;
+  updateItem: (blockId: string, itemId: string, patch: Partial<ScopeItem>) => void;
+  addItem: (blockId: string, area: string | null, group: string | null) => void;
   deleteItem: (blockId: string, itemId: string) => void;
-  renameGroup: (
-    blockId: string,
-    areaLabel: string | null,
-    oldGroup: string | null,
-    newGroup: string | null
-  ) => void;
+  deleteGroup: (blockId: string, areaLabel: string | null, groupLabel: string | null) => void;
+  renameGroup: (blockId: string, areaLabel: string | null, oldGroup: string | null, newGroup: string | null) => void;
 }
 
-const GroupSection = memo(function GroupSection({
+const GroupSubSection = memo(function GroupSubSection({
   blockId,
   areaLabel,
   subGroup: sg,
   updateItem,
   addItem,
   deleteItem,
+  deleteGroup,
   renameGroup,
-}: GroupSectionProps) {
+}: GroupSubSectionProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const groupTotals = useMemo(
-    () => computeCategoryTotals(sg.items),
-    [sg.items]
-  );
-  const groupTotal =
-    groupTotals.labor +
-    groupTotals.subs +
-    groupTotals.materials +
-    groupTotals.other;
+  const groupTotals = useMemo(() => computeCategoryTotals(sg.items), [sg.items]);
 
-  const groupLabel = sg.group ?? "Ungrouped";
-
-  // Ungrouped items - no header
-  if (sg.group === null) {
-    return (
-      <div>
-        {sg.items.map((item) => (
-          <ItemRow
-            key={item.id}
-            blockId={blockId}
-            item={item}
-            updateItem={updateItem}
-            deleteItem={deleteItem}
-          />
-        ))}
-      </div>
-    );
-  }
+  if (!sg.group) return null;
 
   return (
-    <div className="ml-4 border-l-2 border-border/50 mb-2">
-      {/* Group header */}
-      <button
-        type="button"
-        className="w-full flex items-center justify-between px-3 py-1.5 hover:bg-muted/30 transition-colors text-left"
-        onClick={() => setIsCollapsed(!isCollapsed)}
-      >
-        <div className="flex items-center gap-2 min-w-0">
-          {isCollapsed ? (
-            <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-          ) : (
-            <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-          )}
-          <FolderOpen className="h-3 w-3 text-muted-foreground shrink-0" />
-          <span className="text-xs font-medium text-foreground truncate">
-            {groupLabel}
-          </span>
-          <span className="text-[10px] text-muted-foreground">
-            ({sg.items.length})
-          </span>
-        </div>
-        <span className="text-[11px] text-muted-foreground">
-          {formatCurrency(groupTotal)}
-        </span>
-      </button>
+    <div className="px-2 py-1">
+      <GroupHeader
+        groupLabel={sg.group}
+        itemCount={sg.items.length}
+        totals={groupTotals}
+        isCollapsed={isCollapsed}
+        onToggle={() => setIsCollapsed(!isCollapsed)}
+        onRename={(newName) => renameGroup(blockId, areaLabel, sg.group, newName)}
+        onDelete={() => deleteGroup(blockId, areaLabel, sg.group)}
+        onAddItem={() => addItem(blockId, areaLabel, sg.group)}
+      />
 
-      {!isCollapsed && (
-        <div className="pl-2">
-          {/* Editable group name */}
-          <div className="px-2 pb-1">
-            <input
-              className="bg-transparent text-[11px] text-muted-foreground border-none outline-none px-1 py-0.5 rounded focus:bg-background focus:ring-1 focus:ring-ring w-28"
-              defaultValue={groupLabel}
-              placeholder="Group name"
-              onClick={(e) => e.stopPropagation()}
-              onBlur={(e) =>
-                renameGroup(
-                  blockId,
-                  areaLabel,
-                  sg.group,
-                  e.target.value || null
-                )
-              }
-            />
-          </div>
-
-          {sg.items.map((item) => (
-            <ItemRow
-              key={item.id}
-              blockId={blockId}
-              item={item}
-              updateItem={updateItem}
-              deleteItem={deleteItem}
-            />
-          ))}
-
-          <div className="px-2 py-1.5">
-            <button
-              type="button"
-              className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
-              onClick={() => addItem(blockId, areaLabel, sg.group)}
-            >
-              <Plus className="h-2.5 w-2.5" />
-              Add Item
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-});
-
-// ====== Item Row ======
-
-interface ItemRowProps {
-  blockId: string;
-  item: ScopeItem;
-  updateItem: (
-    blockId: string,
-    itemId: string,
-    patch: Partial<ScopeItem>
-  ) => void;
-  deleteItem: (blockId: string, itemId: string) => void;
-}
-
-const ItemRow = memo(function ItemRow({
-  blockId,
-  item,
-  updateItem,
-  deleteItem,
-}: ItemRowProps) {
-  // Local state for ALL editable fields - blur-to-save pattern
-  const [localDesc, setLocalDesc] = useState(item.description);
-  const [localQty, setLocalQty] = useState<string>(String(item.quantity || ""));
-  const [localRate, setLocalRate] = useState<string>(String(item.unit_price || ""));
-  const [localMarkup, setLocalMarkup] = useState<string>(String(item.markup_percent || ""));
-  
-  // Sync local state when item changes from parent (e.g., after refetch)
-  useEffect(() => {
-    setLocalDesc(item.description);
-    setLocalQty(String(item.quantity || ""));
-    setLocalRate(String(item.unit_price || ""));
-    setLocalMarkup(String(item.markup_percent || ""));
-  }, [item.id, item.description, item.quantity, item.unit_price, item.markup_percent]);
-
-  // Compute total from LOCAL values for instant feedback
-  const localTotal = useMemo(() => {
-    const qty = parseFloat(localQty) || 0;
-    const rate = parseFloat(localRate) || 0;
-    const markup = parseFloat(localMarkup) || 0;
-    return qty * rate * (1 + markup / 100);
-  }, [localQty, localRate, localMarkup]);
-
-  const missingCostCode = !item.cost_code_id || item.cost_code_id === "UNASSIGNED";
-  const missingDesc = !localDesc?.trim();
-  const missingQty = (parseFloat(localQty) || 0) <= 0;
-  const invalid = missingCostCode || missingDesc || missingQty;
-
-  // Memoized handlers
-  const handleCostCodeChange = useCallback((codeId: string) => {
-    updateItem(blockId, item.id, { cost_code_id: codeId });
-  }, [updateItem, blockId, item.id]);
-
-  const handleCategoryChange = useCallback((cat: BudgetCategory) => {
-    updateItem(blockId, item.id, { category: cat });
-  }, [updateItem, blockId, item.id]);
-
-  const handleDescBlur = useCallback(() => {
-    const trimmed = localDesc?.trim() || "";
-    if (trimmed !== item.description) {
-      updateItem(blockId, item.id, { description: trimmed });
-    }
-  }, [localDesc, item.description, updateItem, blockId, item.id]);
-
-  // Numeric field blur handlers - commit to parent
-  const handleQtyBlur = useCallback(() => {
-    const val = parseFloat(localQty) || 0;
-    if (val !== item.quantity) {
-      updateItem(blockId, item.id, { quantity: val });
-    }
-  }, [localQty, item.quantity, updateItem, blockId, item.id]);
-
-  const handleRateBlur = useCallback(() => {
-    const val = parseFloat(localRate) || 0;
-    if (val !== item.unit_price) {
-      updateItem(blockId, item.id, { unit_price: val });
-    }
-  }, [localRate, item.unit_price, updateItem, blockId, item.id]);
-
-  const handleMarkupBlur = useCallback(() => {
-    const val = parseFloat(localMarkup) || 0;
-    if (val !== item.markup_percent) {
-      updateItem(blockId, item.id, { markup_percent: val });
-    }
-  }, [localMarkup, item.markup_percent, updateItem, blockId, item.id]);
-
-  const handleUnitChange = useCallback((v: string) => {
-    updateItem(blockId, item.id, { unit: v });
-  }, [updateItem, blockId, item.id]);
-
-  const handleDelete = useCallback(() => {
-    deleteItem(blockId, item.id);
-  }, [deleteItem, blockId, item.id]);
-
-  return (
-    <>
-      {/* Desktop layout */}
-      <div
-        className={cn(
-          "hidden lg:grid grid-cols-[60px_minmax(120px,1fr)_minmax(180px,2fr)_65px_60px_75px_65px_85px_36px] items-center gap-1.5 px-4 py-1 text-xs rounded-lg transition-colors",
-          invalid
-            ? "bg-destructive/5 hover:bg-destructive/10"
-            : "hover:bg-muted/30"
-        )}
-      >
-        {/* Category */}
-        <select
-          className={cn(
-            "h-7 text-[11px] font-medium rounded border-0 bg-transparent cursor-pointer focus:ring-1 focus:ring-ring",
-            CATEGORY_COLORS[item.category]
-          )}
-          value={item.category}
-          onChange={(e) => handleCategoryChange(e.target.value as BudgetCategory)}
-        >
-          <option value="labor">LAB</option>
-          <option value="subs">SUBS</option>
-          <option value="materials">MAT</option>
-          <option value="other">OTHER</option>
-        </select>
-
-        {/* Cost Code */}
-        <CostCodeSelect
-          value={item.cost_code_id}
-          onChange={handleCostCodeChange}
-          compact
-          required
-          error={missingCostCode ? "Required" : undefined}
-        />
-
-        {/* Description - blur-to-save */}
-        <input
-          type="text"
-          className={cn(
-            "h-7 px-2 text-xs bg-transparent border rounded focus:ring-1 focus:ring-ring focus:border-ring transition-colors",
-            missingDesc ? "border-destructive/50" : "border-border/50"
-          )}
-          value={localDesc}
-          placeholder="Description"
-          onChange={(e) => setLocalDesc(e.target.value)}
-          onBlur={handleDescBlur}
-        />
-
-        {/* Qty - local state, blur-to-save */}
-        <input
-          type="number"
-          className={cn(
-            "h-7 px-1.5 text-xs text-right bg-transparent border rounded focus:ring-1 focus:ring-ring focus:border-ring transition-colors tabular-nums",
-            missingQty ? "border-destructive/50" : "border-border/50"
-          )}
-          value={localQty}
-          placeholder="0"
-          min={0}
-          onChange={(e) => setLocalQty(e.target.value)}
-          onBlur={handleQtyBlur}
-        />
-
-        {/* Unit */}
-        <UnitSelect
-          value={item.unit}
-          onChange={handleUnitChange}
-          className="h-7 text-xs"
-        />
-
-        {/* Rate - local state, blur-to-save */}
-        <input
-          type="number"
-          className="h-7 px-1.5 text-xs text-right bg-transparent border border-border/50 rounded focus:ring-1 focus:ring-ring focus:border-ring transition-colors tabular-nums"
-          value={localRate}
-          placeholder="0"
-          min={0}
-          step={0.01}
-          onChange={(e) => setLocalRate(e.target.value)}
-          onBlur={handleRateBlur}
-        />
-
-        {/* Markup - local state, blur-to-save */}
-        <div className="relative">
-          <input
-            type="number"
-            className="h-7 px-1.5 pr-4 w-full text-xs text-right bg-transparent border border-border/50 rounded focus:ring-1 focus:ring-ring focus:border-ring transition-colors tabular-nums"
-            value={localMarkup}
-            placeholder="0"
-            min={0}
-            onChange={(e) => setLocalMarkup(e.target.value)}
-            onBlur={handleMarkupBlur}
-          />
-          <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">
-            %
-          </span>
-        </div>
-
-        {/* Total - computed from local values */}
-        <div className="text-right font-medium tabular-nums text-foreground">
-          {formatCurrency(localTotal)}
-        </div>
-
-        {/* Delete */}
-        <button
-          type="button"
-          className="h-7 w-7 flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded transition-colors"
-          onClick={handleDelete}
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-        </button>
-      </div>
-
-      {/* Mobile layout */}
-      <div
-        className={cn(
-          "lg:hidden p-3 mb-2 rounded-xl border transition-colors",
-          invalid
-            ? "bg-destructive/5 border-destructive/20"
-            : "bg-card border-border/50"
-        )}
-      >
-        {/* Top row */}
-        <div className="flex items-center justify-between gap-2 mb-2">
-          <select
-            className={cn(
-              "h-7 px-2 text-[11px] font-medium rounded border-0 cursor-pointer",
-              CATEGORY_COLORS[item.category]
-            )}
-            value={item.category}
-            onChange={(e) => handleCategoryChange(e.target.value as BudgetCategory)}
+      <AnimatePresence initial={false}>
+        {!isCollapsed && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.15, ease: "easeInOut" }}
+            className="ml-4 mt-1"
           >
-            <option value="labor">LAB</option>
-            <option value="subs">SUBS</option>
-            <option value="materials">MAT</option>
-            <option value="other">OTHER</option>
-          </select>
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold tabular-nums">
-              {formatCurrency(localTotal)}
-            </span>
-            <button
-              type="button"
-              className="h-7 w-7 flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded transition-colors"
-              onClick={handleDelete}
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
-          </div>
-        </div>
-
-        {/* Description - blur-to-save */}
-        <input
-          type="text"
-          className={cn(
-            "w-full h-8 px-2 text-sm bg-transparent border rounded mb-2 focus:ring-1 focus:ring-ring focus:border-ring transition-colors",
-            missingDesc ? "border-destructive/50" : "border-border/50"
-          )}
-          value={localDesc}
-          placeholder="Description"
-          onChange={(e) => setLocalDesc(e.target.value)}
-          onBlur={handleDescBlur}
-        />
-
-        {/* Cost Code */}
-        <div className="mb-2">
-          <CostCodeSelect
-            value={item.cost_code_id}
-            onChange={handleCostCodeChange}
-            compact
-            required
-            error={missingCostCode ? "Required" : undefined}
-          />
-        </div>
-
-        {/* Numbers grid - all blur-to-save */}
-        <div className="grid grid-cols-4 gap-2">
-          <div>
-            <label className="text-[10px] text-muted-foreground block mb-0.5">
-              Qty
-            </label>
-            <input
-              type="number"
-              className={cn(
-                "w-full h-7 px-1.5 text-xs text-right bg-transparent border rounded focus:ring-1 focus:ring-ring focus:border-ring transition-colors tabular-nums",
-                missingQty ? "border-destructive/50" : "border-border/50"
-              )}
-              value={localQty}
-              placeholder="0"
-              min={0}
-              onChange={(e) => setLocalQty(e.target.value)}
-              onBlur={handleQtyBlur}
-            />
-          </div>
-          <div>
-            <label className="text-[10px] text-muted-foreground block mb-0.5">
-              Unit
-            </label>
-            <UnitSelect
-              value={item.unit}
-              onChange={handleUnitChange}
-              className="h-7 text-xs"
-            />
-          </div>
-          <div>
-            <label className="text-[10px] text-muted-foreground block mb-0.5">
-              Rate
-            </label>
-            <input
-              type="number"
-              className="w-full h-7 px-1.5 text-xs text-right bg-transparent border border-border/50 rounded focus:ring-1 focus:ring-ring focus:border-ring transition-colors tabular-nums"
-              value={localRate}
-              placeholder="0"
-              min={0}
-              step={0.01}
-              onChange={(e) => setLocalRate(e.target.value)}
-              onBlur={handleRateBlur}
-            />
-          </div>
-          <div>
-            <label className="text-[10px] text-muted-foreground block mb-0.5">
-              Markup
-            </label>
-            <div className="relative">
-              <input
-                type="number"
-                className="w-full h-7 px-1.5 pr-4 text-xs text-right bg-transparent border border-border/50 rounded focus:ring-1 focus:ring-ring focus:border-ring transition-colors tabular-nums"
-                value={localMarkup}
-                placeholder="0"
-                min={0}
-                onChange={(e) => setLocalMarkup(e.target.value)}
-                onBlur={handleMarkupBlur}
+            {sg.items.map((item) => (
+              <ItemRow
+                key={item.id}
+                item={item}
+                onUpdate={(patch) => updateItem(blockId, item.id, patch)}
+                onDelete={() => deleteItem(blockId, item.id)}
               />
-              <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">
-                %
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 });
 

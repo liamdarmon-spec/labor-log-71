@@ -12,9 +12,9 @@ import { getUnassignedCostCodeId } from "@/lib/costCodes";
 import { checkEstimateNeedsMigration, migrateEstimateToScopeBlocks } from "@/lib/estimateMigration";
 import {
   ProjectEstimateEditor,
-  EstimateEditorBlock,
-  ScopeItem,
-  BudgetCategory,
+  type EstimateEditorBlock,
+  type ScopeItem,
+  type BudgetCategory,
 } from "@/components/estimates/ProjectEstimateEditor";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
