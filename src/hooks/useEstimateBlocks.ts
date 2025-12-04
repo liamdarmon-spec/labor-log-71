@@ -99,6 +99,15 @@ export interface ReorderItemPayload {
   group_label: string | null;
 }
 
+// Move item payload - supports cross-block moves
+export interface MoveItemPayload {
+  id: string;
+  scope_block_id: string;
+  area_label: string | null;
+  group_label: string | null;
+  sort_order: number;
+}
+
 export interface ReorderSectionPayload {
   id: string;
   sort_order: number;
@@ -348,25 +357,15 @@ export function useEstimateBlocks(estimateId: string | undefined) {
       blockId: string;
       items: ReorderItemPayload[];
     }) => {
-      // Use upsert to batch update multiple items
-      const updates = items.map((item) => ({
-        id: item.id,
-        scope_block_id: blockId,
-        sort_order: item.sort_order,
-        area_label: item.area_label,
-        group_label: item.group_label,
-      }));
-
-      // Batch update using multiple individual updates (Supabase doesn't support bulk upsert on id)
-      const promises = updates.map((update) =>
+      const promises = items.map((item) =>
         supabase
           .from("scope_block_cost_items")
           .update({
-            sort_order: update.sort_order,
-            area_label: update.area_label,
-            group_label: update.group_label,
+            sort_order: item.sort_order,
+            area_label: item.area_label,
+            group_label: item.group_label,
           })
-          .eq("id", update.id)
+          .eq("id", item.id)
       );
 
       const results = await Promise.all(promises);
@@ -377,11 +376,39 @@ export function useEstimateBlocks(estimateId: string | undefined) {
     },
     onError: (error: Error) => {
       toast.error("Failed to reorder items: " + error.message);
-      // Invalidate to restore correct order
       queryClient.invalidateQueries({ queryKey: ["estimate-blocks", estimateId] });
     },
     onSuccess: () => {
-      // Silently invalidate to confirm order
+      queryClient.invalidateQueries({ queryKey: ["estimate-blocks", estimateId] });
+    },
+  });
+
+  // Move items (supports cross-block moves)
+  const moveItemsMutation = useMutation({
+    mutationFn: async (moves: MoveItemPayload[]) => {
+      const promises = moves.map((move) =>
+        supabase
+          .from("scope_block_cost_items")
+          .update({
+            scope_block_id: move.scope_block_id,
+            area_label: move.area_label,
+            group_label: move.group_label,
+            sort_order: move.sort_order,
+          })
+          .eq("id", move.id)
+      );
+
+      const results = await Promise.all(promises);
+      const errors = results.filter((r) => r.error);
+      if (errors.length > 0) {
+        throw new Error(errors[0].error?.message || "Failed to move items");
+      }
+    },
+    onError: (error: Error) => {
+      toast.error("Failed to move item: " + error.message);
+      queryClient.invalidateQueries({ queryKey: ["estimate-blocks", estimateId] });
+    },
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["estimate-blocks", estimateId] });
     },
   });
@@ -459,6 +486,13 @@ export function useEstimateBlocks(estimateId: string | undefined) {
     [reorderItemsMutation]
   );
 
+  const onMoveItems = useCallback(
+    (moves: MoveItemPayload[]) => {
+      moveItemsMutation.mutate(moves);
+    },
+    [moveItemsMutation]
+  );
+
   const onReorderSections = useCallback(
     (sections: ReorderSectionPayload[]) => {
       reorderSectionsMutation.mutate(sections);
@@ -473,6 +507,7 @@ export function useEstimateBlocks(estimateId: string | undefined) {
     renameAreaMutation.isPending ||
     renameGroupMutation.isPending ||
     reorderItemsMutation.isPending ||
+    moveItemsMutation.isPending ||
     reorderSectionsMutation.isPending;
 
   return {
@@ -486,6 +521,7 @@ export function useEstimateBlocks(estimateId: string | undefined) {
     onAreaRename,
     onGroupRename,
     onReorderItems,
+    onMoveItems,
     onReorderSections,
     invalidate: () =>
       queryClient.invalidateQueries({ queryKey: ["estimate-blocks", estimateId] }),
