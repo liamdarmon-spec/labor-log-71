@@ -222,7 +222,7 @@ export default function EstimateBuilderV2() {
           entity_type: "estimate",
           entity_id: estimateId!,
           block_type: "cost_items",
-          title: "Cost Items",
+          title: "New Section",
           sort_order: 0,
         })
         .select()
@@ -747,6 +747,33 @@ export default function EstimateBuilderV2() {
                     : b
                 )
               );
+            }
+          }}
+          onDeleteSection={async (blockId) => {
+            try {
+              // Delete all cost items first
+              const { error: itemsError } = await supabase
+                .from("scope_block_cost_items")
+                .delete()
+                .eq("scope_block_id", blockId);
+              if (itemsError) throw itemsError;
+
+              // Then delete the scope_block
+              const { error: blockError } = await supabase
+                .from("scope_blocks")
+                .delete()
+                .eq("id", blockId);
+              if (blockError) throw blockError;
+
+              // Update local state immediately
+              setLocalBlocks((prev) => prev.filter((b) => b.block.id !== blockId));
+              
+              // Refresh from DB
+              queryClient.invalidateQueries({ queryKey: ["scope-blocks", estimateId] });
+              toast.success("Section deleted");
+            } catch (error) {
+              toast.error("Failed to delete section");
+              queryClient.invalidateQueries({ queryKey: ["scope-blocks", estimateId] });
             }
           }}
         />

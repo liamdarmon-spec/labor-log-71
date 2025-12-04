@@ -462,6 +462,33 @@ export function useEstimateBlocks(estimateId: string | undefined) {
     },
   });
 
+  // Delete section (scope_block) and all its cost items
+  const deleteSectionMutation = useMutation({
+    mutationFn: async (blockId: string) => {
+      // Delete all cost items first (cascade doesn't exist in this schema)
+      const { error: itemsError } = await supabase
+        .from("scope_block_cost_items")
+        .delete()
+        .eq("scope_block_id", blockId);
+      if (itemsError) throw itemsError;
+
+      // Then delete the scope_block
+      const { error: blockError } = await supabase
+        .from("scope_blocks")
+        .delete()
+        .eq("id", blockId);
+      if (blockError) throw blockError;
+    },
+    onError: (error: Error) => {
+      toast.error("Failed to delete section: " + error.message);
+      queryClient.invalidateQueries({ queryKey: ["estimate-blocks", estimateId] });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["estimate-blocks", estimateId] });
+      toast.success("Section deleted");
+    },
+  });
+
   // Callbacks
   const onItemCreate = useCallback(
     (blockId: string, areaLabel?: string | null, groupLabel?: string | null) => {
@@ -531,6 +558,13 @@ export function useEstimateBlocks(estimateId: string | undefined) {
     [updateSectionMutation]
   );
 
+  const onDeleteSection = useCallback(
+    (blockId: string) => {
+      deleteSectionMutation.mutate(blockId);
+    },
+    [deleteSectionMutation]
+  );
+
   const isMutating =
     createItemMutation.isPending ||
     updateItemMutation.isPending ||
@@ -540,7 +574,8 @@ export function useEstimateBlocks(estimateId: string | undefined) {
     reorderItemsMutation.isPending ||
     moveItemsMutation.isPending ||
     reorderSectionsMutation.isPending ||
-    updateSectionMutation.isPending;
+    updateSectionMutation.isPending ||
+    deleteSectionMutation.isPending;
 
   return {
     blocks,
@@ -556,6 +591,7 @@ export function useEstimateBlocks(estimateId: string | undefined) {
     onMoveItems,
     onReorderSections,
     onUpdateSection,
+    onDeleteSection,
     invalidate: () =>
       queryClient.invalidateQueries({ queryKey: ["estimate-blocks", estimateId] }),
   };
