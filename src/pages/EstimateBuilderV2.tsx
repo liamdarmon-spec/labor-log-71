@@ -7,8 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, FileText } from "lucide-react";
+import { ArrowLeft, Plus, FileText, Check } from "lucide-react";
 import { getUnassignedCostCodeId } from "@/lib/costCodes";
+import { checkEstimateNeedsMigration, migrateEstimateToScopeBlocks } from "@/lib/estimateMigration";
 import {
   ProjectEstimateEditor,
   EstimateEditorBlock,
@@ -108,11 +109,14 @@ export default function EstimateBuilderV2() {
   // Local state for immediate UI updates
   const [localBlocks, setLocalBlocks] = useState<EstimateEditorBlock[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [isMigrating, setIsMigrating] = useState(false);
   
   // Track existing items for diffing
   const existingItemsRef = useRef<Map<string, string>>(new Map()); // id -> serialized
   const existingIdsRef = useRef<Set<string>>(new Set());
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const hasMigratedRef = useRef(false);
 
   // Fetch estimate - cached and won't refetch on window focus
   const { data: estimate, isLoading: estimateLoading } = useQuery({
@@ -210,12 +214,56 @@ export default function EstimateBuilderV2() {
     },
   });
 
-  // Auto-create block if needed
+  // Check for and migrate legacy estimate items
   useEffect(() => {
-    if (!blocksLoading && scopeBlocks.length === 0 && !createFirstBlock.isPending) {
-      createFirstBlock.mutate();
+    const checkAndMigrate = async () => {
+      if (!estimateId || blocksLoading || hasMigratedRef.current || isMigrating) return;
+      
+      // Only check when we have loaded blocks and they're empty (no items)
+      const hasNoItems = scopeBlocks.every(b => (b.scope_block_cost_items || []).length === 0);
+      
+      if (!hasNoItems) return; // Already has items in new format
+      
+      const { needsMigration, legacyItemCount } = await checkEstimateNeedsMigration(estimateId);
+      
+      if (needsMigration && legacyItemCount > 0) {
+        hasMigratedRef.current = true;
+        setIsMigrating(true);
+        
+        const result = await migrateEstimateToScopeBlocks(estimateId);
+        
+        setIsMigrating(false);
+        
+        if (result.success && result.migratedCount > 0) {
+          toast.success(`Migrated ${result.migratedCount} items to new format`);
+          queryClient.invalidateQueries({ queryKey: ["scope-blocks", "estimate", estimateId] });
+        } else if (result.error) {
+          toast.error("Failed to migrate legacy items: " + result.error);
+        }
+      }
+    };
+    
+    checkAndMigrate();
+  }, [estimateId, blocksLoading, scopeBlocks, queryClient, isMigrating]);
+
+  // Auto-create block if needed (only if no legacy items to migrate)
+  useEffect(() => {
+    const createBlockIfNeeded = async () => {
+      if (blocksLoading || scopeBlocks.length > 0 || createFirstBlock.isPending || isMigrating) return;
+      
+      // Check if there are legacy items first
+      const { needsMigration } = await checkEstimateNeedsMigration(estimateId!);
+      
+      // Only auto-create empty block if no migration needed
+      if (!needsMigration) {
+        createFirstBlock.mutate();
+      }
+    };
+    
+    if (!blocksLoading && scopeBlocks.length === 0 && estimateId) {
+      createBlockIfNeeded();
     }
-  }, [blocksLoading, scopeBlocks.length, createFirstBlock]);
+  }, [blocksLoading, scopeBlocks.length, createFirstBlock, estimateId, isMigrating]);
 
   // Add section mutation
   const addSection = useMutation({
@@ -308,6 +356,7 @@ export default function EstimateBuilderV2() {
       
       // Skip if nothing changed
       if (toDelete.length === 0 && toCreate.length === 0 && toUpdate.length === 0) {
+        setIsSaving(false);
         return;
       }
       
@@ -380,6 +429,9 @@ export default function EstimateBuilderV2() {
       existingItemsRef.current = newMap;
       existingIdsRef.current = currentIds;
       
+      // Mark as saved
+      setLastSaved(new Date());
+      
     } catch (error) {
       console.error("Error saving changes:", error);
       toast.error("Failed to save changes");
@@ -407,7 +459,7 @@ export default function EstimateBuilderV2() {
     }
     saveTimeoutRef.current = setTimeout(() => {
       saveChanges(newBlocks);
-    }, 800); // 800ms debounce
+    }, 500); // 500ms debounce for snappy auto-save
   }, [saveChanges]);
 
   // Cleanup timeout on unmount
@@ -425,7 +477,7 @@ export default function EstimateBuilderV2() {
   }, [syncToBudget]);
 
   // Loading state
-  if (estimateLoading || blocksLoading) {
+  if (estimateLoading || blocksLoading || isMigrating) {
     return (
       <Layout>
         <div className="space-y-4">
@@ -436,6 +488,12 @@ export default function EstimateBuilderV2() {
               <Skeleton className="h-4 w-32" />
             </div>
           </div>
+          {isMigrating && (
+            <div className="rounded-xl border border-blue-200 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-800 px-4 py-3 text-sm text-blue-700 dark:text-blue-400 flex items-center gap-2">
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+              <span>Migrating estimate to new format...</span>
+            </div>
+          )}
           <div className="grid grid-cols-4 gap-4">
             {[...Array(4)].map((_, i) => (
               <Skeleton key={i} className="h-24" />
@@ -494,9 +552,20 @@ export default function EstimateBuilderV2() {
                     Budget Source
                   </Badge>
                 )}
+                {isMigrating && (
+                  <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-200">
+                    Migrating...
+                  </Badge>
+                )}
                 {isSaving && (
                   <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-200">
                     Saving...
+                  </Badge>
+                )}
+                {!isSaving && lastSaved && (
+                  <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-200">
+                    <Check className="h-3 w-3 mr-1" />
+                    Saved
                   </Badge>
                 )}
               </div>
