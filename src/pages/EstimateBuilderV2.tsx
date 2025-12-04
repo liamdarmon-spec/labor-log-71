@@ -34,6 +34,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { useItemAutosave } from "@/hooks/useItemAutosave";
+import { GlobalSaveStatus } from "@/components/estimates/SaveStatusIndicator";
 
 interface CostItemDB {
   id: string;
@@ -125,11 +127,13 @@ export default function EstimateBuilderV2() {
 
   // Local state for immediate UI updates
   const [localBlocks, setLocalBlocks] = useState<EstimateEditorBlock[]>([]);
-  const [isSaving, setIsSaving] = useState(false);
-  const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [isMigrating, setIsMigrating] = useState(false);
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
+
+  // Per-row autosave hook
+  const autosave = useItemAutosave(estimateId);
+  const globalStatus = autosave.getGlobalStatus();
+  const hasUnsavedChanges = autosave.hasPendingChanges();
 
   // Browser beforeunload handler
   useEffect(() => {
@@ -154,13 +158,14 @@ export default function EstimateBuilderV2() {
     }
   }, [hasUnsavedChanges, navigate]);
 
-  const confirmNavigation = useCallback(() => {
+  const confirmNavigation = useCallback(async () => {
     if (pendingNavigation) {
-      setHasUnsavedChanges(false);
+      // Try to flush pending saves before navigating
+      await autosave.flushPendingSaves();
       navigate(pendingNavigation);
       setPendingNavigation(null);
     }
-  }, [pendingNavigation, navigate]);
+  }, [pendingNavigation, navigate, autosave]);
 
   const cancelNavigation = useCallback(() => {
     setPendingNavigation(null);
@@ -377,20 +382,18 @@ export default function EstimateBuilderV2() {
     },
   });
 
-  // Track in-flight save to prevent overlapping mutations
+  // Track in-flight save to prevent overlapping mutations (for batch structural changes)
   const isSavingRef = useRef(false);
   const pendingBlocksRef = useRef<EstimateEditorBlock[] | null>(null);
 
-  // Debounced save function - only saves changed items, with mutation flood protection
-  const saveChanges = useCallback(async (blocks: EstimateEditorBlock[]) => {
-    // If already saving, queue this save for later
+  // Batch save for structural changes (add/delete items, reorder)
+  const saveStructuralChanges = useCallback(async (blocks: EstimateEditorBlock[]) => {
     if (isSavingRef.current) {
       pendingBlocksRef.current = blocks;
       return;
     }
     
     isSavingRef.current = true;
-    setIsSaving(true);
     
     try {
       const currentItems = new Map<string, ScopeItem>();
@@ -398,7 +401,6 @@ export default function EstimateBuilderV2() {
       
       const currentIds = new Set(currentItems.keys());
       const existingIds = existingIdsRef.current;
-      const existingItems = existingItemsRef.current;
       
       // Find deletions
       const toDelete: string[] = [];
@@ -406,30 +408,15 @@ export default function EstimateBuilderV2() {
         if (!currentIds.has(id)) toDelete.push(id);
       });
       
-      // Find creates and updates
+      // Find creates
       const toCreate: ScopeItem[] = [];
-      const toUpdate: ScopeItem[] = [];
-      
       currentItems.forEach((item, id) => {
         if (!existingIds.has(id)) {
           toCreate.push(item);
-        } else {
-          const oldSerialized = existingItems.get(id);
-          const newSerialized = serializeItem(item);
-          if (oldSerialized !== newSerialized) {
-            toUpdate.push(item);
-          }
         }
       });
       
-      // Skip if nothing changed
-      if (toDelete.length === 0 && toCreate.length === 0 && toUpdate.length === 0) {
-        setIsSaving(false);
-        setHasUnsavedChanges(false);
-        return;
-      }
-      
-      // Execute deletions (single batch)
+      // Execute deletions
       if (toDelete.length > 0) {
         const { error } = await supabase
           .from("scope_block_cost_items")
@@ -438,7 +425,7 @@ export default function EstimateBuilderV2() {
         if (error) throw error;
       }
       
-      // Execute creations (single batch insert)
+      // Execute creations
       if (toCreate.length > 0) {
         const unassignedId = await getUnassignedCostCodeId();
         const insertData = toCreate.map((item, idx) => ({
@@ -462,85 +449,92 @@ export default function EstimateBuilderV2() {
         if (error) throw error;
       }
       
-      // Execute updates - batch into chunks of 10 to avoid overwhelming DB
-      if (toUpdate.length > 0) {
-        const CHUNK_SIZE = 10;
-        for (let i = 0; i < toUpdate.length; i += CHUNK_SIZE) {
-          const chunk = toUpdate.slice(i, i + CHUNK_SIZE);
-          await Promise.all(chunk.map(async (item) => {
-            const lineTotal = (item.quantity || 0) * (item.unit_price || 0) * (1 + (item.markup_percent || 0) / 100);
-            const { error } = await supabase
-              .from("scope_block_cost_items")
-              .update({
-                scope_block_id: item.scope_block_id,
-                category: item.category,
-                cost_code_id: item.cost_code_id,
-                description: item.description,
-                quantity: item.quantity,
-                unit: item.unit,
-                unit_price: item.unit_price,
-                markup_percent: item.markup_percent,
-                line_total: lineTotal,
-                area_label: item.area_label,
-                group_label: item.group_label,
-              })
-              .eq("id", item.id);
-            if (error) throw error;
-          }));
-        }
-      }
+      // Update tracking refs
+      const newIds = new Set<string>();
+      currentItems.forEach((_, id) => newIds.add(id));
+      existingIdsRef.current = newIds;
       
-      // Update refs with new state
-      const newMap = new Map<string, string>();
-      currentItems.forEach((item, id) => {
-        newMap.set(id, serializeItem(item));
+      // Refresh data after structural changes
+      queryClient.invalidateQueries({ 
+        queryKey: ["scope-blocks", "estimate", estimateId],
+        refetchType: "active"
       });
-      existingItemsRef.current = newMap;
-      existingIdsRef.current = currentIds;
-      
-      // Mark as saved
-      setLastSaved(new Date());
-      setHasUnsavedChanges(false);
       
     } catch (error) {
-      console.error("Error saving changes:", error);
+      console.error("Error saving structural changes:", error);
       toast.error("Failed to save changes");
     } finally {
       isSavingRef.current = false;
-      setIsSaving(false);
       
-      // Process any pending save that came in while we were saving
       if (pendingBlocksRef.current) {
         const pending = pendingBlocksRef.current;
         pendingBlocksRef.current = null;
-        saveChanges(pending);
+        saveStructuralChanges(pending);
       }
     }
-  }, []);
+  }, [estimateId, queryClient]);
 
-  // Handle blocks change - debounced
+  // Handle blocks change - for structural changes only
   const handleBlocksChange = useCallback((newBlocks: EstimateEditorBlock[]) => {
-    // Update local state immediately for responsive UI
     setLocalBlocks(newBlocks);
-    setHasUnsavedChanges(true);
     
-    // Debounce the save
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
+    // Check if this is a structural change (add/delete) vs field update
+    const currentIds = new Set<string>();
+    newBlocks.forEach(b => b.items.forEach(item => currentIds.add(item.id)));
+    
+    const hasStructuralChange = 
+      currentIds.size !== existingIdsRef.current.size ||
+      [...currentIds].some(id => !existingIdsRef.current.has(id)) ||
+      [...existingIdsRef.current].some(id => !currentIds.has(id));
+    
+    if (hasStructuralChange) {
+      // Debounce structural saves
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+      saveTimeoutRef.current = setTimeout(() => {
+        saveStructuralChanges(newBlocks);
+      }, 300);
     }
-    saveTimeoutRef.current = setTimeout(() => {
-      saveChanges(newBlocks);
-    }, 500); // 500ms debounce for snappy auto-save
-  }, [saveChanges]);
+  }, [saveStructuralChanges]);
 
-  // Cleanup timeout on unmount
+  // Handle individual item update via autosave
+  const handleItemUpdate = useCallback((itemId: string, patch: Partial<ScopeItem>) => {
+    // Update local state immediately
+    setLocalBlocks(prev => prev.map(block => ({
+      ...block,
+      items: block.items.map(item => 
+        item.id === itemId ? { ...item, ...patch } : item
+      )
+    })));
+    
+    // Queue debounced save
+    autosave.queueUpdate({ id: itemId, ...patch });
+  }, [autosave]);
+
+  // Handle immediate item update (for dropdowns)
+  const handleItemUpdateImmediate = useCallback((itemId: string, patch: Partial<ScopeItem>) => {
+    // Update local state immediately
+    setLocalBlocks(prev => prev.map(block => ({
+      ...block,
+      items: block.items.map(item => 
+        item.id === itemId ? { ...item, ...patch } : item
+      )
+    })));
+    
+    // Save immediately
+    autosave.saveImmediate({ id: itemId, ...patch });
+  }, [autosave]);
+
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
       }
+      autosave.cleanup();
     };
-  }, []);
+  }, [autosave]);
 
   // Handle set as budget source
   const handleSetAsBudgetSource = useCallback(() => {
@@ -667,17 +661,7 @@ export default function EstimateBuilderV2() {
                     Migrating...
                   </Badge>
                 )}
-                {isSaving && (
-                  <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-200">
-                    Saving...
-                  </Badge>
-                )}
-                {!isSaving && lastSaved && (
-                  <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-200">
-                    <Check className="h-3 w-3 mr-1" />
-                    Saved
-                  </Badge>
-                )}
+                <GlobalSaveStatus status={globalStatus} />
               </div>
               <p className="text-sm text-muted-foreground truncate">{projectName}</p>
             </div>
