@@ -730,6 +730,25 @@ export default function EstimateBuilderV2() {
               queryClient.invalidateQueries({ queryKey: ["scope-blocks", estimateId] });
             }
           }}
+          onUpdateSection={async (blockId, patch) => {
+            const { error } = await supabase
+              .from("scope_blocks")
+              .update(patch)
+              .eq("id", blockId);
+            if (error) {
+              toast.error("Failed to update section");
+              queryClient.invalidateQueries({ queryKey: ["scope-blocks", estimateId] });
+            } else {
+              // Update local state
+              setLocalBlocks((prev) =>
+                prev.map((b) =>
+                  b.block.id === blockId
+                    ? { ...b, block: { ...b.block, ...patch } }
+                    : b
+                )
+              );
+            }
+          }}
         />
 
         {/* Empty state */}
