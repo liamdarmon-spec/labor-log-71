@@ -3798,6 +3798,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           id: string
+          intro_text: string | null
           metadata: Json | null
           notes_internal: string | null
           parent_proposal_id: string | null
@@ -3808,6 +3809,7 @@ export type Database = {
           public_token: string | null
           rejected_at: string | null
           sent_at: string | null
+          settings: Json | null
           status: string
           subtotal_amount: number
           tax_amount: number
@@ -3839,6 +3841,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          intro_text?: string | null
           metadata?: Json | null
           notes_internal?: string | null
           parent_proposal_id?: string | null
@@ -3849,6 +3852,7 @@ export type Database = {
           public_token?: string | null
           rejected_at?: string | null
           sent_at?: string | null
+          settings?: Json | null
           status?: string
           subtotal_amount?: number
           tax_amount?: number
@@ -3880,6 +3884,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          intro_text?: string | null
           metadata?: Json | null
           notes_internal?: string | null
           parent_proposal_id?: string | null
@@ -3890,6 +3895,7 @@ export type Database = {
           public_token?: string | null
           rejected_at?: string | null
           sent_at?: string | null
+          settings?: Json | null
           status?: string
           subtotal_amount?: number
           tax_amount?: number
