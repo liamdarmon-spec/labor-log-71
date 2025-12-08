@@ -1,6 +1,3 @@
-// src/pages/ProposalBuilderV2.tsx
-// Modern 3-column proposal builder with autosave - supports both route patterns
-
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/Layout';
@@ -17,7 +14,13 @@ import {
   AlertCircle,
   ExternalLink,
 } from 'lucide-react';
-import { useProposalData, useUpdateProposalField, useUpdateProposalSettings, useRefreshProposalFromEstimate, ProposalSettings } from '@/hooks/useProposalData';
+import {
+  useProposalData,
+  useUpdateProposalField,
+  useUpdateProposalSettings,
+  useRefreshProposalFromEstimate,
+  ProposalSettings,
+} from '@/hooks/useProposalData';
 import { ProposalContextPanel } from '@/components/proposals/ProposalContextPanel';
 import { ProposalContentEditor } from '@/components/proposals/ProposalContentEditor';
 import { ProposalSettingsPanel } from '@/components/proposals/ProposalSettingsPanel';
@@ -31,12 +34,12 @@ export default function ProposalBuilderV2() {
   const proposalId = params.proposalId || params.id;
   const projectId = params.projectId;
   const navigate = useNavigate();
-  
+
   const { data: proposal, isLoading, error } = useProposalData(proposalId);
   const updateField = useUpdateProposalField();
   const updateSettings = useUpdateProposalSettings();
   const refreshFromEstimate = useRefreshProposalFromEstimate();
-  
+
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [showPDFPreview, setShowPDFPreview] = useState(false);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
@@ -54,13 +57,13 @@ export default function ProposalBuilderV2() {
   const handleFieldChange = useCallback(
     (field: string, value: any) => {
       if (!proposalId) return;
-      
+
       if (debounceRef.current) {
         clearTimeout(debounceRef.current);
       }
-      
+
       setSaveStatus('saving');
-      
+
       debounceRef.current = setTimeout(() => {
         updateField.mutate(
           { id: proposalId, field, value },
@@ -82,11 +85,11 @@ export default function ProposalBuilderV2() {
     [proposalId, updateField]
   );
 
-  // Update settings immediately
+  // Update settings immediately (merge logic is inside the hook)
   const handleSettingsChange = useCallback(
     (settings: Partial<ProposalSettings>) => {
       if (!proposalId) return;
-      
+
       setSaveStatus('saving');
       updateSettings.mutate(
         { id: proposalId, settings },
@@ -127,11 +130,16 @@ export default function ProposalBuilderV2() {
   // Status badge
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'draft': return 'secondary';
-      case 'sent': return 'default';
-      case 'accepted': return 'default';
-      case 'rejected': return 'destructive';
-      default: return 'secondary';
+      case 'draft':
+        return 'secondary';
+      case 'sent':
+        return 'default';
+      case 'accepted':
+        return 'default';
+      case 'rejected':
+        return 'destructive';
+      default:
+        return 'secondary';
     }
   };
 
@@ -157,7 +165,7 @@ export default function ProposalBuilderV2() {
           <AlertCircle className="h-12 w-12 text-muted-foreground mb-4" />
           <h2 className="text-xl font-semibold mb-2">Proposal not found</h2>
           <p className="text-muted-foreground mb-4">
-            This proposal may have been deleted or you don't have access.
+            This proposal may have been deleted or you don&apos;t have access.
           </p>
           <Button variant="outline" onClick={() => navigate(-1)}>
             <ArrowLeft className="h-4 w-4 mr-2" />
@@ -245,7 +253,11 @@ export default function ProposalBuilderV2() {
               </Button>
             )}
 
-            <Button variant="outline" size="sm" onClick={() => setShowPDFPreview(true)}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowPDFPreview(true)}
+            >
               <Eye className="h-4 w-4 mr-1.5" />
               Preview
             </Button>
@@ -273,6 +285,7 @@ export default function ProposalBuilderV2() {
           <ProposalContentEditor
             proposal={proposal}
             onFieldChange={handleFieldChange}
+            onSettingsChange={handleSettingsChange}
           />
         </div>
 
