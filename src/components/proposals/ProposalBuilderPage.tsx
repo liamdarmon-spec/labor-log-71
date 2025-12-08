@@ -253,6 +253,7 @@ export default function ProposalBuilderPage() {
           <ProposalContentEditor
             proposal={proposal}
             onFieldChange={handleFieldChange}
+            onSettingsChange={handleSettingsChange}
           />
         </div>
 
