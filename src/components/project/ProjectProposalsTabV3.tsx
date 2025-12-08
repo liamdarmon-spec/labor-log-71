@@ -35,7 +35,7 @@ export function ProjectProposalsTabV3({ projectId }: ProjectProposalsTabV3Props)
 
   const handleStatusChange = async (proposalId: string, newStatus: string) => {
     try {
-      const updateData: any = { status: newStatus };
+      const updateData: Record<string, unknown> = { status: newStatus };
       
       if (newStatus === 'sent') {
         updateData.sent_at = new Date().toISOString();
@@ -58,79 +58,36 @@ export function ProjectProposalsTabV3({ projectId }: ProjectProposalsTabV3Props)
     }
   };
 
+  // Duplicate proposal: clone ONLY the proposals row, NO sections/items
   const handleDuplicate = async (proposalId: string) => {
     try {
-      // Fetch original proposal with sections and items
+      // Fetch original proposal
       const { data: original, error: fetchError } = await supabase
         .from('proposals')
-        .select(`
-          *,
-          proposal_sections(
-            *,
-            proposal_section_items(*)
-          )
-        `)
+        .select('*')
         .eq('id', proposalId)
         .single();
 
       if (fetchError) throw fetchError;
 
-      // Create duplicate proposal
-      const { data: newProposal, error: proposalError } = await supabase
+      // Create duplicate proposal - metadata only
+      const { error: proposalError } = await supabase
         .from('proposals')
         .insert({
           project_id: original.project_id,
           primary_estimate_id: original.primary_estimate_id,
           title: `${original.title} (Copy)`,
           status: 'draft',
-          presentation_mode: original.presentation_mode,
-          notes_internal: original.notes_internal,
+          intro_text: original.intro_text,
+          settings: original.settings,
           subtotal_amount: original.subtotal_amount,
           tax_amount: original.tax_amount,
           total_amount: original.total_amount,
+          validity_days: original.validity_days,
           proposal_date: new Date().toISOString().split('T')[0],
-        })
-        .select()
-        .single();
+        });
 
       if (proposalError) throw proposalError;
-
-      // Duplicate sections and items
-      for (const section of original.proposal_sections) {
-        const { data: newSection, error: sectionError } = await supabase
-          .from('proposal_sections')
-          .insert({
-            proposal_id: newProposal.id,
-            title: section.title,
-            sort_order: section.sort_order,
-            group_type: section.group_type,
-            config: section.config,
-          })
-          .select()
-          .single();
-
-        if (sectionError) throw sectionError;
-
-        if (section.proposal_section_items.length > 0) {
-          const newItems = section.proposal_section_items.map((item: any) => ({
-            proposal_section_id: newSection.id,
-            estimate_item_id: item.estimate_item_id,
-            display_label: item.display_label,
-            display_notes: item.display_notes,
-            is_visible: item.is_visible,
-            sort_order: item.sort_order,
-            override_quantity: item.override_quantity,
-            override_unit_price: item.override_unit_price,
-            override_line_total: item.override_line_total,
-          }));
-
-          const { error: itemsError } = await supabase
-            .from('proposal_section_items')
-            .insert(newItems);
-
-          if (itemsError) throw itemsError;
-        }
-      }
 
       toast.success('Proposal duplicated successfully');
       refetch();
@@ -142,11 +99,11 @@ export function ProjectProposalsTabV3({ projectId }: ProjectProposalsTabV3Props)
 
   const getStatusBadge = (status: string) => {
     const colors: Record<string, string> = {
-      draft: 'bg-gray-100 text-gray-800 border-gray-200',
-      sent: 'bg-blue-100 text-blue-800 border-blue-200',
-      accepted: 'bg-green-100 text-green-800 border-green-200',
-      lost: 'bg-red-100 text-red-800 border-red-200',
-      archived: 'bg-muted text-muted-foreground border-muted',
+      draft: 'bg-muted text-muted-foreground border-border',
+      sent: 'bg-blue-500/10 text-blue-600 border-blue-500/20',
+      accepted: 'bg-green-500/10 text-green-600 border-green-500/20',
+      lost: 'bg-destructive/10 text-destructive border-destructive/20',
+      archived: 'bg-muted text-muted-foreground border-border',
     };
     return colors[status] || colors.draft;
   };
@@ -196,7 +153,6 @@ export function ProjectProposalsTabV3({ projectId }: ProjectProposalsTabV3Props)
                   <TableHead>Title</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Source Estimate</TableHead>
-                  <TableHead>Version</TableHead>
                   <TableHead className="text-right">Total</TableHead>
                   <TableHead>Updated</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -213,9 +169,6 @@ export function ProjectProposalsTabV3({ projectId }: ProjectProposalsTabV3Props)
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {proposal.estimates?.title || '—'}
-                    </TableCell>
-                    <TableCell className="text-sm">
-                      {proposal.version_label || '—'}
                     </TableCell>
                     <TableCell className="text-right font-medium">
                       ${(proposal.total_amount || 0).toLocaleString()}
