@@ -1,5 +1,5 @@
 // src/components/proposals/ProposalPDFPreview.tsx
-// Full-screen PDF preview with download functionality
+// Professional PDF preview with download - all data from estimate/project
 
 import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
@@ -94,11 +94,21 @@ export function ProposalPDFPreview({ proposal, onClose }: ProposalPDFPreviewProp
   const validUntil = new Date(proposal.proposal_date);
   validUntil.setDate(validUntil.getDate() + proposal.validity_days);
 
+  // Category colors for styling
+  const getCategoryBgColor = (category: string) => {
+    switch (category?.toLowerCase()) {
+      case 'labor': return '#EFF6FF';
+      case 'subs': return '#F3E8FF';
+      case 'materials': return '#FFFBEB';
+      default: return '#F3F4F6';
+    }
+  };
+
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-5xl max-h-[95vh] overflow-hidden flex flex-col">
-        <DialogHeader className="flex-shrink-0 flex flex-row items-center justify-between">
-          <DialogTitle>PDF Preview</DialogTitle>
+      <DialogContent className="max-w-5xl max-h-[95vh] overflow-hidden flex flex-col p-0">
+        <DialogHeader className="flex-shrink-0 flex flex-row items-center justify-between px-6 py-4 border-b">
+          <DialogTitle>Proposal Preview</DialogTitle>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={handlePrint}>
               <Printer className="h-4 w-4 mr-2" />
@@ -112,46 +122,82 @@ export function ProposalPDFPreview({ proposal, onClose }: ProposalPDFPreviewProp
               )}
               Download PDF
             </Button>
-            <Button variant="ghost" size="sm" onClick={onClose}>
+            <Button variant="ghost" size="icon" onClick={onClose}>
               <X className="h-4 w-4" />
             </Button>
           </div>
         </DialogHeader>
 
-        <div className="flex-1 overflow-auto bg-muted/30 p-4">
+        <div className="flex-1 overflow-auto bg-muted/50 p-6">
           <div
             ref={contentRef}
-            className="bg-white mx-auto shadow-lg print:shadow-none"
-            style={{ width: '210mm', minHeight: '297mm', padding: '20mm' }}
+            className="bg-white mx-auto shadow-xl print:shadow-none"
+            style={{ width: '210mm', minHeight: '297mm', padding: '24mm 20mm' }}
           >
-            {/* Header */}
-            <div className="border-b-2 border-gray-200 pb-6 mb-8">
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                {proposal.title}
-              </h1>
-              <div className="flex justify-between text-sm text-gray-600">
+            {/* Professional Header */}
+            <div className="mb-10">
+              <div className="flex justify-between items-start">
                 <div>
-                  {settings.show_project_info && (
-                    <p><strong>Project:</strong> {proposal.project?.project_name}</p>
-                  )}
-                  {settings.show_client_info && (
-                    <p><strong>Client:</strong> {proposal.client_name || proposal.project?.client_name}</p>
-                  )}
-                  {settings.show_address && proposal.project?.address && (
-                    <p><strong>Address:</strong> {proposal.project.address}</p>
-                  )}
+                  <h1 className="text-3xl font-bold text-gray-900 tracking-tight">
+                    {proposal.title}
+                  </h1>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Proposal #{proposal.id.slice(0, 8).toUpperCase()}
+                  </p>
                 </div>
                 <div className="text-right">
-                  <p><strong>Date:</strong> {format(new Date(proposal.proposal_date), 'MMMM d, yyyy')}</p>
-                  <p><strong>Valid Until:</strong> {format(validUntil, 'MMMM d, yyyy')}</p>
+                  <p className="text-sm text-gray-500">
+                    Date: {format(new Date(proposal.proposal_date), 'MMMM d, yyyy')}
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    Valid Until: {format(validUntil, 'MMMM d, yyyy')}
+                  </p>
                 </div>
               </div>
+              <div className="h-1 bg-gradient-to-r from-gray-800 to-gray-400 mt-6 rounded-full" />
             </div>
+
+            {/* Project & Client Info */}
+            {(settings.show_project_info || settings.show_client_info || settings.show_address) && (
+              <div className="mb-8 bg-gray-50 rounded-xl p-6">
+                <div className="grid grid-cols-2 gap-8">
+                  <div>
+                    {settings.show_project_info && (
+                      <div className="mb-4">
+                        <p className="text-xs uppercase tracking-wider text-gray-500 font-medium">Project</p>
+                        <p className="text-lg font-semibold text-gray-900 mt-1">
+                          {proposal.project?.project_name}
+                        </p>
+                      </div>
+                    )}
+                    {settings.show_address && proposal.project?.address && (
+                      <div>
+                        <p className="text-xs uppercase tracking-wider text-gray-500 font-medium">Job Site Address</p>
+                        <p className="text-gray-700 mt-1">{proposal.project.address}</p>
+                      </div>
+                    )}
+                  </div>
+                  {settings.show_client_info && (
+                    <div>
+                      <p className="text-xs uppercase tracking-wider text-gray-500 font-medium">Prepared For</p>
+                      <p className="text-lg font-semibold text-gray-900 mt-1">
+                        {proposal.client_name || proposal.project?.client_name || 'Client'}
+                      </p>
+                      {proposal.client_email && (
+                        <p className="text-gray-600 mt-1">{proposal.client_email}</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Introduction */}
             {proposal.intro_text && (
               <div className="mb-8">
-                <h2 className="text-lg font-semibold text-gray-900 mb-3">Introduction</h2>
+                <h2 className="text-lg font-bold text-gray-900 mb-3 pb-2 border-b">
+                  Project Overview
+                </h2>
                 <div className="text-gray-700 whitespace-pre-wrap text-sm leading-relaxed">
                   {proposal.intro_text}
                 </div>
@@ -160,25 +206,43 @@ export function ProposalPDFPreview({ proposal, onClose }: ProposalPDFPreviewProp
 
             {/* Scope & Pricing */}
             <div className="mb-8">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Scope of Work</h2>
+              <h2 className="text-lg font-bold text-gray-900 mb-4 pb-2 border-b">
+                Scope of Work & Pricing
+              </h2>
               
               {settings.group_line_items_by_area ? (
                 <div className="space-y-4">
                   {proposal.scopeByArea.map((area) => (
                     <div key={area.area_label} className="border rounded-lg overflow-hidden">
-                      <div className="bg-gray-50 px-4 py-2 flex justify-between font-medium">
-                        <span>{area.area_label}</span>
+                      <div className="bg-gray-800 text-white px-4 py-3 flex justify-between items-center">
+                        <span className="font-semibold">{area.area_label}</span>
                         {settings.show_line_item_totals && (
-                          <span>${area.subtotal.toLocaleString()}</span>
+                          <span className="font-mono font-semibold">
+                            ${area.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          </span>
                         )}
                       </div>
                       {settings.show_line_items && (
-                        <div className="divide-y">
-                          {area.items.map((item) => (
-                            <div key={item.id} className="px-4 py-2 flex justify-between text-sm">
-                              <span className="text-gray-700">{item.description}</span>
+                        <div className="divide-y divide-gray-100">
+                          {area.items.map((item, idx) => (
+                            <div 
+                              key={item.id} 
+                              className="px-4 py-3 flex justify-between items-start text-sm"
+                              style={{ backgroundColor: idx % 2 === 0 ? '#FAFAFA' : '#FFFFFF' }}
+                            >
+                              <div className="flex items-start gap-3 flex-1 min-w-0">
+                                <span 
+                                  className="px-2 py-0.5 rounded text-xs font-medium shrink-0"
+                                  style={{ backgroundColor: getCategoryBgColor(item.category) }}
+                                >
+                                  {item.category?.slice(0, 3).toUpperCase() || 'OTH'}
+                                </span>
+                                <span className="text-gray-700">{item.description}</span>
+                              </div>
                               {settings.show_line_item_totals && (
-                                <span className="text-gray-600">${item.line_total.toLocaleString()}</span>
+                                <span className="font-mono text-gray-600 ml-4 shrink-0">
+                                  ${item.line_total.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                </span>
                               )}
                             </div>
                           ))}
@@ -189,12 +253,26 @@ export function ProposalPDFPreview({ proposal, onClose }: ProposalPDFPreviewProp
                 </div>
               ) : (
                 <div className="border rounded-lg overflow-hidden">
-                  <div className="divide-y">
-                    {proposal.allItems.map((item) => (
-                      <div key={item.id} className="px-4 py-2 flex justify-between text-sm">
-                        <span className="text-gray-700">{item.description}</span>
+                  <div className="divide-y divide-gray-100">
+                    {proposal.allItems.map((item, idx) => (
+                      <div 
+                        key={item.id} 
+                        className="px-4 py-3 flex justify-between items-start text-sm"
+                        style={{ backgroundColor: idx % 2 === 0 ? '#FAFAFA' : '#FFFFFF' }}
+                      >
+                        <div className="flex items-start gap-3 flex-1 min-w-0">
+                          <span 
+                            className="px-2 py-0.5 rounded text-xs font-medium shrink-0"
+                            style={{ backgroundColor: getCategoryBgColor(item.category) }}
+                          >
+                            {item.category?.slice(0, 3).toUpperCase() || 'OTH'}
+                          </span>
+                          <span className="text-gray-700">{item.description}</span>
+                        </div>
                         {settings.show_line_item_totals && (
-                          <span className="text-gray-600">${item.line_total.toLocaleString()}</span>
+                          <span className="font-mono text-gray-600 ml-4 shrink-0">
+                            ${item.line_total.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          </span>
                         )}
                       </div>
                     ))}
@@ -202,11 +280,13 @@ export function ProposalPDFPreview({ proposal, onClose }: ProposalPDFPreviewProp
                 </div>
               )}
 
-              {/* Total */}
-              <div className="mt-4 flex justify-end">
-                <div className="bg-gray-900 text-white px-6 py-3 rounded-lg">
-                  <span className="text-gray-300 mr-4">Total</span>
-                  <span className="text-2xl font-bold">${proposal.total_amount.toLocaleString()}</span>
+              {/* Grand Total */}
+              <div className="mt-6 flex justify-end">
+                <div className="bg-gray-900 text-white px-8 py-4 rounded-xl">
+                  <p className="text-gray-400 text-sm mb-1">Total Investment</p>
+                  <p className="text-3xl font-bold tracking-tight">
+                    ${proposal.total_amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  </p>
                 </div>
               </div>
             </div>
@@ -214,8 +294,10 @@ export function ProposalPDFPreview({ proposal, onClose }: ProposalPDFPreviewProp
             {/* Allowances */}
             {settings.show_allowances && settings.allowances_text && (
               <div className="mb-8">
-                <h2 className="text-lg font-semibold text-gray-900 mb-3">Allowances</h2>
-                <div className="text-gray-700 whitespace-pre-wrap text-sm leading-relaxed bg-gray-50 p-4 rounded-lg">
+                <h2 className="text-lg font-bold text-gray-900 mb-3 pb-2 border-b">
+                  Allowances
+                </h2>
+                <div className="text-gray-700 whitespace-pre-wrap text-sm leading-relaxed bg-blue-50 p-4 rounded-lg border border-blue-100">
                   {settings.allowances_text}
                 </div>
               </div>
@@ -224,8 +306,10 @@ export function ProposalPDFPreview({ proposal, onClose }: ProposalPDFPreviewProp
             {/* Exclusions */}
             {settings.show_exclusions && settings.exclusions_text && (
               <div className="mb-8">
-                <h2 className="text-lg font-semibold text-gray-900 mb-3">Exclusions</h2>
-                <div className="text-gray-700 whitespace-pre-wrap text-sm leading-relaxed bg-gray-50 p-4 rounded-lg">
+                <h2 className="text-lg font-bold text-gray-900 mb-3 pb-2 border-b">
+                  Exclusions & Clarifications
+                </h2>
+                <div className="text-gray-700 whitespace-pre-wrap text-sm leading-relaxed bg-amber-50 p-4 rounded-lg border border-amber-100">
                   {settings.exclusions_text}
                 </div>
               </div>
@@ -234,25 +318,27 @@ export function ProposalPDFPreview({ proposal, onClose }: ProposalPDFPreviewProp
             {/* Payment Schedule */}
             {settings.show_payment_schedule && settings.payment_schedule.length > 0 && (
               <div className="mb-8">
-                <h2 className="text-lg font-semibold text-gray-900 mb-3">Payment Schedule</h2>
-                <table className="w-full border-collapse border">
+                <h2 className="text-lg font-bold text-gray-900 mb-3 pb-2 border-b">
+                  Payment Schedule
+                </h2>
+                <table className="w-full border-collapse">
                   <thead>
-                    <tr className="bg-gray-50">
-                      <th className="border px-4 py-2 text-left text-sm font-medium">Milestone</th>
-                      <th className="border px-4 py-2 text-right text-sm font-medium">Percentage</th>
-                      <th className="border px-4 py-2 text-right text-sm font-medium">Amount</th>
-                      <th className="border px-4 py-2 text-left text-sm font-medium">Due</th>
+                    <tr className="bg-gray-100">
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 border">Milestone</th>
+                      <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 border w-24">%</th>
+                      <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 border w-32">Amount</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 border">Due</th>
                     </tr>
                   </thead>
                   <tbody>
                     {settings.payment_schedule.map((row, index) => (
-                      <tr key={row.id || index}>
-                        <td className="border px-4 py-2 text-sm">{row.label}</td>
-                        <td className="border px-4 py-2 text-sm text-right">{row.percentage}%</td>
-                        <td className="border px-4 py-2 text-sm text-right">
-                          ${((proposal.total_amount * (row.percentage || 0)) / 100).toLocaleString()}
+                      <tr key={row.id || index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                        <td className="px-4 py-3 text-sm border text-gray-700">{row.label}</td>
+                        <td className="px-4 py-3 text-sm border text-right font-mono">{row.percentage}%</td>
+                        <td className="px-4 py-3 text-sm border text-right font-mono font-medium">
+                          ${((proposal.total_amount * (row.percentage || 0)) / 100).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                         </td>
-                        <td className="border px-4 py-2 text-sm">{row.due_on}</td>
+                        <td className="px-4 py-3 text-sm border text-gray-600">{row.due_on}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -263,8 +349,10 @@ export function ProposalPDFPreview({ proposal, onClose }: ProposalPDFPreviewProp
             {/* Terms & Conditions */}
             {settings.show_terms && settings.terms_text && (
               <div className="mb-8">
-                <h2 className="text-lg font-semibold text-gray-900 mb-3">Terms & Conditions</h2>
-                <div className="text-gray-700 whitespace-pre-wrap text-sm leading-relaxed">
+                <h2 className="text-lg font-bold text-gray-900 mb-3 pb-2 border-b">
+                  Terms & Conditions
+                </h2>
+                <div className="text-gray-600 whitespace-pre-wrap text-sm leading-relaxed">
                   {settings.terms_text}
                 </div>
               </div>
@@ -272,27 +360,32 @@ export function ProposalPDFPreview({ proposal, onClose }: ProposalPDFPreviewProp
 
             {/* Signature Block */}
             {settings.show_signature_block && (
-              <div className="mt-12 pt-8 border-t">
-                <h2 className="text-lg font-semibold text-gray-900 mb-6">Acceptance</h2>
+              <div className="mt-12 pt-8 border-t-2">
+                <h2 className="text-lg font-bold text-gray-900 mb-6">
+                  Acceptance & Authorization
+                </h2>
+                <p className="text-sm text-gray-600 mb-8">
+                  By signing below, I authorize the work described in this proposal and agree to the terms and payment schedule outlined above.
+                </p>
                 <div className="grid grid-cols-2 gap-12">
                   <div>
-                    <p className="font-medium text-sm mb-4">Client</p>
+                    <p className="font-semibold text-gray-900 mb-6">Client</p>
                     <div className="border-b-2 border-gray-400 h-16 mb-2" />
-                    <div className="flex justify-between text-xs text-gray-500">
-                      <span>Signature</span>
+                    <div className="flex justify-between text-xs text-gray-500 mb-6">
+                      <span>Authorized Signature</span>
                       <span>Date</span>
                     </div>
-                    <div className="border-b border-gray-300 h-8 mt-4 mb-1" />
+                    <div className="border-b border-gray-300 h-10 mb-1" />
                     <p className="text-xs text-gray-500">Printed Name</p>
                   </div>
                   <div>
-                    <p className="font-medium text-sm mb-4">Contractor</p>
+                    <p className="font-semibold text-gray-900 mb-6">Contractor</p>
                     <div className="border-b-2 border-gray-400 h-16 mb-2" />
-                    <div className="flex justify-between text-xs text-gray-500">
-                      <span>Signature</span>
+                    <div className="flex justify-between text-xs text-gray-500 mb-6">
+                      <span>Authorized Signature</span>
                       <span>Date</span>
                     </div>
-                    <div className="border-b border-gray-300 h-8 mt-4 mb-1" />
+                    <div className="border-b border-gray-300 h-10 mb-1" />
                     <p className="text-xs text-gray-500">Printed Name / Title</p>
                   </div>
                 </div>

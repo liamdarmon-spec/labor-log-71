@@ -233,6 +233,7 @@ export function CreateProposalDialog({ open, onOpenChange, projectId, onSuccess 
       setEstimateId('');
       setPresentationMode('flat');
       onOpenChange(false);
+      // Navigate to the new proposal builder
       onSuccess(proposal.id);
     } catch (error) {
       console.error('Error creating proposal:', error);
