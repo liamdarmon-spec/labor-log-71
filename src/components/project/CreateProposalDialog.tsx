@@ -3,7 +3,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
@@ -40,7 +46,12 @@ const PRESENTATION_PRESETS = {
 
 type PresentationMode = 'summary' | 'detailed' | 'flat';
 
-export function CreateProposalDialog({ open, onOpenChange, projectId, onSuccess }: CreateProposalDialogProps) {
+export function CreateProposalDialog({
+  open,
+  onOpenChange,
+  projectId,
+  onSuccess,
+}: CreateProposalDialogProps) {
   const [title, setTitle] = useState('');
   const [estimateId, setEstimateId] = useState('');
   const [presentationMode, setPresentationMode] = useState<PresentationMode>('detailed');
@@ -52,10 +63,12 @@ export function CreateProposalDialog({ open, onOpenChange, projectId, onSuccess 
     queryFn: async () => {
       const { data, error } = await supabase
         .from('estimates')
-        .select('id, title, status, is_budget_source, total_amount, subtotal_amount, tax_amount')
+        .select(
+          'id, title, status, is_budget_source, total_amount, subtotal_amount, tax_amount'
+        )
         .eq('project_id', projectId)
         .order('created_at', { ascending: false });
-      
+
       if (error) throw error;
       return data;
     },
@@ -71,7 +84,7 @@ export function CreateProposalDialog({ open, onOpenChange, projectId, onSuccess 
         .select('project_name, client_name')
         .eq('id', projectId)
         .single();
-      
+
       if (error) throw error;
       return data;
     },
@@ -81,7 +94,7 @@ export function CreateProposalDialog({ open, onOpenChange, projectId, onSuccess 
   // Auto-select baseline estimate if available
   useEffect(() => {
     if (estimates && estimates.length > 0 && !estimateId) {
-      const baseline = estimates.find(e => e.is_budget_source);
+      const baseline = estimates.find((e) => e.is_budget_source);
       if (baseline) {
         setEstimateId(baseline.id);
       } else {
@@ -93,7 +106,10 @@ export function CreateProposalDialog({ open, onOpenChange, projectId, onSuccess 
   // Auto-generate title when estimate or project changes
   useEffect(() => {
     if (project && !title) {
-      const date = new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+      const date = new Date().toLocaleDateString('en-US', {
+        month: 'short',
+        year: 'numeric',
+      });
       setTitle(`${project.project_name} – Proposal ${date}`);
     }
   }, [project, title]);
@@ -112,7 +128,7 @@ export function CreateProposalDialog({ open, onOpenChange, projectId, onSuccess 
     setLoading(true);
 
     try {
-      // Get estimate details (no items needed - we read from scope_blocks)
+      // Get estimate totals (line items are read from scope_blocks elsewhere)
       const { data: estimate, error: estimateError } = await supabase
         .from('estimates')
         .select('subtotal_amount, tax_amount, total_amount')
@@ -139,6 +155,8 @@ export function CreateProposalDialog({ open, onOpenChange, projectId, onSuccess 
         ...settingsPreset,
       };
 
+      const todayISO = new Date().toISOString().split('T')[0];
+
       // Create proposal - metadata only, NO proposal_sections/items
       const { data: proposal, error: proposalError } = await supabase
         .from('proposals')
@@ -147,10 +165,12 @@ export function CreateProposalDialog({ open, onOpenChange, projectId, onSuccess 
           primary_estimate_id: estimateId,
           title,
           status: 'draft',
+          acceptance_status: 'pending',
           subtotal_amount: estimate.subtotal_amount,
           tax_amount: estimate.tax_amount,
           total_amount: estimate.total_amount,
-          proposal_date: new Date().toISOString().split('T')[0],
+          proposal_date: todayISO,
+          validity_days: 30,
           settings,
         })
         .select()
@@ -199,22 +219,23 @@ export function CreateProposalDialog({ open, onOpenChange, projectId, onSuccess 
               <SelectContent>
                 {estimates?.map((estimate) => (
                   <SelectItem key={estimate.id} value={estimate.id}>
-                    {estimate.title} 
+                    {estimate.title}
                     {estimate.is_budget_source && ' ⭐ Baseline'}
-                    {' – $'}{(estimate.total_amount || 0).toLocaleString()}
+                    {' – $'}
+                    {(estimate.total_amount || 0).toLocaleString()}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
             <p className="text-sm text-muted-foreground mt-1">
-              All scope and pricing comes from this estimate
+              All scope and pricing comes from this estimate.
             </p>
           </div>
 
           <div>
             <Label htmlFor="presentationMode">Presentation Style</Label>
-            <Select 
-              value={presentationMode} 
+            <Select
+              value={presentationMode}
               onValueChange={(v) => setPresentationMode(v as PresentationMode)}
             >
               <SelectTrigger>
@@ -233,17 +254,21 @@ export function CreateProposalDialog({ open, onOpenChange, projectId, onSuccess 
               </SelectContent>
             </Select>
             <p className="text-sm text-muted-foreground mt-1">
-              You can adjust visibility settings in the builder
+              You can adjust visibility settings in the builder.
             </p>
           </div>
 
           <div className="flex justify-end gap-2 pt-4">
-            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
+            <Button
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={loading}
+            >
               Cancel
             </Button>
             <Button onClick={handleCreate} disabled={loading || !estimateId}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Create & Open
+              Create &amp; Open
             </Button>
           </div>
         </div>
