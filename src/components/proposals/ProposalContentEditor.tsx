@@ -1,6 +1,3 @@
-// src/components/proposals/ProposalContentEditor.tsx
-// Middle column: WYSIWYG-style content editor for proposal sections
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,25 +9,44 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
-import { ChevronDown, ChevronRight, Plus, Trash2, GripVertical } from 'lucide-react';
-import { ProposalData, PaymentScheduleItem } from '@/hooks/useProposalData';
-
+import {
+  ChevronDown,
+  ChevronRight,
+  Plus,
+  Trash2,
+  GripVertical,
+} from 'lucide-react';
+import {
+  ProposalData,
+  PaymentScheduleItem,
+  ProposalSettings,
+} from '@/hooks/useProposalData';
 
 interface ProposalContentEditorProps {
   proposal: ProposalData;
   onFieldChange: (field: string, value: any) => void;
+  onSettingsChange: (settings: Partial<ProposalSettings>) => void;
 }
 
 // Generate unique ID without external dependency
 const generateId = () => Math.random().toString(36).substring(2, 15);
 
+type PresentationMode = 'summary' | 'detailed' | 'flat';
+
+const getModeFromSettings = (settings: ProposalSettings): PresentationMode => {
+  if (!settings.show_line_items) return 'summary';
+  if (settings.group_line_items_by_area) return 'detailed';
+  return 'flat';
+};
+
 export function ProposalContentEditor({
   proposal,
   onFieldChange,
+  onSettingsChange,
 }: ProposalContentEditorProps) {
   const settings = proposal.settings;
   const [expandedAreas, setExpandedAreas] = useState<Set<string>>(new Set());
-  
+
   // Local state for text fields
   const [introText, setIntroText] = useState(proposal.intro_text || '');
   const [termsText, setTermsText] = useState(settings.terms_text || '');
@@ -38,6 +54,9 @@ export function ProposalContentEditor({
   const [allowancesText, setAllowancesText] = useState(settings.allowances_text || '');
   const [paymentSchedule, setPaymentSchedule] = useState<PaymentScheduleItem[]>(
     settings.payment_schedule || []
+  );
+  const [displayMode, setDisplayMode] = useState<PresentationMode>(
+    getModeFromSettings(settings)
   );
 
   // Sync when proposal changes
@@ -50,6 +69,7 @@ export function ProposalContentEditor({
     setExclusionsText(settings.exclusions_text || '');
     setAllowancesText(settings.allowances_text || '');
     setPaymentSchedule(settings.payment_schedule || []);
+    setDisplayMode(getModeFromSettings(settings));
   }, [settings]);
 
   const toggleArea = (area: string) => {
@@ -71,7 +91,11 @@ export function ProposalContentEditor({
     setPaymentSchedule(newSchedule);
   };
 
-  const updatePaymentRow = (id: string, field: keyof PaymentScheduleItem, value: any) => {
+  const updatePaymentRow = (
+    id: string,
+    field: keyof PaymentScheduleItem,
+    value: any
+  ) => {
     const newSchedule = paymentSchedule.map((row) =>
       row.id === id ? { ...row, [field]: value } : row
     );
@@ -84,17 +108,158 @@ export function ProposalContentEditor({
   };
 
   const savePaymentSchedule = () => {
-    onFieldChange('settings', { ...settings, payment_schedule: paymentSchedule });
+    onSettingsChange({ payment_schedule: paymentSchedule });
   };
 
   // Category badge color
   const getCategoryColor = (category: string) => {
     switch (category?.toLowerCase()) {
-      case 'labor': return 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300';
-      case 'subs': return 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300';
-      case 'materials': return 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300';
-      default: return 'bg-gray-100 text-gray-700 dark:bg-gray-900 dark:text-gray-300';
+      case 'labor':
+        return 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300';
+      case 'subs':
+        return 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300';
+      case 'materials':
+        return 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300';
+      default:
+        return 'bg-gray-100 text-gray-700 dark:bg-gray-900 dark:text-gray-300';
     }
+  };
+
+  const applyDisplayMode = (mode: PresentationMode) => {
+    setDisplayMode(mode);
+    if (mode === 'summary') {
+      onSettingsChange({
+        show_line_items: false,
+        show_line_item_totals: false,
+        group_line_items_by_area: true,
+      });
+    } else if (mode === 'detailed') {
+      onSettingsChange({
+        show_line_items: true,
+        show_line_item_totals: true,
+        group_line_items_by_area: true,
+      });
+    } else {
+      // flat
+      onSettingsChange({
+        show_line_items: true,
+        show_line_item_totals: true,
+        group_line_items_by_area: false,
+      });
+    }
+  };
+
+  const renderGroupedScope = () => {
+    if (proposal.scopeByArea.length === 0) {
+      return (
+        <p className="text-muted-foreground text-sm text-center py-8">
+          No scope items found. Link an estimate to populate this section.
+        </p>
+      );
+    }
+
+    return (
+      <div className="space-y-3">
+        {proposal.scopeByArea.map((area) => (
+          <Collapsible
+            key={area.area_label}
+            open={expandedAreas.has(area.area_label) || settings.show_line_items}
+          >
+            <div className="border rounded-lg overflow-hidden">
+              <CollapsibleTrigger
+                className="w-full flex items-center justify-between p-3 bg-muted/30 hover:bg-muted/50 transition-colors"
+                onClick={() => toggleArea(area.area_label)}
+              >
+                <div className="flex items-center gap-2">
+                  {settings.show_line_items ? (
+                    expandedAreas.has(area.area_label) ? (
+                      <ChevronDown className="h-4 w-4" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4" />
+                    )
+                  ) : null}
+                  <span className="font-medium">{area.area_label}</span>
+                  <Badge variant="secondary" className="text-xs">
+                    {area.items.length} items
+                  </Badge>
+                </div>
+                {settings.show_line_item_totals && (
+                  <span className="font-mono font-medium">
+                    ${area.subtotal.toLocaleString()}
+                  </span>
+                )}
+              </CollapsibleTrigger>
+
+              {settings.show_line_items && (
+                <CollapsibleContent>
+                  <div className="divide-y">
+                    {area.items.map((item) => (
+                      <div
+                        key={item.id}
+                        className="flex items-center justify-between px-3 py-2 text-sm"
+                      >
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                          <span
+                            className={`px-1.5 py-0.5 rounded text-xs ${getCategoryColor(
+                              item.category
+                            )}`}
+                          >
+                            {item.category?.slice(0, 3).toUpperCase() || 'OTH'}
+                          </span>
+                          <span className="truncate">{item.description}</span>
+                        </div>
+                        {settings.show_line_item_totals && (
+                          <span className="font-mono text-muted-foreground ml-2">
+                            ${item.line_total.toLocaleString()}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </CollapsibleContent>
+              )}
+            </div>
+          </Collapsible>
+        ))}
+      </div>
+    );
+  };
+
+  const renderFlatScope = () => {
+    if (proposal.allItems.length === 0) {
+      return (
+        <p className="text-muted-foreground text-sm text-center py-8">
+          No scope items found. Link an estimate to populate this section.
+        </p>
+      );
+    }
+
+    return (
+      <div className="border rounded-lg divide-y">
+        {proposal.allItems.map((item) => (
+          <div
+            key={item.id}
+            className="px-3 py-2 flex items-center justify-between text-sm"
+          >
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              <span
+                className={`px-1.5 py-0.5 rounded text-xs ${getCategoryColor(
+                  item.category
+                )}`}
+              >
+                {item.category?.slice(0, 3).toUpperCase() || 'OTH'}
+              </span>
+              <span className="truncate">{item.description}</span>
+            </div>
+            {settings.show_line_item_totals && (
+              <span className="font-mono text-muted-foreground ml-2">
+                ${item.line_total.toLocaleString()}
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
+    );
   };
 
   return (
@@ -111,13 +276,17 @@ export function ProposalContentEditor({
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p className="text-muted-foreground text-xs">Project</p>
-                    <p className="font-medium">{proposal.project?.project_name || 'N/A'}</p>
+                    <p className="font-medium">
+                      {proposal.project?.project_name || 'N/A'}
+                    </p>
                   </div>
                   {settings.show_client_info && (
                     <div>
                       <p className="text-muted-foreground text-xs">Client</p>
                       <p className="font-medium">
-                        {proposal.client_name || proposal.project?.client_name || 'N/A'}
+                        {proposal.client_name ||
+                          proposal.project?.client_name ||
+                          'N/A'}
                       </p>
                     </div>
                   )}
@@ -130,7 +299,7 @@ export function ProposalContentEditor({
                 </div>
               </div>
             )}
-            
+
             <div>
               <label className="text-sm font-medium mb-2 block">
                 Introduction / Scope Summary
@@ -151,79 +320,40 @@ export function ProposalContentEditor({
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center justify-between">
-            <span>Scope & Pricing</span>
-            <Badge variant="outline" className="font-mono">
-              ${proposal.total_amount.toLocaleString()}
-            </Badge>
+            <span>Scope &amp; Pricing</span>
+            <div className="flex items-center gap-1 rounded-full bg-muted px-1 py-0.5">
+              {(['summary', 'detailed', 'flat'] as PresentationMode[]).map((mode) => {
+                const active = displayMode === mode;
+                const label =
+                  mode === 'summary'
+                    ? 'Summary'
+                    : mode === 'detailed'
+                    ? 'Detailed'
+                    : 'Flat';
+                return (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => applyDisplayMode(mode)}
+                    className={[
+                      'px-2.5 py-1 text-xs rounded-full transition',
+                      active
+                        ? 'bg-background shadow-sm font-semibold'
+                        : 'text-muted-foreground',
+                    ].join(' ')}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {proposal.scopeByArea.length === 0 ? (
-            <p className="text-muted-foreground text-sm text-center py-8">
-              No scope items found. Link an estimate to populate this section.
-            </p>
-          ) : (
-            <div className="space-y-3">
-              {proposal.scopeByArea.map((area) => (
-                <Collapsible
-                  key={area.area_label}
-                  open={expandedAreas.has(area.area_label) || settings.show_line_items}
-                >
-                  <div className="border rounded-lg overflow-hidden">
-                    <CollapsibleTrigger
-                      className="w-full flex items-center justify-between p-3 bg-muted/30 hover:bg-muted/50 transition-colors"
-                      onClick={() => toggleArea(area.area_label)}
-                    >
-                      <div className="flex items-center gap-2">
-                        {settings.show_line_items ? (
-                          expandedAreas.has(area.area_label) ? (
-                            <ChevronDown className="h-4 w-4" />
-                          ) : (
-                            <ChevronRight className="h-4 w-4" />
-                          )
-                        ) : null}
-                        <span className="font-medium">{area.area_label}</span>
-                        <Badge variant="secondary" className="text-xs">
-                          {area.items.length} items
-                        </Badge>
-                      </div>
-                      {settings.show_line_item_totals && (
-                        <span className="font-mono font-medium">
-                          ${area.subtotal.toLocaleString()}
-                        </span>
-                      )}
-                    </CollapsibleTrigger>
-                    
-                    {settings.show_line_items && (
-                      <CollapsibleContent>
-                        <div className="divide-y">
-                          {area.items.map((item) => (
-                            <div
-                              key={item.id}
-                              className="flex items-center justify-between px-3 py-2 text-sm"
-                            >
-                              <div className="flex items-center gap-2 min-w-0 flex-1">
-                                <span className={`px-1.5 py-0.5 rounded text-xs ${getCategoryColor(item.category)}`}>
-                                  {item.category?.slice(0, 3).toUpperCase() || 'OTH'}
-                                </span>
-                                <span className="truncate">{item.description}</span>
-                              </div>
-                              {settings.show_line_item_totals && (
-                                <span className="font-mono text-muted-foreground ml-2">
-                                  ${item.line_total.toLocaleString()}
-                                </span>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </CollapsibleContent>
-                    )}
-                  </div>
-                </Collapsible>
-              ))}
-            </div>
-          )}
-          
+          {settings.group_line_items_by_area
+            ? renderGroupedScope()
+            : renderFlatScope()}
+
           {/* Total */}
           <Separator />
           <div className="flex justify-between items-center pt-2">
@@ -239,7 +369,7 @@ export function ProposalContentEditor({
       {(settings.show_allowances || settings.show_exclusions) && (
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">Allowances & Exclusions</CardTitle>
+            <CardTitle className="text-base">Allowances &amp; Exclusions</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {settings.show_allowances && (
@@ -249,7 +379,7 @@ export function ProposalContentEditor({
                   value={allowancesText}
                   onChange={(e) => setAllowancesText(e.target.value)}
                   onBlur={() =>
-                    onFieldChange('settings', { ...settings, allowances_text: allowancesText })
+                    onSettingsChange({ allowances_text: allowancesText })
                   }
                   placeholder="• Flooring allowance: $X per sq ft&#10;• Fixture allowance: $X"
                   className="min-h-[80px] resize-y"
@@ -263,7 +393,7 @@ export function ProposalContentEditor({
                   value={exclusionsText}
                   onChange={(e) => setExclusionsText(e.target.value)}
                   onBlur={() =>
-                    onFieldChange('settings', { ...settings, exclusions_text: exclusionsText })
+                    onSettingsChange({ exclusions_text: exclusionsText })
                   }
                   placeholder="• Permits and fees&#10;• Structural engineering&#10;• Unforeseen conditions"
                   className="min-h-[80px] resize-y"
@@ -293,7 +423,7 @@ export function ProposalContentEditor({
               </p>
             ) : (
               <div className="space-y-2">
-                {paymentSchedule.map((row, index) => (
+                {paymentSchedule.map((row) => (
                   <div key={row.id} className="flex items-center gap-2">
                     <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab" />
                     <input
@@ -306,15 +436,18 @@ export function ProposalContentEditor({
                     />
                     <input
                       type="number"
-                      value={row.percentage || ''}
+                      value={row.percentage ?? ''}
                       onChange={(e) =>
-                        updatePaymentRow(row.id, 'percentage', parseFloat(e.target.value) || 0)
+                        updatePaymentRow(
+                          row.id,
+                          'percentage',
+                          e.target.value === '' ? undefined : Number(e.target.value)
+                        )
                       }
                       onBlur={savePaymentSchedule}
                       placeholder="%"
                       className="w-16 px-2 py-1 text-sm border rounded text-right"
                     />
-                    <span className="text-muted-foreground text-sm">%</span>
                     <input
                       type="text"
                       value={row.due_on || ''}
@@ -345,15 +478,13 @@ export function ProposalContentEditor({
       {settings.show_terms && (
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">Terms & Conditions</CardTitle>
+            <CardTitle className="text-base">Terms &amp; Conditions</CardTitle>
           </CardHeader>
           <CardContent>
             <Textarea
               value={termsText}
               onChange={(e) => setTermsText(e.target.value)}
-              onBlur={() =>
-                onFieldChange('settings', { ...settings, terms_text: termsText })
-              }
+              onBlur={() => onSettingsChange({ terms_text: termsText })}
               placeholder="Enter your standard terms and conditions..."
               className="min-h-[150px] resize-y"
             />
@@ -387,7 +518,9 @@ export function ProposalContentEditor({
                   <span>Date</span>
                 </div>
                 <div className="border-b h-8" />
-                <p className="text-sm text-muted-foreground">Printed Name / Title</p>
+                <p className="text-sm text-muted-foreground">
+                  Printed Name / Title
+                </p>
               </div>
             </div>
           </CardContent>
