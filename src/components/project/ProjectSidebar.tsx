@@ -35,6 +35,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
   { id: 'estimates', label: 'Estimates', icon: FileText },
+  { id: 'proposals', label: 'Proposals', icon: Receipt },
   { id: 'budget', label: 'Budget', icon: Wallet },
   { id: 'financials', label: 'Financials', icon: DollarSign },
   { id: 'billing', label: 'Billing', icon: Receipt },
@@ -43,7 +44,6 @@ const navItems: NavItem[] = [
   { id: 'checklists', label: 'Checklists', icon: ClipboardList },
   { id: 'subs', label: 'Subs', icon: Users },
   { id: 'documents', label: 'Documents', icon: FolderOpen },
-  { id: 'photos', label: 'Photos', icon: Camera },
   { id: 'labor', label: 'Labor Logs', icon: Clock },
   { id: 'settings', label: 'Settings', icon: Settings },
 ];
