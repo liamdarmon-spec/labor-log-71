@@ -1,5 +1,5 @@
 // src/components/proposals/ProposalPDFPreview.tsx
-// Professional, ERP-safe proposal PDF preview & download
+// Professional, ERP-safe proposal PDF preview & download with company settings
 
 import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dialog';
 import { X, Download, Printer, Loader2 } from 'lucide-react';
 import { ProposalData } from '@/hooks/useProposalData';
+import { useCompanySettings } from '@/hooks/useCompanySettings';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import jsPDF from 'jspdf';
@@ -28,6 +29,9 @@ export function ProposalPDFPreview({
   const [generating, setGenerating] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
   const settings = proposal.settings;
+
+  // Company identity (name, license, contact, logo)
+  const { data: company } = useCompanySettings();
 
   const handleDownload = async () => {
     if (!contentRef.current) return;
@@ -55,11 +59,9 @@ export function ProposalPDFPreview({
       let heightLeft = imgHeight;
       let position = margin;
 
-      // First page
       pdf.addImage(imgData, 'PNG', margin, position, imgWidth, imgHeight);
       heightLeft -= pageHeight - margin * 2;
 
-      // Additional pages
       while (heightLeft > 0) {
         position = margin - (imgHeight - heightLeft);
         pdf.addPage();
@@ -67,7 +69,6 @@ export function ProposalPDFPreview({
         heightLeft -= pageHeight - margin * 2;
       }
 
-      // Page numbers
       const totalPages = pdf.internal.pages.length - 1;
       for (let i = 1; i <= totalPages; i++) {
         pdf.setPage(i);
@@ -111,10 +112,16 @@ export function ProposalPDFPreview({
   const clientName =
     proposal.client_name || project?.client_name || 'Client';
 
-  // Use estimate title as "Job Type" – e.g., "Full Home Remodel"
   const jobType = estimate?.title || 'Remodel / Construction Work';
 
-  // Category color backgrounds for scope chips
+  const companyName = company?.name || 'FORMA Homes';
+  const companyLegalName = company?.legal_name || companyName;
+  const companyLicense = company?.license_number || '';
+  const companyEmail = company?.email || '';
+  const companyPhone = company?.phone || '';
+  const companyWebsite = company?.website || '';
+  const brandColor = company?.brand_color_primary || '#111827';
+
   const getCategoryBgColor = (category: string) => {
     switch (category?.toLowerCase()) {
       case 'labor':
@@ -128,7 +135,6 @@ export function ProposalPDFPreview({
     }
   };
 
-  // Helper to format money safely
   const fmtMoney = (value: number | null | undefined) =>
     `$${(value || 0).toLocaleString(undefined, {
       minimumFractionDigits: 2,
@@ -138,7 +144,6 @@ export function ProposalPDFPreview({
   return (
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="max-w-5xl max-h-[95vh] overflow-hidden flex flex-col p-0">
-        {/* Toolbar */}
         <DialogHeader className="flex-shrink-0 flex flex-row items-center justify-between px-6 py-4 border-b">
           <DialogTitle>Proposal Preview</DialogTitle>
           <div className="flex items-center gap-2">
@@ -160,53 +165,71 @@ export function ProposalPDFPreview({
           </div>
         </DialogHeader>
 
-        {/* Scrollable preview */}
         <div className="flex-1 overflow-auto bg-muted/50 p-6">
           <div
             ref={contentRef}
             className="bg-white mx-auto shadow-xl print:shadow-none"
             style={{ width: '210mm', minHeight: '297mm', padding: '24mm 20mm' }}
           >
-            {/* ===================== PAGE 1 – COVER & SNAPSHOT ===================== */}
-            {/* Header */}
+            {/* HEADER */}
             <div className="mb-10">
               <div className="flex justify-between items-start gap-6">
-                <div className="min-w-0">
-                  <h1 className="text-3xl font-bold text-gray-900 tracking-tight break-words">
+                <div className="min-w-0 flex-1">
+                  <h1 className="text-3xl font-bold tracking-tight break-words text-gray-900">
                     {proposal.title}
                   </h1>
                   <p className="text-sm text-gray-500 mt-1">
                     Proposal #{proposal.id.slice(0, 8).toUpperCase()}
                   </p>
                 </div>
-                <div className="text-right text-sm text-gray-600">
-                  <p>
-                    Date:{' '}
-                    {format(proposalDate, 'MMMM d, yyyy')}
-                  </p>
-                  {proposal.validity_days ? (
+
+                <div className="flex flex-col items-end space-y-2">
+                  {/* Logo if available */}
+                  {company?.logo_url && (
+                    <img
+                      src={company.logo_url}
+                      alt={companyName}
+                      className="h-10 object-contain mb-1"
+                    />
+                  )}
+                  <div className="text-right text-sm text-gray-600">
                     <p>
-                      Valid Until:{' '}
-                      {format(validUntil, 'MMMM d, yyyy')}
+                      Date:{' '}
+                      {format(proposalDate, 'MMMM d, yyyy')}
                     </p>
-                  ) : null}
+                    {proposal.validity_days ? (
+                      <p>
+                        Valid Until:{' '}
+                        {format(validUntil, 'MMMM d, yyyy')}
+                      </p>
+                    ) : null}
+                  </div>
                 </div>
               </div>
 
-              {/* Company info – static shell, later can be wired to settings */}
+              {/* company info band */}
               <div className="flex justify-between items-center mt-4 text-xs text-gray-500">
-                <div>FORMA Homes</div>
-                <div className="flex gap-4">
-                  <span>License #</span>
-                  <span>info@yourcompany.com</span>
-                  <span>(000) 000-0000</span>
+                <div className="font-medium text-gray-700">
+                  {companyLegalName}
+                </div>
+                <div className="flex gap-3">
+                  {companyLicense && <span>Lic. {companyLicense}</span>}
+                  {companyEmail && <span>{companyEmail}</span>}
+                  {companyPhone && <span>{companyPhone}</span>}
+                  {companyWebsite && <span>{companyWebsite}</span>}
                 </div>
               </div>
 
-              <div className="h-1 bg-gray-900 mt-6 rounded-full" />
+              <div
+                className="mt-6 rounded-full"
+                style={{
+                  height: '4px',
+                  background: `linear-gradient(to right, ${brandColor}, #9CA3AF)`,
+                }}
+              />
             </div>
 
-            {/* Project snapshot */}
+            {/* PROJECT SNAPSHOT */}
             <div className="mb-8 bg-gray-50 rounded-xl p-6">
               <div className="grid grid-cols-2 gap-8 text-sm">
                 <div className="space-y-3">
@@ -273,7 +296,7 @@ export function ProposalPDFPreview({
               </div>
             </div>
 
-            {/* Overview */}
+            {/* OVERVIEW */}
             {proposal.intro_text && settings.show_scope_summary && (
               <div className="mb-10">
                 <h2 className="text-lg font-bold text-gray-900 mb-3 pb-2 border-b">
@@ -285,7 +308,7 @@ export function ProposalPDFPreview({
               </div>
             )}
 
-            {/* ===================== SCOPE & PRICING ===================== */}
+            {/* SCOPE & PRICING */}
             <div className="mb-10">
               <h2 className="text-lg font-bold text-gray-900 mb-4 pb-2 border-b">
                 Scope of Work & Pricing
@@ -298,7 +321,9 @@ export function ProposalPDFPreview({
                       key={area.area_label}
                       className="border rounded-lg overflow-hidden"
                     >
-                      <div className="bg-gray-900 text-white px-4 py-3 flex justify-between items-center">
+                      <div className="px-4 py-3 flex justify-between items-center text-white"
+                        style={{ backgroundColor: brandColor }}
+                      >
                         <span className="font-semibold">
                           {area.area_label}
                         </span>
@@ -352,8 +377,7 @@ export function ProposalPDFPreview({
                 <div className="border rounded-lg overflow-hidden">
                   {proposal.allItems.length === 0 ? (
                     <div className="px-4 py-6 text-sm text-gray-500 text-center">
-                      No scope items found. Link an estimate to populate this
-                      section.
+                      No scope items found. Link an estimate to populate this section.
                     </div>
                   ) : (
                     <div className="divide-y divide-gray-100">
@@ -395,10 +419,12 @@ export function ProposalPDFPreview({
                 </div>
               )}
 
-              {/* Investment summary band */}
               <div className="mt-6 flex justify-end">
-                <div className="bg-gray-900 text-white px-8 py-4 rounded-xl">
-                  <p className="text-gray-400 text-xs mb-1">
+                <div
+                  className="text-white px-8 py-4 rounded-xl"
+                  style={{ backgroundColor: brandColor }}
+                >
+                  <p className="text-gray-200 text-xs mb-1">
                     Total Investment
                   </p>
                   <p className="text-3xl font-bold tracking-tight">
@@ -408,7 +434,7 @@ export function ProposalPDFPreview({
               </div>
             </div>
 
-            {/* ===================== ALLOWANCES & EXCLUSIONS ===================== */}
+            {/* ALLOWANCES / EXCLUSIONS */}
             {(settings.show_allowances && settings.allowances_text) ||
             (settings.show_exclusions && settings.exclusions_text) ? (
               <div className="mb-10">
@@ -440,7 +466,7 @@ export function ProposalPDFPreview({
               </div>
             ) : null}
 
-            {/* ===================== PAYMENT SCHEDULE ===================== */}
+            {/* PAYMENT SCHEDULE */}
             {settings.show_payment_schedule &&
             settings.payment_schedule &&
             settings.payment_schedule.length > 0 ? (
@@ -496,7 +522,7 @@ export function ProposalPDFPreview({
               </div>
             ) : null}
 
-            {/* ===================== TERMS & CONDITIONS ===================== */}
+            {/* TERMS */}
             {settings.show_terms && settings.terms_text && (
               <div className="mb-10">
                 <h2 className="text-lg font-bold text-gray-900 mb-3 pb-2 border-b">
@@ -508,14 +534,14 @@ export function ProposalPDFPreview({
               </div>
             )}
 
-            {/* ===================== SIGNATURES & NEXT STEPS ===================== */}
+            {/* SIGNATURES */}
             {settings.show_signature_block && (
               <div className="mt-12 pt-8 border-t-2 border-gray-200">
                 <h2 className="text-lg font-bold text-gray-900 mb-4">
                   Acceptance & Authorization
                 </h2>
                 <p className="text-sm text-gray-600 mb-8">
-                  By signing below, the Client authorizes FORMA Homes to
+                  By signing below, the Client authorizes {companyName} to
                   proceed with the work described in this proposal and agrees
                   to the investment, payment schedule, allowances, exclusions,
                   and terms outlined above.
@@ -523,9 +549,7 @@ export function ProposalPDFPreview({
 
                 <div className="grid grid-cols-2 gap-12 mb-10">
                   <div>
-                    <p className="font-semibold text-gray-900 mb-6">
-                      Client
-                    </p>
+                    <p className="font-semibold text-gray-900 mb-6">Client</p>
                     <div className="border-b-2 border-gray-400 h-12 mb-2" />
                     <div className="flex justify-between text-xs text-gray-500 mb-6">
                       <span>Authorized Signature</span>
@@ -550,7 +574,6 @@ export function ProposalPDFPreview({
                   </div>
                 </div>
 
-                {/* Next steps checklist – static text, no numbers */}
                 <div className="text-xs text-gray-500">
                   <p className="font-semibold mb-1">Next Steps</p>
                   <ol className="list-decimal list-inside space-y-0.5">
@@ -558,7 +581,7 @@ export function ProposalPDFPreview({
                     <li>Sign and date this proposal.</li>
                     <li>
                       Coordinate with our team to schedule start date and
-                      initial payment as outlined in the payment schedule.
+                      initial payment as outlined above.
                     </li>
                   </ol>
                 </div>
