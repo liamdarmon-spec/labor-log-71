@@ -14,12 +14,13 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, ClipboardCheck, Split, User, Briefcase, Clock } from "lucide-react";
+import { Plus, ClipboardCheck, Split, User, Briefcase, Clock, Link2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { EditScheduleDialog } from "./EditScheduleDialog";
 import { ScheduleEditButton } from "./ScheduleEditButton";
 import { ScheduleDeleteButton } from "./ScheduleDeleteButton";
+import { ScheduleSyncStatus } from "@/components/ui/sync-status";
 import { SplitScheduleDialog } from "@/components/dashboard/SplitScheduleDialog";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -405,6 +406,10 @@ export function UniversalDayDetailDialog({
                                       {schedule.status}
                                     </Badge>
                                   )}
+                                  <ScheduleSyncStatus
+                                    hasTimeLog={schedule.converted_to_timelog || false}
+                                    isPastDate={new Date(schedule.scheduled_date) < new Date(new Date().toDateString())}
+                                  />
                                 </div>
                                 <div className="flex items-center gap-2 mt-1 text-xs opacity-80">
                                   {schedule.trade && (

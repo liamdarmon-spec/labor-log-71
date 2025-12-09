@@ -1,7 +1,7 @@
 // src/hooks/useItemAutosave.ts
 // Per-row autosave with debounce, status tracking, and retry capability
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -38,9 +38,34 @@ export function useItemAutosave(estimateId: string | undefined) {
   const debounceTimers = useRef<Map<string, NodeJS.Timeout>>(new Map());
   const pendingUpdates = useRef<Map<string, ItemUpdate>>(new Map());
   const savedTimers = useRef<Map<string, NodeJS.Timeout>>(new Map());
+  const isMountedRef = useRef(true);
 
-  // Set row state helper
+  // Automatic cleanup on unmount - prevents memory leaks
+  useEffect(() => {
+    isMountedRef.current = true;
+    
+    return () => {
+      // Mark as unmounted to prevent state updates after cleanup
+      isMountedRef.current = false;
+      
+      // Clear all debounce timers
+      debounceTimers.current.forEach((timer) => clearTimeout(timer));
+      debounceTimers.current.clear();
+      
+      // Clear all saved state display timers
+      savedTimers.current.forEach((timer) => clearTimeout(timer));
+      savedTimers.current.clear();
+      
+      // Clear pending updates
+      pendingUpdates.current.clear();
+    };
+  }, []);
+
+  // Set row state helper with mounted check
   const setRowState = useCallback((id: string, state: Partial<RowSaveState>) => {
+    // Prevent state updates after component unmounts
+    if (!isMountedRef.current) return;
+    
     setRowStates((prev) => {
       const newMap = new Map(prev);
       const existing = newMap.get(id) || { status: "idle" };
@@ -229,12 +254,6 @@ export function useItemAutosave(estimateId: string | undefined) {
     return "idle";
   }, [rowStates, saveMutation.isPending]);
 
-  // Cleanup on unmount
-  const cleanup = useCallback(() => {
-    debounceTimers.current.forEach((timer) => clearTimeout(timer));
-    savedTimers.current.forEach((timer) => clearTimeout(timer));
-  }, []);
-
   return {
     queueUpdate,
     saveImmediate,
@@ -244,7 +263,7 @@ export function useItemAutosave(estimateId: string | undefined) {
     hasPendingChanges,
     hasErrors,
     getGlobalStatus,
-    cleanup,
     isSaving: saveMutation.isPending,
+    // cleanup is now automatic via useEffect - no need to export
   };
 }
