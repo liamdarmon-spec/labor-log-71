@@ -69,8 +69,11 @@ export function useCreateScopeBlock() {
         .from('scope_blocks')
         .insert([block as any])
         .select()
-        .single();
+        .maybeSingle();
       if (error) throw error;
+      if (!data) {
+        throw new Error('Failed to create scope block');
+      }
       return data;
     },
     onSuccess: (data) => {
@@ -97,8 +100,11 @@ export function useUpdateScopeBlock() {
         .update(updates)
         .eq('id', id)
         .select()
-        .single();
+        .maybeSingle();
       if (error) throw error;
+      if (!data) {
+        throw new Error('Scope block not found');
+      }
       return data;
     },
     onSuccess: (data) => {
@@ -188,11 +194,14 @@ export function useCreateCostItem() {
           .from('cost_codes')
           .select('id')
           .eq('code', 'UNASSIGNED')
-          .single();
+          .maybeSingle();
         
         if (codeError) {
           console.error('Error fetching UNASSIGNED cost code:', codeError);
           throw new Error('Could not find UNASSIGNED cost code');
+        }
+        if (!unassignedCode) {
+          throw new Error('UNASSIGNED cost code not found');
         }
         
         costCodeId = unassignedCode.id;
@@ -202,8 +211,11 @@ export function useCreateCostItem() {
         .from('scope_block_cost_items')
         .insert([{ ...item, scope_block_id: scopeBlockId, cost_code_id: costCodeId } as any])
         .select()
-        .single();
+        .maybeSingle();
       if (error) throw error;
+      if (!data) {
+        throw new Error('Failed to create cost item');
+      }
       return { data, entityType, entityId };
     },
     onSuccess: ({ entityType, entityId }) => {
@@ -242,7 +254,7 @@ export function useUpdateCostItem() {
           .from('scope_block_cost_items')
           .select('quantity, unit_price, markup_percent')
           .eq('id', id)
-          .single();
+          .maybeSingle();
         
         if (current) {
           const qty = updates.quantity ?? current.quantity;
@@ -260,8 +272,11 @@ export function useUpdateCostItem() {
         .update(finalUpdates)
         .eq('id', id)
         .select()
-        .single();
+        .maybeSingle();
       if (error) throw error;
+      if (!data) {
+        throw new Error('Cost item not found');
+      }
       return { data, entityType, entityId };
     },
     onSuccess: ({ entityType, entityId }) => {

@@ -51,8 +51,11 @@ export function useUpsertProposalSettings() {
           onConflict: 'company_id,setting_type',
         })
         .select()
-        .single();
+        .maybeSingle();
       if (error) throw error;
+      if (!data) {
+        throw new Error('Failed to save settings');
+      }
       return data;
     },
     onSuccess: () => {

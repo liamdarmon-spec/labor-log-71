@@ -319,8 +319,11 @@ export function useCreateCustomerPayment() {
         .from("customer_payments")
         .insert(payment)
         .select()
-        .single();
+        .maybeSingle();
       if (error) throw error;
+      if (!data) {
+        throw new Error('Failed to create customer payment');
+      }
       return data;
     },
     onSuccess: (_, variables) => {

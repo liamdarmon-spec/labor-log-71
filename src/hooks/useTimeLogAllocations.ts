@@ -42,9 +42,12 @@ export function useCreateAllocation() {
         .from('time_log_allocations')
         .insert(allocation)
         .select()
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
+      if (!data) {
+        throw new Error('Failed to create allocation');
+      }
       return data;
     },
     onSuccess: (_, variables) => {

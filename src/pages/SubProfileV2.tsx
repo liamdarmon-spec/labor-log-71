@@ -28,8 +28,11 @@ export default function SubProfileV2() {
         .from('subs')
         .select('*, trades(id, name)')
         .eq('id', id!)
-        .single();
+        .maybeSingle();
       if (error) throw error;
+      if (!data) {
+        throw new Error('Subcontractor not found');
+      }
       return data;
     },
   });

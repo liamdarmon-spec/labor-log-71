@@ -207,9 +207,12 @@ export function useProjectChecklist(checklistId?: string) {
         .from('project_checklists')
         .select('*, items:project_checklist_items(*)')
         .eq('id', checklistId!)
-        .single();
+        .maybeSingle();
       
       if (error) throw error;
+      if (!data) {
+        throw new Error('Checklist not found');
+      }
       return data as ProjectChecklist;
     },
     enabled: !!checklistId,
@@ -274,9 +277,12 @@ export function useGenerateChecklists() {
             progress_cached: 0,
           })
           .select()
-          .single();
+          .maybeSingle();
         
         if (checklistError) throw checklistError;
+        if (!checklist) {
+          throw new Error('Failed to create checklist');
+        }
         
         // Create checklist items
         const items = (template.items || []).map((item: ChecklistTemplateItem) => ({
@@ -375,7 +381,7 @@ export function useAddChecklistItem() {
         .eq('project_checklist_id', checklistId)
         .order('sort_order', { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
       
       const nextOrder = (existing?.sort_order ?? 0) + 1;
       
@@ -388,9 +394,12 @@ export function useAddChecklistItem() {
           required,
         })
         .select()
-        .single();
+        .maybeSingle();
       
       if (error) throw error;
+      if (!data) {
+        throw new Error('Failed to create checklist item');
+      }
       return data;
     },
     onSuccess: () => {

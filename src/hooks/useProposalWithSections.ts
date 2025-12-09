@@ -42,9 +42,12 @@ export function useProposalWithSections(proposalId?: string) {
           )
         `)
         .eq('id', proposalId)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
+      if (!data) {
+        throw new Error('Proposal not found');
+      }
       
       // Sort sections by sort_order
       if (data?.proposal_sections) {

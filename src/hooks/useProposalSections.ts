@@ -46,9 +46,12 @@ export function useCreateProposalSection() {
         .from('proposal_sections')
         .insert([section])
         .select()
-        .single();
+        .maybeSingle();
       
       if (error) throw error;
+      if (!data) {
+        throw new Error('Failed to create proposal section');
+      }
       return data;
     },
     onSuccess: (data) => {
@@ -71,9 +74,12 @@ export function useUpdateProposalSection() {
         .update(updates)
         .eq('id', id)
         .select()
-        .single();
+        .maybeSingle();
       
       if (error) throw error;
+      if (!data) {
+        throw new Error('Proposal section not found');
+      }
       return data;
     },
     onSuccess: (data) => {

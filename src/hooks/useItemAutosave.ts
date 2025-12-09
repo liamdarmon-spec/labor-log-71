@@ -83,7 +83,7 @@ export function useItemAutosave(estimateId: string | undefined) {
           .from("scope_block_cost_items")
           .select("quantity, unit_price, markup_percent")
           .eq("id", id)
-          .single();
+          .maybeSingle();
 
         if (current) {
           const qty = fields.quantity ?? current.quantity ?? 0;
@@ -98,9 +98,12 @@ export function useItemAutosave(estimateId: string | undefined) {
         .update(finalFields)
         .eq("id", id)
         .select()
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
+      if (!data) {
+        throw new Error('Cost item not found');
+      }
       return { id, data };
     },
     onMutate: async (update) => {

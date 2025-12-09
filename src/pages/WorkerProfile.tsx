@@ -25,12 +25,13 @@ const WorkerProfile = () => {
       if (!workerId) return null;
 
       // Fetch worker details
-      const { data: worker } = await supabase
+      const { data: worker, error: workerError } = await supabase
         .from('workers')
         .select('*, trades(name)')
         .eq('id', workerId)
-        .single();
+        .maybeSingle();
 
+      if (workerError) throw workerError;
       if (!worker) return null;
 
       // Fetch this month's hours

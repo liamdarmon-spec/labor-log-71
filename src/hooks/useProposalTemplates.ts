@@ -38,9 +38,12 @@ export function useCreateProposalTemplate() {
         .from('proposal_templates')
         .insert([template])
         .select()
-        .single();
+        .maybeSingle();
       
       if (error) throw error;
+      if (!data) {
+        throw new Error('Failed to create proposal template');
+      }
       return data;
     },
     onSuccess: () => {

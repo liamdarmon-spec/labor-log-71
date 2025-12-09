@@ -38,7 +38,10 @@ export function SubDetailDrawer({
         .from('subs')
         .select('*, trades(name)')
         .eq('id', subId)
-        .single();
+        .maybeSingle();
+      if (!data) {
+        throw new Error('Subcontractor not found');
+      }
       return data;
     },
     enabled: open,

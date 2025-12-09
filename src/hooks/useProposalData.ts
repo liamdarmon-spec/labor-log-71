@@ -131,7 +131,7 @@ export function useProposalData(proposalId: string | undefined) {
           projects (id, project_name, client_name, address)
         `)
         .eq('id', proposalId)
-        .single();
+        .maybeSingle();
 
       if (proposalError) throw proposalError;
       if (!proposal) return null;
@@ -143,7 +143,7 @@ export function useProposalData(proposalId: string | undefined) {
           .from('estimates')
           .select('id, title, total_amount, subtotal_amount, tax_amount, updated_at')
           .eq('id', proposal.primary_estimate_id)
-          .single();
+          .maybeSingle();
         estimate = estData;
       }
 
@@ -260,9 +260,12 @@ export function useUpdateProposalField() {
         .update({ [field]: value, updated_at: new Date().toISOString() })
         .eq('id', id)
         .select()
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
+      if (!data) {
+        throw new Error('Proposal not found');
+      }
       return data;
     },
     onSuccess: (data) => {
@@ -291,7 +294,7 @@ export function useUpdateProposalSettings() {
         .from('proposals')
         .select('settings')
         .eq('id', id)
-        .single();
+        .maybeSingle();
 
       const currentSettings = (current?.settings && typeof current.settings === 'object') 
         ? current.settings as Record<string, unknown>
@@ -309,9 +312,12 @@ export function useUpdateProposalSettings() {
         .update({ settings: mergedSettings as any, updated_at: new Date().toISOString() })
         .eq('id', id)
         .select()
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
+      if (!data) {
+        throw new Error('Proposal not found');
+      }
       return data;
     },
     onSuccess: (data) => {
@@ -333,7 +339,7 @@ export function useRefreshProposalFromEstimate() {
         .from('proposals')
         .select('primary_estimate_id')
         .eq('id', proposalId)
-        .single();
+        .maybeSingle();
 
       if (!proposal?.primary_estimate_id) {
         throw new Error('No estimate linked to this proposal');
@@ -344,7 +350,7 @@ export function useRefreshProposalFromEstimate() {
         .from('estimates')
         .select('subtotal_amount, tax_amount, total_amount')
         .eq('id', proposal.primary_estimate_id)
-        .single();
+        .maybeSingle();
 
       if (!estimate) {
         throw new Error('Estimate not found');
@@ -361,9 +367,12 @@ export function useRefreshProposalFromEstimate() {
         })
         .eq('id', proposalId)
         .select()
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
+      if (!data) {
+        throw new Error('Proposal not found');
+      }
       return data;
     },
     onSuccess: (data) => {

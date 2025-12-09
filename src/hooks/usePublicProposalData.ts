@@ -43,7 +43,7 @@ export function usePublicProposalData(token: string | undefined) {
           projects (id, project_name, client_name, address)
         `)
         .eq('public_token', token)
-        .single();
+        .maybeSingle();
 
       if (proposalError) throw proposalError;
       if (!proposal) return null;
@@ -60,7 +60,7 @@ export function usePublicProposalData(token: string | undefined) {
           .from('estimates')
           .select('id, title, total_amount, subtotal_amount, tax_amount, updated_at')
           .eq('id', proposal.primary_estimate_id)
-          .single();
+          .maybeSingle();
         estimate = estData;
       }
 

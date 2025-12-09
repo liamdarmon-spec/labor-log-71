@@ -51,8 +51,11 @@ export function useEstimateV2(estimateId: string) {
         .from('estimates')
         .select('*, projects(project_name, client_name, address)')
         .eq('id', estimateId)
-        .single();
+        .maybeSingle();
       if (error) throw error;
+      if (!data) {
+        throw new Error('Estimate not found');
+      }
       return data;
     },
   });
@@ -67,8 +70,11 @@ export function useCreateEstimateV2() {
         .from('estimates')
         .insert([estimate as any])
         .select()
-        .single();
+        .maybeSingle();
       if (error) throw error;
+      if (!data) {
+        throw new Error('Failed to create estimate');
+      }
 
       // Log creation
       await supabase.from('entity_change_log').insert({
@@ -102,8 +108,11 @@ export function useUpdateEstimateV2() {
         .update(updates)
         .eq('id', id)
         .select()
-        .single();
+        .maybeSingle();
       if (error) throw error;
+      if (!data) {
+        throw new Error('Estimate not found');
+      }
 
       // Log update
       await supabase.from('entity_change_log').insert({
@@ -138,8 +147,11 @@ export function useDuplicateEstimateV2() {
         .from('estimates')
         .select('*')
         .eq('id', estimateId)
-        .single();
+        .maybeSingle();
       if (fetchError) throw fetchError;
+      if (!original) {
+        throw new Error('Estimate not found');
+      }
 
       // Create new version
       const newVersion = (original.version || 1) + 1;
@@ -156,8 +168,11 @@ export function useDuplicateEstimateV2() {
           updated_at: undefined,
         })
         .select()
-        .single();
+        .maybeSingle();
       if (createError) throw createError;
+      if (!newEstimate) {
+        throw new Error('Failed to duplicate estimate');
+      }
 
       // Duplicate scope blocks
       const { data: blocks } = await supabase
@@ -178,7 +193,7 @@ export function useDuplicateEstimateV2() {
               updated_at: undefined,
             })
             .select()
-            .single();
+            .maybeSingle();
 
           if (newBlock && block.scope_block_cost_items?.length > 0) {
             await supabase.from('scope_block_cost_items').insert(
@@ -229,8 +244,11 @@ export function useApproveEstimateV2() {
         })
         .eq('id', estimateId)
         .select()
-        .single();
+        .maybeSingle();
       if (error) throw error;
+      if (!data) {
+        throw new Error('Estimate not found');
+      }
 
       // Log approval
       await supabase.from('entity_change_log').insert({

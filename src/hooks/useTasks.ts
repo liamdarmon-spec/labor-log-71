@@ -158,9 +158,12 @@ export function useCreateTask() {
           assigned_worker_id: task.assigned_worker_id || null,
         })
         .select()
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
+      if (!data) {
+        throw new Error('Failed to create task');
+      }
       return data;
     },
     onSuccess: () => {
@@ -208,9 +211,12 @@ export function useUpdateTask() {
         .update(updateData)
         .eq('id', id)
         .select()
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
+      if (!data) {
+        throw new Error('Task not found');
+      }
       return data;
     },
     onSuccess: () => {

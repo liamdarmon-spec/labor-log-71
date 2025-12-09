@@ -27,9 +27,12 @@ export function useUpdateBudgetLine(projectId: string) {
         .update(fields)
         .eq('id', id)
         .select()
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
+      if (!data) {
+        throw new Error('Budget line not found');
+      }
       return data;
     },
     onSuccess: () => {

@@ -52,9 +52,12 @@ serve(async (req) => {
       .from('documents')
       .select('*')
       .eq('id', documentId)
-      .single();
+      .maybeSingle();
 
-    if (docError || !document) {
+    if (docError) {
+      throw new Error(`Failed to fetch document: ${docError.message}`);
+    }
+    if (!document) {
       throw new Error('Document not found');
     }
 

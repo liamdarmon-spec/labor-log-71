@@ -59,9 +59,12 @@ export function useCreateMaterialVendor() {
         .from('material_vendors')
         .insert([vendor])
         .select()
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
+      if (!data) {
+        throw new Error('Failed to create material vendor');
+      }
       return data;
     },
     onSuccess: () => {
@@ -92,9 +95,12 @@ export function useUpdateMaterialVendor() {
         .update(updates)
         .eq('id', id)
         .select()
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
+      if (!data) {
+        throw new Error('Material vendor not found');
+      }
       return data;
     },
     onSuccess: () => {

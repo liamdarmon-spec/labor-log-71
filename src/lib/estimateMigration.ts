@@ -123,9 +123,12 @@ export async function migrateEstimateToScopeBlocks(estimateId: string): Promise<
           sort_order: 0,
         })
         .select()
-        .single();
+        .maybeSingle();
 
       if (createBlockError) throw createBlockError;
+      if (!newBlock) {
+        throw new Error('Failed to create scope block');
+      }
       scopeBlockId = newBlock.id;
     }
 

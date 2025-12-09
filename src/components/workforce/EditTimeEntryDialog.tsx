@@ -255,7 +255,7 @@ export function EditTimeEntryDialog({
           .from("projects")
           .select("company_id")
           .eq("id", allocations[0].project_id)
-          .single();
+          .maybeSingle();
 
         if (firstProject.error) throw firstProject.error;
 

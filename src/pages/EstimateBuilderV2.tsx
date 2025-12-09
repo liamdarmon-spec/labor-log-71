@@ -185,8 +185,11 @@ export default function EstimateBuilderV2() {
         .from("estimates")
         .select("*, projects(id, project_name)")
         .eq("id", estimateId!)
-        .single();
+        .maybeSingle();
       if (error) throw error;
+      if (!data) {
+        throw new Error('Estimate not found');
+      }
       return data as Estimate;
     },
     enabled: !!estimateId,
@@ -268,19 +271,22 @@ export default function EstimateBuilderV2() {
   // Auto-create first scope block if none exist
   const createFirstBlock = useMutation({
     mutationFn: async () => {
-      const { data, error } = await supabase
-        .from("scope_blocks")
-        .insert({
-          entity_type: "estimate",
-          entity_id: estimateId!,
-          block_type: "cost_items",
-          title: "New Section",
-          sort_order: 0,
-        })
-        .select()
-        .single();
-      if (error) throw error;
-      return data;
+        const { data, error } = await supabase
+          .from("scope_blocks")
+          .insert({
+            entity_type: "estimate",
+            entity_id: estimateId!,
+            block_type: "cost_items",
+            title: "New Section",
+            sort_order: 0,
+          })
+          .select()
+          .maybeSingle();
+        if (error) throw error;
+        if (!data) {
+          throw new Error('Failed to create scope block');
+        }
+        return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["scope-blocks", "estimate", estimateId] });
@@ -352,8 +358,11 @@ export default function EstimateBuilderV2() {
           sort_order: maxOrder + 1,
         })
         .select()
-        .single();
+        .maybeSingle();
       if (error) throw error;
+      if (!data) {
+        throw new Error('Failed to create scope block');
+      }
       return data;
     },
     onSuccess: () => {

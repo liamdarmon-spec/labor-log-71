@@ -74,9 +74,12 @@ export function useCreateInvoice() {
         .from('invoices')
         .insert(invoice)
         .select()
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
+      if (!data) {
+        throw new Error('Failed to create invoice');
+      }
       return data;
     },
     onSuccess: () => {
@@ -95,9 +98,12 @@ export function useUpdateInvoice() {
         .update(updates)
         .eq('id', id)
         .select()
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
+      if (!data) {
+        throw new Error('Invoice not found');
+      }
       return data;
     },
     onSuccess: () => {

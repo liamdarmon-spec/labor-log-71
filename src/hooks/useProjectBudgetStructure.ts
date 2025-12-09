@@ -95,9 +95,12 @@ export function useProjectBudgetStructure(projectId: string | undefined) {
             status: 'draft',
           })
           .select('*')
-          .single();
+          .maybeSingle();
 
         if (createError) throw createError;
+        if (!created) {
+          throw new Error('Failed to create budget');
+        }
         budgetId = created.id;
       }
 
@@ -159,9 +162,12 @@ export function useProjectBudgetStructure(projectId: string | undefined) {
           name: payload.name,
         })
         .select('*')
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
+      if (!data) {
+        throw new Error('Failed to create budget group');
+      }
       return data as ProjectBudgetGroup;
     },
     onSuccess: invalidate,
@@ -174,9 +180,12 @@ export function useProjectBudgetStructure(projectId: string | undefined) {
         .update(payload.patch)
         .eq('id', payload.id)
         .select('*')
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
+      if (!data) {
+        throw new Error('Budget group not found');
+      }
       return data as ProjectBudgetGroup;
     },
     onSuccess: invalidate,
@@ -237,9 +246,12 @@ export function useProjectBudgetStructure(projectId: string | undefined) {
           cost_code_id: unassignedId,
         }])
         .select('*')
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
+      if (!data) {
+        throw new Error('Failed to create budget line');
+      }
       return data as ProjectBudgetLine;
     },
     onSuccess: invalidate,
@@ -252,9 +264,12 @@ export function useProjectBudgetStructure(projectId: string | undefined) {
         .update(payload.patch)
         .eq('id', payload.id)
         .select('*')
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
+      if (!data) {
+        throw new Error('Budget line not found');
+      }
       return data as ProjectBudgetLine;
     },
     onSuccess: invalidate,
@@ -282,9 +297,12 @@ export function useProjectBudgetStructure(projectId: string | undefined) {
         })
         .eq('id', payload.id)
         .select('*')
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
+      if (!data) {
+        throw new Error('Budget line not found');
+      }
       return data as ProjectBudgetLine;
     },
     onSuccess: invalidate,

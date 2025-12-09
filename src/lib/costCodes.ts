@@ -15,9 +15,12 @@ export async function getUnassignedCostCodeId(): Promise<string> {
     .from('cost_codes')
     .select('id')
     .eq('code', 'UNASSIGNED')
-    .single();
+    .maybeSingle();
 
-  if (error || !data) {
+  if (error) {
+    throw new Error(`Failed to fetch UNASSIGNED cost code: ${error.message}`);
+  }
+  if (!data) {
     throw new Error('UNASSIGNED cost code not found');
   }
 

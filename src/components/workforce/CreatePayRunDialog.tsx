@@ -172,7 +172,7 @@ export function CreatePayRunDialog({
           status: 'draft',
         })
         .select()
-        .single();
+        .maybeSingle();
 
       if (payRunError) {
         console.error('Error creating pay run:', payRunError);

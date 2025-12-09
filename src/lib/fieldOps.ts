@@ -149,9 +149,12 @@ export async function createScheduleShift(input: CreateScheduleInput) {
       created_by: input.created_by || null
     })
     .select()
-    .single();
+    .maybeSingle();
 
   if (error) throw error;
+  if (!data) {
+    throw new Error('Failed to create schedule shift');
+  }
   return data;
 }
 
@@ -178,9 +181,12 @@ export async function updateScheduleShift(scheduleId: string, patch: UpdateSched
     .update(updateData)
     .eq('id', scheduleId)
     .select()
-    .single();
+    .maybeSingle();
 
   if (error) throw error;
+  if (!data) {
+    throw new Error('Schedule shift not found');
+  }
   return data;
 }
 

@@ -52,8 +52,11 @@ export function useCreateSOVItem() {
         .from('schedule_of_values')
         .insert([item as any])
         .select()
-        .single();
+        .maybeSingle();
       if (error) throw error;
+      if (!data) {
+        throw new Error('Failed to create SOV item');
+      }
       return data;
     },
     onSuccess: (data) => {
@@ -93,8 +96,11 @@ export function useUpdateSOVItem() {
         .update(calculated)
         .eq('id', id)
         .select()
-        .single();
+        .maybeSingle();
       if (error) throw error;
+      if (!data) {
+        throw new Error('SOV item not found');
+      }
       return { data, projectId };
     },
     onSuccess: ({ data, projectId }) => {
@@ -198,8 +204,11 @@ export function useCreateCustomerPayment() {
         .from('customer_payments')
         .insert([payment as any])
         .select()
-        .single();
+        .maybeSingle();
       if (error) throw error;
+      if (!data) {
+        throw new Error('Failed to create customer payment');
+      }
       return data;
     },
     onSuccess: (data) => {

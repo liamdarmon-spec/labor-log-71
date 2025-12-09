@@ -22,7 +22,7 @@ export function useFinancialSummary() {
       const { data, error } = await supabase
         .from('global_financial_summary_view')
         .select('*')
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
 

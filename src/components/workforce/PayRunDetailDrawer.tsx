@@ -75,9 +75,12 @@ export function PayRunDetailDrawer({ payRunId, open, onOpenChange, onSuccess }: 
           payee_company:companies!labor_pay_runs_payee_company_id_fkey(name)
         `)
         .eq('id', payRunId)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
+      if (!data) {
+        throw new Error('Pay run not found');
+      }
       return data;
     },
     enabled: !!payRunId && open,

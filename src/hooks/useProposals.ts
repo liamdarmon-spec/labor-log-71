@@ -75,8 +75,11 @@ export function useProposal(proposalId: string) {
           )
         `)
         .eq('id', proposalId)
-        .single();
+        .maybeSingle();
       if (error) throw error;
+      if (!data) {
+        throw new Error('Proposal not found');
+      }
       return data;
     },
   });
@@ -91,8 +94,11 @@ export function useCreateProposal() {
         .from('proposals')
         .insert([proposal])
         .select()
-        .single();
+        .maybeSingle();
       if (error) throw error;
+      if (!data) {
+        throw new Error('Failed to create proposal');
+      }
       return data;
     },
     onSuccess: () => {
@@ -116,8 +122,11 @@ export function useUpdateProposal() {
         .update(updates)
         .eq('id', id)
         .select()
-        .single();
+        .maybeSingle();
       if (error) throw error;
+      if (!data) {
+        throw new Error('Proposal not found');
+      }
       return data;
     },
     onSuccess: (data) => {
@@ -162,8 +171,11 @@ export function useUpdateProposalStatus() {
         .update(updates)
         .eq('id', id)
         .select()
-        .single();
+        .maybeSingle();
       if (error) throw error;
+      if (!data) {
+        throw new Error('Proposal not found');
+      }
       return data;
     },
     onSuccess: (data) => {

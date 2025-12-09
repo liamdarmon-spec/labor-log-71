@@ -73,9 +73,12 @@ export default function ProposalEditor() {
         .from('proposals')
         .select('*')
         .eq('id', proposalId)
-        .single();
+        .maybeSingle();
 
       if (proposalError) throw proposalError;
+      if (!proposalData) {
+        throw new Error('Proposal not found');
+      }
       setProposal(proposalData);
 
       const { data: sectionsData, error: sectionsError } = await supabase
@@ -172,9 +175,12 @@ export default function ProposalEditor() {
           is_lump_sum: false,
         })
         .select('*, proposal_section_items(*)')
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
+      if (!data) {
+        throw new Error('Failed to create proposal section');
+      }
       setSections([...sections, data]);
     } catch (error) {
       console.error('Error adding section:', error);

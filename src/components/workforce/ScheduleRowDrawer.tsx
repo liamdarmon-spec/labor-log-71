@@ -44,7 +44,10 @@ export function ScheduleRowDrawer({
           trades(name)
         `)
         .eq('id', scheduleId)
-        .single();
+        .maybeSingle();
+      if (!data) {
+        throw new Error('Schedule not found');
+      }
       return data;
     },
     enabled: open,

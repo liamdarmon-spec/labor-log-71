@@ -234,7 +234,7 @@ const Payments = () => {
         .from('payments')
         .insert([paymentData])
         .select()
-        .single();
+        .maybeSingle();
 
       if (error) {
         toast({
