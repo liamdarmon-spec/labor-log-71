@@ -25,6 +25,27 @@ export function MonthlyScheduleView({
 }: MonthlyScheduleViewProps) {
   const currentMonth = externalMonth || new Date();
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedMeetingId, setSelectedMeetingId] = useState<string | null>(null);
+
+  // Handle clicking a meeting - opens the day dialog with meeting highlighted
+  const handleMeetingClick = (meetingId: string, meetingDate: Date) => {
+    setSelectedMeetingId(meetingId);
+    setSelectedDate(meetingDate);
+  };
+
+  // Handle clicking the day card background - opens day dialog without specific meeting
+  const handleDayClick = (day: Date) => {
+    setSelectedMeetingId(null);
+    setSelectedDate(day);
+  };
+
+  // Reset meeting ID when dialog closes
+  const handleDialogClose = (open: boolean) => {
+    if (!open) {
+      setSelectedDate(null);
+      setSelectedMeetingId(null);
+    }
+  };
 
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
@@ -97,7 +118,7 @@ export function MonthlyScheduleView({
                     isWeekendDay && isCurrentMonth && "bg-muted/20",
                     hasConflicts && "border-orange-400 border-2"
                   )}
-                  onClick={() => setSelectedDate(day)}
+                  onClick={() => handleDayClick(day)}
                 >
                   {/* Day Number and Today Badge */}
                   <div className="flex items-start justify-between mb-1 sm:mb-2">
@@ -165,7 +186,15 @@ export function MonthlyScheduleView({
                       return (
                         <div
                           key={assignment.id}
-                          className="text-[8px] sm:text-[9px] bg-muted/60 px-1 sm:px-1.5 py-0.5 rounded truncate font-medium flex items-center gap-1"
+                          className="text-[8px] sm:text-[9px] bg-muted/60 px-1 sm:px-1.5 py-0.5 rounded truncate font-medium flex items-center gap-1 cursor-pointer hover:bg-muted"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (assignment.type === 'meeting') {
+                              handleMeetingClick(assignment.id, day);
+                            } else {
+                              handleDayClick(day);
+                            }
+                          }}
                         >
                           {projectColor && (
                             <span 
@@ -195,16 +224,18 @@ export function MonthlyScheduleView({
 
       <UniversalDayDetailDialog
         open={!!selectedDate}
-        onOpenChange={(open) => !open && setSelectedDate(null)}
+        onOpenChange={handleDialogClose}
         date={selectedDate}
         onRefresh={() => {}}
         onAddSchedule={() => {
           if (selectedDate) {
             onDayClick(selectedDate);
             setSelectedDate(null);
+            setSelectedMeetingId(null);
           }
         }}
-        scheduleType={scheduleType === 'all' ? 'all' : scheduleType === 'workers' ? 'labor' : scheduleType === 'subs' ? 'sub' : 'all'}
+        scheduleType={scheduleType === 'all' ? 'all' : scheduleType === 'workers' ? 'labor' : scheduleType === 'subs' ? 'sub' : 'meeting'}
+        initialMeetingId={selectedMeetingId}
       />
     </div>
   );

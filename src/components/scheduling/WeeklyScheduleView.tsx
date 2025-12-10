@@ -7,9 +7,6 @@ import { UniversalDayDetailDialog } from "./UniversalDayDetailDialog";
 import { useSchedulerData } from "@/lib/scheduler/useSchedulerData";
 import type { SchedulerFilterMode } from "@/lib/scheduler/types";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
 import { getProjectColor } from "@/lib/utils/projectColors";
 import { cn } from "@/lib/utils";
 
@@ -31,9 +28,6 @@ export function WeeklyScheduleView({
   const currentWeekStart = externalWeekStart || new Date();
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedMeetingId, setSelectedMeetingId] = useState<string | null>(null);
-  const [meetingDetails, setMeetingDetails] = useState<any>(null);
-  const [loadingMeeting, setLoadingMeeting] = useState(false);
-  const { toast } = useToast();
 
   const weekEnd = endOfWeek(currentWeekStart, { weekStartsOn: 0 });
   
@@ -48,33 +42,23 @@ export function WeeklyScheduleView({
 
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(currentWeekStart, i));
 
-  const handleMeetingClick = async (meetingId: string) => {
+  // Handle clicking a meeting badge - opens the day dialog with meeting highlighted
+  const handleMeetingClick = (meetingId: string, meetingDate: Date) => {
     setSelectedMeetingId(meetingId);
-    setLoadingMeeting(true);
-    
-    try {
-      const { data, error } = await supabase
-        .from('project_todos')
-        .select(`
-          *,
-          projects:project_id (project_name),
-          workers:assigned_worker_id (name)
-        `)
-        .eq('id', meetingId)
-        .single();
+    setSelectedDate(meetingDate);
+  };
 
-      if (error) throw error;
-      setMeetingDetails(data);
-    } catch (error) {
-      console.error('Error fetching meeting details:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load meeting details",
-        variant: "destructive",
-      });
+  // Handle clicking the day card background - opens day dialog without specific meeting
+  const handleDayClick = (day: Date) => {
+    setSelectedMeetingId(null);
+    setSelectedDate(day);
+  };
+
+  // Reset meeting ID when dialog closes
+  const handleDialogClose = (open: boolean) => {
+    if (!open) {
+      setSelectedDate(null);
       setSelectedMeetingId(null);
-    } finally {
-      setLoadingMeeting(false);
     }
   };
 
@@ -142,7 +126,7 @@ export function WeeklyScheduleView({
                 isEmpty && "bg-muted/10",
                 hasConflicts && "border-orange-400 border-2"
               )}
-              onClick={() => setSelectedDate(day)}
+              onClick={() => handleDayClick(day)}
             >
               {/* Today floating pill */}
               {isToday && (
@@ -222,13 +206,16 @@ export function WeeklyScheduleView({
                           key={assignment.id}
                           variant="secondary"
                           className={cn(
-                            "w-full justify-start text-[10px] truncate py-1 gap-1.5",
-                            assignment.type === 'meeting' && 'cursor-pointer hover:bg-secondary/80'
+                            "w-full justify-start text-[10px] truncate py-1 gap-1.5 cursor-pointer hover:bg-secondary/80"
                           )}
                           onClick={(e) => {
+                            e.stopPropagation();
+                            // All assignment types now open the universal day dialog
+                            // For meetings, pass the meeting ID to highlight it
                             if (assignment.type === 'meeting') {
-                              e.stopPropagation();
-                              handleMeetingClick(assignment.id);
+                              handleMeetingClick(assignment.id, day);
+                            } else {
+                              handleDayClick(day);
                             }
                           }}
                         >
@@ -267,9 +254,10 @@ export function WeeklyScheduleView({
         })}
       </div>
 
+      {/* Single unified day dialog - handles both schedules and meetings */}
       <UniversalDayDetailDialog
         open={!!selectedDate}
-        onOpenChange={(open) => !open && setSelectedDate(null)}
+        onOpenChange={handleDialogClose}
         date={selectedDate}
         projectId={projectId}
         onRefresh={() => {}}
@@ -277,76 +265,12 @@ export function WeeklyScheduleView({
           if (selectedDate) {
             onScheduleClick(selectedDate);
             setSelectedDate(null);
+            setSelectedMeetingId(null);
           }
         }}
-        scheduleType={scheduleType === 'all' ? 'all' : scheduleType === 'workers' ? 'labor' : scheduleType === 'subs' ? 'sub' : 'all'}
+        scheduleType={scheduleType === 'all' ? 'all' : scheduleType === 'workers' ? 'labor' : scheduleType === 'subs' ? 'sub' : 'meeting'}
+        initialMeetingId={selectedMeetingId}
       />
-
-      <Dialog open={!!selectedMeetingId} onOpenChange={(open) => !open && setSelectedMeetingId(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Event Details</DialogTitle>
-          </DialogHeader>
-          {loadingMeeting ? (
-            <div className="flex items-center justify-center p-8">
-              <Loader2 className="h-6 w-6 animate-spin" />
-            </div>
-          ) : meetingDetails ? (
-            <div className="space-y-4">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Title</p>
-                <p className="text-lg font-semibold">{meetingDetails.title}</p>
-              </div>
-              
-              {meetingDetails.projects && (
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Project</p>
-                  <div className="flex items-center gap-2">
-                    <span 
-                      className="h-3 w-3 rounded-full"
-                      style={{ backgroundColor: getProjectColor(meetingDetails.projects.project_name) }}
-                    />
-                    <p>{meetingDetails.projects.project_name}</p>
-                  </div>
-                </div>
-              )}
-              
-              {meetingDetails.description && (
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Description</p>
-                  <p className="text-sm">{meetingDetails.description}</p>
-                </div>
-              )}
-              
-              {meetingDetails.due_date && (
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Due Date</p>
-                  <p>{format(new Date(meetingDetails.due_date), "PPP")}</p>
-                </div>
-              )}
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Status</p>
-                  <Badge variant="secondary">{meetingDetails.status}</Badge>
-                </div>
-                
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Priority</p>
-                  <Badge variant="secondary">{meetingDetails.priority}</Badge>
-                </div>
-              </div>
-              
-              {meetingDetails.workers && (
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Assigned To</p>
-                  <p>{meetingDetails.workers.name}</p>
-                </div>
-              )}
-            </div>
-          ) : null}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

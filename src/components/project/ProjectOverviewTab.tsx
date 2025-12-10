@@ -4,19 +4,129 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { format, startOfWeek, endOfWeek, subDays } from 'date-fns';
-import { CheckSquare, CalendarDays, Plus } from 'lucide-react';
+import { CheckSquare, CalendarDays, Plus, AlertTriangle, HardHat, ArrowRight } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 import { ActionRow, ActionRowProps } from '@/components/project-hub/ActionRow';
 import { WeeklySummary, WeeklySummaryProps } from '@/components/project-hub/WeeklySummary';
 import { BudgetMiniOverview, BudgetMiniOverviewProps, BudgetCategorySummary } from '@/components/project-hub/BudgetMiniOverview';
 import { WorkforceMiniTable, WorkforceMiniTableProps, WorkforceRow } from '@/components/project-hub/WorkforceMiniTable';
 import { ProjectFeed } from '@/components/project-hub/ProjectFeed';
-import { useProjectTaskCounts } from '@/hooks/useTasks';
+import { useProjectStats } from '@/hooks/useProjectStats';
 
 import { CreateTaskDialog } from '@/components/tasks/CreateTaskDialog';
 import { AddToScheduleDialog } from '@/components/scheduling/AddToScheduleDialog';
 import { AddCostDialog } from '@/components/financials/AddCostDialog';
+
+// Alert Banner Component for budget issues
+interface AlertBannerProps {
+  type: 'warning' | 'critical' | 'info';
+  title: string;
+  description: string;
+  action?: {
+    label: string;
+    onClick: () => void;
+  };
+}
+
+function AlertBanner({ type, title, description, action }: AlertBannerProps) {
+  const styles = {
+    critical: 'bg-red-50 border-red-200 dark:bg-red-950/30 dark:border-red-900/50',
+    warning: 'bg-orange-50 border-orange-200 dark:bg-orange-950/30 dark:border-orange-900/50',
+    info: 'bg-blue-50 border-blue-200 dark:bg-blue-950/30 dark:border-blue-900/50',
+  };
+  
+  const iconStyles = {
+    critical: 'text-red-600 dark:text-red-400',
+    warning: 'text-orange-600 dark:text-orange-400',
+    info: 'text-blue-600 dark:text-blue-400',
+  };
+
+  return (
+    <Card className={cn("border rounded-xl", styles[type])}>
+      <CardContent className="p-3 flex items-center gap-3">
+        <AlertTriangle className={cn("w-5 h-5 flex-shrink-0", iconStyles[type])} />
+        <div className="flex-1 min-w-0">
+          <p className="font-medium text-sm">{title}</p>
+          <p className="text-xs text-muted-foreground">{description}</p>
+        </div>
+        {action && (
+          <Button 
+            size="sm" 
+            variant="outline" 
+            onClick={action.onClick}
+            className="gap-1 text-xs h-7 flex-shrink-0"
+          >
+            {action.label}
+            <ArrowRight className="w-3 h-3" />
+          </Button>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// Today's Crew Component
+interface TodayCrewMember {
+  id: string;
+  name: string;
+  trade: string | null;
+  scheduledHours: number;
+}
+
+function TodaysCrewSection({ 
+  crew, 
+  onViewSchedule 
+}: { 
+  crew: TodayCrewMember[]; 
+  onViewSchedule: () => void;
+}) {
+  if (crew.length === 0) return null;
+
+  return (
+    <Card className="border-primary/20 bg-primary/5 rounded-xl">
+      <CardContent className="p-3">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <HardHat className="w-4 h-4 text-primary" />
+            <span className="font-medium text-sm">On Site Today</span>
+            <span className="text-xs text-muted-foreground">
+              ({crew.reduce((sum, c) => sum + c.scheduledHours, 0)}h scheduled)
+            </span>
+          </div>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={onViewSchedule}
+            className="text-xs h-6 px-2"
+          >
+            View Schedule
+          </Button>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {crew.map((member) => (
+            <div 
+              key={member.id}
+              className="flex items-center gap-2 px-3 py-1.5 bg-background rounded-full border text-sm"
+            >
+              <span className="font-medium">{member.name}</span>
+              {member.trade && (
+                <span className="text-xs text-muted-foreground">
+                  {member.trade}
+                </span>
+              )}
+              <span className="text-xs text-primary font-medium">
+                {member.scheduledHours}h
+              </span>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 interface ProjectOverviewTabProps {
   projectId: string;
@@ -37,26 +147,14 @@ export function ProjectOverviewTab({ projectId }: ProjectOverviewTabProps) {
 
   // ========== DATA QUERIES ==========
 
-  // Schedule health + weekly data
-  const { data: scheduleData, isLoading: loadingSchedule } = useQuery({
-    queryKey: ['project-overview-schedule', projectId, weekStart],
+  // Use the RPC-based hook for project stats
+  const { data: stats, isLoading: loadingStats } = useProjectStats(projectId);
+
+  // Schedule hours for this week (RPC doesn't include this breakdown)
+  const { data: weeklyScheduleData, isLoading: loadingSchedule } = useQuery({
+    queryKey: ['project-overview-weekly-schedule', projectId, weekStart],
     queryFn: async () => {
-      const [pastSchedules, pastLogs, todaySchedule, weekSchedule, weekLogs] = await Promise.all([
-        supabase
-          .from('work_schedules')
-          .select('scheduled_date')
-          .eq('project_id', projectId)
-          .lt('scheduled_date', today),
-        supabase
-          .from('time_logs')
-          .select('date')
-          .eq('project_id', projectId)
-          .lt('date', today),
-        supabase
-          .from('work_schedules')
-          .select('worker_id, scheduled_hours')
-          .eq('project_id', projectId)
-          .eq('scheduled_date', today),
+      const [weekSchedule, weekLogs] = await Promise.all([
         supabase
           .from('work_schedules')
           .select('scheduled_hours')
@@ -71,17 +169,10 @@ export function ProjectOverviewTab({ projectId }: ProjectOverviewTabProps) {
           .lte('date', weekEnd),
       ]);
 
-      const scheduledDays = new Set(pastSchedules.data?.map(s => s.scheduled_date) || []).size;
-      const loggedDays = new Set(pastLogs.data?.map(l => l.date) || []).size;
-      const scheduleHealthPercent = scheduledDays > 0 ? (loggedDays / scheduledDays) * 100 : null;
-
-      const workersToday = new Set(todaySchedule.data?.map(s => s.worker_id) || []).size;
       const hoursScheduledThisWeek = weekSchedule.data?.reduce((sum, s) => sum + (s.scheduled_hours || 0), 0) || 0;
       const hoursLoggedThisWeek = weekLogs.data?.reduce((sum, l) => sum + (l.hours_worked || 0), 0) || 0;
 
       return {
-        scheduleHealthPercent,
-        workersToday,
         hoursScheduledThisWeek,
         hoursLoggedThisWeek,
         varianceHoursThisWeek: hoursScheduledThisWeek - hoursLoggedThisWeek,
@@ -89,9 +180,9 @@ export function ProjectOverviewTab({ projectId }: ProjectOverviewTabProps) {
     },
   });
 
-  // Budget data
-  const { data: budgetData, isLoading: loadingBudget } = useQuery({
-    queryKey: ['project-overview-budget', projectId],
+  // Budget categories breakdown (RPC only has totals)
+  const { data: budgetCategories, isLoading: loadingBudgetCategories } = useQuery({
+    queryKey: ['project-overview-budget-categories', projectId],
     queryFn: async () => {
       const [budgetRes, laborRes, costsRes] = await Promise.all([
         supabase
@@ -123,18 +214,41 @@ export function ProjectOverviewTab({ projectId }: ProjectOverviewTabProps) {
         { label: 'Other', budget: budgetRes.data?.other_budget || 0, actual: otherActual },
       ];
 
-      const totalBudget = categories.reduce((sum, c) => sum + c.budget, 0);
-      const totalActual = categories.reduce((sum, c) => sum + c.actual, 0);
-      const budgetVariance = totalBudget - totalActual;
-
-      return { categories, budgetVariance };
+      return categories;
     },
   });
 
-  // Tasks data - use the canonical hook
-  const { data: taskCounts, isLoading: loadingTasks } = useProjectTaskCounts(projectId);
+  // Today's crew with names (need worker names for display)
+  const { data: todayCrew, isLoading: loadingTodayCrew } = useQuery({
+    queryKey: ['project-overview-today-crew', projectId, today],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('work_schedules')
+        .select('worker_id, scheduled_hours, workers(id, name, trades(name))')
+        .eq('project_id', projectId)
+        .eq('scheduled_date', today);
 
-  // Workforce snapshot (last 7 days)
+      const crewMap = new Map<string, TodayCrewMember>();
+      data?.forEach((s: any) => {
+        if (s.worker_id && s.workers) {
+          const existing = crewMap.get(s.worker_id);
+          if (existing) {
+            existing.scheduledHours += s.scheduled_hours || 0;
+          } else {
+            crewMap.set(s.worker_id, {
+              id: s.worker_id,
+              name: s.workers.name || 'Unknown',
+              trade: s.workers.trades?.name || null,
+              scheduledHours: s.scheduled_hours || 0,
+            });
+          }
+        }
+      });
+      return Array.from(crewMap.values()).sort((a, b) => b.scheduledHours - a.scheduledHours);
+    },
+  });
+
+  // Workforce snapshot (last 7 days) - need worker names for display
   const { data: workforceData, isLoading: loadingWorkforce } = useQuery({
     queryKey: ['project-overview-workforce', projectId],
     queryFn: async () => {
@@ -165,7 +279,7 @@ export function ProjectOverviewTab({ projectId }: ProjectOverviewTabProps) {
       const rows: WorkforceRow[] = workers?.map(w => ({
         id: w.id,
         name: w.name,
-        trade: w.trades?.name || null,
+        trade: (w.trades as any)?.name || null,
         hours: workerStats.get(w.id)?.hours || 0,
         unpaidAmount: workerStats.get(w.id)?.unpaid || 0,
       })).sort((a, b) => (b.hours || 0) - (a.hours || 0)).slice(0, 6) || [];
@@ -175,7 +289,7 @@ export function ProjectOverviewTab({ projectId }: ProjectOverviewTabProps) {
   });
 
   // ========== LOADING STATE ==========
-  const isLoading = loadingSchedule || loadingBudget || loadingTasks || loadingWorkforce;
+  const isLoading = loadingStats || loadingSchedule || loadingBudgetCategories || loadingTodayCrew || loadingWorkforce;
 
   if (isLoading) {
     return (
@@ -202,16 +316,16 @@ export function ProjectOverviewTab({ projectId }: ProjectOverviewTabProps) {
   };
 
   const weeklySummaryProps: WeeklySummaryProps = {
-    workersScheduledToday: scheduleData?.workersToday,
-    hoursScheduledThisWeek: scheduleData?.hoursScheduledThisWeek,
-    hoursLoggedThisWeek: scheduleData?.hoursLoggedThisWeek,
-    varianceHoursThisWeek: scheduleData?.varianceHoursThisWeek,
-    openItemsCount: taskCounts?.open ?? 0,
-    overdueTasksCount: taskCounts?.overdue ?? 0,
+    workersScheduledToday: stats?.todayCrewCount ?? 0,
+    hoursScheduledThisWeek: weeklyScheduleData?.hoursScheduledThisWeek ?? 0,
+    hoursLoggedThisWeek: weeklyScheduleData?.hoursLoggedThisWeek ?? 0,
+    varianceHoursThisWeek: weeklyScheduleData?.varianceHoursThisWeek ?? 0,
+    openItemsCount: stats?.openTasks ?? 0,
+    overdueTasksCount: stats?.overdueTasks ?? 0,
   };
 
   const budgetProps: BudgetMiniOverviewProps = {
-    categories: budgetData?.categories || [],
+    categories: budgetCategories || [],
     onOpenBudget: () => setSearchParams({ tab: 'budget' }),
   };
 
@@ -220,10 +334,79 @@ export function ProjectOverviewTab({ projectId }: ProjectOverviewTabProps) {
     onViewAll: () => setSearchParams({ tab: 'labor' }),
   };
 
+  // ========== ALERT BANNERS ==========
+  const alerts: AlertBannerProps[] = [];
+  
+  // No budget set but has spending
+  if (!stats?.hasBudget && stats?.actualTotal && stats.actualTotal > 0) {
+    alerts.push({
+      type: 'warning',
+      title: 'No budget set',
+      description: `$${stats.actualTotal.toLocaleString()} spent with no budget tracking`,
+      action: {
+        label: 'Set Budget',
+        onClick: () => setSearchParams({ tab: 'budget' }),
+      },
+    });
+  }
+  
+  // Over budget
+  if (stats?.isOverBudget) {
+    const overAmount = stats.actualTotal - stats.budgetTotal;
+    alerts.push({
+      type: 'critical',
+      title: `$${overAmount.toLocaleString()} over budget`,
+      description: `${Math.round(stats.percentUsed)}% of budget used`,
+      action: {
+        label: 'View Budget',
+        onClick: () => setSearchParams({ tab: 'budget' }),
+      },
+    });
+  }
+  
+  // Approaching budget (>85%)
+  if (stats?.hasBudget && !stats?.isOverBudget && stats.percentUsed >= 85) {
+    alerts.push({
+      type: 'warning',
+      title: `${Math.round(stats.percentUsed)}% of budget used`,
+      description: `$${stats.variance.toLocaleString()} remaining`,
+    });
+  }
+
+  // Overdue tasks
+  if (stats?.overdueTasks && stats.overdueTasks > 0) {
+    alerts.push({
+      type: 'warning',
+      title: `${stats.overdueTasks} overdue task${stats.overdueTasks > 1 ? 's' : ''}`,
+      description: 'Tasks past their due date need attention',
+      action: {
+        label: 'View Tasks',
+        onClick: () => setSearchParams({ tab: 'tasks' }),
+      },
+    });
+  }
+
   // ========== RENDER ==========
 
   return (
     <div className="space-y-4 pb-6">
+      {/* Alert Banners */}
+      {alerts.length > 0 && (
+        <div className="space-y-2">
+          {alerts.slice(0, 2).map((alert, i) => (
+            <AlertBanner key={i} {...alert} />
+          ))}
+        </div>
+      )}
+
+      {/* Today's Crew - if anyone scheduled */}
+      {todayCrew && todayCrew.length > 0 && (
+        <TodaysCrewSection 
+          crew={todayCrew} 
+          onViewSchedule={() => setSearchParams({ tab: 'schedule' })}
+        />
+      )}
+
       {/* Action Row - Horizontally scrollable on mobile */}
       <div className="overflow-x-auto -mx-2 px-2 pb-1">
         <div className="flex items-center gap-1.5 min-w-max">

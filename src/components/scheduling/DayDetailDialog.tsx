@@ -1,16 +1,16 @@
 /**
- * DayDetailDialog - Day-level schedule editor
+ * @deprecated LEGACY - DO NOT USE
  * 
- * CANONICAL: Uses work_schedules for scheduling data
+ * This component is superseded by UniversalDayDetailDialog, which is the 
+ * canonical day-level planner. UniversalDayDetailDialog handles:
+ * - Work schedules (labor)
+ * - Meetings/events (project_todos)
+ * - All filtering and highlighting features
  * 
- * This component displays all schedules for a specific day and allows:
- * - Viewing schedule details with status indicators
- * - Editing individual schedules via EditScheduleDialog
- * - Splitting multi-project schedules via SplitScheduleDialog
- * - Converting schedules to time logs
- * - Deleting schedules
+ * This file is kept for reference only and should be deleted once
+ * migration is confirmed complete.
  * 
- * All writes go to work_schedules. Triggers handle time_logs sync.
+ * Use `UniversalDayDetailDialog` instead.
  */
 
 import { useState, useEffect } from "react";

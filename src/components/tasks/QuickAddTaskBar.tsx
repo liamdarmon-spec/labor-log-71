@@ -1,7 +1,6 @@
 import { useState, useRef } from 'react';
-import { Input } from '@/components/ui/input';
 import { useCreateTask } from '@/hooks/useTasks';
-import { Plus, Loader2, Sparkles } from 'lucide-react';
+import { Plus, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
@@ -54,16 +53,18 @@ export function QuickAddTaskBar({ projectId, defaultType = 'todo', onCreated }: 
 
   return (
     <div
+      onClick={() => inputRef.current?.focus()}
       className={cn(
-        'group relative flex items-center gap-3 rounded-xl border-2 border-dashed bg-gradient-to-r from-muted/30 to-muted/10 px-4 py-3 transition-all duration-300',
+        'group relative flex items-center rounded-lg border bg-background cursor-text transition-all duration-200',
         isFocused 
-          ? 'border-primary/40 bg-gradient-to-r from-primary/5 to-transparent shadow-lg shadow-primary/5' 
-          : 'border-muted-foreground/20 hover:border-primary/20 hover:from-muted/40'
+          ? 'border-primary ring-2 ring-primary/20' 
+          : 'border-border/60 hover:border-border'
       )}
     >
+      {/* Icon - inline with input */}
       <div className={cn(
-        'flex items-center justify-center w-8 h-8 rounded-lg transition-all duration-300',
-        isFocused ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary'
+        'flex items-center justify-center w-10 h-10 flex-shrink-0 transition-colors',
+        isFocused ? 'text-primary' : 'text-muted-foreground/50 group-hover:text-muted-foreground'
       )}>
         {createTask.isPending ? (
           <Loader2 className="w-4 h-4 animate-spin" />
@@ -72,30 +73,33 @@ export function QuickAddTaskBar({ projectId, defaultType = 'todo', onCreated }: 
         )}
       </div>
       
-      <Input
+      {/* Input - no extra padding, text starts right after icon */}
+      <input
         ref={inputRef}
+        type="text"
         value={value}
         onChange={(e) => setValue(e.target.value)}
         onKeyDown={handleKeyDown}
         onFocus={() => setIsFocused(true)}
         onBlur={() => setIsFocused(false)}
         placeholder="Add a new task..."
-        className="flex-1 border-0 bg-transparent shadow-none focus-visible:ring-0 px-0 h-auto py-0 text-sm font-medium placeholder:text-muted-foreground/50 placeholder:font-normal"
         disabled={createTask.isPending}
+        className={cn(
+          'flex-1 h-10 bg-transparent text-sm outline-none',
+          'placeholder:text-muted-foreground/40',
+          'disabled:opacity-50 disabled:cursor-not-allowed'
+        )}
       />
       
-      {value.trim() ? (
-        <div className="flex items-center gap-2">
-          <kbd className="hidden sm:inline-flex items-center gap-1 px-2 py-1 text-[10px] font-medium text-muted-foreground bg-muted/80 rounded-md border">
-            <span>↵</span> Enter
-          </kbd>
-        </div>
-      ) : (
-        <div className="hidden sm:flex items-center gap-1.5 text-[10px] text-muted-foreground/60">
-          <Sparkles className="w-3 h-3" />
-          <span>Quick add</span>
-        </div>
-      )}
+      {/* Keyboard hint - always visible but subtle */}
+      <div className={cn(
+        'hidden sm:flex items-center gap-1 pr-3 transition-opacity',
+        value.trim() ? 'opacity-100' : 'opacity-40 group-hover:opacity-60'
+      )}>
+        <kbd className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground bg-muted rounded border border-border/50">
+          ↵
+        </kbd>
+      </div>
     </div>
   );
 }

@@ -97,7 +97,7 @@ export function WeeklySummary({
           
           {/* Counts Group */}
           <MiniKpi
-            label="Workers"
+            label="Crew Today"
             value={formatValue(workersScheduledToday)}
             icon={Users}
             iconColor="text-blue-500"
