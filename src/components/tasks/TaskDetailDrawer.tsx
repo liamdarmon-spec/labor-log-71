@@ -9,10 +9,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Separator } from '@/components/ui/separator';
-import { format, parseISO } from 'date-fns';
+import { format } from 'date-fns';
 import { CalendarIcon, Trash2, Loader2, Circle, CheckCircle2, Clock, Flag, User, FolderOpen, FileText, ListTodo } from 'lucide-react';
 import { Task, useUpdateTask, useDeleteTask, useWorkers, useProjectsList } from '@/hooks/useTasks';
 import { cn } from '@/lib/utils';
+import { safeParseDate, safeFormat } from '@/lib/utils/safeDate';
 
 interface TaskDetailDrawerProps {
   task: Task | null;
@@ -318,7 +319,7 @@ export function TaskDetailDrawer({ task, open, onOpenChange }: TaskDetailDrawerP
                   {(() => {
                     // Use optimistic due date for immediate feedback
                     const displayDate = optimisticDueDate !== undefined ? optimisticDueDate : task.due_date;
-                    return displayDate ? format(parseISO(displayDate), 'EEEE, MMMM d, yyyy') : 'No due date';
+                    return safeFormat(displayDate, 'EEEE, MMMM d, yyyy', 'No due date');
                   })()}
                 </Button>
               </PopoverTrigger>
@@ -327,7 +328,7 @@ export function TaskDetailDrawer({ task, open, onOpenChange }: TaskDetailDrawerP
                   mode="single"
                   selected={(() => {
                     const displayDate = optimisticDueDate !== undefined ? optimisticDueDate : task.due_date;
-                    return displayDate ? parseISO(displayDate) : undefined;
+                    return safeParseDate(displayDate) ?? undefined;
                   })()}
                   onSelect={(date) =>
                     handleFieldUpdate('due_date', date ? format(date, 'yyyy-MM-dd') : null)
@@ -370,8 +371,8 @@ export function TaskDetailDrawer({ task, open, onOpenChange }: TaskDetailDrawerP
 
           {/* Metadata footer */}
           <div className="pt-2 space-y-1 text-xs text-muted-foreground">
-            <p>Created: {format(parseISO(task.created_at), 'MMMM d, yyyy')}</p>
-            {task.completed_at && <p>Completed: {format(parseISO(task.completed_at), 'MMMM d, yyyy')}</p>}
+            <p>Created: {safeFormat(task.created_at, 'MMMM d, yyyy')}</p>
+            {task.completed_at && <p>Completed: {safeFormat(task.completed_at, 'MMMM d, yyyy')}</p>}
           </div>
 
           {/* Delete button */}

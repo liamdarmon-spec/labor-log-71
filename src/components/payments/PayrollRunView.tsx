@@ -5,8 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Download, Users, DollarSign, Clock } from 'lucide-react';
-import { format } from 'date-fns';
 import { toast } from 'sonner';
+import { safeFormat, formatShortDate } from '@/lib/utils/safeDate';
 
 interface PaymentWithBreakdown {
   id: string;
@@ -115,7 +115,7 @@ export function PayrollRunView({ paymentId, onClose }: PayrollRunViewProps) {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `payroll-${format(new Date(payment.payment_date), 'yyyy-MM-dd')}.csv`;
+    a.download = `payroll-${safeFormat(payment.payment_date, 'yyyy-MM-dd', 'unknown-date')}.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
 
@@ -142,7 +142,7 @@ export function PayrollRunView({ paymentId, onClose }: PayrollRunViewProps) {
         <div>
           <h2 className="text-2xl font-bold">Payroll Run</h2>
           <p className="text-muted-foreground">
-            {format(new Date(payment.start_date), 'MMM d')} - {format(new Date(payment.end_date), 'MMM d, yyyy')}
+            {safeFormat(payment.start_date, 'MMM d')} - {formatShortDate(payment.end_date)}
           </p>
         </div>
         <div className="flex gap-2">
@@ -251,7 +251,7 @@ export function PayrollRunView({ paymentId, onClose }: PayrollRunViewProps) {
           </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">Payment Date</span>
-            <span className="font-medium">{format(new Date(payment.payment_date), 'MMM d, yyyy')}</span>
+            <span className="font-medium">{formatShortDate(payment.payment_date)}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">Total Payment</span>

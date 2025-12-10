@@ -68,6 +68,7 @@ export interface EstimateEditorBlock {
 
 interface EstimateEditorProps {
   blocks: EstimateEditorBlock[];
+  estimateId?: string;
   isBudgetSourceLocked?: boolean;
   isBudgetSyncing?: boolean;
   onBlocksChange: (blocks: EstimateEditorBlock[]) => void;
@@ -82,6 +83,42 @@ interface EstimateEditorProps {
   onItemUpdateImmediate?: (itemId: string, patch: Partial<ScopeItem>) => void;
   getItemSaveStatus?: (itemId: string) => { status: string; error?: string };
   onItemRetry?: (itemId: string, values: Partial<ScopeItem>) => void;
+}
+
+// ====== Collapse State Persistence ======
+
+const COLLAPSE_STORAGE_KEY_PREFIX = "estimate-collapse";
+
+function getCollapseStorageKey(estimateId: string, type: "section" | "area", sectionId: string, areaLabel?: string | null): string {
+  if (type === "section") {
+    return `${COLLAPSE_STORAGE_KEY_PREFIX}:${estimateId}:section:${sectionId}`;
+  }
+  return `${COLLAPSE_STORAGE_KEY_PREFIX}:${estimateId}:area:${sectionId}:${areaLabel ?? "_ungrouped"}`;
+}
+
+function getPersistedCollapseState(estimateId: string | undefined, type: "section" | "area", sectionId: string, areaLabel?: string | null): boolean {
+  if (!estimateId) return false;
+  try {
+    const key = getCollapseStorageKey(estimateId, type, sectionId, areaLabel);
+    const stored = localStorage.getItem(key);
+    return stored === "true";
+  } catch {
+    return false;
+  }
+}
+
+function setPersistedCollapseState(estimateId: string | undefined, type: "section" | "area", sectionId: string, isCollapsed: boolean, areaLabel?: string | null): void {
+  if (!estimateId) return;
+  try {
+    const key = getCollapseStorageKey(estimateId, type, sectionId, areaLabel);
+    if (isCollapsed) {
+      localStorage.setItem(key, "true");
+    } else {
+      localStorage.removeItem(key);
+    }
+  } catch {
+    // Ignore localStorage errors (e.g., quota exceeded, private browsing)
+  }
 }
 
 // ====== Helpers ======
@@ -262,9 +299,13 @@ const CategoryBreakdownCard = memo(function CategoryBreakdownCard({
 interface SortableItemRowProps {
   item: ScopeItem;
   blockId: string;
+  overId?: UniqueIdentifier | null;
+  activeId?: UniqueIdentifier | null;
   updateItem: (blockId: string, itemId: string, patch: Partial<ScopeItem>) => void;
   updateItemImmediate?: (blockId: string, itemId: string, patch: Partial<ScopeItem>) => void;
   deleteItem: (blockId: string, itemId: string) => void;
+  onAddItemBelow?: () => void;
+  autoFocusDescription?: boolean;
   getItemSaveStatus?: (itemId: string) => { status: string; error?: string };
   onItemRetry?: (itemId: string, values: Partial<ScopeItem>) => void;
 }
@@ -272,9 +313,13 @@ interface SortableItemRowProps {
 const SortableItemRow = memo(function SortableItemRow({
   item,
   blockId,
+  overId,
+  activeId,
   updateItem,
   updateItemImmediate,
   deleteItem,
+  onAddItemBelow,
+  autoFocusDescription,
   getItemSaveStatus,
   onItemRetry,
 }: SortableItemRowProps) {
@@ -295,16 +340,24 @@ const SortableItemRow = memo(function SortableItemRow({
   };
 
   const saveState = getItemSaveStatus ? getItemSaveStatus(item.id) : { status: "idle" };
+  
+  // Show drop indicator when this item is the current drop target (but not the dragged item itself)
+  const showDropIndicator = overId === item.id && activeId !== item.id;
 
   return (
     <div
       ref={setNodeRef}
       style={style}
       className={cn(
-        "relative group flex items-stretch",
-        isDragging && "opacity-50 shadow-lg scale-[1.01] bg-background rounded-lg z-50"
+        "relative group flex items-stretch transition-all duration-100",
+        isDragging && "opacity-50 shadow-lg scale-[1.01] bg-background rounded-lg z-50",
+        showDropIndicator && "bg-primary/5"
       )}
     >
+      {/* Drop zone indicator bar */}
+      {showDropIndicator && (
+        <div className="absolute -top-[2px] left-0 right-0 h-1 bg-primary rounded-full z-10 shadow-sm" />
+      )}
       {/* Drag handle */}
       <Tooltip>
         <TooltipTrigger asChild>
@@ -335,6 +388,8 @@ const SortableItemRow = memo(function SortableItemRow({
           onUpdate={(patch) => updateItem(blockId, item.id, patch)}
           onUpdateImmediate={updateItemImmediate ? (patch) => updateItemImmediate(blockId, item.id, patch) : undefined}
           onDelete={() => deleteItem(blockId, item.id)}
+          onAddItemBelow={onAddItemBelow}
+          autoFocusDescription={autoFocusDescription}
           saveStatus={saveState.status as any}
           saveError={saveState.error}
           onRetry={onItemRetry ? () => onItemRetry(item.id, item) : undefined}
@@ -348,6 +403,7 @@ const SortableItemRow = memo(function SortableItemRow({
 
 export const ProjectEstimateEditor: React.FC<EstimateEditorProps> = ({
   blocks,
+  estimateId,
   isBudgetSourceLocked,
   isBudgetSyncing,
   onBlocksChange,
@@ -365,6 +421,16 @@ export const ProjectEstimateEditor: React.FC<EstimateEditorProps> = ({
   const [activeItemId, setActiveItemId] = useState<UniqueIdentifier | null>(null);
   const [activeSectionId, setActiveSectionId] = useState<UniqueIdentifier | null>(null);
   const [dragMode, setDragMode] = useState<"section" | "item" | null>(null);
+  const [overId, setOverId] = useState<UniqueIdentifier | null>(null);
+  const [itemIdToFocus, setItemIdToFocus] = useState<string | null>(null);
+
+  // Clear itemIdToFocus after it's been used (to prevent re-focusing on re-renders)
+  useEffect(() => {
+    if (itemIdToFocus) {
+      const timer = setTimeout(() => setItemIdToFocus(null), 100);
+      return () => clearTimeout(timer);
+    }
+  }, [itemIdToFocus]);
 
   const flatItems = useMemo(() => blocks.flatMap((b) => b.items), [blocks]);
   const globalTotals = useMemo(() => computeCategoryTotals(flatItems), [flatItems]);
@@ -461,13 +527,14 @@ export const ProjectEstimateEditor: React.FC<EstimateEditorProps> = ({
   );
 
   const addItem = useCallback(
-    (blockId: string, area: string | null, group: string | null) => {
+    (blockId: string, area: string | null, group: string | null, shouldFocus = false): string => {
+      const newItemId = crypto.randomUUID();
       onBlocksChange(
         blocks.map((b) => {
           if (b.block.id !== blockId) return b;
           const maxSortOrder = Math.max(...b.items.map((i) => i.sort_order || 0), 0);
           const newItem: ScopeItem = {
-            id: crypto.randomUUID(),
+            id: newItemId,
             scope_block_id: blockId,
             area_label: area,
             group_label: group,
@@ -484,6 +551,10 @@ export const ProjectEstimateEditor: React.FC<EstimateEditorProps> = ({
           return { ...b, items: [...b.items, newItem] };
         })
       );
+      if (shouldFocus) {
+        setItemIdToFocus(newItemId);
+      }
+      return newItemId;
     },
     [blocks, onBlocksChange]
   );
@@ -894,12 +965,20 @@ export const ProjectEstimateEditor: React.FC<EstimateEditorProps> = ({
               handleItemDragStart(event);
             }
           }}
+          onDragOver={(event) => {
+            // Track the current over target for visual drop indicators
+            setOverId(event.over?.id ?? null);
+          }}
           onDragEnd={(event) => {
+            setOverId(null); // Clear over state
             if (dragMode === "section") {
               handleSectionDragEnd(event);
             } else if (dragMode === "item") {
               handleItemDragEnd(event);
             }
+          }}
+          onDragCancel={() => {
+            setOverId(null); // Clear over state on cancel
           }}
         >
           {/* Section-level sortable context */}
@@ -910,6 +989,10 @@ export const ProjectEstimateEditor: React.FC<EstimateEditorProps> = ({
                 <SortableBlockSection
                   key={b.block.id}
                   block={b}
+                  estimateId={estimateId}
+                  overId={overId}
+                  activeId={activeItemId ?? activeSectionId}
+                  itemIdToFocus={itemIdToFocus}
                   updateItem={updateItem}
                   updateItemImmediate={updateItemImmediate}
                   addItem={addItem}
@@ -969,9 +1052,13 @@ export const ProjectEstimateEditor: React.FC<EstimateEditorProps> = ({
 
 interface SortableBlockSectionProps {
   block: EstimateEditorBlock;
+  estimateId?: string;
+  overId?: UniqueIdentifier | null;
+  activeId?: UniqueIdentifier | null;
+  itemIdToFocus?: string | null;
   updateItem: (blockId: string, itemId: string, patch: Partial<ScopeItem>) => void;
   updateItemImmediate?: (blockId: string, itemId: string, patch: Partial<ScopeItem>) => void;
-  addItem: (blockId: string, area: string | null, group: string | null) => void;
+  addItem: (blockId: string, area: string | null, group: string | null, shouldFocus?: boolean) => string;
   addAreaToBlock: (blockId: string) => void;
   addGroupToArea: (blockId: string, areaLabel: string | null) => void;
   deleteItem: (blockId: string, itemId: string) => void;
@@ -987,6 +1074,10 @@ interface SortableBlockSectionProps {
 
 const SortableBlockSection = memo(function SortableBlockSection({
   block: b,
+  estimateId,
+  overId,
+  activeId,
+  itemIdToFocus,
   updateItem,
   updateItemImmediate,
   addItem,
@@ -1002,11 +1093,23 @@ const SortableBlockSection = memo(function SortableBlockSection({
   getItemSaveStatus,
   onItemRetry,
 }: SortableBlockSectionProps) {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  // Initialize collapse state from localStorage
+  const [isCollapsed, setIsCollapsed] = useState(() => 
+    getPersistedCollapseState(estimateId, "section", b.block.id)
+  );
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [localTitle, setLocalTitle] = useState(b.block.title || "");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const titleInputRef = useRef<HTMLInputElement>(null);
+
+  // Toggle collapse and persist to localStorage
+  const handleToggleCollapse = useCallback(() => {
+    setIsCollapsed((prev) => {
+      const next = !prev;
+      setPersistedCollapseState(estimateId, "section", b.block.id, next);
+      return next;
+    });
+  }, [estimateId, b.block.id]);
 
   const {
     attributes,
@@ -1027,6 +1130,9 @@ const SortableBlockSection = memo(function SortableBlockSection({
   const areaGroups = useMemo(() => groupItemsByArea(b.items), [b.items]);
   const blockTotals = useMemo(() => computeCategoryTotals(b.items), [b.items]);
   const blockTotal = blockTotals.labor + blockTotals.subs + blockTotals.materials + blockTotals.other;
+  
+  // Show drop indicator when this section is the current drop target (but not the dragged section itself)
+  const showDropIndicator = overId === b.block.id && activeId !== b.block.id;
 
   // Sync local title when block changes
   useEffect(() => {
@@ -1064,10 +1170,15 @@ const SortableBlockSection = memo(function SortableBlockSection({
       ref={setNodeRef}
       style={style}
       className={cn(
-        "rounded-2xl border border-border bg-card shadow-sm overflow-hidden",
-        isDragging && "opacity-50 shadow-xl ring-2 ring-primary/20"
+        "relative rounded-2xl border border-border bg-card shadow-sm overflow-hidden transition-all duration-150",
+        isDragging && "opacity-50 shadow-xl ring-2 ring-primary/20",
+        showDropIndicator && "border-primary border-dashed border-2 bg-primary/5 shadow-lg"
       )}
     >
+      {/* Drop zone indicator bar for sections */}
+      {showDropIndicator && (
+        <div className="absolute -top-1 left-4 right-4 h-1 bg-primary rounded-full z-20 shadow-md" />
+      )}
       {/* Block header */}
       <header className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/30">
         <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -1093,7 +1204,7 @@ const SortableBlockSection = memo(function SortableBlockSection({
           <button
             type="button"
             className="p-0.5 text-muted-foreground hover:text-foreground transition-colors"
-            onClick={() => setIsCollapsed(!isCollapsed)}
+            onClick={handleToggleCollapse}
           >
             <motion.div animate={{ rotate: isCollapsed ? 0 : 90 }} transition={{ duration: 0.2 }}>
               <ChevronRight className="h-4 w-4 shrink-0" />
@@ -1224,7 +1335,11 @@ const SortableBlockSection = memo(function SortableBlockSection({
                 <AreaSection
                   key={ag.area ?? "_ungrouped"}
                   blockId={b.block.id}
+                  estimateId={estimateId}
                   areaGroup={ag}
+                  overId={overId}
+                  activeId={activeId}
+                  itemIdToFocus={itemIdToFocus}
                   updateItem={updateItem}
                   updateItemImmediate={updateItemImmediate}
                   addItem={addItem}
@@ -1291,10 +1406,14 @@ const SortableBlockSection = memo(function SortableBlockSection({
 
 interface AreaSectionProps {
   blockId: string;
+  estimateId?: string;
   areaGroup: AreaGroup;
+  overId?: UniqueIdentifier | null;
+  activeId?: UniqueIdentifier | null;
+  itemIdToFocus?: string | null;
   updateItem: (blockId: string, itemId: string, patch: Partial<ScopeItem>) => void;
   updateItemImmediate?: (blockId: string, itemId: string, patch: Partial<ScopeItem>) => void;
-  addItem: (blockId: string, area: string | null, group: string | null) => void;
+  addItem: (blockId: string, area: string | null, group: string | null, shouldFocus?: boolean) => string;
   addGroupToArea: (blockId: string, areaLabel: string | null) => void;
   deleteItem: (blockId: string, itemId: string) => void;
   deleteArea: (blockId: string, areaLabel: string | null) => void;
@@ -1307,7 +1426,11 @@ interface AreaSectionProps {
 
 const AreaSection = memo(function AreaSection({
   blockId,
+  estimateId,
   areaGroup: ag,
+  overId,
+  activeId,
+  itemIdToFocus,
   updateItem,
   updateItemImmediate,
   addItem,
@@ -1320,9 +1443,21 @@ const AreaSection = memo(function AreaSection({
   getItemSaveStatus,
   onItemRetry,
 }: AreaSectionProps) {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  // Initialize collapse state from localStorage
+  const [isCollapsed, setIsCollapsed] = useState(() =>
+    getPersistedCollapseState(estimateId, "area", blockId, ag.area)
+  );
   const areaTotals = useMemo(() => computeCategoryTotals(ag.items), [ag.items]);
   const subGroups = useMemo(() => groupItemsByGroup(ag.items), [ag.items]);
+
+  // Toggle collapse and persist to localStorage
+  const handleToggleCollapse = useCallback(() => {
+    setIsCollapsed((prev) => {
+      const next = !prev;
+      setPersistedCollapseState(estimateId, "area", blockId, next, ag.area);
+      return next;
+    });
+  }, [estimateId, blockId, ag.area]);
 
   // Ungrouped items (area_label === null) render flat
   if (ag.area === null) {
@@ -1344,6 +1479,9 @@ const AreaSection = memo(function AreaSection({
             blockId={blockId}
             areaLabel={null}
             subGroup={sg}
+            overId={overId}
+            activeId={activeId}
+            itemIdToFocus={itemIdToFocus}
             updateItem={updateItem}
             updateItemImmediate={updateItemImmediate}
             addItem={addItem}
@@ -1361,9 +1499,13 @@ const AreaSection = memo(function AreaSection({
             key={item.id}
             item={item}
             blockId={blockId}
+            overId={overId}
+            activeId={activeId}
             updateItem={updateItem}
             updateItemImmediate={updateItemImmediate}
             deleteItem={deleteItem}
+            onAddItemBelow={() => addItem(blockId, item.area_label, item.group_label, true)}
+            autoFocusDescription={itemIdToFocus === item.id}
             getItemSaveStatus={getItemSaveStatus}
             onItemRetry={onItemRetry}
           />
@@ -1393,7 +1535,7 @@ const AreaSection = memo(function AreaSection({
           itemCount={ag.items.length}
           totals={areaTotals}
           isCollapsed={isCollapsed}
-          onToggle={() => setIsCollapsed(!isCollapsed)}
+          onToggle={handleToggleCollapse}
           onRename={(newName) => renameArea(blockId, ag.area, newName)}
           onDelete={() => deleteArea(blockId, ag.area)}
           onAddItem={() => addItem(blockId, ag.area, null)}
@@ -1419,9 +1561,13 @@ const AreaSection = memo(function AreaSection({
                       key={item.id}
                       item={item}
                       blockId={blockId}
+                      overId={overId}
+                      activeId={activeId}
                       updateItem={updateItem}
                       updateItemImmediate={updateItemImmediate}
                       deleteItem={deleteItem}
+                      onAddItemBelow={() => addItem(blockId, item.area_label, item.group_label, true)}
+                      autoFocusDescription={itemIdToFocus === item.id}
                       getItemSaveStatus={getItemSaveStatus}
                       onItemRetry={onItemRetry}
                     />
@@ -1433,6 +1579,9 @@ const AreaSection = memo(function AreaSection({
                   blockId={blockId}
                   areaLabel={ag.area}
                   subGroup={sg}
+                  overId={overId}
+                  activeId={activeId}
+                  itemIdToFocus={itemIdToFocus}
                   updateItem={updateItem}
                   updateItemImmediate={updateItemImmediate}
                   addItem={addItem}
@@ -1469,9 +1618,12 @@ interface GroupSubSectionProps {
   blockId: string;
   areaLabel: string | null;
   subGroup: SubGroup;
+  overId?: UniqueIdentifier | null;
+  activeId?: UniqueIdentifier | null;
+  itemIdToFocus?: string | null;
   updateItem: (blockId: string, itemId: string, patch: Partial<ScopeItem>) => void;
   updateItemImmediate?: (blockId: string, itemId: string, patch: Partial<ScopeItem>) => void;
-  addItem: (blockId: string, area: string | null, group: string | null) => void;
+  addItem: (blockId: string, area: string | null, group: string | null, shouldFocus?: boolean) => string;
   deleteItem: (blockId: string, itemId: string) => void;
   deleteGroup: (blockId: string, areaLabel: string | null, groupLabel: string | null) => void;
   renameGroup: (blockId: string, areaLabel: string | null, oldGroup: string | null, newGroup: string | null) => void;
@@ -1483,6 +1635,9 @@ const GroupSubSection = memo(function GroupSubSection({
   blockId,
   areaLabel,
   subGroup: sg,
+  overId,
+  activeId,
+  itemIdToFocus,
   updateItem,
   updateItemImmediate,
   addItem,
@@ -1524,9 +1679,13 @@ const GroupSubSection = memo(function GroupSubSection({
                 key={item.id}
                 item={item}
                 blockId={blockId}
+                overId={overId}
+                activeId={activeId}
                 updateItem={updateItem}
                 updateItemImmediate={updateItemImmediate}
                 deleteItem={deleteItem}
+                onAddItemBelow={() => addItem(blockId, item.area_label, item.group_label, true)}
+                autoFocusDescription={itemIdToFocus === item.id}
                 getItemSaveStatus={getItemSaveStatus}
                 onItemRetry={onItemRetry}
               />

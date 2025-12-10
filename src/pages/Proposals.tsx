@@ -15,8 +15,8 @@ import {
 } from '@/components/ui/table';
 import { Plus, Search, FileText, Eye, Calendar, DollarSign } from 'lucide-react';
 import { useProposals } from '@/hooks/useProposals';
-import { format } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
+import { formatShortDate } from '@/lib/utils/safeDate';
 
 export default function Proposals() {
   const navigate = useNavigate();
@@ -176,7 +176,7 @@ export default function Proposals() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      {format(new Date(proposal.created_at), 'MMM d, yyyy')}
+                      {formatShortDate(proposal.created_at)}
                     </TableCell>
                     <TableCell className="text-right font-medium">
                       ${proposal.total_amount?.toLocaleString() || '0'}

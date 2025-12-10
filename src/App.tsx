@@ -1,8 +1,13 @@
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { queryClient } from "./lib/queryClient";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { RouteErrorBoundary } from "./components/ErrorBoundary";
+import { Suspense, lazy } from "react";
+import { ErrorTrigger } from "./components/dev/ErrorTrigger";
+import { OfflineIndicator } from "./components/ui/OfflineIndicator";
 import Dashboard from "./pages/Dashboard";
 import Admin from "./pages/Admin";
 import ViewLogs from "./pages/ViewLogs";
@@ -36,18 +41,24 @@ import Tasks from "./pages/Tasks";
 import NotFound from "./pages/NotFound";
 import "./i18n/config";
 
-// Configure React Query with optimized defaults for performance
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 30 * 1000, // 30 seconds - balance freshness and performance
-      gcTime: 5 * 60 * 1000, // 5 minutes cache retention
-      refetchOnWindowFocus: false, // Prevent unnecessary refetches on tab switch
-      retry: 1, // Only retry failed requests once
-      refetchOnMount: false, // Use cached data when component mounts
-    },
-  },
-});
+// Loading fallback for route transitions
+const RouteLoadingFallback = () => (
+  <div className="min-h-screen flex items-center justify-center bg-background">
+    <div className="text-center space-y-4">
+      <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
+      <p className="text-muted-foreground">Loading...</p>
+    </div>
+  </div>
+);
+
+// Wrapper component to add error boundary to each route
+const SafeRoute = ({ children }: { children: React.ReactNode }) => (
+  <RouteErrorBoundary>
+    <Suspense fallback={<RouteLoadingFallback />}>
+      {children}
+    </Suspense>
+  </RouteErrorBoundary>
+);
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -55,51 +66,56 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
+        {/* Dev-only error testing tool */}
+        <ErrorTrigger />
+        {/* Offline indicator - shows when network is unavailable */}
+        <OfflineIndicator />
         <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/view-logs" element={<ViewLogs />} />
-          <Route path="/schedule" element={<Schedule />} />
-          <Route path="/payments" element={<Payments />} />
-          <Route path="/projects" element={<Projects />} />
-          <Route path="/projects/:projectId" element={<ProjectDetail />} />
-          <Route path="/projects/:projectId/proposals/:proposalId" element={<ProposalBuilderV2 />} />
-          <Route path="/estimates/:estimateId" element={<EstimateBuilderV2 />} />
-          <Route path="/tasks" element={<Tasks />} />
-          <Route path="/settings/proposals" element={<ProposalSettings />} />
-            <Route path="/workforce" element={<Workforce />} />
-            <Route path="/workforce/worker/:workerId" element={<WorkerProfile />} />
-            
-            {/* Financial System - 4-Tab Architecture: Costs / Payments / Receivables / Profit */}
-            <Route path="/financials" element={<FinancialsLayout />}>
-              <Route index element={<CostsAPTab />} />
-              <Route path="costs" element={<CostsAPTab />} />
-              <Route path="payments" element={<PaymentsCenterTab />} />
-              <Route path="receivables" element={<RevenueTab />} />
-              <Route path="profit" element={<ProfitTab />} />
-              {/* Legacy route mappings for backward compatibility */}
-              <Route path="overview" element={<ProfitTab />} />
-              <Route path="revenue" element={<RevenueTab />} />
-              <Route path="job-costing" element={<ProfitTab />} />
-              <Route path="procurement" element={<CostsAPTab />} />
-            </Route>
+          {/* Core Routes - wrapped with SafeRoute for error protection */}
+          <Route path="/" element={<SafeRoute><Dashboard /></SafeRoute>} />
+          <Route path="/dashboard" element={<SafeRoute><Dashboard /></SafeRoute>} />
+          <Route path="/view-logs" element={<SafeRoute><ViewLogs /></SafeRoute>} />
+          <Route path="/schedule" element={<SafeRoute><Schedule /></SafeRoute>} />
+          <Route path="/payments" element={<SafeRoute><Payments /></SafeRoute>} />
+          <Route path="/projects" element={<SafeRoute><Projects /></SafeRoute>} />
+          <Route path="/projects/:projectId" element={<SafeRoute><ProjectDetail /></SafeRoute>} />
+          <Route path="/projects/:projectId/proposals/:proposalId" element={<SafeRoute><ProposalBuilderV2 /></SafeRoute>} />
+          <Route path="/estimates/:estimateId" element={<SafeRoute><EstimateBuilderV2 /></SafeRoute>} />
+          <Route path="/tasks" element={<SafeRoute><Tasks /></SafeRoute>} />
+          <Route path="/settings/proposals" element={<SafeRoute><ProposalSettings /></SafeRoute>} />
+          <Route path="/workforce" element={<SafeRoute><Workforce /></SafeRoute>} />
+          <Route path="/workforce/worker/:workerId" element={<SafeRoute><WorkerProfile /></SafeRoute>} />
+          
+          {/* Financial System - 4-Tab Architecture: Costs / Payments / Receivables / Profit */}
+          <Route path="/financials" element={<SafeRoute><FinancialsLayout /></SafeRoute>}>
+            <Route index element={<CostsAPTab />} />
+            <Route path="costs" element={<CostsAPTab />} />
+            <Route path="payments" element={<PaymentsCenterTab />} />
+            <Route path="receivables" element={<RevenueTab />} />
+            <Route path="profit" element={<ProfitTab />} />
+            {/* Legacy route mappings for backward compatibility */}
+            <Route path="overview" element={<ProfitTab />} />
+            <Route path="revenue" element={<RevenueTab />} />
+            <Route path="job-costing" element={<ProfitTab />} />
+            <Route path="procurement" element={<CostsAPTab />} />
+          </Route>
 
-            {/* Legacy routes */}
-            <Route path="/financials-v2" element={<FinancialsV2 />} />
-            <Route path="/financials-v3" element={<FinancialsV3 />} />
-            <Route path="/financials/estimates" element={<FinancialEstimates />} />
-            <Route path="/financials/subcontractors" element={<Subs />} />
-            <Route path="/financials/documents" element={<Documents />} />
-          <Route path="/financials/reports" element={<FinancialReports />} />
-          <Route path="/financials/os" element={<FinancialsOS />} />
-          <Route path="/documents" element={<Documents />} />
-            <Route path="/proposals" element={<Proposals />} />
-            <Route path="/proposals/:id" element={<ProposalBuilderV2 />} />
-            <Route path="/public/proposal/:token" element={<PublicProposal />} />
-            <Route path="/materials" element={<Materials />} />
-            <Route path="/subs" element={<Subs />} />
-            <Route path="/subs/:id" element={<SubProfileV2 />} />
-          <Route path="/admin" element={<Admin />} />
+          {/* Legacy routes */}
+          <Route path="/financials-v2" element={<SafeRoute><FinancialsV2 /></SafeRoute>} />
+          <Route path="/financials-v3" element={<SafeRoute><FinancialsV3 /></SafeRoute>} />
+          <Route path="/financials/estimates" element={<SafeRoute><FinancialEstimates /></SafeRoute>} />
+          <Route path="/financials/subcontractors" element={<SafeRoute><Subs /></SafeRoute>} />
+          <Route path="/financials/documents" element={<SafeRoute><Documents /></SafeRoute>} />
+          <Route path="/financials/reports" element={<SafeRoute><FinancialReports /></SafeRoute>} />
+          <Route path="/financials/os" element={<SafeRoute><FinancialsOS /></SafeRoute>} />
+          <Route path="/documents" element={<SafeRoute><Documents /></SafeRoute>} />
+          <Route path="/proposals" element={<SafeRoute><Proposals /></SafeRoute>} />
+          <Route path="/proposals/:id" element={<SafeRoute><ProposalBuilderV2 /></SafeRoute>} />
+          <Route path="/public/proposal/:token" element={<PublicProposal />} />
+          <Route path="/materials" element={<SafeRoute><Materials /></SafeRoute>} />
+          <Route path="/subs" element={<SafeRoute><Subs /></SafeRoute>} />
+          <Route path="/subs/:id" element={<SafeRoute><SubProfileV2 /></SafeRoute>} />
+          <Route path="/admin" element={<SafeRoute><Admin /></SafeRoute>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

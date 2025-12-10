@@ -7,6 +7,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { safeArray, safeNumber } from '@/lib/utils/safeData';
 
 export interface UnpaidTimeLogFilters {
   startDate?: string;      // 'yyyy-MM-dd'
@@ -86,99 +87,119 @@ export function useUnpaidTimeLogs(
     queryKey: ['unpaid-time-logs', { startDate, endDate, companyId, workerId, projectId, paymentStatus }],
     enabled,
     queryFn: async () => {
-      let query = supabase
-        .from('time_logs_with_meta_view')
-        .select(
-          `
-          id,
-          worker_id,
-          worker_name,
-          worker_trade_id,
-          worker_trade_name,
-          project_id,
-          project_name,
-          company_id,
-          company_name,
-          override_company_id,
-          trade_id,
-          cost_code_id,
-          cost_code,
-          cost_code_name,
-          date,
-          hours_worked,
-          hourly_rate,
-          labor_cost,
-          payment_status,
-          paid_amount,
-          source_schedule_id,
-          notes,
-          last_synced_at,
-          created_at
-        `
-        )
-        .order('date', { ascending: true })
-        .limit(1000);
+      // For payroll, we need ALL matching records - fetch in batches to avoid hitting limits
+      const PAGE_SIZE = 1000;
+      let allLogs: UnpaidTimeLog[] = [];
+      let page = 0;
+      let hasMore = true;
 
-      // Date range
-      if (startDate) {
-        query = query.gte('date', startDate);
-      }
-      if (endDate) {
-        query = query.lte('date', endDate);
-      }
-
-      // Payment status filter (default = unpaid)
-      if (paymentStatus !== 'all') {
-        query = query.eq('payment_status', paymentStatus);
-      }
-
-      // Exclude time logs already in non-cancelled pay runs (prevents duplicate pay runs)
-      // This uses the new unpaid_time_logs_available_for_pay_run view logic
+      // Get IDs of time logs already in non-cancelled pay runs (prevents duplicate pay runs)
+      let excludedIds: string[] = [];
       if (paymentStatus === 'unpaid') {
-        // Get IDs of time logs already in non-cancelled pay runs
         const { data: existingItems, error: itemsError } = await supabase
           .from('labor_pay_run_items')
           .select('time_log_id, labor_pay_runs!inner(status)')
           .neq('labor_pay_runs.status', 'cancelled');
 
         if (itemsError) throw itemsError;
+        excludedIds = safeArray(existingItems).map((item: any) => item.time_log_id).filter(Boolean);
+      }
 
-        const excludedIds = (existingItems || []).map((item: any) => item.time_log_id);
-        if (excludedIds.length > 0) {
-          query = query.not('id', 'in', `(${excludedIds.map(id => `'${id}'`).join(',')})`);
+      // Fetch all pages
+      while (hasMore) {
+        let query = supabase
+          .from('time_logs_with_meta_view')
+          .select(
+            `
+            id,
+            worker_id,
+            worker_name,
+            worker_trade_id,
+            worker_trade_name,
+            project_id,
+            project_name,
+            company_id,
+            company_name,
+            override_company_id,
+            trade_id,
+            cost_code_id,
+            cost_code,
+            cost_code_name,
+            date,
+            hours_worked,
+            hourly_rate,
+            labor_cost,
+            payment_status,
+            paid_amount,
+            source_schedule_id,
+            notes,
+            last_synced_at,
+            created_at
+          `
+          )
+          .order('date', { ascending: true })
+          .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+
+        // Date range
+        if (startDate) {
+          query = query.gte('date', startDate);
+        }
+        if (endDate) {
+          query = query.lte('date', endDate);
+        }
+
+        // Payment status filter (default = unpaid)
+        if (paymentStatus !== 'all') {
+          query = query.eq('payment_status', paymentStatus);
+        }
+
+        // Company filter (from view column)
+        if (companyId) {
+          query = query.eq('company_id', companyId);
+        }
+
+        // Worker filter
+        if (workerId) {
+          query = query.eq('worker_id', workerId);
+        }
+
+        // Project filter
+        if (projectId) {
+          query = query.eq('project_id', projectId);
+        }
+
+        const { data, error } = await query;
+        if (error) throw error;
+
+        const pageData = safeArray(data) as UnpaidTimeLog[];
+        
+        // Filter out excluded IDs (logs already in pay runs)
+        const filteredData = excludedIds.length > 0
+          ? pageData.filter(log => !excludedIds.includes(log.id))
+          : pageData;
+
+        allLogs = [...allLogs, ...filteredData];
+
+        // Check if there are more pages
+        hasMore = pageData.length === PAGE_SIZE;
+        page++;
+
+        // Safety limit to prevent infinite loops (max 50 pages = 50,000 records)
+        if (page >= 50) {
+          console.warn('useUnpaidTimeLogs: Hit safety limit of 50,000 records');
+          hasMore = false;
         }
       }
-
-      // Company filter (from view column)
-      if (companyId) {
-        query = query.eq('company_id', companyId);
-      }
-
-      // Worker filter
-      if (workerId) {
-        query = query.eq('worker_id', workerId);
-      }
-
-      // Project filter
-      if (projectId) {
-        query = query.eq('project_id', projectId);
-      }
-
-      const { data, error } = await query;
-      if (error) throw error;
-
-      const logs = (data || []) as UnpaidTimeLog[];
 
       // Compute totals in one pass
       let totalHours = 0;
       let totalAmount = 0;
       const workerSet = new Set<string>();
 
-      logs.forEach((log) => {
-        const hours = Number(log.hours_worked || 0);
-        const explicitCost =
-          log.labor_cost != null ? Number(log.labor_cost) : null;
-        const rate = log.hourly_rate != null ? Number(log.hourly_rate) : 0;
+      allLogs.forEach((log) => {
+        const hours = safeNumber(log.hours_worked);
+        const explicitCost = log.labor_cost != null ? safeNumber(log.labor_cost) : null;
+        const rate = safeNumber(log.hourly_rate);
         const cost = explicitCost != null ? explicitCost : hours * rate;
 
         totalHours += hours;
@@ -190,13 +211,13 @@ export function useUnpaidTimeLogs(
       });
 
       const summary: UnpaidTimeLogSummary = {
-        totalLogs: logs.length,
+        totalLogs: allLogs.length,
         totalHours,
         totalAmount,
         workersCount: workerSet.size,
       };
 
-      return { logs, summary };
+      return { logs: allLogs, summary };
     },
   });
 }

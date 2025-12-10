@@ -6,9 +6,10 @@ import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Calendar as CalendarIcon, User, AlertTriangle, ChevronDown, Circle, CheckCircle2, Clock } from 'lucide-react';
-import { format, parseISO, isBefore, startOfDay, isToday } from 'date-fns';
+import { format, isBefore, startOfDay, isToday as dateFnsIsToday } from 'date-fns';
 import { Task, useUpdateTask, useWorkers } from '@/hooks/useTasks';
 import { cn } from '@/lib/utils';
+import { safeParseDate, safeFormat } from '@/lib/utils/safeDate';
 
 interface TaskCardProps {
   task: Task;
@@ -49,8 +50,9 @@ export function TaskCard({ task, showProject = false, onViewDetails }: TaskCardP
   const [showDatePopover, setShowDatePopover] = useState(false);
   const titleInputRef = useRef<HTMLInputElement>(null);
   
-  const isOverdue = task.due_date && isBefore(parseISO(task.due_date), startOfDay(new Date())) && task.status !== 'done';
-  const isDueToday = task.due_date && isToday(parseISO(task.due_date)) && task.status !== 'done';
+  const parsedDueDate = safeParseDate(task.due_date);
+  const isOverdue = parsedDueDate && isBefore(parsedDueDate, startOfDay(new Date())) && task.status !== 'done';
+  const isDueToday = parsedDueDate && dateFnsIsToday(parsedDueDate) && task.status !== 'done';
   const priority = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG.medium;
   const type = TYPE_CONFIG[task.task_type] || TYPE_CONFIG.todo;
 
@@ -251,13 +253,13 @@ export function TaskCard({ task, showProject = false, onViewDetails }: TaskCardP
               >
                 {isOverdue && <AlertTriangle className="w-3 h-3" />}
                 <CalendarIcon className="w-3 h-3" />
-                <span>{task.due_date ? format(parseISO(task.due_date), 'MMM d') : 'No date'}</span>
+                <span>{safeFormat(task.due_date, 'MMM d', 'No date')}</span>
               </button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0 z-50 bg-popover" align="start" onClick={(e) => e.stopPropagation()}>
               <Calendar
                 mode="single"
-                selected={task.due_date ? parseISO(task.due_date) : undefined}
+                selected={parsedDueDate ?? undefined}
                 onSelect={handleDateChange}
                 className="pointer-events-auto"
               />

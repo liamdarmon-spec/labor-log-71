@@ -1,5 +1,7 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { safeArray } from '@/lib/utils/safeData';
+import { toast } from 'sonner';
 
 export interface Worker {
   id: string;
@@ -15,34 +17,45 @@ export interface Worker {
 /**
  * Canonical hook for fetching workers
  * Used across: Admin, Workforce, Schedule, Time Logs, Payments
+ * 
+ * Features:
+ * - Safe array return (never undefined)
+ * - Automatic retry on failure
+ * - Optimized caching
  */
 export function useWorkers(includeInactive = false) {
-  return useQuery({
+  const query = useQuery({
     queryKey: ['workers', includeInactive],
     queryFn: async () => {
-      let query = supabase
+      let q = supabase
         .from('workers')
         .select('*, trades(name)')
         .order('name');
       
       if (!includeInactive) {
-        query = query.eq('active', true);
+        q = q.eq('active', true);
       }
       
-      const { data, error } = await query;
+      const { data, error } = await q;
       if (error) throw error;
-      return data as Worker[];
+      return safeArray(data) as Worker[];
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
   });
+
+  return {
+    ...query,
+    data: safeArray(query.data),
+    isEmpty: safeArray(query.data).length === 0,
+  };
 }
 
 /**
  * Lightweight version for dropdowns - only id and name
  */
 export function useWorkersSimple() {
-  return useQuery({
+  const query = useQuery({
     queryKey: ['workers-simple'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -52,9 +65,73 @@ export function useWorkersSimple() {
         .order('name');
       
       if (error) throw error;
-      return data;
+      return safeArray(data);
     },
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
+  });
+
+  return {
+    ...query,
+    data: safeArray(query.data),
+  };
+}
+
+/**
+ * Hook for creating a new worker
+ */
+export function useCreateWorker() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (worker: Partial<Worker>) => {
+      const { data, error } = await supabase
+        .from('workers')
+        .insert(worker)
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workers'] });
+      queryClient.invalidateQueries({ queryKey: ['workers-simple'] });
+      toast.success('Worker added successfully');
+    },
+    onError: (error) => {
+      toast.error('Failed to add worker');
+      console.error('Create worker error:', error);
+    },
+  });
+}
+
+/**
+ * Hook for updating a worker
+ */
+export function useUpdateWorker() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async ({ id, ...updates }: Partial<Worker> & { id: string }) => {
+      const { data, error } = await supabase
+        .from('workers')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workers'] });
+      queryClient.invalidateQueries({ queryKey: ['workers-simple'] });
+      toast.success('Worker updated');
+    },
+    onError: (error) => {
+      toast.error('Failed to update worker');
+      console.error('Update worker error:', error);
+    },
   });
 }

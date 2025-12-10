@@ -7,7 +7,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Clock, Calendar, DollarSign, Search, ChevronRight } from 'lucide-react';
-import { format, parseISO, startOfDay, endOfDay, subDays, isToday, isYesterday } from 'date-fns';
+import { format, startOfDay, endOfDay, subDays, isToday, isYesterday } from 'date-fns';
+import { safeParseDate, safeFormat } from '@/lib/utils/safeDate';
 import { useNavigate } from 'react-router-dom';
 import { 
   Select, 
@@ -114,7 +115,9 @@ export function ActivityTab() {
     if (!events) return {};
     
     return events.reduce((groups, event) => {
-      const date = startOfDay(parseISO(event.event_at)).toISOString();
+      const parsedDate = safeParseDate(event.event_at);
+      if (!parsedDate) return groups; // Skip events with invalid dates
+      const date = startOfDay(parsedDate).toISOString();
       if (!groups[date]) {
         groups[date] = [];
       }
@@ -167,7 +170,11 @@ export function ActivityTab() {
       const parts = [];
       if (event.company_name) parts.push(event.company_name);
       if (meta.start_date && meta.end_date) {
-        parts.push(`${format(parseISO(meta.start_date), 'MMM d')}–${format(parseISO(meta.end_date), 'd')}`);
+        const startStr = safeFormat(meta.start_date, 'MMM d', '');
+        const endStr = safeFormat(meta.end_date, 'd', '');
+        if (startStr && endStr) {
+          parts.push(`${startStr}–${endStr}`);
+        }
       }
       return parts.join(' – ');
     }
@@ -194,7 +201,8 @@ export function ActivityTab() {
   };
 
   const formatDayHeading = (dateString: string) => {
-    const date = parseISO(dateString);
+    const date = safeParseDate(dateString);
+    if (!date) return dateString; // Fallback to raw string if invalid
     if (isToday(date)) return `Today – ${format(date, 'EEE, MMM d, yyyy')}`;
     if (isYesterday(date)) return `Yesterday – ${format(date, 'EEE, MMM d, yyyy')}`;
     return format(date, 'EEE, MMM d, yyyy');
@@ -343,7 +351,7 @@ export function ActivityTab() {
                               <div className="flex items-center gap-2 flex-wrap">
                                 <Badge className={badge.className}>{badge.label}</Badge>
                                 <span className="text-xs text-muted-foreground">
-                                  {format(parseISO(event.event_at), 'h:mm a')}
+                                  {safeFormat(event.event_at, 'h:mm a')}
                                 </span>
                               </div>
                               {event.amount !== undefined && event.amount > 0 && (

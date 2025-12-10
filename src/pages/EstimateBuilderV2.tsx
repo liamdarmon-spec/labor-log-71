@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, FileText, Check, Download, FileSpreadsheet } from "lucide-react";
+import { ArrowLeft, Plus, FileText, Check, Download, FileSpreadsheet, Undo2, Redo2 } from "lucide-react";
+import { useUndoStack } from "@/hooks/useUndoStack";
 import { getUnassignedCostCodeId } from "@/lib/costCodes";
 import { checkEstimateNeedsMigration, migrateEstimateToScopeBlocks } from "@/lib/estimateMigration";
 import { downloadCSV, downloadPDF, type EstimateExportData } from "@/lib/estimateExport";
@@ -125,8 +126,17 @@ export default function EstimateBuilderV2() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  // Local state for immediate UI updates
-  const [localBlocks, setLocalBlocks] = useState<EstimateEditorBlock[]>([]);
+  // Local state for immediate UI updates with undo/redo support
+  const {
+    state: localBlocks,
+    setState: setLocalBlocks,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
+    reset: resetUndoStack,
+  } = useUndoStack<EstimateEditorBlock[]>([], { maxHistory: 20 });
+  
   const [isMigrating, setIsMigrating] = useState(false);
   const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
 
@@ -248,13 +258,26 @@ export default function EstimateBuilderV2() {
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
+  // Track if we're in an undo/redo operation (skip DB sync during this)
+  const isUndoRedoRef = useRef(false);
+  const hasInitializedRef = useRef(false);
+
   // Sync local state when DB data changes
   useEffect(() => {
     if (scopeBlocks.length > 0) {
       const transformed = transformToEditorBlocks(scopeBlocks);
-      setLocalBlocks(transformed);
       
-      // Update tracking refs
+      // On initial load, reset the undo stack (clears history)
+      // On subsequent syncs, only update if not in undo/redo operation
+      if (!hasInitializedRef.current) {
+        resetUndoStack(transformed);
+        hasInitializedRef.current = true;
+      } else if (!isUndoRedoRef.current) {
+        // Server sync after user change - update tracking refs but don't push to undo stack
+        // The local state should already match from user's change
+      }
+      
+      // Always update tracking refs
       const newMap = new Map<string, string>();
       const newIds = new Set<string>();
       transformed.forEach(b => {
@@ -266,7 +289,7 @@ export default function EstimateBuilderV2() {
       existingItemsRef.current = newMap;
       existingIdsRef.current = newIds;
     }
-  }, [scopeBlocks]);
+  }, [scopeBlocks, resetUndoStack]);
 
   // Auto-create first scope block if none exist
   const createFirstBlock = useMutation({
@@ -541,9 +564,85 @@ export default function EstimateBuilderV2() {
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
       }
-      autosave.cleanup();
+      // Note: autosave cleanup is now automatic via useEffect in the hook
     };
-  }, [autosave]);
+  }, []);
+
+  // Undo/Redo handlers - state changes are automatically synced via the effect below
+  const handleUndo = useCallback(() => {
+    if (!canUndo) return;
+    isUndoRedoRef.current = true;
+    undo();
+    // Reset flag after a short delay to allow the sync effect to process
+    setTimeout(() => { isUndoRedoRef.current = false; }, 50);
+    toast.info("Undo");
+  }, [canUndo, undo]);
+
+  const handleRedo = useCallback(() => {
+    if (!canRedo) return;
+    isUndoRedoRef.current = true;
+    redo();
+    setTimeout(() => { isUndoRedoRef.current = false; }, 50);
+    toast.info("Redo");
+  }, [canRedo, redo]);
+
+  // Effect to sync server after undo/redo state changes
+  const prevBlocksRef = useRef<EstimateEditorBlock[]>(localBlocks);
+  useEffect(() => {
+    // Only trigger save if blocks actually changed and we have initialized
+    if (hasInitializedRef.current && prevBlocksRef.current !== localBlocks) {
+      const prevIds = new Set<string>();
+      prevBlocksRef.current.forEach(b => b.items.forEach(item => prevIds.add(item.id)));
+      
+      const currentIds = new Set<string>();
+      localBlocks.forEach(b => b.items.forEach(item => currentIds.add(item.id)));
+      
+      // Check for structural changes (add/delete)
+      const hasStructuralChange =
+        currentIds.size !== prevIds.size ||
+        [...currentIds].some(id => !prevIds.has(id)) ||
+        [...prevIds].some(id => !currentIds.has(id));
+      
+      if (hasStructuralChange) {
+        // Debounce the save
+        if (saveTimeoutRef.current) {
+          clearTimeout(saveTimeoutRef.current);
+        }
+        saveTimeoutRef.current = setTimeout(() => {
+          saveStructuralChanges(localBlocks);
+        }, 300);
+      }
+    }
+    prevBlocksRef.current = localBlocks;
+  }, [localBlocks, saveStructuralChanges]);
+
+  // Keyboard shortcuts for undo/redo
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Cmd+Z (Mac) or Ctrl+Z (Windows) for undo
+      // Cmd+Shift+Z (Mac) or Ctrl+Shift+Z (Windows) for redo
+      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+      const modifier = isMac ? e.metaKey : e.ctrlKey;
+      
+      if (modifier && e.key === 'z') {
+        // Don't trigger if user is typing in an input/textarea
+        const target = e.target as HTMLElement;
+        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+          return;
+        }
+        
+        e.preventDefault();
+        if (e.shiftKey) {
+          handleRedo();
+        } else {
+          handleUndo();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleUndo, handleRedo]);
 
   // Handle set as budget source
   const handleSetAsBudgetSource = useCallback(() => {
@@ -676,6 +775,43 @@ export default function EstimateBuilderV2() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {/* Undo/Redo buttons */}
+            <div className="flex items-center border rounded-lg overflow-hidden">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleUndo}
+                    disabled={!canUndo}
+                    className="rounded-none border-0 px-2"
+                  >
+                    <Undo2 className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Undo (⌘Z)</p>
+                </TooltipContent>
+              </Tooltip>
+              <div className="w-px h-6 bg-border" />
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleRedo}
+                    disabled={!canRedo}
+                    className="rounded-none border-0 px-2"
+                  >
+                    <Redo2 className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Redo (⌘⇧Z)</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+
             {/* Export dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -716,6 +852,7 @@ export default function EstimateBuilderV2() {
         {/* ProjectEstimateEditor */}
         <ProjectEstimateEditor
           blocks={localBlocks}
+          estimateId={estimateId}
           isBudgetSourceLocked={isBudgetSourceLocked}
           isBudgetSyncing={syncToBudget.isPending}
           onBlocksChange={handleBlocksChange}

@@ -1,7 +1,7 @@
 // ItemRow.tsx - Clean item row with category, cost code, description, qty, unit, rate, markup, total
 // With autosave integration and save status indicators
 
-import React, { memo, useState, useCallback, useEffect, useMemo } from "react";
+import React, { memo, useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { Trash2, GripVertical } from "lucide-react";
 import { CostCodeSelect } from "@/components/cost-codes/CostCodeSelect";
 import { UnitSelect } from "@/components/shared/UnitSelect";
@@ -32,6 +32,8 @@ interface ItemRowProps {
   onUpdate: (patch: Partial<ScopeItem>) => void;
   onUpdateImmediate?: (patch: Partial<ScopeItem>) => void;
   onDelete: () => void;
+  onAddItemBelow?: () => void;
+  autoFocusDescription?: boolean;
   saveStatus?: SaveStatus;
   saveError?: string;
   onRetry?: () => void;
@@ -61,17 +63,38 @@ function ItemRowComponent({
   onUpdate, 
   onUpdateImmediate,
   onDelete,
+  onAddItemBelow,
+  autoFocusDescription,
   saveStatus = "idle",
   saveError,
   onRetry,
   isDragging,
   dragHandleProps,
 }: ItemRowProps) {
+  // Ref for auto-focusing description
+  const descriptionRef = useRef<HTMLInputElement>(null);
+  const mobileDescriptionRef = useRef<HTMLInputElement>(null);
+
   // Local state for blur-to-save pattern
   const [localDesc, setLocalDesc] = useState(item.description);
   const [localQty, setLocalQty] = useState(String(item.quantity || ""));
   const [localRate, setLocalRate] = useState(String(item.unit_price || ""));
   const [localMarkup, setLocalMarkup] = useState(String(item.markup_percent || ""));
+
+  // Auto-focus description when this item is newly created
+  useEffect(() => {
+    if (autoFocusDescription) {
+      // Small delay to ensure DOM is ready
+      const timer = setTimeout(() => {
+        if (descriptionRef.current) {
+          descriptionRef.current.focus();
+        } else if (mobileDescriptionRef.current) {
+          mobileDescriptionRef.current.focus();
+        }
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [autoFocusDescription]);
 
   // Sync when item changes externally (but not during active editing)
   useEffect(() => {
@@ -148,6 +171,20 @@ function ItemRowComponent({
     immediateUpdate({ unit });
   }, [immediateUpdate]);
 
+  // Handle Enter key on markup field to add new item below
+  const handleMarkupKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" && !e.shiftKey && onAddItemBelow) {
+      e.preventDefault();
+      // Save current value first
+      const val = parseFloat(localMarkup) || 0;
+      if (val !== item.markup_percent) {
+        onUpdate({ markup_percent: val });
+      }
+      // Then add new item below
+      onAddItemBelow();
+    }
+  }, [onAddItemBelow, localMarkup, item.markup_percent, onUpdate]);
+
   return (
     <>
       {/* Desktop layout */}
@@ -192,6 +229,7 @@ function ItemRowComponent({
 
         {/* Description */}
         <input
+          ref={descriptionRef}
           type="text"
           className={cn(
             "h-7 px-2 text-xs bg-transparent border rounded focus:ring-1 focus:ring-ring focus:border-ring transition-colors",
@@ -246,6 +284,7 @@ function ItemRowComponent({
             min={0}
             onChange={(e) => setLocalMarkup(e.target.value)}
             onBlur={handleMarkupBlur}
+            onKeyDown={handleMarkupKeyDown}
           />
           <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">
             %
@@ -326,6 +365,7 @@ function ItemRowComponent({
 
         {/* Description */}
         <input
+          ref={mobileDescriptionRef}
           type="text"
           className={cn(
             "w-full h-8 px-2 text-sm bg-transparent border rounded mb-2 focus:ring-1 focus:ring-ring focus:border-ring transition-colors",
@@ -397,6 +437,7 @@ function ItemRowComponent({
                 min={0}
                 onChange={(e) => setLocalMarkup(e.target.value)}
                 onBlur={handleMarkupBlur}
+                onKeyDown={handleMarkupKeyDown}
               />
               <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">
                 %
