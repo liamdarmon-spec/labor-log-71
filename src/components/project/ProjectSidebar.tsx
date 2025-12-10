@@ -24,6 +24,7 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
+  ClipboardCheck,
 } from 'lucide-react';
 
 interface NavItem {
@@ -43,6 +44,7 @@ const navItems: NavItem[] = [
   { id: 'tasks', label: 'Tasks', icon: CheckSquare },
   { id: 'checklists', label: 'Checklists', icon: ClipboardList },
   { id: 'subs', label: 'Subs', icon: Users },
+  { id: 'work-orders', label: 'Work Orders', icon: ClipboardCheck },
   { id: 'documents', label: 'Documents', icon: FolderOpen },
   { id: 'labor', label: 'Labor Logs', icon: Clock },
   { id: 'settings', label: 'Settings', icon: Settings },

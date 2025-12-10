@@ -51,6 +51,19 @@ interface ScheduledShift {
   trade: { name: string } | null;
 }
 
+interface SubSchedule {
+  id: string;
+  sub_id: string;
+  project_id: string;
+  scheduled_date: string;
+  scheduled_hours: number;
+  notes: string | null;
+  work_order_id: string | null;
+  subs: { name: string; company_name: string | null } | null;
+  projects: { project_name: string } | null;
+  work_orders: { id: string; title: string; status: string } | null;
+}
+
 interface Meeting {
   id: string;
   title: string;
@@ -96,6 +109,7 @@ export function UniversalDayDetailDialog({
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [schedules, setSchedules] = useState<ScheduledShift[]>([]);
+  const [subSchedules, setSubSchedules] = useState<SubSchedule[]>([]);
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [loading, setLoading] = useState(false);
   const [convertDialogOpen, setConvertDialogOpen] = useState(false);
@@ -189,10 +203,34 @@ export function UniversalDayDetailDialog({
       meetingsQuery = meetingsQuery.eq("project_id", projectId);
     }
 
-    const [scheduleRes, meetingsRes] = await Promise.all([
-      scheduleQuery,
-      meetingsQuery,
-    ]);
+    // Fetch sub schedules if showing all or subs
+    let subScheduleQuery: any = null;
+    if (scheduleType === 'all' || scheduleType === 'sub') {
+      subScheduleQuery = (supabase as any)
+        .from("sub_scheduled_shifts")
+        .select(`
+          *,
+          subs(id, name, company_name),
+          projects(id, project_name),
+          work_orders(id, title, status)
+        `)
+        .eq("scheduled_date", dateStr)
+        .order("sub_id");
+
+      if (projectId) {
+        subScheduleQuery = subScheduleQuery.eq("project_id", projectId);
+      }
+    }
+
+    const queries = [scheduleQuery, meetingsQuery];
+    if (subScheduleQuery) {
+      queries.push(subScheduleQuery);
+    }
+
+    const results = await Promise.all(queries);
+    const scheduleRes = results[0];
+    const meetingsRes = results[1];
+    const subScheduleRes = results[2];
 
     setLoading(false);
 
@@ -206,6 +244,14 @@ export function UniversalDayDetailDialog({
       console.error("Error fetching meetings:", meetingsRes.error);
     } else {
       setMeetings(meetingsRes.data || []);
+    }
+
+    if (subScheduleRes) {
+      if (subScheduleRes.error) {
+        console.error("Error fetching sub schedules:", subScheduleRes.error);
+      } else {
+        setSubSchedules(subScheduleRes.data || []);
+      }
     }
   };
 
@@ -302,6 +348,7 @@ export function UniversalDayDetailDialog({
   };
 
   const showSchedules = scheduleType === 'all' || scheduleType === 'labor';
+  const showSubSchedules = scheduleType === 'all' || scheduleType === 'sub';
   const showMeetings = scheduleType === 'all' || scheduleType === 'meeting';
 
   return (
@@ -634,6 +681,70 @@ export function UniversalDayDetailDialog({
                                 </div>
                               </div>
                             ))}
+                          </div>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Sub Schedules Section */}
+              {showSubSchedules && subSchedules.length > 0 && (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <User className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+                    <h3 className="font-semibold text-sm">Subcontractor Schedule</h3>
+                    <Badge variant="secondary" className="text-xs">
+                      {subSchedules.length}
+                    </Badge>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    {subSchedules.map((subSchedule) => {
+                      const subName = subSchedule.subs?.name || 'Unknown Sub';
+                      const companyName = subSchedule.subs?.company_name;
+                      const projectName = subSchedule.projects?.project_name || 'Unknown Project';
+                      const workOrder = subSchedule.work_orders;
+                      
+                      return (
+                        <Card
+                          key={subSchedule.id}
+                          className="p-3 transition-all hover:shadow-md"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                <span className="font-semibold text-sm">{subName}</span>
+                                {companyName && (
+                                  <span className="text-xs text-muted-foreground">
+                                    ({companyName})
+                                  </span>
+                                )}
+                                {workOrder && workOrder.title && (
+                                  <Badge variant="outline" className="text-xs" title={`Work Order: ${workOrder.title}`}>
+                                    WO: {workOrder.title.length > 20 ? `${workOrder.title.substring(0, 20)}...` : workOrder.title}
+                                  </Badge>
+                                )}
+                              </div>
+                              
+                              <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
+                                <span className="flex items-center gap-1">
+                                  <Briefcase className="h-3 w-3" />
+                                  {projectName}
+                                </span>
+                                <span className="flex items-center gap-1">
+                                  <Clock className="h-3 w-3" />
+                                  {subSchedule.scheduled_hours}h
+                                </span>
+                              </div>
+                              
+                              {subSchedule.notes && (
+                                <p className="text-xs text-muted-foreground mt-2 line-clamp-2">
+                                  {subSchedule.notes}
+                                </p>
+                              )}
+                            </div>
                           </div>
                         </Card>
                       );

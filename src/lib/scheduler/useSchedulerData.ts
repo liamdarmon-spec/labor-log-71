@@ -173,15 +173,17 @@ async function fetchSubSchedules(
   dayMap: Map<string, SchedulerDaySummary>,
   assignmentsMap: Map<string, SchedulerAssignmentPreview[]>
 ) {
-  let query = supabase
+  let query = (supabase as any)
     .from('sub_scheduled_shifts')
     .select(`
       id,
       sub_id,
       scheduled_date,
       scheduled_hours,
+      work_order_id,
       subs (name, company_name),
-      projects (project_name)
+      projects (project_name),
+      work_orders (id, title, status)
     `)
     .gte('scheduled_date', startDate)
     .lte('scheduled_date', endDate)

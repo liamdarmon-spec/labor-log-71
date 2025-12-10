@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
+import { useProjectWorkOrders } from '@/hooks/useWorkOrders';
 
 interface SubScheduleDialogProps {
   open: boolean;
@@ -33,7 +34,16 @@ export function SubScheduleDialog({
     scheduled_date: selectedDate?.toISOString().split('T')[0] || new Date().toISOString().split('T')[0],
     scheduled_hours: '8',
     notes: '',
+    work_order_id: '',
   });
+
+  // Reset work_order_id when project changes
+  useEffect(() => {
+    if (formData.project_id && formData.work_order_id) {
+      // Optionally clear work_order_id if it doesn't belong to the new project
+      setFormData((prev) => ({ ...prev, work_order_id: '' }));
+    }
+  }, [formData.project_id]);
 
   const { data: subs } = useQuery({
     queryKey: ['subs-active'],
@@ -64,13 +74,20 @@ export function SubScheduleDialog({
     },
   });
 
+  // Fetch open work orders for the selected project - only when project is selected
+  const { data: workOrders } = useProjectWorkOrders(formData.project_id || undefined);
+  const openWorkOrders = (workOrders || []).filter(
+    (wo) => ['draft', 'issued', 'scheduled', 'in_progress'].includes(wo.status)
+  );
+
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('sub_scheduled_shifts')
         .insert([{
           ...data,
           scheduled_hours: Number(data.scheduled_hours),
+          work_order_id: data.work_order_id || null,
         }]);
       if (error) throw error;
     },
@@ -162,6 +179,27 @@ export function SubScheduleDialog({
               onChange={(e) => setFormData({ ...formData, scheduled_hours: e.target.value })}
               required
             />
+          </div>
+
+          <div>
+            <Label>Work Order (Optional)</Label>
+            <Select
+              value={formData.work_order_id}
+              onValueChange={(value) => setFormData({ ...formData, work_order_id: value })}
+              disabled={!formData.project_id}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder={formData.project_id ? 'Select work order (optional)' : 'Select project first'} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">None</SelectItem>
+                {openWorkOrders.map((wo) => (
+                  <SelectItem key={wo.id} value={wo.id}>
+                    {wo.title}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div>

@@ -40,7 +40,7 @@ export function usePublicProposalData(token: string | undefined) {
         .from('proposals')
         .select(`
           *,
-          projects (id, project_name, client_name, address)
+          projects (id, project_name, client_name, address, project_manager)
         `)
         .eq('public_token', token)
         .maybeSingle();
@@ -82,21 +82,21 @@ export function usePublicProposalData(token: string | undefined) {
           .eq('entity_id', proposal.primary_estimate_id)
           .eq('block_type', 'cost_items');
 
-        if (blocks) {
+        if (blocks && Array.isArray(blocks)) {
           allItems = blocks.flatMap((block: any) =>
             (block.scope_block_cost_items || []).map((item: any) => ({
-              id: item.id,
-              area_label: item.area_label,
-              group_label: item.group_label,
-              category: item.category,
-              description: item.description,
-              quantity: item.quantity,
-              unit: item.unit,
-              unit_price: item.unit_price,
-              markup_percent: item.markup_percent,
-              line_total: item.line_total,
-              cost_code_id: item.cost_code_id,
-              cost_code: item.cost_codes,
+              id: item.id || '',
+              area_label: item.area_label || null,
+              group_label: item.group_label || null,
+              category: item.category || 'other',
+              description: item.description || '',
+              quantity: item.quantity ?? 0,
+              unit: item.unit || null,
+              unit_price: item.unit_price ?? 0,
+              markup_percent: item.markup_percent ?? 0,
+              line_total: item.line_total ?? 0,
+              cost_code_id: item.cost_code_id || null,
+              cost_code: item.cost_codes || null,
             }))
           );
         }
@@ -148,7 +148,9 @@ export function usePublicProposalData(token: string | undefined) {
         public_token: proposal.public_token,
         created_at: proposal.created_at,
         updated_at: proposal.updated_at,
-        project: proposal.projects,
+        project: Array.isArray(proposal.projects) 
+          ? proposal.projects[0] || null 
+          : proposal.projects || null,
         estimate,
         scopeByArea,
         allItems,

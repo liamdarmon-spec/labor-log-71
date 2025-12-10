@@ -322,7 +322,19 @@ export function ProjectBudgetTabV2({ projectId }: ProjectBudgetTabV2Props) {
                           {line.code || 'N/A'}
                         </TableCell>
                         <TableCell>
-                          {line.description || 'Unnamed'}
+                          <div className="flex items-center gap-2">
+                            <span>{line.description || 'Unnamed'}</span>
+                            {line.source_estimate_title && (
+                              <Badge variant="outline" className="text-xs">
+                                {line.source_estimate_title}
+                              </Badge>
+                            )}
+                            {line.source_estimate_id && !line.source_estimate_title && (
+                              <Badge variant="outline" className="text-xs">
+                                From Estimate
+                              </Badge>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell>
                           <Badge variant="secondary" className="capitalize">

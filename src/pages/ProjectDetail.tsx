@@ -19,11 +19,12 @@ import { ProjectDocumentsTab } from '@/components/project/ProjectDocumentsTab';
 import { ProjectLaborTab } from '@/components/project/ProjectLaborTab';
 import { ProjectTasksTab } from '@/components/project/ProjectTasksTab';
 import { ProjectChecklistsTab } from '@/components/checklists/ProjectChecklistsTab';
+import { ProjectWorkOrdersTab } from '@/components/work-orders/ProjectWorkOrdersTab';
 
 const VALID_TABS = [
   'overview', 'estimates', 'proposals', 'budget', 'billing', 
   'financials', 'dashboard', 'labor', 'tasks', 'checklists', 
-  'schedule', 'subs', 'documents', 'photos', 'settings'
+  'schedule', 'subs', 'work-orders', 'documents', 'photos', 'settings'
 ] as const;
 type TabValue = typeof VALID_TABS[number];
 
@@ -142,6 +143,8 @@ const ProjectDetail = () => {
         return <ProjectScheduleTabV2 projectId={project.id} />;
       case 'subs':
         return <ProjectSubsTabV3 projectId={project.id} />;
+      case 'work-orders':
+        return <ProjectWorkOrdersTab projectId={project.id} />;
       case 'documents':
         return <ProjectDocumentsTab projectId={project.id} />;
       case 'photos':

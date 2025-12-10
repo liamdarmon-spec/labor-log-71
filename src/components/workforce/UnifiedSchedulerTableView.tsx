@@ -140,12 +140,13 @@ export function UnifiedSchedulerTableView({
     queryFn: async () => {
       if (showType === 'workers') return [];
 
-      let query = supabase
+      let query = (supabase as any)
         .from('sub_scheduled_shifts')
         .select(`
           *,
           subs(id, name, company_name, trade_id, trades(name)),
-          projects(id, project_name, company_id, companies(name))
+          projects(id, project_name, company_id, companies(name)),
+          work_orders(id, title, status)
         `)
         .gte('scheduled_date', format(weekStart, 'yyyy-MM-dd'))
         .lte('scheduled_date', format(weekEnd, 'yyyy-MM-dd'))

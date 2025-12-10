@@ -26,6 +26,9 @@ export interface CostCodeBudgetLine {
   variance: number;
   is_allowance: boolean;
   details: ActualEntry[];
+  // Estimate source info (for lines that came from estimates)
+  source_estimate_id: string | null;
+  source_estimate_title: string | null;
 }
 
 export interface BudgetSummary {
@@ -85,7 +88,45 @@ export function useUnifiedProjectBudget(projectId: string) {
   return useQuery({
     queryKey: ["unified-project-budget", projectId],
     queryFn: async () => {
-      // 1) Budget lines + cost codes
+      // 0) Get active budget for this project (only ONE active budget per project)
+      const { data: activeBudget, error: budgetHeaderError } = await supabase
+        .from("project_budgets")
+        .select("id")
+        .eq("project_id", projectId)
+        .eq("status", "active")
+        .maybeSingle();
+
+      if (budgetHeaderError) throw budgetHeaderError;
+
+      // If no active budget, return empty structure
+      if (!activeBudget) {
+        return {
+          costCodeLines: [],
+          summary: {
+            total_budget: 0,
+            total_actual: 0,
+            total_variance: 0,
+            labor_budget: 0,
+            labor_actual: 0,
+            labor_variance: 0,
+            labor_unpaid: 0,
+            subs_budget: 0,
+            subs_actual: 0,
+            subs_variance: 0,
+            materials_budget: 0,
+            materials_actual: 0,
+            materials_variance: 0,
+            other_budget: 0,
+            other_actual: 0,
+            other_variance: 0,
+          },
+        };
+      }
+
+      // 1) Budget lines + cost codes + estimate info
+      // Note: Supabase doesn't support nested foreign key selects like estimates:source_estimate_id
+      // We'll fetch estimates separately and join in memory
+      // IMPORTANT: Only fetch lines from the active budget
       const { data: budgetLines, error: budgetError } = await supabase
         .from("project_budget_lines")
         .select(
@@ -95,8 +136,29 @@ export function useUnifiedProjectBudget(projectId: string) {
         `,
         )
         .eq("project_id", projectId)
+        .eq("project_budget_id", activeBudget.id) // Only active budget lines
         .order("category")
         .order("cost_code_id");
+
+      // Fetch unique estimate IDs and their titles
+      const estimateIds = new Set<string>();
+      budgetLines?.forEach((line) => {
+        if (line.source_estimate_id) {
+          estimateIds.add(line.source_estimate_id);
+        }
+      });
+
+      const estimateMap = new Map<string, { id: string; title: string }>();
+      if (estimateIds.size > 0) {
+        const { data: estimates } = await supabase
+          .from("estimates")
+          .select("id, title")
+          .in("id", Array.from(estimateIds));
+
+        estimates?.forEach((est) => {
+          estimateMap.set(est.id, est);
+        });
+      }
 
       if (budgetError) throw budgetError;
 
@@ -165,12 +227,26 @@ export function useUnifiedProjectBudget(projectId: string) {
             variance: 0,
             is_allowance: line.is_allowance || false,
             details: [],
+            source_estimate_id: null, // Will be set if all lines come from same estimate
+            source_estimate_title: null,
           });
         }
         const entry = costCodeMap.get(key)!;
         entry.budget_amount += line.budget_amount || 0;
         if (line.budget_hours) {
           entry.budget_hours = (entry.budget_hours || 0) + line.budget_hours;
+        }
+        // Track estimate source (use first non-null estimate, or null if mixed)
+        if (line.source_estimate_id) {
+          const estimate = estimateMap.get(line.source_estimate_id);
+          if (!entry.source_estimate_id) {
+            entry.source_estimate_id = line.source_estimate_id;
+            entry.source_estimate_title = estimate?.title || null;
+          } else if (entry.source_estimate_id !== line.source_estimate_id) {
+            // Multiple estimates contribute - mark as mixed
+            entry.source_estimate_id = null;
+            entry.source_estimate_title = null;
+          }
         }
       });
 
@@ -192,6 +268,8 @@ export function useUnifiedProjectBudget(projectId: string) {
             variance: 0,
             is_allowance: false,
             details: [],
+            source_estimate_id: null,
+            source_estimate_title: null,
           });
         }
         const entry = costCodeMap.get(key)!;
@@ -231,6 +309,8 @@ export function useUnifiedProjectBudget(projectId: string) {
             variance: 0,
             is_allowance: false,
             details: [],
+            source_estimate_id: null,
+            source_estimate_title: null,
           });
         }
         const entry = costCodeMap.get(key)!;

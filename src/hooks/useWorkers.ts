@@ -84,10 +84,21 @@ export function useCreateWorker() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async (worker: Partial<Worker>) => {
+    mutationFn: async (worker: Omit<Worker, 'id' | 'created_at' | 'trades'> & { trade?: string }) => {
+      // Map Worker interface to database schema
+      // Note: trade is required in DB schema, so provide a default if missing
+      const insertData: any = {
+        name: worker.name,
+        trade: worker.trade || '', // Required field - use empty string as fallback
+        trade_id: worker.trade_id || null,
+        hourly_rate: worker.hourly_rate ?? 0,
+        phone: worker.phone || null,
+        active: worker.active ?? true,
+      };
+      
       const { data, error } = await supabase
         .from('workers')
-        .insert(worker)
+        .insert(insertData)
         .select()
         .single();
       

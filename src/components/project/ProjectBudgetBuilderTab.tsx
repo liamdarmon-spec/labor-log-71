@@ -22,6 +22,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useProjectBudgetStructure } from '@/hooks/useProjectBudgetStructure';
 import { useUpdateBudgetLine } from '@/hooks/useUpdateBudgetLine';
 import { cn } from '@/lib/utils';
+import { CreateWorkOrderDialog } from '@/components/work-orders/CreateWorkOrderDialog';
+import { FileText } from 'lucide-react';
 
 interface ProjectBudgetBuilderTabProps {
   projectId: string;
@@ -47,6 +49,12 @@ export function ProjectBudgetBuilderTab({
   const { data, isLoading, error, refetch } =
     useProjectBudgetStructure(projectId);
   const updateLineMutation = useUpdateBudgetLine(projectId);
+  const [workOrderDialogOpen, setWorkOrderDialogOpen] = useState(false);
+  const [selectedBudgetLine, setSelectedBudgetLine] = useState<{
+    id: string;
+    description: string;
+    amount?: number;
+  } | null>(null);
 
   // simple local edit state: map lineId -> EditableLine
   const [drafts, setDrafts] = useState<Record<string, EditableLine>>({});
@@ -351,18 +359,38 @@ export function ProjectBudgetBuilderTab({
                 Baseline Locked
               </Badge>
             ) : (
-              <Button
-                size="sm"
-                variant="outline"
-                className={cn(
-                  'h-8 text-xs',
-                  isSaving && 'opacity-70 cursor-wait',
-                )}
-                disabled={disabled}
-                onClick={() => handleSave(line.id)}
-              >
-                {isSaving ? 'Saving…' : 'Save'}
-              </Button>
+              <>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-8 text-xs"
+                  disabled={disabled}
+                  onClick={() => {
+                    setSelectedBudgetLine({
+                      id: line.id,
+                      description: draft.description_client || draft.description_internal || 'Untitled',
+                      amount: displayAmount,
+                    });
+                    setWorkOrderDialogOpen(true);
+                  }}
+                  title="Create Work Order"
+                >
+                  <FileText className="h-3 w-3 mr-1" />
+                  WO
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className={cn(
+                    'h-8 text-xs',
+                    isSaving && 'opacity-70 cursor-wait',
+                  )}
+                  disabled={disabled}
+                  onClick={() => handleSave(line.id)}
+                >
+                  {isSaving ? 'Saving…' : 'Save'}
+                </Button>
+              </>
             )}
           </div>
         </div>
@@ -482,6 +510,22 @@ export function ProjectBudgetBuilderTab({
           )}
         </div>
       </ScrollArea>
+
+      {selectedBudgetLine && (
+        <CreateWorkOrderDialog
+          open={workOrderDialogOpen}
+          onOpenChange={(open) => {
+            setWorkOrderDialogOpen(open);
+            if (!open) {
+              setSelectedBudgetLine(null);
+            }
+          }}
+          projectId={projectId}
+          budgetItemId={selectedBudgetLine.id}
+          budgetItemDescription={selectedBudgetLine.description}
+          budgetItemAmount={selectedBudgetLine.amount}
+        />
+      )}
     </div>
   );
 }

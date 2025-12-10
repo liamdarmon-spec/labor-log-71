@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Layout } from '@/components/Layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,21 +16,62 @@ export default function ProposalSettings() {
   const upsertSettings = useUpsertProposalSettings();
 
   const [formData, setFormData] = useState({
-    default_terms: settings?.default_terms || '',
-    default_markup_labor: settings?.default_markup_labor || 0,
-    default_markup_materials: settings?.default_markup_materials || 0,
-    default_markup_subs: settings?.default_markup_subs || 0,
-    default_margin_percent: settings?.default_margin_percent || 0,
-    branding_logo_url: settings?.branding_logo_url || '',
-    ai_enabled: settings?.ai_enabled || false,
+    default_terms: '',
+    default_markup_labor: 0,
+    default_markup_materials: 0,
+    default_markup_subs: 0,
+    default_margin_percent: 0,
+    branding_logo_url: '',
+    ai_enabled: false,
+    // Proposal branding fields
+    proposal_tagline: 'TRANSPARENT. RELIABLE. REFRESHINGLY MODERN.',
+    proposal_intro_heading: 'A Refined Vision for Your Home',
+    proposal_intro_body: `We're excited to present this proposal for {{project_name}}. Our team has carefully analyzed your needs and prepared a comprehensive plan that balances quality, efficiency, and value.`,
+    proposal_cover_image_url: '',
   });
 
+  // Update form data when settings load
+  useEffect(() => {
+    if (settings) {
+      const templateConfig = (settings.template_config as Record<string, any>) || {};
+      setFormData({
+        default_terms: settings.default_terms || '',
+        default_markup_labor: settings.default_markup_labor || 0,
+        default_markup_materials: settings.default_markup_materials || 0,
+        default_markup_subs: settings.default_markup_subs || 0,
+        default_margin_percent: settings.default_margin_percent || 0,
+        branding_logo_url: settings.branding_logo_url || '',
+        ai_enabled: settings.ai_enabled || false,
+        proposal_tagline: templateConfig.tagline || 'TRANSPARENT. RELIABLE. REFRESHINGLY MODERN.',
+        proposal_intro_heading: templateConfig.intro_heading || 'A Refined Vision for Your Home',
+        proposal_intro_body: templateConfig.intro_body || `We're excited to present this proposal for {{project_name}}. Our team has carefully analyzed your needs and prepared a comprehensive plan that balances quality, efficiency, and value.`,
+        proposal_cover_image_url: templateConfig.cover_image_url || '',
+      });
+    }
+  }, [settings]);
+
   const handleSave = () => {
+    // Merge template_config with new proposal branding fields
+    const existingTemplateConfig = (settings?.template_config as Record<string, any>) || {};
+    const updatedTemplateConfig = {
+      ...existingTemplateConfig,
+      tagline: formData.proposal_tagline,
+      intro_heading: formData.proposal_intro_heading,
+      intro_body: formData.proposal_intro_body,
+      cover_image_url: formData.proposal_cover_image_url,
+    };
+
     upsertSettings.mutate({
-      ...formData,
+      default_terms: formData.default_terms,
+      default_markup_labor: formData.default_markup_labor,
+      default_markup_materials: formData.default_markup_materials,
+      default_markup_subs: formData.default_markup_subs,
+      default_margin_percent: formData.default_margin_percent,
+      branding_logo_url: formData.branding_logo_url,
+      ai_enabled: formData.ai_enabled,
       setting_type: 'global',
       branding_colors: settings?.branding_colors || {},
-      template_config: settings?.template_config || {},
+      template_config: updatedTemplateConfig,
       ai_settings: settings?.ai_settings || {},
     });
   };
@@ -219,15 +260,90 @@ export default function ProposalSettings() {
           <TabsContent value="templates" className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Proposal Templates</CardTitle>
+                <CardTitle>Proposal Branding & Content</CardTitle>
                 <CardDescription>
-                  Manage reusable proposal templates
+                  Customize the default text and imagery used in proposal PDFs
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">
-                  Custom templates and layouts coming in Phase 1.1
-                </p>
+              <CardContent className="space-y-6">
+                <div className="space-y-2">
+                  <Label htmlFor="proposal-tagline">
+                    Tagline <span className="text-muted-foreground text-xs">(appears on cover page)</span>
+                  </Label>
+                  <Input
+                    id="proposal-tagline"
+                    value={formData.proposal_tagline}
+                    onChange={(e) =>
+                      setFormData({ ...formData, proposal_tagline: e.target.value })
+                    }
+                    placeholder="TRANSPARENT. RELIABLE. REFRESHINGLY MODERN."
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    This tagline appears at the bottom of the proposal cover page in small caps.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="proposal-intro-heading">
+                    Introduction Heading <span className="text-muted-foreground text-xs">(page 3)</span>
+                  </Label>
+                  <Input
+                    id="proposal-intro-heading"
+                    value={formData.proposal_intro_heading}
+                    onChange={(e) =>
+                      setFormData({ ...formData, proposal_intro_heading: e.target.value })
+                    }
+                    placeholder="A Refined Vision for Your Home"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="proposal-intro-body">
+                    Introduction Body Text <span className="text-muted-foreground text-xs">(page 3)</span>
+                  </Label>
+                  <Textarea
+                    id="proposal-intro-body"
+                    value={formData.proposal_intro_body}
+                    onChange={(e) =>
+                      setFormData({ ...formData, proposal_intro_body: e.target.value })
+                    }
+                    rows={6}
+                    placeholder="We're excited to present this proposal for {{project_name}}..."
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Use <code className="px-1 py-0.5 bg-muted rounded text-xs">{'{{client_name}}'}</code> and{' '}
+                    <code className="px-1 py-0.5 bg-muted rounded text-xs">{'{{project_name}}'}</code> for dynamic replacement.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="proposal-cover-image">
+                    Cover Image URL <span className="text-muted-foreground text-xs">(optional)</span>
+                  </Label>
+                  <Input
+                    id="proposal-cover-image"
+                    value={formData.proposal_cover_image_url}
+                    onChange={(e) =>
+                      setFormData({ ...formData, proposal_cover_image_url: e.target.value })
+                    }
+                    placeholder="https://example.com/hero-image.jpg"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Full URL to an image that will appear on the proposal cover page. Should be publicly accessible.
+                  </p>
+                  {formData.proposal_cover_image_url && (
+                    <div className="border rounded-lg p-4 mt-2">
+                      <img
+                        src={formData.proposal_cover_image_url}
+                        alt="Cover preview"
+                        className="max-h-32 object-contain w-full"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = 'none';
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
               </CardContent>
             </Card>
           </TabsContent>

@@ -116,16 +116,31 @@ export function WorkforceScheduleTab() {
 
   /** Schedule data for the week */
   const {
-    data: schedules = [],
+    data: schedulesRaw = [],
     isLoading: schedulesLoading,
     refetch,
-  } = useScheduleData<Schedule>({
+  } = useScheduleData({
     startDate: format(weekStart, 'yyyy-MM-dd'),
     endDate: format(weekEnd, 'yyyy-MM-dd'),
     companyId: selectedCompany !== 'all' ? selectedCompany : undefined,
     projectId: selectedProject !== 'all' ? selectedProject : undefined,
     type: 'labor',
   });
+
+  // Transform the schedule data to match the expected Schedule type
+  // useScheduleData returns transformed data with nested worker/project objects
+  const schedules: Schedule[] = schedulesRaw
+    .filter((s: any) => s.worker_id != null) // Only labor schedules
+    .map((s: any) => ({
+      id: s.id || '',
+      worker_id: s.worker_id || '',
+      scheduled_date: s.scheduled_date || null,
+      scheduled_hours: s.scheduled_hours ?? null,
+      project: s.project ? {
+        id: s.project.id,
+        project_name: s.project.project_name || null,
+      } : null,
+    }));
 
   /** Week navigation */
   const handlePrevWeek = () => setCurrentWeek(prev => subWeeks(prev, 1));
@@ -141,10 +156,10 @@ export function WorkforceScheduleTab() {
 
   /** Helpers */
   const getSchedulesForWorkerAndDay = (workerId: string, date: Date): Schedule[] => {
-    if (!schedules || schedules.length === 0) return [];
+    if (!schedules || !Array.isArray(schedules) || schedules.length === 0) return [];
 
     return schedules.filter(schedule => {
-      if (schedule.worker_id !== workerId) return false;
+      if (!schedule || schedule.worker_id !== workerId) return false;
       if (!schedule.scheduled_date) return false;
 
       let scheduleDate: Date;
@@ -152,8 +167,12 @@ export function WorkforceScheduleTab() {
       // scheduled_date should be yyyy-MM-dd; protect against bad/null values
       try {
         scheduleDate = parseISO(schedule.scheduled_date);
+        if (isNaN(scheduleDate.getTime())) {
+          console.warn('Invalid scheduled_date on schedule', schedule);
+          return false;
+        }
       } catch (e) {
-        console.warn('Invalid scheduled_date on schedule', schedule);
+        console.warn('Invalid scheduled_date on schedule', schedule, e);
         return false;
       }
 
@@ -164,16 +183,18 @@ export function WorkforceScheduleTab() {
   const getTotalHoursForDay = (workerId: string, date: Date): number => {
     const daySchedules = getSchedulesForWorkerAndDay(workerId, date);
     return daySchedules.reduce((sum, schedule) => {
-      const hours = typeof schedule.scheduled_hours === 'number'
+      if (!schedule) return sum;
+      const hours = typeof schedule.scheduled_hours === 'number' && !isNaN(schedule.scheduled_hours)
         ? schedule.scheduled_hours
         : 0;
-      return sum + hours;
+      return sum + Math.max(0, hours); // Ensure non-negative
     }, 0);
   };
 
-  const getSafeProjectName = (schedule: Schedule): string => {
+  const getSafeProjectName = (schedule: Schedule | null | undefined): string => {
+    if (!schedule) return 'Unassigned';
     const rawName = schedule.project?.project_name ?? '';
-    if (!rawName) return 'Unassigned';
+    if (!rawName || typeof rawName !== 'string') return 'Unassigned';
     return rawName;
   };
 
@@ -336,12 +357,13 @@ export function WorkforceScheduleTab() {
                         {daySchedules.length > 0 ? (
                           <div className="space-y-1">
                             {daySchedules.slice(0, 2).map(schedule => {
+                              if (!schedule) return null;
                               const projectName = getSafeProjectName(schedule);
                               const displayName = projectName.slice(0, 12);
 
                               return (
                                 <Badge
-                                  key={schedule.id}
+                                  key={schedule.id || `schedule-${Math.random()}`}
                                   variant="outline"
                                   className="text-xs truncate block"
                                   title={projectName}
@@ -357,9 +379,11 @@ export function WorkforceScheduleTab() {
                               </Badge>
                             )}
 
-                            <div className="text-xs text-muted-foreground mt-1">
-                              {totalHours}h
-                            </div>
+                            {totalHours > 0 && (
+                              <div className="text-xs text-muted-foreground mt-1">
+                                {totalHours}h
+                              </div>
+                            )}
                           </div>
                         ) : (
                           <div className="h-full flex items-center justify-center text-muted-foreground text-xs">

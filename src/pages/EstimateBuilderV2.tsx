@@ -37,6 +37,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useItemAutosave } from "@/hooks/useItemAutosave";
 import { GlobalSaveStatus } from "@/components/estimates/SaveStatusIndicator";
+import { SyncEstimateDialog } from "@/components/estimates/SyncEstimateDialog";
+import { useSyncEstimateToBudget } from "@/hooks/useSyncEstimateToBudget";
 
 interface CostItemDB {
   id: string;
@@ -394,25 +396,9 @@ export default function EstimateBuilderV2() {
     },
   });
 
-  // Sync to budget
-  const syncToBudget = useMutation({
-    mutationFn: async () => {
-      const { error } = await supabase.rpc("sync_estimate_to_budget", {
-        p_estimate_id: estimateId!,
-      });
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast.success("Estimate synced to budget successfully");
-      queryClient.invalidateQueries({ queryKey: ["estimate-builder", estimateId] });
-      queryClient.invalidateQueries({ queryKey: ["project-budget-ledger"] });
-      queryClient.invalidateQueries({ queryKey: ["project-financials-v3"] });
-      window.dispatchEvent(new Event("budget-updated"));
-    },
-    onError: (error: Error) => {
-      toast.error("Failed to sync to budget: " + error.message);
-    },
-  });
+  // Sync to budget dialog state
+  const [syncDialogOpen, setSyncDialogOpen] = useState(false);
+  const syncMutation = useSyncEstimateToBudget();
 
   // Track in-flight save to prevent overlapping mutations (for batch structural changes)
   const isSavingRef = useRef(false);
@@ -461,6 +447,7 @@ export default function EstimateBuilderV2() {
       if (toCreate.length > 0) {
         const unassignedId = await getUnassignedCostCodeId();
         const insertData = toCreate.map((item, idx) => ({
+          id: item.id, // IMPORTANT: Use client-generated ID so autosave can find the item
           scope_block_id: item.scope_block_id,
           category: item.category,
           cost_code_id: item.cost_code_id || unassignedId,
@@ -514,19 +501,28 @@ export default function EstimateBuilderV2() {
     const currentIds = new Set<string>();
     newBlocks.forEach(b => b.items.forEach(item => currentIds.add(item.id)));
     
-    const hasStructuralChange = 
-      currentIds.size !== existingIdsRef.current.size ||
-      [...currentIds].some(id => !existingIdsRef.current.has(id)) ||
-      [...existingIdsRef.current].some(id => !currentIds.has(id));
+    const hasNewItems = [...currentIds].some(id => !existingIdsRef.current.has(id));
+    const hasDeletedItems = [...existingIdsRef.current].some(id => !currentIds.has(id));
+    const hasStructuralChange = hasNewItems || hasDeletedItems;
     
     if (hasStructuralChange) {
-      // Debounce structural saves
+      // Clear any pending debounce
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
+        saveTimeoutRef.current = null;
       }
-      saveTimeoutRef.current = setTimeout(() => {
+      
+      // NEW ITEMS: Save immediately to prevent autosave race condition
+      // DELETIONS: Can be debounced since no autosave will target deleted items
+      if (hasNewItems) {
+        // Save immediately so autosave can find the new item
         saveStructuralChanges(newBlocks);
-      }, 300);
+      } else if (hasDeletedItems) {
+        // Debounce deletions
+        saveTimeoutRef.current = setTimeout(() => {
+          saveStructuralChanges(newBlocks);
+        }, 300);
+      }
     }
   }, [saveStructuralChanges]);
 
@@ -644,10 +640,10 @@ export default function EstimateBuilderV2() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleUndo, handleRedo]);
 
-  // Handle set as budget source
+  // Handle set as budget source - opens dialog
   const handleSetAsBudgetSource = useCallback(() => {
-    syncToBudget.mutate();
-  }, [syncToBudget]);
+    setSyncDialogOpen(true);
+  }, []);
 
   // Export handlers
   const handleExportCSV = useCallback(() => {
@@ -854,7 +850,7 @@ export default function EstimateBuilderV2() {
           blocks={localBlocks}
           estimateId={estimateId}
           isBudgetSourceLocked={isBudgetSourceLocked}
-          isBudgetSyncing={syncToBudget.isPending}
+          isBudgetSyncing={syncMutation.isPending}
           onBlocksChange={handleBlocksChange}
           onSetAsBudgetSource={handleSetAsBudgetSource}
           onItemUpdate={handleItemUpdate}
@@ -1002,6 +998,17 @@ export default function EstimateBuilderV2() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Sync Estimate Dialog */}
+      {estimate && estimate.projects && (
+        <SyncEstimateDialog
+          open={syncDialogOpen}
+          onOpenChange={setSyncDialogOpen}
+          projectId={estimate.projects.id}
+          estimateId={estimateId!}
+          estimateTitle={estimate.title}
+        />
+      )}
     </Layout>
   );
 }

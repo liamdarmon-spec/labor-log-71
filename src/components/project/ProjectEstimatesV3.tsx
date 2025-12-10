@@ -23,17 +23,9 @@ import { FileText, Star, Zap, Edit3 } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { CreateEstimateDialog } from "./CreateEstimateDialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { useNavigate } from "react-router-dom";
+import { SyncEstimateDialog } from "@/components/estimates/SyncEstimateDialog";
+import { useProjectEstimatesSyncStatus } from "@/hooks/useEstimateSyncStatus";
 
 interface ProjectEstimatesV3Props {
   projectId: string;
@@ -62,34 +54,11 @@ export function ProjectEstimatesV3({ projectId }: ProjectEstimatesV3Props) {
     },
   });
 
-  const handleSyncToBudget = async () => {
-    if (!selectedEstimateId) return;
+  const { data: syncStatusMap = {} } = useProjectEstimatesSyncStatus(projectId);
 
-    try {
-      const { error } = await supabase.rpc("sync_estimate_to_budget", {
-        p_estimate_id: selectedEstimateId,
-      });
-
-      if (error) throw error;
-
-      window.dispatchEvent(new Event("budget-updated"));
-
-      toast({
-        title: "Success",
-        description: "Estimate synced to budget successfully.",
-      });
-
-      refetch();
-      setSyncDialogOpen(false);
-      setSelectedEstimateId(null);
-    } catch (error) {
-      console.error("Error syncing estimate to budget:", error);
-      toast({
-        title: "Error",
-        description: "Failed to sync estimate to budget.",
-        variant: "destructive",
-      });
-    }
+  const handleSyncClick = (estimateId: string) => {
+    setSelectedEstimateId(estimateId);
+    setSyncDialogOpen(true);
   };
 
   const getStatusBadge = (status: string) => {
@@ -190,32 +159,33 @@ export function ProjectEstimatesV3({ projectId }: ProjectEstimatesV3Props) {
                         : "—"}
                     </TableCell>
                     <TableCell className="text-center">
-                      {estimate.is_budget_source ? (
-                        <Badge variant="default" className="gap-1">
-                          <Star className="h-3 w-3" />
-                          Budget Baseline
-                        </Badge>
-                      ) : (
-                        <span className="text-muted-foreground text-sm">
-                          —
-                        </span>
-                      )}
+                      {(() => {
+                        const syncStatus = syncStatusMap[estimate.id];
+                        if (syncStatus?.status === 'synced') {
+                          return (
+                            <Badge variant="default" className="gap-1">
+                              <Star className="h-3 w-3" />
+                              Contributes ({syncStatus.lineCount} lines)
+                            </Badge>
+                          );
+                        }
+                        return (
+                          <Badge variant="outline" className="text-muted-foreground">
+                            Not synced
+                          </Badge>
+                        );
+                      })()}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2">
-                        {!estimate.is_budget_source && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              setSelectedEstimateId(estimate.id);
-                              setSyncDialogOpen(true);
-                            }}
-                          >
-                            <Zap className="h-3 w-3 mr-1" />
-                            Sync to Budget
-                          </Button>
-                        )}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleSyncClick(estimate.id)}
+                        >
+                          <Zap className="h-3 w-3 mr-1" />
+                          {syncStatusMap[estimate.id]?.status === 'synced' ? 'Re-sync' : 'Sync to Budget'}
+                        </Button>
                         <Button
                           size="sm"
                           variant="outline"
@@ -257,31 +227,20 @@ export function ProjectEstimatesV3({ projectId }: ProjectEstimatesV3Props) {
         }}
       />
 
-      <AlertDialog open={syncDialogOpen} onOpenChange={setSyncDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Sync Estimate to Budget?</AlertDialogTitle>
-            <AlertDialogDescription className="space-y-2">
-              <p>This will:</p>
-              <ul className="list-disc list-inside space-y-1 text-sm">
-                <li>Mark this estimate as the budget baseline</li>
-                <li>Create budget lines for each cost code</li>
-                <li>Replace any existing budget for this project</li>
-              </ul>
-              <p className="mt-4 font-medium">
-                This action cannot be undone.
-              </p>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleSyncToBudget}>
-              <Zap className="h-4 w-4 mr-2" />
-              Sync to Budget
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {selectedEstimateId && (
+        <SyncEstimateDialog
+          open={syncDialogOpen}
+          onOpenChange={(open) => {
+            setSyncDialogOpen(open);
+            if (!open) {
+              setSelectedEstimateId(null);
+            }
+          }}
+          projectId={projectId}
+          estimateId={selectedEstimateId}
+          estimateTitle={estimates?.find((e: any) => e.id === selectedEstimateId)?.title}
+        />
+      )}
     </>
   );
 }
