@@ -458,12 +458,14 @@ export function ProposalPDFPreview({
                       {settings.group_line_items_by_area
                         ? proposal.scopeByArea.map((area) => (
                             <>
-                              {/* Area header row */}
-                              <tr key={`area-${area.area_label}`} className="bg-gray-100">
-                                <td colSpan={settings.show_line_item_totals ? 6 : 2} className="px-4 py-3 font-bold text-gray-900">
-                                  {area.area_label}
-                                </td>
-                              </tr>
+                              {/* Area header row - only show if show_area_labels is true */}
+                              {settings.show_area_labels && area.area_label && (
+                                <tr key={`area-${area.area_label}`} className="bg-gray-100">
+                                  <td colSpan={settings.show_line_item_totals ? 6 : 2} className="px-4 py-3 font-bold text-gray-900">
+                                    {area.area_label}
+                                  </td>
+                                </tr>
+                              )}
                               {/* Area items */}
                               {area.items.map((item, idx) => (
                                 <tr
@@ -472,6 +474,12 @@ export function ProposalPDFPreview({
                                 >
                                   <td className="px-4 py-3 border-t border-gray-200 text-gray-600">
                                     {item.cost_code?.code || '—'}
+                                    {/* Show category label if enabled */}
+                                    {settings.show_internal_category && (
+                                      <span className="ml-2 text-xs text-gray-400">
+                                        ({item.category})
+                                      </span>
+                                    )}
                                   </td>
                                   <td className="px-4 py-3 border-t border-gray-200 text-gray-900">
                                     {item.description}
@@ -505,6 +513,12 @@ export function ProposalPDFPreview({
                             >
                               <td className="px-4 py-3 border-t border-gray-200 text-gray-600">
                                 {item.cost_code?.code || '—'}
+                                {/* Show category label if enabled */}
+                                {settings.show_internal_category && (
+                                  <span className="ml-2 text-xs text-gray-400">
+                                    ({item.category})
+                                  </span>
+                                )}
                               </td>
                               <td className="px-4 py-3 border-t border-gray-200 text-gray-900">
                                 {item.description}

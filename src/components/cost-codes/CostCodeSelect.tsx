@@ -17,8 +17,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import { Check, ChevronsUpDown, Clock } from "lucide-react";
+import { Check, ChevronsUpDown, Clock, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { CreateCostCodeDialog } from "./CreateCostCodeDialog";
 
 interface CostCode {
   id: string;
@@ -38,6 +39,8 @@ interface CostCodeSelectProps {
   helperText?: string;
   error?: string;
   compact?: boolean;
+  defaultCategory?: 'labor' | 'subs' | 'materials' | 'equipment' | 'other'; // For inline creation
+  showCreateButton?: boolean; // Show "+ Add New Cost Code" button
 }
 
 const CATEGORY_ORDER = ["labor", "subs", "materials", "other"];
@@ -60,7 +63,7 @@ function getRecentlyUsed(): string[] {
   }
 }
 
-function addToRecentlyUsed(id: string) {
+export function addToRecentlyUsed(id: string) {
   const recent = getRecentlyUsed().filter((r) => r !== id);
   recent.unshift(id);
   localStorage.setItem(RECENTLY_USED_KEY, JSON.stringify(recent.slice(0, MAX_RECENT)));
@@ -77,9 +80,12 @@ export function CostCodeSelect({
   helperText,
   error,
   compact = false,
+  defaultCategory = 'materials',
+  showCreateButton = false,
 }: CostCodeSelectProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const selectedRef = useRef<HTMLDivElement>(null);
 
   // Use shared React Query hook - cached across all instances
@@ -172,14 +178,14 @@ export function CostCodeSelect({
             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-[350px] p-0" align="start">
-          <Command shouldFilter={false}>
+        <PopoverContent className="w-[350px] p-0 flex flex-col max-h-[400px]" align="start">
+          <Command shouldFilter={false} className="flex flex-col h-full min-h-0">
             <CommandInput
               placeholder="Search cost codes..."
               value={search}
               onValueChange={setSearch}
             />
-            <CommandList className="max-h-[300px]">
+            <CommandList className="flex-1 overflow-y-auto min-h-0">
               <CommandEmpty>No cost code found.</CommandEmpty>
 
               {/* Recently Used */}
@@ -262,9 +268,39 @@ export function CostCodeSelect({
                 );
               })}
             </CommandList>
+
+            {/* Sticky Footer with Add New Cost Code Button - Always visible at bottom */}
+            {showCreateButton && (
+              <div className="border-t border-border bg-background shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpen(false);
+                    setCreateDialogOpen(true);
+                  }}
+                  className="w-full flex items-center gap-2 px-3 py-2.5 text-sm font-medium text-primary hover:bg-accent transition-colors cursor-pointer"
+                >
+                  <Plus className="h-4 w-4" />
+                  <span>Add New Cost Code</span>
+                </button>
+              </div>
+            )}
           </Command>
         </PopoverContent>
       </Popover>
+
+      {/* Create Cost Code Dialog */}
+      {showCreateButton && (
+        <CreateCostCodeDialog
+          open={createDialogOpen}
+          onOpenChange={setCreateDialogOpen}
+          defaultCategory={defaultCategory}
+          onSuccess={(costCodeId) => {
+            // Auto-select the newly created cost code
+            onChange(costCodeId);
+          }}
+        />
+      )}
 
       {error ? (
         <p className="text-xs text-destructive mt-1">{error}</p>

@@ -1,7 +1,15 @@
+/**
+ * CostsTab - Global AP costs view
+ * 
+ * Uses unified costs table. Status is ALWAYS derived from payments (via trigger),
+ * never manually toggled. Use PaymentDrawer to create payments.
+ */
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { useCosts, useCostsSummary } from '@/hooks/useCosts';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useQuery } from '@tanstack/react-query';
@@ -15,6 +23,8 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { format } from 'date-fns';
+import { ExternalLink, DollarSign } from 'lucide-react';
+import { PaymentDrawer } from './PaymentDrawer';
 
 interface CostsTabProps {
   categoryFilter?: string;
@@ -22,11 +32,14 @@ interface CostsTabProps {
 }
 
 export const CostsTab = ({ categoryFilter: propCategoryFilter, statusFilter: propStatusFilter }: CostsTabProps = {}) => {
+  const navigate = useNavigate();
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
   const [companyFilter, setCompanyFilter] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>(propCategoryFilter || 'all');
   const [statusFilter, setStatusFilter] = useState<string>(propStatusFilter || 'all');
+  const [paymentDrawerOpen, setPaymentDrawerOpen] = useState(false);
+  const [selectedCostForPayment, setSelectedCostForPayment] = useState<any>(null);
 
   const { data: companies } = useQuery({
     queryKey: ['companies'],
@@ -102,6 +115,7 @@ export const CostsTab = ({ categoryFilter: propCategoryFilter, statusFilter: pro
             <SelectItem value="labor">Labor</SelectItem>
             <SelectItem value="subs">Subs</SelectItem>
             <SelectItem value="materials">Materials</SelectItem>
+            <SelectItem value="equipment">Equipment</SelectItem>
             <SelectItem value="misc">Misc</SelectItem>
           </SelectContent>
         </Select>
@@ -112,6 +126,7 @@ export const CostsTab = ({ categoryFilter: propCategoryFilter, statusFilter: pro
           <SelectContent>
             <SelectItem value="all">All</SelectItem>
             <SelectItem value="unpaid">Unpaid</SelectItem>
+            <SelectItem value="partially_paid">Partially Paid</SelectItem>
             <SelectItem value="paid">Paid</SelectItem>
           </SelectContent>
         </Select>
@@ -178,41 +193,117 @@ export const CostsTab = ({ categoryFilter: propCategoryFilter, statusFilter: pro
                   <TableHead>Category</TableHead>
                   <TableHead>Cost Code</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
+                  <TableHead className="text-right">Paid</TableHead>
+                  <TableHead className="text-right">Unpaid</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead className="w-32">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {costs?.map((cost: any) => (
-                  <TableRow key={cost.id}>
-                    <TableCell>
-                      {format(new Date(cost.date_incurred), 'MM/dd/yyyy')}
-                    </TableCell>
-                    <TableCell>{cost.projects?.project_name}</TableCell>
-                    <TableCell>{cost.projects?.companies?.name}</TableCell>
-                    <TableCell>{cost.description}</TableCell>
-                    <TableCell className="capitalize">{cost.category}</TableCell>
-                    <TableCell>
-                      {cost.cost_codes ? `${cost.cost_codes.code} - ${cost.cost_codes.name}` : '-'}
-                    </TableCell>
-                    <TableCell className="text-right font-semibold">
-                      {formatCurrency(cost.amount)}
-                    </TableCell>
-                    <TableCell>
-                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                        cost.status === 'paid' 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-yellow-100 text-yellow-800'
-                      }`}>
-                        {cost.status}
-                      </span>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {costs?.map((cost: any) => {
+                  const unpaidAmount = (cost.amount || 0) - (cost.paid_amount || 0);
+                  const canPay = unpaidAmount > 0 && cost.status !== 'void' && cost.status !== 'disputed';
+                  
+                  return (
+                    <TableRow key={cost.id}>
+                      <TableCell>
+                        {format(new Date(cost.date_incurred), 'MM/dd/yyyy')}
+                      </TableCell>
+                      <TableCell>
+                        {cost.project_id ? (
+                          <Button
+                            variant="link"
+                            className="p-0 h-auto font-medium text-primary hover:underline"
+                            onClick={() => navigate(`/projects/${cost.project_id}`)}
+                          >
+                            {cost.projects?.project_name}
+                            <ExternalLink className="ml-1 h-3 w-3" />
+                          </Button>
+                        ) : (
+                          cost.projects?.project_name || '-'
+                        )}
+                      </TableCell>
+                      <TableCell>{cost.projects?.companies?.name}</TableCell>
+                      <TableCell>{cost.description}</TableCell>
+                      <TableCell className="capitalize">{cost.category}</TableCell>
+                      <TableCell>
+                        {cost.cost_codes && cost.project_id ? (
+                          <Button
+                            variant="link"
+                            className="p-0 h-auto text-primary hover:underline"
+                            onClick={() => navigate(`/projects/${cost.project_id}?tab=financials`)}
+                          >
+                            {cost.cost_codes.code} - {cost.cost_codes.name}
+                          </Button>
+                        ) : cost.cost_codes ? (
+                          `${cost.cost_codes.code} - ${cost.cost_codes.name}`
+                        ) : (
+                          '-'
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right font-semibold">
+                        {formatCurrency(cost.amount)}
+                      </TableCell>
+                      <TableCell className="text-right text-green-600">
+                        {formatCurrency(cost.paid_amount || 0)}
+                      </TableCell>
+                      <TableCell className="text-right text-red-600">
+                        {formatCurrency(unpaidAmount)}
+                      </TableCell>
+                      <TableCell>
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                          cost.status === 'paid' 
+                            ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                            : cost.status === 'partially_paid'
+                            ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                            : cost.status === 'void' || cost.status === 'disputed'
+                            ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                            : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                        }`}>
+                          {cost.status === 'partially_paid' ? 'Partially Paid' : cost.status}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        {canPay && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setSelectedCostForPayment(cost);
+                              setPaymentDrawerOpen(true);
+                            }}
+                            className="gap-1"
+                          >
+                            <DollarSign className="h-3 w-3" />
+                            Pay
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </div>
         </CardContent>
       </Card>
+
+      {/* Payment Drawer */}
+      {selectedCostForPayment && (
+        <PaymentDrawer
+          open={paymentDrawerOpen}
+          onOpenChange={(open) => {
+            setPaymentDrawerOpen(open);
+            if (!open) {
+              setSelectedCostForPayment(null);
+            }
+          }}
+          mode="single"
+          costs={[selectedCostForPayment]}
+          defaultVendorId={selectedCostForPayment.vendor_id || undefined}
+          defaultVendorType={(selectedCostForPayment.vendor_type as 'sub' | 'supplier' | 'other') || undefined}
+        />
+      )}
     </div>
   );
 };

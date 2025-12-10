@@ -78,6 +78,7 @@ interface EstimateEditorProps {
   onReorderSections?: (sections: ReorderSectionPayload[]) => void;
   onUpdateSection?: (blockId: string, patch: { title?: string; description?: string }) => void;
   onDeleteSection?: (blockId: string) => void;
+  onAddSection?: () => void; // NEW: Callback to add a new section
   // Per-row autosave handlers
   onItemUpdate?: (itemId: string, patch: Partial<ScopeItem>) => void;
   onItemUpdateImmediate?: (itemId: string, patch: Partial<ScopeItem>) => void;
@@ -413,6 +414,7 @@ export const ProjectEstimateEditor: React.FC<EstimateEditorProps> = ({
   onReorderSections,
   onUpdateSection,
   onDeleteSection,
+  onAddSection,
   onItemUpdate,
   onItemUpdateImmediate,
   getItemSaveStatus,
@@ -985,29 +987,43 @@ export const ProjectEstimateEditor: React.FC<EstimateEditorProps> = ({
           <SortableContext items={sectionIds} strategy={verticalListSortingStrategy}>
             {/* Item-level sortable context (all items across all blocks) */}
             <SortableContext items={allItemIds} strategy={verticalListSortingStrategy}>
-              {blocks.map((b) => (
-                <SortableBlockSection
-                  key={b.block.id}
-                  block={b}
-                  estimateId={estimateId}
-                  overId={overId}
-                  activeId={activeItemId ?? activeSectionId}
-                  itemIdToFocus={itemIdToFocus}
-                  updateItem={updateItem}
-                  updateItemImmediate={updateItemImmediate}
-                  addItem={addItem}
-                  addAreaToBlock={addAreaToBlock}
-                  addGroupToArea={addGroupToArea}
-                  deleteItem={deleteItem}
-                  deleteArea={deleteArea}
-                  deleteGroup={deleteGroup}
-                  renameArea={renameArea}
-                  renameGroup={renameGroup}
-                  onUpdateSection={onUpdateSection}
-                  onDeleteSection={onDeleteSection}
-                  getItemSaveStatus={getItemSaveStatus}
-                  onItemRetry={onItemRetry}
-                />
+              {blocks.map((b, index) => (
+                <React.Fragment key={b.block.id}>
+                  <SortableBlockSection
+                    block={b}
+                    estimateId={estimateId}
+                    overId={overId}
+                    activeId={activeItemId ?? activeSectionId}
+                    itemIdToFocus={itemIdToFocus}
+                    updateItem={updateItem}
+                    updateItemImmediate={updateItemImmediate}
+                    addItem={addItem}
+                    addAreaToBlock={addAreaToBlock}
+                    addGroupToArea={addGroupToArea}
+                    deleteItem={deleteItem}
+                    deleteArea={deleteArea}
+                    deleteGroup={deleteGroup}
+                    renameArea={renameArea}
+                    renameGroup={renameGroup}
+                    onUpdateSection={onUpdateSection}
+                    onDeleteSection={onDeleteSection}
+                    getItemSaveStatus={getItemSaveStatus}
+                    onItemRetry={onItemRetry}
+                  />
+                  {/* Inline "+ Section" button between sections */}
+                  {index < blocks.length - 1 && onAddSection && (
+                    <div className="flex items-center justify-center py-2 my-2">
+                      <button
+                        type="button"
+                        onClick={onAddSection}
+                        className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors border border-dashed border-border hover:border-primary/50 rounded-lg bg-muted/30 hover:bg-muted/50"
+                      >
+                        <Plus className="h-4 w-4" />
+                        <span>Add Section</span>
+                      </button>
+                    </div>
+                  )}
+                </React.Fragment>
               ))}
             </SortableContext>
           </SortableContext>
@@ -1167,6 +1183,7 @@ const SortableBlockSection = memo(function SortableBlockSection({
 
   return (
     <section
+      id={`section-${b.block.id}`}
       ref={setNodeRef}
       style={style}
       className={cn(

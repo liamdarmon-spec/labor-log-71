@@ -1,106 +1,124 @@
+/**
+ * Subcontractors Payments Tab
+ * 
+ * Uses unified `costs` table filtered by:
+ * - category = 'subs' (subcontractor costs)
+ * - status IN ('unpaid', 'partially_paid') (unpaid or partially paid costs)
+ * 
+ * Status is ALWAYS derived from payments (via trigger), never manually toggled.
+ * Use PaymentDrawer in batch mode to create payments.
+ * 
+ * NOTE: Legacy `sub_invoices` table queries are deprecated in favor of unified `costs` table.
+ * TODO(AP_UNIFY): Previously manually toggled status - now uses PaymentDrawer ✅
+ */
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
-import { DollarSign, Users, AlertCircle } from 'lucide-react';
+import { DollarSign, Users, AlertCircle, ExternalLink } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { format } from 'date-fns';
+import type { CostFilters } from '@/hooks/useCosts';
+import { PaymentDrawer } from './PaymentDrawer';
 
-export function SubPaymentsTab() {
-  const queryClient = useQueryClient();
-  const [selectedInvoices, setSelectedInvoices] = useState<Set<string>>(new Set());
+interface SubPaymentsTabProps {
+  filters?: CostFilters;
+}
 
-  // Fetch unpaid sub invoices
-  const { data: unpaidInvoices, isLoading } = useQuery({
-    queryKey: ['unpaid-sub-invoices'],
+export function SubPaymentsTab({ filters }: SubPaymentsTabProps) {
+  const navigate = useNavigate();
+  const [selectedCosts, setSelectedCosts] = useState<Set<string>>(new Set());
+  const [paymentDrawerOpen, setPaymentDrawerOpen] = useState(false);
+
+  // Fetch unpaid/partially paid subcontractor costs from `costs` table
+  const { data: unpaidCosts, isLoading } = useQuery({
+    queryKey: ['unpaid-sub-costs', filters],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('sub_invoices')
+      let query = supabase
+        .from('costs')
         .select(`
           *,
-          subs(name, company_name, trade),
-          projects(project_name),
-          sub_contracts(contract_id:id, contract_value, retention_percentage)
+          projects (
+            id,
+            project_name,
+            company_id,
+            companies (
+              id,
+              name
+            )
+          ),
+          cost_codes (
+            id,
+            code,
+            name
+          ),
+          subs (
+            id,
+            name,
+            company_name
+          )
         `)
-        .eq('payment_status', 'unpaid')
-        .order('invoice_date', { ascending: true });
-      
+        .eq('category', 'subs') // Subcontractor costs only
+        .in('status', ['unpaid', 'partially_paid']) // Unpaid or partially paid
+        .order('date_incurred', { ascending: true });
+
+      // Apply same filters as All Costs tab
+      if (filters?.startDate) {
+        query = query.gte('date_incurred', filters.startDate);
+      }
+      if (filters?.endDate) {
+        query = query.lte('date_incurred', filters.endDate);
+      }
+      if (filters?.projectId) {
+        query = query.eq('project_id', filters.projectId);
+      }
+      if (filters?.companyId) {
+        // Company filter applied in JS (company_id lives on projects)
+        // We'll filter after fetching
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
-      return data;
+
+      // Apply company filter in JS (same as CostsTab)
+      let results = data || [];
+      if (filters?.companyId) {
+        results = results.filter((cost: any) =>
+          cost.projects?.company_id === filters.companyId
+        );
+      }
+
+      return results;
     },
   });
 
-  const payInvoicesMutation = useMutation({
-    mutationFn: async (invoiceIds: string[]) => {
-      // Mark invoices as paid
-      const { error: updateError } = await supabase
-        .from('sub_invoices')
-        .update({ payment_status: 'paid' })
-        .in('id', invoiceIds);
-
-      if (updateError) throw updateError;
-
-      // Create payment records
-      const payments = await Promise.all(
-        invoiceIds.map(async (invoiceId) => {
-          const invoice = unpaidInvoices?.find(inv => inv.id === invoiceId);
-          if (!invoice) return null;
-
-          const payableAmount = invoice.total - (invoice.retention_amount || 0);
-
-          const { data, error } = await supabase
-            .from('sub_payments')
-            .insert({
-              project_subcontract_id: invoice.contract_id,
-              sub_invoice_id: invoiceId,
-              amount_paid: payableAmount,
-              payment_date: new Date().toISOString().split('T')[0],
-            })
-            .select()
-            .single();
-
-          if (error) throw error;
-          return data;
-        })
-      );
-
-      return payments;
-    },
-    onSuccess: () => {
-      toast.success('Invoices marked as paid');
-      queryClient.invalidateQueries({ queryKey: ['unpaid-sub-invoices'] });
-      queryClient.invalidateQueries({ queryKey: ['sub-contract-summary'] });
-      queryClient.invalidateQueries({ queryKey: ['financial-summary'] });
-      setSelectedInvoices(new Set());
-    },
-    onError: (error) => {
-      toast.error('Failed to process payment: ' + error.message);
-    },
-  });
-
-  const toggleInvoice = (invoiceId: string) => {
-    setSelectedInvoices(prev => {
+  const toggleCost = (costId: string) => {
+    setSelectedCosts(prev => {
       const newSet = new Set(prev);
-      if (newSet.has(invoiceId)) {
-        newSet.delete(invoiceId);
+      if (newSet.has(costId)) {
+        newSet.delete(costId);
       } else {
-        newSet.add(invoiceId);
+        newSet.add(costId);
       }
       return newSet;
     });
   };
 
-  const handlePaySelected = () => {
-    if (selectedInvoices.size === 0) {
-      toast.error('Please select at least one invoice');
+  const handleCreatePayment = () => {
+    if (selectedCosts.size === 0) {
       return;
     }
-    payInvoicesMutation.mutate(Array.from(selectedInvoices));
+    setPaymentDrawerOpen(true);
   };
+
+  const selectedCostsData = unpaidCosts?.filter((cost: any) =>
+    selectedCosts.has(cost.id)
+  ) || [];
 
   if (isLoading) {
     return (
@@ -111,17 +129,29 @@ export function SubPaymentsTab() {
     );
   }
 
-  const totalUnpaid = unpaidInvoices?.reduce((sum, inv) => {
-    const payable = inv.total - (inv.retention_amount || 0);
-    return sum + payable;
+  // Calculate totals from costs table using paid_amount
+  // Total Unpaid = SUM(amount - paid_amount) for subs where status != 'void'
+  const totalUnpaid = unpaidCosts?.reduce((sum, cost: any) => {
+    if (cost.status === 'void' || cost.status === 'disputed') return sum;
+    const unpaidAmount = (cost.amount || 0) - (cost.paid_amount || 0);
+    return sum + unpaidAmount;
   }, 0) || 0;
 
-  const totalRetention = unpaidInvoices?.reduce((sum, inv) => sum + (inv.retention_amount || 0), 0) || 0;
+  // Retention Held = SUM(retention_amount) for subs with retention_amount > 0
+  const totalRetention = unpaidCosts?.reduce((sum, cost: any) => {
+    return sum + (cost.retention_amount || 0);
+  }, 0) || 0;
 
-  const selectedTotal = Array.from(selectedInvoices).reduce((sum, id) => {
-    const invoice = unpaidInvoices?.find(inv => inv.id === id);
-    if (!invoice) return sum;
-    return sum + (invoice.total - (invoice.retention_amount || 0));
+  // Unpaid Invoices count = COUNT(DISTINCT costs.id) where status IN ('unpaid', 'partially_paid')
+  const unpaidCount = unpaidCosts?.filter((cost: any) =>
+    cost.status === 'unpaid' || cost.status === 'partially_paid'
+  ).length || 0;
+
+  const selectedTotal = Array.from(selectedCosts).reduce((sum, id) => {
+    const cost = unpaidCosts?.find((c: any) => c.id === id);
+    if (!cost) return sum;
+    const unpaidAmount = (cost.amount || 0) - (cost.paid_amount || 0);
+    return sum + unpaidAmount;
   }, 0);
 
   return (
@@ -164,40 +194,39 @@ export function SubPaymentsTab() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Unpaid Invoices</p>
-                <p className="text-2xl font-bold">{unpaidInvoices?.length || 0}</p>
+                <p className="text-2xl font-bold">{unpaidCount}</p>
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Unpaid Invoices Table */}
+      {/* Unpaid Subcontractor Costs Table */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle>Unpaid Sub Invoices</CardTitle>
-            {selectedInvoices.size > 0 && (
+            {selectedCosts.size > 0 && (
               <div className="flex items-center gap-4">
                 <div className="text-sm">
-                  <span className="font-semibold">{selectedInvoices.size}</span> selected
+                  <span className="font-semibold">{selectedCosts.size}</span> selected
                   <span className="text-muted-foreground ml-2">
-                    (${selectedTotal.toLocaleString()})
+                    (${selectedTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
                   </span>
                 </div>
                 <Button
-                  onClick={handlePaySelected}
-                  disabled={payInvoicesMutation.isPending}
+                  onClick={handleCreatePayment}
                   className="gap-2"
                 >
                   <DollarSign className="w-4 h-4" />
-                  {payInvoicesMutation.isPending ? 'Processing...' : 'Mark as Paid'}
+                  Create Payment
                 </Button>
               </div>
             )}
           </div>
         </CardHeader>
         <CardContent>
-          {!unpaidInvoices || unpaidInvoices.length === 0 ? (
+          {!unpaidCosts || unpaidCosts.length === 0 ? (
             <div className="text-center py-12">
               <DollarSign className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
               <p className="text-muted-foreground">No unpaid invoices</p>
@@ -207,50 +236,86 @@ export function SubPaymentsTab() {
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-12"></TableHead>
-                  <TableHead>Invoice #</TableHead>
+                  <TableHead>Description</TableHead>
                   <TableHead>Subcontractor</TableHead>
                   <TableHead>Project</TableHead>
                   <TableHead>Date</TableHead>
+                  <TableHead>Cost Code</TableHead>
                   <TableHead className="text-right">Total</TableHead>
+                  <TableHead className="text-right">Paid</TableHead>
+                  <TableHead className="text-right">Unpaid</TableHead>
                   <TableHead className="text-right">Retention</TableHead>
-                  <TableHead className="text-right">Payable</TableHead>
                   <TableHead>Age</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {unpaidInvoices.map((invoice) => {
-                  const payableAmount = invoice.total - (invoice.retention_amount || 0);
-                  const invoiceDate = new Date(invoice.invoice_date);
-                  const daysOld = Math.floor((Date.now() - invoiceDate.getTime()) / (1000 * 60 * 60 * 24));
+                {unpaidCosts.map((cost: any) => {
+                  const costDate = new Date(cost.date_incurred);
+                  const daysOld = Math.floor((Date.now() - costDate.getTime()) / (1000 * 60 * 60 * 24));
                   const isOverdue = daysOld > 30;
+                  const unpaidAmount = (cost.amount || 0) - (cost.paid_amount || 0);
+                  const retentionAmount = cost.retention_amount || 0;
 
                   return (
-                    <TableRow key={invoice.id} className={isOverdue ? 'bg-red-50 dark:bg-red-950/20' : ''}>
+                    <TableRow key={cost.id} className={isOverdue ? 'bg-red-50 dark:bg-red-950/20' : ''}>
                       <TableCell>
                         <Checkbox
-                          checked={selectedInvoices.has(invoice.id)}
-                          onCheckedChange={() => toggleInvoice(invoice.id)}
+                          checked={selectedCosts.has(cost.id)}
+                          onCheckedChange={() => toggleCost(cost.id)}
                         />
                       </TableCell>
-                      <TableCell className="font-medium">{invoice.invoice_number || '-'}</TableCell>
+                      <TableCell className="font-medium">{cost.description || '-'}</TableCell>
                       <TableCell>
                         <div>
-                          {(invoice as any).subs?.name}
-                          {(invoice as any).subs?.company_name && (
+                          {cost.subs?.name || cost.subs?.company_name || '-'}
+                          {cost.subs?.company_name && cost.subs?.name && (
                             <div className="text-xs text-muted-foreground">
-                              {(invoice as any).subs?.company_name}
+                              {cost.subs.company_name}
                             </div>
                           )}
                         </div>
                       </TableCell>
-                      <TableCell>{(invoice as any).projects?.project_name}</TableCell>
-                      <TableCell>{invoiceDate.toLocaleDateString()}</TableCell>
-                      <TableCell className="text-right">${invoice.total.toLocaleString()}</TableCell>
-                      <TableCell className="text-right text-amber-600">
-                        ${(invoice.retention_amount || 0).toLocaleString()}
+                      <TableCell>
+                        {cost.project_id ? (
+                          <Button
+                            variant="link"
+                            className="p-0 h-auto font-medium text-primary hover:underline"
+                            onClick={() => navigate(`/projects/${cost.project_id}`)}
+                          >
+                            {cost.projects?.project_name || '-'}
+                            <ExternalLink className="ml-1 h-3 w-3" />
+                          </Button>
+                        ) : (
+                          cost.projects?.project_name || '-'
+                        )}
+                      </TableCell>
+                      <TableCell>{format(costDate, 'MM/dd/yyyy')}</TableCell>
+                      <TableCell>
+                        {cost.cost_codes && cost.project_id ? (
+                          <Button
+                            variant="link"
+                            className="p-0 h-auto text-primary hover:underline"
+                            onClick={() => navigate(`/projects/${cost.project_id}?tab=financials`)}
+                          >
+                            {cost.cost_codes.code} - {cost.cost_codes.name}
+                          </Button>
+                        ) : cost.cost_codes ? (
+                          `${cost.cost_codes.code} - ${cost.cost_codes.name}`
+                        ) : (
+                          '-'
+                        )}
                       </TableCell>
                       <TableCell className="text-right font-semibold">
-                        ${payableAmount.toLocaleString()}
+                        ${(cost.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </TableCell>
+                      <TableCell className="text-right text-green-600">
+                        ${(cost.paid_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </TableCell>
+                      <TableCell className="text-right text-red-600 font-semibold">
+                        ${unpaidAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </TableCell>
+                      <TableCell className="text-right text-amber-600">
+                        ${retentionAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </TableCell>
                       <TableCell>
                         <Badge variant={isOverdue ? 'destructive' : 'secondary'}>
@@ -265,6 +330,23 @@ export function SubPaymentsTab() {
           )}
         </CardContent>
       </Card>
+
+      {/* Payment Drawer (Batch Mode) */}
+      {selectedCostsData.length > 0 && (
+        <PaymentDrawer
+          open={paymentDrawerOpen}
+          onOpenChange={(open) => {
+            setPaymentDrawerOpen(open);
+            if (!open) {
+              setSelectedCosts(new Set());
+            }
+          }}
+          mode="batch"
+          costs={selectedCostsData}
+          defaultVendorId={selectedCostsData[0]?.vendor_id || undefined}
+          defaultVendorType={(selectedCostsData[0]?.vendor_type as 'sub' | 'supplier' | 'other') || 'sub'}
+        />
+      )}
     </div>
   );
 }

@@ -14,6 +14,17 @@ export interface ActualEntry {
   vendor_name?: string;
 }
 
+export interface BudgetLineDetail {
+  id: string;
+  description: string;
+  area_label: string | null;
+  group_label: string | null;
+  estimate_title: string | null;
+  budget_amount: number;
+  scope_type: string;
+  is_change_order: boolean;
+}
+
 export interface CostCodeBudgetLine {
   cost_code_id: string | null;
   code: string;
@@ -29,6 +40,8 @@ export interface CostCodeBudgetLine {
   // Estimate source info (for lines that came from estimates)
   source_estimate_id: string | null;
   source_estimate_title: string | null;
+  // Detailed breakdown of underlying budget lines
+  budget_line_details: BudgetLineDetail[];
 }
 
 export interface BudgetSummary {
@@ -229,6 +242,7 @@ export function useUnifiedProjectBudget(projectId: string) {
             details: [],
             source_estimate_id: null, // Will be set if all lines come from same estimate
             source_estimate_title: null,
+            budget_line_details: [], // Track individual budget lines for detail view
           });
         }
         const entry = costCodeMap.get(key)!;
@@ -236,6 +250,7 @@ export function useUnifiedProjectBudget(projectId: string) {
         if (line.budget_hours) {
           entry.budget_hours = (entry.budget_hours || 0) + line.budget_hours;
         }
+        
         // Track estimate source (use first non-null estimate, or null if mixed)
         if (line.source_estimate_id) {
           const estimate = estimateMap.get(line.source_estimate_id);
@@ -248,6 +263,20 @@ export function useUnifiedProjectBudget(projectId: string) {
             entry.source_estimate_title = null;
           }
         }
+        
+        // Add detail entry for this budget line
+        // Note: area_label and group_label may not exist in schema yet
+        // They would be added via migration if needed for better provenance tracking
+        entry.budget_line_details.push({
+          id: line.id,
+          description: line.description_internal || line.description || '',
+          area_label: null, // Would be populated if area_label column exists
+          group_label: null, // Would be populated if group_label column exists
+          estimate_title: line.source_estimate_id ? estimateMap.get(line.source_estimate_id)?.title || null : null,
+          budget_amount: line.budget_amount || 0,
+          scope_type: line.scope_type || 'base',
+          is_change_order: line.scope_type === 'change_order' || !!line.change_order_id,
+        });
       });
 
       // 4b) Labor actuals
@@ -270,6 +299,7 @@ export function useUnifiedProjectBudget(projectId: string) {
             details: [],
             source_estimate_id: null,
             source_estimate_title: null,
+            budget_line_details: [],
           });
         }
         const entry = costCodeMap.get(key)!;
@@ -311,6 +341,7 @@ export function useUnifiedProjectBudget(projectId: string) {
             details: [],
             source_estimate_id: null,
             source_estimate_title: null,
+            budget_line_details: [],
           });
         }
         const entry = costCodeMap.get(key)!;

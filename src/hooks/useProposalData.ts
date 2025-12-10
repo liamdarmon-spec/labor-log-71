@@ -18,6 +18,8 @@ export interface ProposalSettings {
   show_payment_schedule: boolean;
   show_terms: boolean;
   show_signature_block: boolean;
+  show_area_labels: boolean; // NEW: Toggle visibility of area labels (default false)
+  show_internal_category: boolean; // NEW: Toggle visibility of internal category labels (default false)
   payment_schedule: PaymentScheduleItem[];
   terms_text: string;
   exclusions_text: string;
@@ -112,6 +114,8 @@ const defaultSettings: ProposalSettings = {
   show_payment_schedule: false,
   show_terms: true,
   show_signature_block: true,
+  show_area_labels: false, // Default: hide internal area labels from clients
+  show_internal_category: false, // Default: hide internal category labels (labor/sub/material) from clients
   payment_schedule: [],
   terms_text: '',
   exclusions_text: '',

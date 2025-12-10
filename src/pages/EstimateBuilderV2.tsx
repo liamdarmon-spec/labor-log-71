@@ -369,7 +369,7 @@ export default function EstimateBuilderV2() {
     }
   }, [blocksLoading, scopeBlocks.length, createFirstBlock, estimateId, isMigrating]);
 
-  // Add section mutation
+  // Add section mutation with optimistic updates
   const addSection = useMutation({
     mutationFn: async () => {
       const maxOrder = Math.max(...localBlocks.map((b) => b.block.sort_order || 0), -1);
@@ -390,9 +390,59 @@ export default function EstimateBuilderV2() {
       }
       return data;
     },
-    onSuccess: () => {
+    onMutate: async () => {
+      // Optimistic update: add section immediately to UI with temp ID
+      const maxOrder = Math.max(...localBlocks.map((b) => b.block.sort_order || 0), -1);
+      const tempId = `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const newBlock: EstimateEditorBlock = {
+        block: {
+          id: tempId,
+          title: "New Section",
+          description: null,
+          sort_order: maxOrder + 1,
+        },
+        items: [],
+      };
+      
+      setLocalBlocks(prev => [...prev, newBlock]);
+      
+      // Scroll to new section after a brief delay
+      setTimeout(() => {
+        const element = document.getElementById(`section-${tempId}`);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 100);
+      
+      return { tempId, newBlock };
+    },
+    onSuccess: (data, _variables, context) => {
+      // Replace temp ID with real UUID
+      if (context?.tempId) {
+        setLocalBlocks(prev =>
+          prev.map(block =>
+            block.block.id === context.tempId
+              ? {
+                  ...block,
+                  block: {
+                    ...block.block,
+                    id: data.id,
+                  },
+                }
+              : block
+          )
+        );
+      }
       queryClient.invalidateQueries({ queryKey: ["scope-blocks", "estimate", estimateId] });
       toast.success("Section added");
+    },
+    onError: (error, _variables, context) => {
+      // Rollback optimistic update on error
+      if (context?.tempId) {
+        setLocalBlocks(prev => prev.filter(block => block.block.id !== context.tempId));
+      }
+      toast.error("Failed to add section");
+      queryClient.invalidateQueries({ queryKey: ["scope-blocks", "estimate", estimateId] });
     },
   });
 
@@ -612,33 +662,42 @@ export default function EstimateBuilderV2() {
     prevBlocksRef.current = localBlocks;
   }, [localBlocks, saveStructuralChanges]);
 
-  // Keyboard shortcuts for undo/redo
+  // Keyboard shortcuts for undo/redo and add section
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Cmd+Z (Mac) or Ctrl+Z (Windows) for undo
-      // Cmd+Shift+Z (Mac) or Ctrl+Shift+Z (Windows) for redo
+      // Don't trigger if user is typing in an input/textarea
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+        return;
+      }
+      
       const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
       const modifier = isMac ? e.metaKey : e.ctrlKey;
       
+      // Cmd+Z (Mac) or Ctrl+Z (Windows) for undo
+      // Cmd+Shift+Z (Mac) or Ctrl+Shift+Z (Windows) for redo
       if (modifier && e.key === 'z') {
-        // Don't trigger if user is typing in an input/textarea
-        const target = e.target as HTMLElement;
-        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
-          return;
-        }
-        
         e.preventDefault();
         if (e.shiftKey) {
           handleRedo();
         } else {
           handleUndo();
         }
+        return;
+      }
+      
+      // Cmd+Shift+S (Mac) or Ctrl+Shift+S (Windows) for add section
+      if (modifier && e.shiftKey && e.key === 'S') {
+        e.preventDefault();
+        if (!addSection.isPending) {
+          addSection.mutate();
+        }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleUndo, handleRedo]);
+  }, [handleUndo, handleRedo, addSection]);
 
   // Handle set as budget source - opens dialog
   const handleSetAsBudgetSource = useCallback(() => {
@@ -853,6 +912,7 @@ export default function EstimateBuilderV2() {
           isBudgetSyncing={syncMutation.isPending}
           onBlocksChange={handleBlocksChange}
           onSetAsBudgetSource={handleSetAsBudgetSource}
+          onAddSection={() => addSection.mutate()}
           onItemUpdate={handleItemUpdate}
           onItemUpdateImmediate={handleItemUpdateImmediate}
           getItemSaveStatus={(itemId) => autosave.getRowState(itemId)}
@@ -897,6 +957,19 @@ export default function EstimateBuilderV2() {
             }
           }}
           onReorderSections={async (sections) => {
+            // Optimistic update: update local state immediately
+            setLocalBlocks(prev => {
+              const sectionMap = new Map(sections.map(s => [s.id, s.sort_order]));
+              return prev.map(block => ({
+                ...block,
+                block: {
+                  ...block.block,
+                  sort_order: sectionMap.get(block.block.id) ?? block.block.sort_order ?? 0,
+                },
+              }));
+            });
+
+            // Debounced save to DB
             const promises = sections.map((section) =>
               supabase
                 .from("scope_blocks")
@@ -1000,12 +1073,12 @@ export default function EstimateBuilderV2() {
       </AlertDialog>
 
       {/* Sync Estimate Dialog */}
-      {estimate && estimate.projects && (
+      {estimate && estimate.projects && estimate.projects.id && estimateId && (
         <SyncEstimateDialog
           open={syncDialogOpen}
           onOpenChange={setSyncDialogOpen}
           projectId={estimate.projects.id}
-          estimateId={estimateId!}
+          estimateId={estimateId}
           estimateTitle={estimate.title}
         />
       )}

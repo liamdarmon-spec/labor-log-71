@@ -45,6 +45,23 @@ const ProjectDetail = () => {
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Guard against missing projectId from route
+  if (!projectId) {
+    return (
+      <Layout>
+        <div className="space-y-6">
+          <Button variant="ghost" onClick={() => navigate('/projects')}>
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Projects
+          </Button>
+          <div className="text-center py-12">
+            <p className="text-muted-foreground">Project ID is missing from URL.</p>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
   // Get active tab from URL, default to 'overview'
   const tabParam = searchParams.get('tab');
   const activeTab: TabValue = VALID_TABS.includes(tabParam as TabValue)
@@ -118,6 +135,15 @@ const ProjectDetail = () => {
 
   // Render the appropriate tab content
   const renderTabContent = () => {
+    // Ensure project.id exists before rendering tabs
+    if (!project?.id) {
+      return (
+        <div className="text-center py-12">
+          <p className="text-muted-foreground">Project ID is missing.</p>
+        </div>
+      );
+    }
+
     switch (activeTab) {
       case 'overview':
         return <ProjectOverviewTab projectId={project.id} />;

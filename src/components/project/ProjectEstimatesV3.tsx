@@ -32,6 +32,18 @@ interface ProjectEstimatesV3Props {
 }
 
 export function ProjectEstimatesV3({ projectId }: ProjectEstimatesV3Props) {
+  // Guard against missing projectId
+  if (!projectId) {
+    console.error('[ProjectEstimatesV3] Missing projectId prop');
+    return (
+      <Card>
+        <CardContent className="py-12 text-center">
+          <p className="text-muted-foreground">Project ID is required to view estimates.</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [syncDialogOpen, setSyncDialogOpen] = useState(false);
   const [selectedEstimateId, setSelectedEstimateId] = useState<string | null>(
@@ -57,6 +69,15 @@ export function ProjectEstimatesV3({ projectId }: ProjectEstimatesV3Props) {
   const { data: syncStatusMap = {} } = useProjectEstimatesSyncStatus(projectId);
 
   const handleSyncClick = (estimateId: string) => {
+    if (!projectId) {
+      console.error('[ProjectEstimatesV3] Cannot sync: projectId is missing', { estimateId });
+      toast({
+        title: 'Error',
+        description: 'Project ID is missing. Please refresh the page.',
+        variant: 'destructive',
+      });
+      return;
+    }
     setSelectedEstimateId(estimateId);
     setSyncDialogOpen(true);
   };
@@ -163,10 +184,17 @@ export function ProjectEstimatesV3({ projectId }: ProjectEstimatesV3Props) {
                         const syncStatus = syncStatusMap[estimate.id];
                         if (syncStatus?.status === 'synced') {
                           return (
-                            <Badge variant="default" className="gap-1">
-                              <Star className="h-3 w-3" />
-                              Contributes ({syncStatus.lineCount} lines)
-                            </Badge>
+                            <div className="flex flex-col items-center gap-1">
+                              <Badge variant="default" className="gap-1">
+                                <Star className="h-3 w-3" />
+                                Contributes ({syncStatus.lineCount} lines)
+                              </Badge>
+                              {syncStatus.syncedAt && (
+                                <span className="text-xs text-muted-foreground">
+                                  {format(new Date(syncStatus.syncedAt), 'MMM d, yyyy')}
+                                </span>
+                              )}
+                            </div>
                           );
                         }
                         return (
@@ -227,7 +255,7 @@ export function ProjectEstimatesV3({ projectId }: ProjectEstimatesV3Props) {
         }}
       />
 
-      {selectedEstimateId && (
+      {selectedEstimateId && projectId && (
         <SyncEstimateDialog
           open={syncDialogOpen}
           onOpenChange={(open) => {

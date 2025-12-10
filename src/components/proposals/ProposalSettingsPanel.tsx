@@ -200,6 +200,49 @@ export function ProposalSettingsPanel({
           </div>
         </CardContent>
       </Card>
+
+      {/* Internal Metadata Visibility */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <Settings className="h-4 w-4" />
+            Internal Metadata
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="show_area_labels" className="text-sm">
+                Show area labels
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Display area labels (Kitchen, Bathroom, etc.) in proposal
+              </p>
+            </div>
+            <Switch
+              id="show_area_labels"
+              checked={settings.show_area_labels}
+              onCheckedChange={(checked) => handleToggle('show_area_labels', checked)}
+            />
+          </div>
+          
+          <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="show_internal_category" className="text-sm">
+                Show category labels
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Display internal category labels (Labor, Subs, Materials)
+              </p>
+            </div>
+            <Switch
+              id="show_internal_category"
+              checked={settings.show_internal_category}
+              onCheckedChange={(checked) => handleToggle('show_internal_category', checked)}
+            />
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

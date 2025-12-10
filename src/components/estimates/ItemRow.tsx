@@ -219,12 +219,15 @@ function ItemRowComponent({
         </select>
 
         {/* Cost Code */}
+        {/* Uses unified CostCodeSelect with sticky "+ Add New Cost Code" footer */}
         <CostCodeSelect
           value={item.cost_code_id}
           onChange={handleCostCodeChange}
           compact
           required
           error={missingCostCode ? "Required" : undefined}
+          showCreateButton={true}
+          defaultCategory={item.category || 'materials'}
         />
 
         {/* Description */}
@@ -378,6 +381,7 @@ function ItemRowComponent({
         />
 
         {/* Cost Code */}
+        {/* Uses unified CostCodeSelect with sticky "+ Add New Cost Code" footer */}
         <div className="mb-2">
           <CostCodeSelect
             value={item.cost_code_id}
@@ -385,6 +389,8 @@ function ItemRowComponent({
             compact
             required
             error={missingCostCode ? "Required" : undefined}
+            showCreateButton={true}
+            defaultCategory={item.category || 'materials'}
           />
         </div>
 

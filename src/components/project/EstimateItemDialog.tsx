@@ -181,7 +181,7 @@ export function EstimateItemDialog({ open, onOpenChange, onSave, estimateItem }:
             <div>
               <Label>Trade</Label>
               <Select
-                value={formData.trade_id || ""}
+                value={formData.trade_id ?? undefined}
                 onValueChange={(value) =>
                   setFormData({ ...formData, trade_id: value || null })
                 }

@@ -146,12 +146,12 @@ export function PromoteToTaskDialog({
           {/* Assignee */}
           <div className="space-y-2">
             <Label htmlFor="task-assignee">Assign to</Label>
-            <Select value={assigneeId} onValueChange={setAssigneeId}>
+            <Select value={assigneeId ?? undefined} onValueChange={(value) => setAssigneeId(value === "__unassigned__" ? null : value)}>
               <SelectTrigger id="task-assignee">
                 <SelectValue placeholder="Select assignee (optional)" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Unassigned</SelectItem>
+                <SelectItem value="__unassigned__">Unassigned</SelectItem>
                 {workers.map((worker) => (
                   <SelectItem key={worker.id} value={worker.id}>
                     {worker.name}

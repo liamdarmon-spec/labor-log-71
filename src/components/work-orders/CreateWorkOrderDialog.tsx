@@ -169,14 +169,14 @@ export function CreateWorkOrderDialog({
           <div>
             <Label htmlFor="sub_company_id">Subcontractor</Label>
             <Select
-              value={formData.sub_company_id}
-              onValueChange={(value) => setFormData({ ...formData, sub_company_id: value })}
+              value={formData.sub_company_id ?? undefined}
+              onValueChange={(value) => setFormData({ ...formData, sub_company_id: value === "__none__" ? null : value })}
             >
               <SelectTrigger id="sub_company_id">
                 <SelectValue placeholder="Select subcontractor (optional)" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">None</SelectItem>
+                <SelectItem value="__none__">None</SelectItem>
                 {companies?.map((company) => (
                   <SelectItem key={company.id} value={company.id}>
                     {company.name}

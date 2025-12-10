@@ -199,8 +199,12 @@ export function ProjectBudgetTabV2({ projectId }: ProjectBudgetTabV2Props) {
   };
 
   const renderDetailsRow = (line: any) => {
-    const details = line.details || [];
-    if (!details.length) {
+    const budgetLineDetails = line.budget_line_details || [];
+    const actualDetails = line.details || [];
+    const hasBudgetDetails = budgetLineDetails.length > 0;
+    const hasActualDetails = actualDetails.length > 0;
+
+    if (!hasBudgetDetails && !hasActualDetails) {
       return (
         <div className="text-xs text-muted-foreground py-2">
           No underlying transactions yet for this cost code.
@@ -209,42 +213,104 @@ export function ProjectBudgetTabV2({ projectId }: ProjectBudgetTabV2Props) {
     }
 
     return (
-      <div className="py-2">
-        <div className="text-xs font-semibold mb-2">
-          Transactions ({details.length})
-        </div>
-        <div className="border rounded-md overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-muted/60">
-                <TableHead className="text-xs">Date</TableHead>
-                <TableHead className="text-xs">Type</TableHead>
-                <TableHead className="text-xs">Description</TableHead>
-                <TableHead className="text-xs text-right">Amount</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {details.map((entry: any, idx: number) => (
-                <TableRow key={entry.id || idx}>
-                  <TableCell className="text-xs">
-                    {entry.date
-                      ? new Date(entry.date).toLocaleDateString()
-                      : '—'}
-                  </TableCell>
-                  <TableCell className="text-xs capitalize">
-                    {entry.type || 'entry'}
-                  </TableCell>
-                  <TableCell className="text-xs">
-                    {entry.description || '—'}
-                  </TableCell>
-                  <TableCell className="text-xs text-right">
-                    {formatMoney(entry.amount ?? 0)}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+      <div className="py-2 space-y-4">
+        {/* Budget Line Breakdown */}
+        {hasBudgetDetails && (
+          <div>
+            <div className="text-xs font-semibold mb-2">
+              Budget Lines ({budgetLineDetails.length})
+            </div>
+            <div className="border rounded-md overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/60">
+                    <TableHead className="text-xs">Description</TableHead>
+                    <TableHead className="text-xs">Area/Scope</TableHead>
+                    <TableHead className="text-xs">Estimate</TableHead>
+                    <TableHead className="text-xs">Type</TableHead>
+                    <TableHead className="text-xs text-right">Amount</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {budgetLineDetails.map((detail: any, idx: number) => (
+                    <TableRow key={detail.id || idx}>
+                      <TableCell className="text-xs">
+                        {detail.description || '—'}
+                      </TableCell>
+                      <TableCell className="text-xs">
+                        {detail.area_label || detail.group_label || '—'}
+                      </TableCell>
+                      <TableCell className="text-xs">
+                        {detail.estimate_title ? (
+                          <Badge variant="outline" className="text-xs">
+                            {detail.estimate_title}
+                          </Badge>
+                        ) : (
+                          '—'
+                        )}
+                      </TableCell>
+                      <TableCell className="text-xs">
+                        {detail.is_change_order ? (
+                          <Badge variant="destructive" className="text-xs">
+                            Change Order
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary" className="text-xs">
+                            Base
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-xs text-right">
+                        {formatMoney(detail.budget_amount ?? 0)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        )}
+
+        {/* Actual Transactions */}
+        {hasActualDetails && (
+          <div>
+            <div className="text-xs font-semibold mb-2">
+              Actual Transactions ({actualDetails.length})
+            </div>
+            <div className="border rounded-md overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/60">
+                    <TableHead className="text-xs">Date</TableHead>
+                    <TableHead className="text-xs">Type</TableHead>
+                    <TableHead className="text-xs">Description</TableHead>
+                    <TableHead className="text-xs text-right">Amount</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {actualDetails.map((entry: any, idx: number) => (
+                    <TableRow key={entry.id || idx}>
+                      <TableCell className="text-xs">
+                        {entry.date
+                          ? new Date(entry.date).toLocaleDateString()
+                          : '—'}
+                      </TableCell>
+                      <TableCell className="text-xs capitalize">
+                        {entry.type || 'entry'}
+                      </TableCell>
+                      <TableCell className="text-xs">
+                        {entry.description || '—'}
+                      </TableCell>
+                      <TableCell className="text-xs text-right">
+                        {formatMoney(entry.amount ?? 0)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        )}
       </div>
     );
   };

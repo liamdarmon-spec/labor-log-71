@@ -16,9 +16,12 @@ export interface Cost {
    */
   category: 'labor' | 'subs' | 'materials' | 'equipment' | 'misc';
   amount: number;
+  paid_amount: number; // Total amount paid (sum of applied_amount from vendor_payment_items)
   date_incurred: string;
-  status: 'unpaid' | 'paid';
-  payment_id: string | null;
+  status: 'unpaid' | 'partially_paid' | 'paid' | 'void' | 'disputed';
+  payment_id: string | null; // Legacy: single payment FK (deprecated, use vendor_payment_items)
+  retention_amount: number | null; // Amount held as retention (typically for subs)
+  paid_date: string | null;
   notes: string | null;
   created_at: string;
   updated_at: string;
@@ -216,6 +219,7 @@ export function useCostsSummary(filters?: CostFilters) {
         .select(
           `
           amount,
+          paid_amount,
           status,
           category,
           date_incurred,
@@ -264,10 +268,15 @@ export function useCostsSummary(filters?: CostFilters) {
 
       costs.forEach((c: any) => {
         const amount = c.amount || 0;
+        const paidAmount = c.paid_amount || 0;
+        const unpaidAmount = amount - paidAmount;
+        
         totalCosts += amount;
-
-        if (c.status === 'unpaid') unpaidCosts += amount;
-        else if (c.status === 'paid') paidCosts += amount;
+        
+        // Unpaid = amount not yet paid (amount - paid_amount)
+        unpaidCosts += unpaidAmount;
+        // Paid = amount already paid
+        paidCosts += paidAmount;
 
         if (c.category === 'labor') byCategory.labor += amount;
         else if (c.category === 'subs') byCategory.subs += amount;

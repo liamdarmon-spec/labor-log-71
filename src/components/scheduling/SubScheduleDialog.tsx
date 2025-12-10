@@ -34,14 +34,14 @@ export function SubScheduleDialog({
     scheduled_date: selectedDate?.toISOString().split('T')[0] || new Date().toISOString().split('T')[0],
     scheduled_hours: '8',
     notes: '',
-    work_order_id: '',
+    work_order_id: null as string | null,
   });
 
   // Reset work_order_id when project changes
   useEffect(() => {
     if (formData.project_id && formData.work_order_id) {
       // Optionally clear work_order_id if it doesn't belong to the new project
-      setFormData((prev) => ({ ...prev, work_order_id: '' }));
+      setFormData((prev) => ({ ...prev, work_order_id: null }));
     }
   }, [formData.project_id]);
 
@@ -87,7 +87,7 @@ export function SubScheduleDialog({
         .insert([{
           ...data,
           scheduled_hours: Number(data.scheduled_hours),
-          work_order_id: data.work_order_id || null,
+          work_order_id: data.work_order_id === "__none__" ? null : (data.work_order_id || null),
         }]);
       if (error) throw error;
     },
@@ -184,15 +184,15 @@ export function SubScheduleDialog({
           <div>
             <Label>Work Order (Optional)</Label>
             <Select
-              value={formData.work_order_id}
-              onValueChange={(value) => setFormData({ ...formData, work_order_id: value })}
+              value={formData.work_order_id ?? undefined}
+              onValueChange={(value) => setFormData({ ...formData, work_order_id: value === "__none__" ? null : value })}
               disabled={!formData.project_id}
             >
               <SelectTrigger>
                 <SelectValue placeholder={formData.project_id ? 'Select work order (optional)' : 'Select project first'} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">None</SelectItem>
+                <SelectItem value="__none__">None</SelectItem>
                 {openWorkOrders.map((wo) => (
                   <SelectItem key={wo.id} value={wo.id}>
                     {wo.title}

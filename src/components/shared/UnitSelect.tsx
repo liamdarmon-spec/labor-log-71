@@ -55,7 +55,7 @@ export function UnitSelect({
   }, [categoryFilter, groupedUnits]);
 
   return (
-    <Select value={value ?? ""} onValueChange={onChange}>
+    <Select value={value ?? undefined} onValueChange={onChange}>
       <SelectTrigger className={cn(compact && "h-8 text-xs", className)}>
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>

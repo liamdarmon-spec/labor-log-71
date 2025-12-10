@@ -3,8 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { UnpaidLaborTabV2 } from '@/components/payments/UnpaidLaborTabV2';
 import { LaborPayRunsTabV2 } from '@/components/payments/LaborPayRunsTabV2';
 import { SubPaymentsTab } from '@/components/financials/SubPaymentsTab';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Construction } from 'lucide-react';
+import { VendorPaymentsTab } from '@/components/financials/VendorPaymentsTab';
 
 export default function PaymentsCenterTab() {
   const [activeTab, setActiveTab] = useState('unpaid-labor');
@@ -56,21 +55,10 @@ export default function PaymentsCenterTab() {
         <TabsContent value="vendors">
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Material and equipment vendor payments.
+              All vendor payments (subs, materials, equipment) from vendor_payments table.
+              Payments are linked to costs via vendor_payment_items.
             </p>
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Construction className="h-5 w-5" />
-                  Vendor Payments
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">
-                  Vendor payment tracking coming soon. Use the Costs tab to manage material and equipment costs.
-                </p>
-              </CardContent>
-            </Card>
+            <VendorPaymentsTab />
           </div>
         </TabsContent>
       </Tabs>

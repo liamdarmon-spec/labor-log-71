@@ -30,6 +30,7 @@ export interface ItemUpdate {
 }
 
 const DEBOUNCE_MS = 600;
+const DEBOUNCE_MS_ZERO_COST = 300; // Faster debounce for $0 items
 const SAVED_DISPLAY_MS = 2000;
 
 export function useItemAutosave(estimateId: string | undefined) {
@@ -152,11 +153,12 @@ export function useItemAutosave(estimateId: string | undefined) {
 
   // Queue an update with debounce
   const queueUpdate = useCallback((update: ItemUpdate) => {
-    const { id } = update;
+    const { id, unit_price } = update;
 
     // Merge with any pending update for this row
     const existing = pendingUpdates.current.get(id) || { id };
-    pendingUpdates.current.set(id, { ...existing, ...update });
+    const merged = { ...existing, ...update };
+    pendingUpdates.current.set(id, merged);
 
     // Mark as dirty immediately
     setRowState(id, { status: "dirty" });
@@ -165,6 +167,11 @@ export function useItemAutosave(estimateId: string | undefined) {
     const existingTimer = debounceTimers.current.get(id);
     if (existingTimer) clearTimeout(existingTimer);
 
+    // Determine debounce time: faster for $0 items or when unit_price is 0/null
+    const finalUnitPrice = unit_price ?? existing.unit_price ?? 0;
+    const isZeroCost = finalUnitPrice === 0 || finalUnitPrice === null;
+    const debounceTime = isZeroCost ? DEBOUNCE_MS_ZERO_COST : DEBOUNCE_MS;
+
     // Set new debounce timer
     const timer = setTimeout(() => {
       const finalUpdate = pendingUpdates.current.get(id);
@@ -172,7 +179,7 @@ export function useItemAutosave(estimateId: string | undefined) {
         pendingUpdates.current.delete(id);
         saveMutation.mutate(finalUpdate);
       }
-    }, DEBOUNCE_MS);
+    }, debounceTime);
     debounceTimers.current.set(id, timer);
   }, [saveMutation, setRowState]);
 
