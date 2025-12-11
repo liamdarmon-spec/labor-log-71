@@ -11,6 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Plus, Pencil, Trash2, Wrench, CheckCircle2, XCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { z } from 'zod';
+import { createTradeWithDefaultCostCodes } from '@/lib/trades';
 
 const tradeSchema = z.object({
   name: z.string().trim().nonempty({ message: 'Trade name is required' }).max(100),
@@ -78,6 +79,8 @@ export const TradesWithCostCodesTab = () => {
     }
   };
 
+  // Note: createCostCodesForTrade logic moved to src/lib/trades.ts
+  // This function is kept for backward compatibility with edit flow
   const createCostCodesForTrade = async (tradeId: string, tradeName: string) => {
     const costCodesToCreate = [
       {
@@ -103,11 +106,28 @@ export const TradesWithCostCodesTab = () => {
       },
     ];
 
-    const { error } = await supabase.from('cost_codes').insert(costCodesToCreate);
+    const { data: createdCostCodes, error } = await supabase
+      .from('cost_codes')
+      .insert(costCodesToCreate)
+      .select();
 
     if (error) {
       throw error;
     }
+
+    // Update trade with default cost code IDs (only L/M/S)
+    const laborCode = createdCostCodes?.find((cc) => cc.category === 'labor');
+    const materialCode = createdCostCodes?.find((cc) => cc.category === 'materials');
+    const subCode = createdCostCodes?.find((cc) => cc.category === 'subs');
+
+    await supabase
+      .from('trades')
+      .update({
+        default_labor_cost_code_id: laborCode?.id || null,
+        default_material_cost_code_id: materialCode?.id || null,
+        default_sub_cost_code_id: subCode?.id || null,
+      })
+      .eq('id', tradeId);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -138,15 +158,17 @@ export const TradesWithCostCodesTab = () => {
             let newName = '';
             let newCode = '';
             
+            // Use same prefix derivation as createTradeWithDefaultCostCodes
+            const prefix = validatedData.name.substring(0, 5).toUpperCase().replace(/\s+/g, '');
             if (cc.category === 'labor') {
               newName = `${validatedData.name} Labor`;
-              newCode = `${validatedData.name.toUpperCase()}-L`;
+              newCode = `${prefix}-L`;
             } else if (cc.category === 'materials') {
               newName = `${validatedData.name} Materials`;
-              newCode = `${validatedData.name.toUpperCase()}-M`;
+              newCode = `${prefix}-M`;
             } else if (cc.category === 'subs') {
               newName = `${validatedData.name} Sub-Contractor`;
-              newCode = `${validatedData.name.toUpperCase()}-S`;
+              newCode = `${prefix}-S`;
             }
             
             await supabase
@@ -161,21 +183,8 @@ export const TradesWithCostCodesTab = () => {
           description: 'Trade updated successfully',
         });
       } else {
-        const { data: newTrade, error } = await supabase
-          .from('trades')
-          .insert([
-            {
-              name: validatedData.name,
-              description: validatedData.description || null,
-            },
-          ])
-          .select()
-          .single();
-
-        if (error) throw error;
-
-        // Create the 3 cost codes for this trade
-        await createCostCodesForTrade(newTrade.id, validatedData.name);
+        // Use shared helper function for creating trade with default cost codes
+        await createTradeWithDefaultCostCodes(validatedData.name);
 
         toast({
           title: 'Success',

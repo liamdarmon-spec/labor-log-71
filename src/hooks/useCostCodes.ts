@@ -55,3 +55,28 @@ export function useCostCodesForSelect() {
     gcTime: 30 * 60 * 1000, // 30 minutes
   });
 }
+
+/**
+ * Fetch a single cost code by ID (including trade_id for context)
+ * Used to get trade context from selected cost code for inline creation
+ */
+export function useCostCode(costCodeId: string | null) {
+  return useQuery({
+    queryKey: ['cost-code', costCodeId],
+    queryFn: async () => {
+      if (!costCodeId) return null;
+      
+      const { data, error } = await supabase
+        .from('cost_codes')
+        .select('id, code, name, category, trade_id')
+        .eq('id', costCodeId)
+        .maybeSingle();
+      
+      if (error) throw error;
+      return data as Pick<CostCode, 'id' | 'code' | 'name' | 'category' | 'trade_id'> | null;
+    },
+    enabled: !!costCodeId,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 30 * 60 * 1000, // 30 minutes
+  });
+}

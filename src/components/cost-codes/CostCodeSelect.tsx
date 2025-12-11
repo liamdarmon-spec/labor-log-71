@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils";
 import { Check, ChevronsUpDown, Clock, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { CreateCostCodeDialog } from "./CreateCostCodeDialog";
+import { CreateTradeFromEstimateDialog } from "@/components/trades/CreateTradeFromEstimateDialog";
 
 interface CostCode {
   id: string;
@@ -41,9 +42,10 @@ interface CostCodeSelectProps {
   compact?: boolean;
   defaultCategory?: 'labor' | 'subs' | 'materials' | 'equipment' | 'other'; // For inline creation
   showCreateButton?: boolean; // Show "+ Add New Cost Code" button
+  defaultTradeId?: string | null; // Trade context from estimate item's cost code
 }
 
-const CATEGORY_ORDER = ["labor", "subs", "materials", "other"];
+const CATEGORY_ORDER = ["labor", "subs", "materials", "equipment", "other"];
 const CATEGORY_COLORS: Record<string, string> = {
   labor: "bg-blue-500/10 text-blue-700 border-blue-200",
   subs: "bg-orange-500/10 text-orange-700 border-orange-200",
@@ -82,10 +84,12 @@ export function CostCodeSelect({
   compact = false,
   defaultCategory = 'materials',
   showCreateButton = false,
+  defaultTradeId,
 }: CostCodeSelectProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
-  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [createTradeOpen, setCreateTradeOpen] = useState(false);
+  const [createFeeCodeOpen, setCreateFeeCodeOpen] = useState(false);
   const selectedRef = useRef<HTMLDivElement>(null);
 
   // Use shared React Query hook - cached across all instances
@@ -269,19 +273,30 @@ export function CostCodeSelect({
               })}
             </CommandList>
 
-            {/* Sticky Footer with Add New Cost Code Button - Always visible at bottom */}
+            {/* Sticky Footer - Trade-First Workflow */}
             {showCreateButton && (
-              <div className="border-t border-border bg-background shrink-0">
+              <div className="border-t border-border bg-background shrink-0 flex flex-col">
                 <button
                   type="button"
                   onClick={() => {
                     setOpen(false);
-                    setCreateDialogOpen(true);
+                    setCreateTradeOpen(true);
                   }}
                   className="w-full flex items-center gap-2 px-3 py-2.5 text-sm font-medium text-primary hover:bg-accent transition-colors cursor-pointer"
                 >
                   <Plus className="h-4 w-4" />
-                  <span>Add New Cost Code</span>
+                  <span>Add New Trade (Aluminum, Stucco, etc.)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpen(false);
+                    setCreateFeeCodeOpen(true);
+                  }}
+                  className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-muted-foreground hover:bg-accent transition-colors cursor-pointer border-t border-border"
+                >
+                  <Plus className="h-4 w-4" />
+                  <span>Or add fee / non-trade cost code…</span>
                 </button>
               </div>
             )}
@@ -289,12 +304,40 @@ export function CostCodeSelect({
         </PopoverContent>
       </Popover>
 
-      {/* Create Cost Code Dialog */}
+      {/* Create Trade Dialog */}
+      {showCreateButton && (
+        <CreateTradeFromEstimateDialog
+          open={createTradeOpen}
+          onOpenChange={setCreateTradeOpen}
+          defaultCategory={defaultCategory ?? 'materials'}
+          onCreated={({ tradeId, defaultLaborCostCodeId, defaultSubCostCodeId, defaultMaterialCostCodeId }) => {
+            const cat = defaultCategory ?? 'materials';
+            // Select correct cost code based on category
+            // For 'equipment' or 'other', fall back to materials (consistent fallback)
+            if (cat === 'labor' && defaultLaborCostCodeId) {
+              onChange(defaultLaborCostCodeId);
+            } else if (cat === 'subs' && defaultSubCostCodeId) {
+              onChange(defaultSubCostCodeId);
+            } else if (cat === 'materials' && defaultMaterialCostCodeId) {
+              onChange(defaultMaterialCostCodeId);
+            } else if ((cat === 'equipment' || cat === 'other') && defaultMaterialCostCodeId) {
+              // Fallback to materials for equipment/other categories
+              onChange(defaultMaterialCostCodeId);
+            } else if (defaultLaborCostCodeId) {
+              // Final fallback to labor if materials not available
+              onChange(defaultLaborCostCodeId);
+            }
+          }}
+        />
+      )}
+
+      {/* Create Fee Cost Code Dialog */}
       {showCreateButton && (
         <CreateCostCodeDialog
-          open={createDialogOpen}
-          onOpenChange={setCreateDialogOpen}
-          defaultCategory={defaultCategory}
+          open={createFeeCodeOpen}
+          onOpenChange={setCreateFeeCodeOpen}
+          presetMode="fee"
+          defaultCategory="other"
           onSuccess={(costCodeId) => {
             // Auto-select the newly created cost code
             onChange(costCodeId);

@@ -1,4 +1,7 @@
 // DEPRECATED: replaced by ProjectEstimatesV3 - do not use this component
+// This version is kept only for backward compatibility and now routes
+// "Sync to Budget" through the canonical useSyncEstimateToBudget hook.
+
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -21,7 +24,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FileText, Eye, Star, Zap } from "lucide-react";
 import { format } from "date-fns";
-import { useToast } from "@/hooks/use-toast";
 import { CreateEstimateDialog } from "./CreateEstimateDialog";
 import {
   AlertDialog,
@@ -34,6 +36,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useNavigate } from "react-router-dom";
+import { useSyncEstimateToBudget } from "@/hooks/useSyncEstimateToBudget";
 
 interface ProjectEstimatesProps {
   projectId: string;
@@ -45,8 +48,8 @@ export function ProjectEstimates({ projectId }: ProjectEstimatesProps) {
   const [selectedEstimateId, setSelectedEstimateId] = useState<string | null>(
     null
   );
-  const { toast } = useToast();
   const navigate = useNavigate();
+  const syncToBudget = useSyncEstimateToBudget();
 
   const { data: estimates, isLoading, refetch } = useQuery({
     queryKey: ["estimates", projectId],
@@ -65,32 +68,25 @@ export function ProjectEstimates({ projectId }: ProjectEstimatesProps) {
   const handleSyncToBudget = async () => {
     if (!selectedEstimateId) return;
 
-    try {
-      const { error } = await supabase.rpc("sync_estimate_to_budget", {
-        p_estimate_id: selectedEstimateId,
-      });
-
-      if (error) throw error;
-
-      // notify budget views to refetch
-      window.dispatchEvent(new Event("budget-updated"));
-
-      toast({
-        title: "Success",
-        description: "Estimate synced to budget successfully",
-      });
-
-      refetch();
-      setSyncDialogOpen(false);
-      setSelectedEstimateId(null);
-    } catch (error) {
-      console.error("Error syncing estimate to budget:", error);
-      toast({
-        title: "Error",
-        description: "Failed to sync estimate to budget",
-        variant: "destructive",
-      });
-    }
+    syncToBudget.mutate(
+      {
+        projectId,
+        estimateId: selectedEstimateId,
+        mode: "replace",
+      },
+      {
+        onSuccess: () => {
+          // useSyncEstimateToBudget already handles toasts + invalidations
+          window.dispatchEvent(new Event("budget-updated"));
+          refetch();
+          setSyncDialogOpen(false);
+          setSelectedEstimateId(null);
+        },
+        onError: () => {
+          // Errors are already logged + toasted by the hook
+        },
+      }
+    );
   };
 
   const getStatusBadge = (status: string) => {

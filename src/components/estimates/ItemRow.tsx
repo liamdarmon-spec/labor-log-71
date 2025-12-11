@@ -8,6 +8,7 @@ import { UnitSelect } from "@/components/shared/UnitSelect";
 import { cn } from "@/lib/utils";
 import { RowSaveIndicator } from "./SaveStatusIndicator";
 import type { SaveStatus } from "@/hooks/useItemAutosave";
+import { useCostCode } from "@/hooks/useCostCodes";
 
 export type BudgetCategory = "labor" | "subs" | "materials" | "other";
 
@@ -121,6 +122,9 @@ function ItemRowComponent({
     return qty * rate * (1 + markup / 100);
   }, [localQty, localRate, localMarkup]);
 
+  // Fetch trade context from selected cost code for inline creation
+  const { data: selectedCostCode } = useCostCode(item.cost_code_id);
+
   // Validation
   const missingCostCode = !item.cost_code_id || item.cost_code_id === "UNASSIGNED";
   const missingDesc = !localDesc?.trim();
@@ -220,6 +224,7 @@ function ItemRowComponent({
 
         {/* Cost Code */}
         {/* Uses unified CostCodeSelect with sticky "+ Add New Cost Code" footer */}
+        {/* Passes trade context from selected cost code for inline creation */}
         <CostCodeSelect
           value={item.cost_code_id}
           onChange={handleCostCodeChange}
@@ -228,6 +233,7 @@ function ItemRowComponent({
           error={missingCostCode ? "Required" : undefined}
           showCreateButton={true}
           defaultCategory={item.category || 'materials'}
+          defaultTradeId={selectedCostCode?.trade_id || null}
         />
 
         {/* Description */}
@@ -382,6 +388,7 @@ function ItemRowComponent({
 
         {/* Cost Code */}
         {/* Uses unified CostCodeSelect with sticky "+ Add New Cost Code" footer */}
+        {/* Passes trade context from selected cost code for inline creation */}
         <div className="mb-2">
           <CostCodeSelect
             value={item.cost_code_id}
@@ -391,6 +398,7 @@ function ItemRowComponent({
             error={missingCostCode ? "Required" : undefined}
             showCreateButton={true}
             defaultCategory={item.category || 'materials'}
+            defaultTradeId={selectedCostCode?.trade_id || null}
           />
         </div>
 
