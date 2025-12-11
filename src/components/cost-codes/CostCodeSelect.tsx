@@ -1,3 +1,5 @@
+// src/components/cost-codes/CostCodeSelect.tsx
+
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useCostCodesForSelect } from "@/hooks/useCostCodes";
 import {
@@ -40,9 +42,9 @@ interface CostCodeSelectProps {
   helperText?: string;
   error?: string;
   compact?: boolean;
-  defaultCategory?: 'labor' | 'subs' | 'materials' | 'equipment' | 'other'; // For inline creation
-  showCreateButton?: boolean; // Show "+ Add New Cost Code" button
-  defaultTradeId?: string | null; // Trade context from estimate item's cost code
+  defaultCategory?: "labor" | "subs" | "materials" | "equipment" | "other";
+  showCreateButton?: boolean;
+  defaultTradeId?: string | null;
 }
 
 const CATEGORY_ORDER = ["labor", "subs", "materials", "equipment", "other"];
@@ -50,6 +52,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   labor: "bg-blue-500/10 text-blue-700 border-blue-200",
   subs: "bg-orange-500/10 text-orange-700 border-orange-200",
   materials: "bg-green-500/10 text-green-700 border-green-200",
+  equipment: "bg-purple-500/10 text-purple-700 border-purple-200",
   other: "bg-gray-500/10 text-gray-700 border-gray-200",
 };
 
@@ -68,7 +71,10 @@ function getRecentlyUsed(): string[] {
 export function addToRecentlyUsed(id: string) {
   const recent = getRecentlyUsed().filter((r) => r !== id);
   recent.unshift(id);
-  localStorage.setItem(RECENTLY_USED_KEY, JSON.stringify(recent.slice(0, MAX_RECENT)));
+  localStorage.setItem(
+    RECENTLY_USED_KEY,
+    JSON.stringify(recent.slice(0, MAX_RECENT))
+  );
 }
 
 export function CostCodeSelect({
@@ -82,9 +88,8 @@ export function CostCodeSelect({
   helperText,
   error,
   compact = false,
-  defaultCategory = 'materials',
+  defaultCategory = "materials",
   showCreateButton = false,
-  defaultTradeId,
 }: CostCodeSelectProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -92,10 +97,8 @@ export function CostCodeSelect({
   const [createFeeCodeOpen, setCreateFeeCodeOpen] = useState(false);
   const selectedRef = useRef<HTMLDivElement>(null);
 
-  // Use shared React Query hook - cached across all instances
   const { data: codes = [], isLoading: loading } = useCostCodesForSelect();
 
-  // Group codes by category - memoized
   const groupedCodes = useMemo(() => {
     const filtered = search
       ? codes.filter(
@@ -107,17 +110,19 @@ export function CostCodeSelect({
 
     const groups: Record<string, CostCode[]> = {};
     for (const code of filtered) {
-      const cat = code.category || "other";
+      const cat = (code.category || "other").toLowerCase();
       if (!groups[cat]) groups[cat] = [];
       groups[cat].push(code);
     }
     return groups;
   }, [codes, search]);
 
-  // Recently used codes - stable reference
   const recentIds = useMemo(() => getRecentlyUsed(), []);
   const recentCodes = useMemo(
-    () => recentIds.map((id) => codes.find((c) => c.id === id)).filter(Boolean) as CostCode[],
+    () =>
+      recentIds
+        .map((id) => codes.find((c) => c.id === id))
+        .filter(Boolean) as CostCode[],
     [codes, recentIds]
   );
 
@@ -126,14 +131,16 @@ export function CostCodeSelect({
     [codes, value]
   );
 
-  const handleSelect = useCallback((id: string) => {
-    onChange(id);
-    addToRecentlyUsed(id);
-    setOpen(false);
-    setSearch("");
-  }, [onChange]);
+  const handleSelect = useCallback(
+    (id: string) => {
+      onChange(id);
+      addToRecentlyUsed(id);
+      setOpen(false);
+      setSearch("");
+    },
+    [onChange]
+  );
 
-  // Auto-scroll to selected item when dropdown opens
   useEffect(() => {
     if (open && selectedRef.current) {
       const timer = setTimeout(() => {
@@ -144,12 +151,13 @@ export function CostCodeSelect({
   }, [open]);
 
   const displayValue = selectedCode
-    ? `${selectedCode.code}${selectedCode.name ? ` – ${selectedCode.name}` : ""}`
+    ? `${selectedCode.code}${
+        selectedCode.name ? ` – ${selectedCode.name}` : ""
+      }`
     : placeholder;
 
-  const categoryLabel = (cat: string) => {
-    return cat.charAt(0).toUpperCase() + cat.slice(1);
-  };
+  const categoryLabel = (cat: string) =>
+    cat.charAt(0).toUpperCase() + cat.slice(1);
 
   return (
     <div className={cn("flex flex-col gap-1", className)}>
@@ -182,7 +190,10 @@ export function CostCodeSelect({
             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-[350px] p-0 flex flex-col max-h-[400px]" align="start">
+        <PopoverContent
+          className="w-[350px] p-0 flex flex-col max-h-[400px]"
+          align="start"
+        >
           <Command shouldFilter={false} className="flex flex-col h-full min-h-0">
             <CommandInput
               placeholder="Search cost codes..."
@@ -192,48 +203,55 @@ export function CostCodeSelect({
             <CommandList className="flex-1 overflow-y-auto min-h-0">
               <CommandEmpty>No cost code found.</CommandEmpty>
 
-              {/* Recently Used */}
               {!search && recentCodes.length > 0 && (
                 <>
-                  <CommandGroup heading={
-                    <span className="flex items-center gap-1.5">
-                      <Clock className="h-3 w-3" />
-                      Recently Used
-                    </span>
-                  }>
-                    {recentCodes.map((code) => (
-                      <CommandItem
-                        key={`recent-${code.id}`}
-                        value={code.id}
-                        onSelect={() => handleSelect(code.id)}
-                        className="flex items-center gap-2"
-                      >
-                        <Check
-                          className={cn(
-                            "h-4 w-4",
-                            value === code.id ? "opacity-100" : "opacity-0"
-                          )}
-                        />
-                        <Badge
-                          variant="outline"
-                          className={cn("text-[10px] px-1.5 py-0", CATEGORY_COLORS[code.category || "other"])}
+                  <CommandGroup
+                    heading={
+                      <span className="flex items-center gap-1.5">
+                        <Clock className="h-3 w-3" />
+                        Recently Used
+                      </span>
+                    }
+                  >
+                    {recentCodes.map((code) => {
+                      const cat = (code.category || "other").toLowerCase();
+                      return (
+                        <CommandItem
+                          key={`recent-${code.id}`}
+                          value={code.id}
+                          onSelect={() => handleSelect(code.id)}
+                          className="flex items-center gap-2"
                         >
-                          {(code.category || "other").slice(0, 3).toUpperCase()}
-                        </Badge>
-                        <span className="font-mono text-xs">{code.code}</span>
-                        {code.name && (
-                          <span className="text-muted-foreground text-xs truncate">
-                            {code.name}
-                          </span>
-                        )}
-                      </CommandItem>
-                    ))}
+                          <Check
+                            className={cn(
+                              "h-4 w-4",
+                              value === code.id ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              "text-[10px] px-1.5 py-0",
+                              CATEGORY_COLORS[cat] ??
+                                CATEGORY_COLORS["other"]
+                            )}
+                          >
+                            {cat.slice(0, 3).toUpperCase()}
+                          </Badge>
+                          <span className="font-mono text-xs">{code.code}</span>
+                          {code.name && (
+                            <span className="text-muted-foreground text-xs truncate">
+                              {code.name}
+                            </span>
+                          )}
+                        </CommandItem>
+                      );
+                    })}
                   </CommandGroup>
                   <CommandSeparator />
                 </>
               )}
 
-              {/* Grouped by Category */}
               {CATEGORY_ORDER.map((cat) => {
                 const codesInCat = groupedCodes[cat];
                 if (!codesInCat || codesInCat.length === 0) return null;
@@ -256,7 +274,10 @@ export function CostCodeSelect({
                         />
                         <Badge
                           variant="outline"
-                          className={cn("text-[10px] px-1.5 py-0", CATEGORY_COLORS[cat])}
+                          className={cn(
+                            "text-[10px] px-1.5 py-0",
+                            CATEGORY_COLORS[cat] ?? CATEGORY_COLORS["other"]
+                          )}
                         >
                           {cat.slice(0, 3).toUpperCase()}
                         </Badge>
@@ -273,7 +294,6 @@ export function CostCodeSelect({
               })}
             </CommandList>
 
-            {/* Sticky Footer - Trade-First Workflow */}
             {showCreateButton && (
               <div className="border-t border-border bg-background shrink-0 flex flex-col">
                 <button
@@ -304,34 +324,35 @@ export function CostCodeSelect({
         </PopoverContent>
       </Popover>
 
-      {/* Create Trade Dialog */}
       {showCreateButton && (
         <CreateTradeFromEstimateDialog
           open={createTradeOpen}
           onOpenChange={setCreateTradeOpen}
-          defaultCategory={defaultCategory ?? 'materials'}
-          onCreated={({ tradeId, defaultLaborCostCodeId, defaultSubCostCodeId, defaultMaterialCostCodeId }) => {
-            const cat = defaultCategory ?? 'materials';
-            // Select correct cost code based on category
-            // For 'equipment' or 'other', fall back to materials (consistent fallback)
-            if (cat === 'labor' && defaultLaborCostCodeId) {
+          defaultCategory={defaultCategory ?? "materials"}
+          onCreated={({
+            defaultLaborCostCodeId,
+            defaultSubCostCodeId,
+            defaultMaterialCostCodeId,
+            defaultEquipmentCostCodeId,
+          }) => {
+            const cat = defaultCategory ?? "materials";
+            if (cat === "labor" && defaultLaborCostCodeId) {
               onChange(defaultLaborCostCodeId);
-            } else if (cat === 'subs' && defaultSubCostCodeId) {
+            } else if (cat === "subs" && defaultSubCostCodeId) {
               onChange(defaultSubCostCodeId);
-            } else if (cat === 'materials' && defaultMaterialCostCodeId) {
+            } else if (cat === "materials" && defaultMaterialCostCodeId) {
               onChange(defaultMaterialCostCodeId);
-            } else if ((cat === 'equipment' || cat === 'other') && defaultMaterialCostCodeId) {
-              // Fallback to materials for equipment/other categories
+            } else if (cat === "equipment" && defaultEquipmentCostCodeId) {
+              onChange(defaultEquipmentCostCodeId);
+            } else if (defaultMaterialCostCodeId) {
               onChange(defaultMaterialCostCodeId);
             } else if (defaultLaborCostCodeId) {
-              // Final fallback to labor if materials not available
               onChange(defaultLaborCostCodeId);
             }
           }}
         />
       )}
 
-      {/* Create Fee Cost Code Dialog */}
       {showCreateButton && (
         <CreateCostCodeDialog
           open={createFeeCodeOpen}
@@ -339,7 +360,6 @@ export function CostCodeSelect({
           presetMode="fee"
           defaultCategory="other"
           onSuccess={(costCodeId) => {
-            // Auto-select the newly created cost code
             onChange(costCodeId);
           }}
         />

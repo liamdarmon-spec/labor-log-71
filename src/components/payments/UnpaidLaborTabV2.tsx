@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -6,10 +7,11 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Users, DollarSign } from 'lucide-react';
+import { Users, DollarSign, ExternalLink } from 'lucide-react';
 import { CreatePayRunDialog } from '@/components/workforce/CreatePayRunDialog';
 
 export function UnpaidLaborTabV2() {
+  const navigate = useNavigate();
   const [selectedLogs, setSelectedLogs] = useState<Set<string>>(new Set());
   const [payRunDialogOpen, setPayRunDialogOpen] = useState(false);
 
@@ -32,6 +34,7 @@ export function UnpaidLaborTabV2() {
 
       return (data || []).map((log: any) => ({
         id: log.id,
+        projectId: log.project_id,
         date: log.date,
         workerName: log.workers?.name || 'Unknown',
         companyName: log.projects?.companies?.name || 'N/A',
@@ -140,7 +143,20 @@ export function UnpaidLaborTabV2() {
                 <TableCell>{new Date(log.date).toLocaleDateString()}</TableCell>
                 <TableCell>{log.workerName}</TableCell>
                 <TableCell>{log.companyName}</TableCell>
-                <TableCell>{log.projectName}</TableCell>
+                <TableCell>
+                  {log.projectId ? (
+                    <Button
+                      variant="link"
+                      className="p-0 h-auto font-medium text-primary hover:underline"
+                      onClick={() => navigate(`/projects/${log.projectId}`)}
+                    >
+                      {log.projectName}
+                      <ExternalLink className="ml-1 h-3 w-3" />
+                    </Button>
+                  ) : (
+                    log.projectName
+                  )}
+                </TableCell>
                 <TableCell>{log.trade}</TableCell>
                 <TableCell className="text-right">{log.hours}</TableCell>
                 <TableCell className="text-right">${log.rate}</TableCell>

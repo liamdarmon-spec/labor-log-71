@@ -1,54 +1,55 @@
--- Ensure trades table has all required default cost code ID columns
--- This migration is idempotent and safe to run multiple times
+-- Ensure default cost code ID columns exist on trades
 
--- Add default_labor_cost_code_id if it doesn't exist
+ALTER TABLE public.trades
+  ADD COLUMN IF NOT EXISTS default_labor_cost_code_id UUID,
+  ADD COLUMN IF NOT EXISTS default_sub_cost_code_id UUID,
+  ADD COLUMN IF NOT EXISTS default_material_cost_code_id UUID,
+  ADD COLUMN IF NOT EXISTS default_equipment_cost_code_id UUID;
+
+-- Add FKs only if they don't already exist
 DO $$
 BEGIN
   IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns 
-    WHERE table_schema = 'public' 
-    AND table_name = 'trades' 
-    AND column_name = 'default_labor_cost_code_id'
+    SELECT 1 FROM pg_constraint 
+    WHERE conname = 'trades_default_labor_cost_code_id_fkey'
   ) THEN
     ALTER TABLE public.trades
-      ADD COLUMN default_labor_cost_code_id uuid REFERENCES public.cost_codes(id);
+      ADD CONSTRAINT trades_default_labor_cost_code_id_fkey
+      FOREIGN KEY (default_labor_cost_code_id)
+      REFERENCES public.cost_codes(id)
+      ON DELETE SET NULL;
   END IF;
-END $$;
 
--- Add default_sub_cost_code_id if it doesn't exist
-DO $$
-BEGIN
   IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns 
-    WHERE table_schema = 'public' 
-    AND table_name = 'trades' 
-    AND column_name = 'default_sub_cost_code_id'
+    SELECT 1 FROM pg_constraint 
+    WHERE conname = 'trades_default_sub_cost_code_id_fkey'
   ) THEN
     ALTER TABLE public.trades
-      ADD COLUMN default_sub_cost_code_id uuid REFERENCES public.cost_codes(id);
+      ADD CONSTRAINT trades_default_sub_cost_code_id_fkey
+      FOREIGN KEY (default_sub_cost_code_id)
+      REFERENCES public.cost_codes(id)
+      ON DELETE SET NULL;
   END IF;
-END $$;
 
--- Add default_material_cost_code_id if it doesn't exist
-DO $$
-BEGIN
   IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns 
-    WHERE table_schema = 'public' 
-    AND table_name = 'trades' 
-    AND column_name = 'default_material_cost_code_id'
+    SELECT 1 FROM pg_constraint 
+    WHERE conname = 'trades_default_material_cost_code_id_fkey'
   ) THEN
     ALTER TABLE public.trades
-      ADD COLUMN default_material_cost_code_id uuid REFERENCES public.cost_codes(id);
+      ADD CONSTRAINT trades_default_material_cost_code_id_fkey
+      FOREIGN KEY (default_material_cost_code_id)
+      REFERENCES public.cost_codes(id)
+      ON DELETE SET NULL;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint 
+    WHERE conname = 'trades_default_equipment_cost_code_id_fkey'
+  ) THEN
+    ALTER TABLE public.trades
+      ADD CONSTRAINT trades_default_equipment_cost_code_id_fkey
+      FOREIGN KEY (default_equipment_cost_code_id)
+      REFERENCES public.cost_codes(id)
+      ON DELETE SET NULL;
   END IF;
 END $$;
-
--- Create indexes for better query performance
-CREATE INDEX IF NOT EXISTS idx_trades_default_labor_cost_code 
-  ON public.trades(default_labor_cost_code_id);
-
-CREATE INDEX IF NOT EXISTS idx_trades_default_sub_cost_code 
-  ON public.trades(default_sub_cost_code_id);
-
-CREATE INDEX IF NOT EXISTS idx_trades_default_material_cost_code 
-  ON public.trades(default_material_cost_code_id);

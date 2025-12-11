@@ -2,6 +2,7 @@
 // Use Budget, Costs, and Billing modules for all financial workflows instead.
 
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,16 +32,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Plus, FileText, AlertTriangle } from 'lucide-react';
+import { Plus, FileText, AlertTriangle, ExternalLink, Receipt } from 'lucide-react';
 import { useCustomerPayments, useCreateCustomerPayment } from '@/hooks/useProjectFinancials';
+import { useInvoices, useInvoicesSummary } from '@/hooks/useInvoices';
+import { format } from 'date-fns';
 
 interface ProjectBillingTabProps {
   projectId: string;
 }
 
 export function ProjectBillingTab({ projectId }: ProjectBillingTabProps) {
+  const navigate = useNavigate();
   const { data: payments = [] } = useCustomerPayments(projectId);
   const createPayment = useCreateCustomerPayment();
+  const { data: invoices, isLoading: invoicesLoading } = useInvoices({ projectId });
+  const { data: invoiceSummary } = useInvoicesSummary({ projectId });
 
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [newPayment, setNewPayment] = useState({
@@ -51,6 +57,24 @@ export function ProjectBillingTab({ projectId }: ProjectBillingTabProps) {
   });
 
   const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+    }).format(amount);
+  };
+
+  const getStatusBadge = (status: string) => {
+    const colors: Record<string, string> = {
+      draft: 'bg-gray-100 text-gray-800',
+      sent: 'bg-blue-100 text-blue-800',
+      partially_paid: 'bg-yellow-100 text-yellow-800',
+      paid: 'bg-green-100 text-green-800',
+      void: 'bg-red-100 text-red-800',
+    };
+    return colors[status] || 'bg-gray-100 text-gray-800';
+  };
 
   const handleRecordPayment = () => {
     createPayment.mutate({
@@ -213,6 +237,111 @@ export function ProjectBillingTab({ projectId }: ProjectBillingTabProps) {
               </div>
             )}
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Invoices Section */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Invoices</CardTitle>
+              <CardDescription>Client invoices for this project</CardDescription>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate('/financials/receivables')}
+            >
+              <ExternalLink className="w-4 h-4 mr-2" />
+              View All Invoices
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {invoicesLoading ? (
+            <div className="text-center py-8 text-muted-foreground">Loading invoices...</div>
+          ) : invoices && invoices.length > 0 ? (
+            <div className="space-y-4">
+              {/* Invoice Summary */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-muted rounded-lg">
+                <div>
+                  <p className="text-sm text-muted-foreground">Total Invoiced</p>
+                  <p className="text-xl font-bold">{formatCurrency(invoiceSummary?.totalInvoiced || 0)}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Outstanding</p>
+                  <p className="text-xl font-bold text-yellow-600">
+                    {formatCurrency(invoiceSummary?.outstanding || 0)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Invoices</p>
+                  <p className="text-xl font-bold">{invoices.length}</p>
+                </div>
+              </div>
+
+              {/* Invoices Table */}
+              <div className="border rounded-lg">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Invoice #</TableHead>
+                      <TableHead>Issue Date</TableHead>
+                      <TableHead>Due Date</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
+                      <TableHead className="text-right">Retention</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {invoices.map((invoice: any) => (
+                      <TableRow 
+                        key={invoice.id}
+                        className="cursor-pointer hover:bg-muted/50"
+                        onClick={() => navigate('/financials/receivables')}
+                      >
+                        <TableCell className="font-medium">{invoice.invoice_number}</TableCell>
+                        <TableCell>
+                          {invoice.issue_date 
+                            ? format(new Date(invoice.issue_date), 'MMM d, yyyy')
+                            : '—'}
+                        </TableCell>
+                        <TableCell>
+                          {invoice.due_date 
+                            ? format(new Date(invoice.due_date), 'MMM d, yyyy')
+                            : '-'}
+                        </TableCell>
+                        <TableCell className="text-right font-semibold">
+                          {formatCurrency(invoice.total_amount || 0)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(invoice.retention_amount || 0)}
+                        </TableCell>
+                        <TableCell>
+                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusBadge(invoice.status)}`}>
+                            {invoice.status.replace('_', ' ')}
+                          </span>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              <Receipt className="w-12 h-12 mx-auto mb-4 opacity-50" />
+              <p>No invoices yet.</p>
+              <Button
+                variant="outline"
+                className="mt-4"
+                onClick={() => navigate('/financials/receivables')}
+              >
+                Create Invoice
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

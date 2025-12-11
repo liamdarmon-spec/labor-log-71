@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Card,
   CardContent,
@@ -19,11 +19,13 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { useProjectBudgetStructure } from '@/hooks/useProjectBudgetStructure';
+import { useProjectBudgetStructure, type ProjectBudgetLine } from '@/hooks/useProjectBudgetStructure';
 import { useUpdateBudgetLine } from '@/hooks/useUpdateBudgetLine';
 import { cn } from '@/lib/utils';
 import { CreateWorkOrderDialog } from '@/components/work-orders/CreateWorkOrderDialog';
-import { FileText } from 'lucide-react';
+import { FileText, Circle } from 'lucide-react';
+import { toast } from 'sonner';
+import type { ProjectBudgetStructure } from '@/hooks/useProjectBudgetStructure';
 
 interface ProjectBudgetBuilderTabProps {
   projectId: string;
@@ -43,12 +45,12 @@ type EditableLine = {
   cost_codes?: { code?: string | null } | null;
 };
 
-export function ProjectBudgetBuilderTab({
-  projectId,
-}: ProjectBudgetBuilderTabProps) {
+export function ProjectBudgetBuilderTab({ projectId }: ProjectBudgetBuilderTabProps) {
   const { data, isLoading, error, refetch } =
     useProjectBudgetStructure(projectId);
+
   const updateLineMutation = useUpdateBudgetLine(projectId);
+
   const [workOrderDialogOpen, setWorkOrderDialogOpen] = useState(false);
   const [selectedBudgetLine, setSelectedBudgetLine] = useState<{
     id: string;
@@ -56,21 +58,41 @@ export function ProjectBudgetBuilderTab({
     amount?: number;
   } | null>(null);
 
-  // simple local edit state: map lineId -> EditableLine
   const [drafts, setDrafts] = useState<Record<string, EditableLine>>({});
+
+  // Initialize drafts from data when it changes (fixes side effect in getDraft)
+  useEffect(() => {
+    if (!data?.lines) return;
+    
+    const initialDrafts: Record<string, EditableLine> = {};
+    data.lines.forEach((line) => {
+      initialDrafts[line.id] = {
+        id: line.id,
+        description_client: line.description_client ?? '',
+        description_internal: line.description_internal ?? '',
+        qty: Number(line.qty ?? 1),
+        unit: line.unit ?? '',
+        unit_cost: Number(line.unit_cost ?? 0),
+        line_type: line.line_type ?? null,
+        scope_type: line.scope_type || 'base',
+        is_optional: !!line.is_optional,
+        client_visible: line.client_visible ?? true,
+        cost_codes: (line as any).cost_codes,
+      };
+    });
+    
+    setDrafts(initialDrafts);
+  }, [data]);
 
   if (isLoading) {
     return <Skeleton className="h-96" />;
   }
 
   if (error) {
-    console.error(error);
     return (
       <Card>
         <CardContent className="p-4">
-          <p className="text-sm text-red-600 mb-2">
-            Failed to load budget.
-          </p>
+          <p className="text-sm text-red-600 mb-2">Failed to load budget.</p>
           <Button size="sm" variant="outline" onClick={() => refetch()}>
             Retry
           </Button>
@@ -89,121 +111,199 @@ export function ProjectBudgetBuilderTab({
     );
   }
 
-  const { budget, groups, lines } = data as any;
+  const { budget, groups, lines, linesByGroup } = data as ProjectBudgetStructure;
 
-  // 🔒 Immutable Baseline Logic
-  // Treat any of these as "locked":
-  // - explicit locked status
-  // - is_locked boolean (if present)
-  // - baseline_estimate_id set (meaning synced from an estimate)
-  const isLocked =
-    budget?.status === 'locked' ||
-    budget?.is_locked === true ||
-    !!budget?.baseline_estimate_id;
+  // Memoize isLocked calculation
+  const isLocked = useMemo(
+    () =>
+      budget?.status === 'locked' ||
+      budget?.is_locked === true ||
+      !!budget?.baseline_estimate_id,
+    [budget?.status, budget?.is_locked, budget?.baseline_estimate_id]
+  );
 
-  const getDraft = (line: any): EditableLine => {
-    if (drafts[line.id]) return drafts[line.id];
+  // Get draft for a line (now safe - drafts initialized in useEffect)
+  const getDraft = useCallback(
+    (line: ProjectBudgetLine): EditableLine => {
+      if (drafts[line.id]) return drafts[line.id];
 
-    const draft: EditableLine = {
-      id: line.id,
-      description_client: line.description_client ?? '',
-      description_internal: line.description_internal ?? '',
-      qty: Number(line.qty ?? 1),
-      unit: line.unit ?? '',
-      unit_cost: Number(line.unit_cost ?? 0),
-      line_type: line.line_type ?? null,
-      scope_type: (line.scope_type as any) || 'base',
-      is_optional: !!line.is_optional,
-      client_visible: line.client_visible ?? true,
-      cost_codes: line.cost_codes,
-    };
+      // Fallback to line data if draft doesn't exist (shouldn't happen after useEffect)
+      return {
+        id: line.id,
+        description_client: line.description_client ?? '',
+        description_internal: line.description_internal ?? '',
+        qty: Number(line.qty ?? 1),
+        unit: line.unit ?? '',
+        unit_cost: Number(line.unit_cost ?? 0),
+        line_type: line.line_type ?? null,
+        scope_type: line.scope_type || 'base',
+        is_optional: !!line.is_optional,
+        client_visible: line.client_visible ?? true,
+        cost_codes: (line as any).cost_codes,
+      };
+    },
+    [drafts]
+  );
 
-    setDrafts((prev) => ({ ...prev, [line.id]: draft }));
-    return draft;
-  };
+  // Check if line has unsaved changes
+  const hasUnsavedChanges = useCallback(
+    (line: ProjectBudgetLine): boolean => {
+      const draft = drafts[line.id];
+      if (!draft) return false;
 
-  const handleChange = <K extends keyof EditableLine>(
-    lineId: string,
-    field: K,
-    value: EditableLine[K],
-  ) => {
-    // If locked, ignore changes at UI layer
-    if (isLocked) return;
+      return (
+        draft.description_client !== (line.description_client ?? '') ||
+        draft.description_internal !== (line.description_internal ?? '') ||
+        draft.qty !== Number(line.qty ?? 1) ||
+        draft.unit !== (line.unit ?? '') ||
+        draft.unit_cost !== Number(line.unit_cost ?? 0) ||
+        draft.line_type !== line.line_type ||
+        draft.scope_type !== (line.scope_type || 'base') ||
+        draft.is_optional !== !!line.is_optional ||
+        draft.client_visible !== (line.client_visible ?? true)
+      );
+    },
+    [drafts]
+  );
 
-    setDrafts((prev) => ({
-      ...prev,
-      [lineId]: {
-        ...(prev[lineId] || {}),
-        [field]: value,
-      } as EditableLine,
-    }));
-  };
+  const handleChange = useCallback(
+    <K extends keyof EditableLine>(
+      lineId: string,
+      field: K,
+      value: EditableLine[K],
+    ) => {
+      if (isLocked) return;
+      
+      // Validate numeric inputs
+      if (field === 'qty' || field === 'unit_cost') {
+        const numValue = Number(value);
+        if (isNaN(numValue) || numValue < 0) {
+          return; // Ignore invalid values
+        }
+      }
+      
+      setDrafts((prev) => ({
+        ...prev,
+        [lineId]: {
+          ...(prev[lineId] || {}),
+          [field]: value,
+        } as EditableLine,
+      }));
+    },
+    [isLocked]
+  );
 
-  const handleSave = async (lineId: string) => {
-    if (isLocked) return;
+  const handleSave = useCallback(
+    async (lineId: string) => {
+      if (isLocked) return;
 
-    const draft = drafts[lineId];
-    if (!draft) return;
+      const draft = drafts[lineId];
+      if (!draft) return;
 
-    await updateLineMutation.mutateAsync({
-      id: draft.id,
-      description_client: draft.description_client || null,
-      description_internal: draft.description_internal || null,
-      qty: draft.qty,
-      unit: draft.unit || null,
-      unit_cost: draft.unit_cost,
-      line_type: draft.line_type,
-      scope_type: draft.scope_type,
-      is_optional: draft.is_optional,
-      client_visible: draft.client_visible,
-    });
-  };
+      // Validate inputs
+      const qty = Number(draft.qty);
+      const unitCost = Number(draft.unit_cost);
+      
+      if (isNaN(qty) || qty < 0) {
+        toast.error('Quantity must be a valid number >= 0');
+        return;
+      }
+      
+      if (isNaN(unitCost) || unitCost < 0) {
+        toast.error('Unit cost must be a valid number >= 0');
+        return;
+      }
 
-  const linesByGroup: Record<string, any[]> = {};
-  (lines || []).forEach((line: any) => {
-    const key = line.group_id || 'ungrouped';
-    if (!linesByGroup[key]) linesByGroup[key] = [];
-    linesByGroup[key].push(line);
-  });
+      try {
+        const budget_amount = qty * unitCost;
 
-  const ungroupedLines = linesByGroup['ungrouped'] || [];
+        await updateLineMutation.mutateAsync({
+          id: draft.id,
+          description_client: draft.description_client || null,
+          description_internal: draft.description_internal || null,
+          qty,
+          unit: draft.unit || null,
+          unit_cost: unitCost,
+          budget_amount: isFinite(budget_amount) ? budget_amount : 0,
+          line_type: draft.line_type,
+          scope_type: draft.scope_type,
+          is_optional: draft.is_optional,
+          client_visible: draft.client_visible,
+        });
 
-  const renderLineRow = (line: any) => {
-    const draft = getDraft(line);
+        setDrafts((prev) => {
+          const updated = { ...prev };
+          delete updated[lineId];
+          return updated;
+        });
 
-    const displayAmount =
-      draft.qty && draft.unit_cost
-        ? draft.qty * draft.unit_cost
-        : line.budget_amount || 0;
+        toast.success('Line updated successfully');
+      } catch (err: any) {
+        const errorMessage =
+          err?.message || err?.error?.message || 'Failed to update line';
+        toast.error(errorMessage);
+        console.error('Error updating budget line:', err);
+      }
+    },
+    [drafts, isLocked, updateLineMutation]
+  );
 
-    const isSaving =
-      updateLineMutation.isPending &&
-      updateLineMutation.variables?.id === draft.id;
+  const handleCancel = useCallback(
+    (lineId: string) => {
+      setDrafts((prev) => {
+        const updated = { ...prev };
+        delete updated[lineId];
+        return updated;
+      });
+    },
+    []
+  );
 
-    const disabled = isLocked || isSaving;
+  const renderLineRow = useCallback(
+    (line: ProjectBudgetLine) => {
+      const draft = getDraft(line);
+      const hasChanges = hasUnsavedChanges(line);
+      
+      // Calculate display amount safely
+      const qty = Number(draft.qty) || 0;
+      const unitCost = Number(draft.unit_cost) || 0;
+      const calculatedAmount = qty * unitCost;
+      const displayAmount =
+        isFinite(calculatedAmount) && calculatedAmount > 0
+          ? calculatedAmount
+          : Number(line.budget_amount) || 0;
+
+      const isSaving =
+        updateLineMutation.isPending &&
+        updateLineMutation.variables?.id === draft.id;
+
+      const disabled = isLocked || isSaving;
 
     return (
-      <div
-        key={line.id}
-        className="flex flex-col gap-2 py-2 border-b last:border-0"
-      >
+      <div key={line.id} className="flex flex-col gap-2 py-2 border-b last:border-0">
         <div className="flex flex-col md:flex-row md:items-center gap-3">
-          {/* Left: descriptions */}
           <div className="flex-1 space-y-1">
             <div className="flex items-center gap-2">
               <span className="font-mono text-xs text-muted-foreground">
-                {draft.cost_codes?.code || line.cost_codes?.code || 'N/A'}
+                {draft.cost_codes?.code || (line as any).cost_codes?.code || 'N/A'}
               </span>
+
+              {hasChanges && (
+                <Circle className="h-2 w-2 fill-amber-500 text-amber-500" />
+              )}
+
               {draft.scope_type !== 'base' && (
                 <Badge variant="outline" className="text-[10px] px-1 py-0">
                   {draft.scope_type}
                 </Badge>
               )}
+
               {draft.is_optional && (
                 <Badge variant="outline" className="text-[10px] px-1 py-0">
                   Optional
                 </Badge>
               )}
+
               {!draft.client_visible && (
                 <Badge variant="outline" className="text-[10px] px-1 py-0">
                   Internal
@@ -220,62 +320,86 @@ export function ProjectBudgetBuilderTab({
               className="h-8 text-sm"
               disabled={disabled}
             />
+
             <Input
               value={draft.description_internal ?? ''}
               onChange={(e) =>
                 handleChange(line.id, 'description_internal', e.target.value)
               }
-              placeholder="Internal description / notes"
+              placeholder="Internal description"
               className="h-8 text-xs text-muted-foreground"
               disabled={disabled}
             />
           </div>
 
-          {/* Middle: qty/unit/unit_cost */}
           <div className="flex items-center gap-2 md:w-[260px]">
             <div className="w-16">
               <Input
                 type="number"
                 min={0}
                 step={0.01}
-                value={Number.isFinite(draft.qty) ? draft.qty : ''}
-                onChange={(e) =>
-                  handleChange(
-                    line.id,
-                    'qty',
-                    Number(e.target.value || 0) as any,
-                  )
-                }
+                value={draft.qty === 0 ? '' : draft.qty}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value === '') {
+                    handleChange(line.id, 'qty', 0);
+                  } else {
+                    const numValue = Number(value);
+                    if (!isNaN(numValue) && numValue >= 0) {
+                      handleChange(line.id, 'qty', numValue);
+                    }
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleSave(line.id);
+                  } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    handleCancel(line.id);
+                  }
+                }}
                 className="h-8 text-xs"
                 placeholder="Qty"
                 disabled={disabled}
               />
             </div>
+
             <div className="w-24">
               <UnitSelect
                 value={draft.unit}
-                onChange={(value) =>
-                  handleChange(line.id, 'unit', value as any)
-                }
+                onChange={(val) => handleChange(line.id, 'unit', val as any)}
                 className="h-8 text-xs"
                 placeholder="Unit"
               />
             </div>
+
             <div className="w-28">
               <Input
                 type="number"
                 min={0}
                 step={0.01}
-                value={
-                  Number.isFinite(draft.unit_cost) ? draft.unit_cost : ''
-                }
-                onChange={(e) =>
-                  handleChange(
-                    line.id,
-                    'unit_cost',
-                    Number(e.target.value || 0) as any,
-                  )
-                }
+                value={draft.unit_cost === 0 ? '' : draft.unit_cost}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value === '') {
+                    handleChange(line.id, 'unit_cost', 0);
+                  } else {
+                    const numValue = Number(value);
+                    if (!isNaN(numValue) && numValue >= 0) {
+                      handleChange(line.id, 'unit_cost', numValue);
+                    }
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleSave(line.id);
+                  } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    handleCancel(line.id);
+                  }
+                }}
                 className="h-8 text-xs"
                 placeholder="Unit cost"
                 disabled={disabled}
@@ -283,16 +407,11 @@ export function ProjectBudgetBuilderTab({
             </div>
           </div>
 
-          {/* Right: type/scope + total + save */}
           <div className="flex items-center gap-2 md:w-[260px] justify-end">
             <Select
               value={draft.line_type || 'other'}
               onValueChange={(val) =>
-                handleChange(
-                  line.id,
-                  'line_type',
-                  (val as EditableLine['line_type']) || null,
-                )
+                handleChange(line.id, 'line_type', val as any)
               }
               disabled={disabled}
             >
@@ -310,11 +429,7 @@ export function ProjectBudgetBuilderTab({
             <Select
               value={draft.scope_type}
               onValueChange={(val) =>
-                handleChange(
-                  line.id,
-                  'scope_type',
-                  val as EditableLine['scope_type'],
-                )
+                handleChange(line.id, 'scope_type', val as any)
               }
               disabled={disabled}
             >
@@ -330,32 +445,28 @@ export function ProjectBudgetBuilderTab({
             </Select>
 
             <div className="w-24 text-right text-sm font-semibold">
-              ${Number(displayAmount || 0).toLocaleString()}
+              {isFinite(displayAmount) && displayAmount >= 0
+                ? `$${displayAmount.toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}`
+                : '$0.00'}
             </div>
 
             <div className="flex items-center gap-2">
               <Checkbox
                 checked={draft.client_visible}
                 onCheckedChange={(checked) =>
-                  handleChange(
-                    line.id,
-                    'client_visible',
-                    Boolean(checked) as any,
-                  )
+                  handleChange(line.id, 'client_visible', Boolean(checked) as any)
                 }
                 aria-label="Client visible"
                 disabled={disabled}
               />
-              <span className="text-[10px] text-muted-foreground">
-                Client
-              </span>
+              <span className="text-[10px] text-muted-foreground">Client</span>
             </div>
 
             {isLocked ? (
-              <Badge
-                variant="outline"
-                className="h-8 flex items-center text-xs"
-              >
+              <Badge variant="outline" className="h-8 flex items-center text-xs">
                 Baseline Locked
               </Badge>
             ) : (
@@ -364,31 +475,48 @@ export function ProjectBudgetBuilderTab({
                   size="sm"
                   variant="ghost"
                   className="h-8 text-xs"
-                  disabled={disabled}
                   onClick={() => {
                     setSelectedBudgetLine({
                       id: line.id,
-                      description: draft.description_client || draft.description_internal || 'Untitled',
+                      description:
+                        draft.description_client ||
+                        draft.description_internal ||
+                        'Untitled',
                       amount: displayAmount,
                     });
                     setWorkOrderDialogOpen(true);
                   }}
-                  title="Create Work Order"
+                  disabled={disabled}
                 >
                   <FileText className="h-3 w-3 mr-1" />
                   WO
                 </Button>
+
+                {hasChanges && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-8 text-xs text-muted-foreground"
+                    disabled={disabled}
+                    onClick={() => handleCancel(line.id)}
+                    title="Cancel changes (Esc)"
+                  >
+                    Cancel
+                  </Button>
+                )}
                 <Button
                   size="sm"
-                  variant="outline"
+                  variant={hasChanges ? 'default' : 'outline'}
                   className={cn(
                     'h-8 text-xs',
                     isSaving && 'opacity-70 cursor-wait',
+                    hasChanges && 'bg-amber-600 hover:bg-amber-700',
                   )}
-                  disabled={disabled}
+                  disabled={disabled || !hasChanges}
                   onClick={() => handleSave(line.id)}
+                  title="Save changes (Enter)"
                 >
-                  {isSaving ? 'Saving…' : 'Save'}
+                  {isSaving ? 'Saving…' : hasChanges ? 'Save' : 'Saved'}
                 </Button>
               </>
             )}
@@ -396,42 +524,45 @@ export function ProjectBudgetBuilderTab({
         </div>
       </div>
     );
-  };
+    },
+    [
+      getDraft,
+      hasUnsavedChanges,
+      isLocked,
+      updateLineMutation,
+      handleChange,
+      handleSave,
+      handleCancel,
+    ]
+  );
 
   return (
     <div className="space-y-6">
-      {/* Header / summary */}
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h3 className="text-xl font-bold">
-            {budget?.name || 'Project Budget'}
-          </h3>
+          <h3 className="text-xl font-bold">{budget?.name || 'Project Budget'}</h3>
           <p className="text-sm text-muted-foreground">
-            Canonical budget structure – this drives proposals and cost
-            tracking.
+            Canonical budget structure – this drives proposals and cost tracking.
           </p>
+
           {isLocked ? (
             <p className="mt-1 text-xs text-red-600">
-              This budget is{' '}
-              <span className="font-semibold">locked as the baseline.</span>{' '}
-              To change the budget, use Change Orders or Budget Transfers (not
-              direct edits).
+              This budget is <span className="font-semibold">locked as baseline.</span>
             </p>
           ) : (
             <p className="mt-1 text-xs text-muted-foreground">
-              Changes here update the working budget. Once an estimate is
-              synced as baseline, edits will be locked.
+              Edit freely. Once synced as baseline, fields lock.
             </p>
           )}
         </div>
+
         <div className="flex items-center gap-2">
           {budget?.status && (
-            <Badge
-              variant={budget.status === 'active' ? 'default' : 'secondary'}
-            >
+            <Badge variant={budget.status === 'active' ? 'default' : 'secondary'}>
               {budget.status}
             </Badge>
           )}
+
           {isLocked && (
             <Badge variant="outline" className="text-xs">
               Baseline Locked
@@ -440,29 +571,24 @@ export function ProjectBudgetBuilderTab({
         </div>
       </div>
 
-      {/* Groups + lines */}
       <ScrollArea className="h-[520px] border rounded-md">
         <div className="p-4 space-y-4">
-          {(groups || [])
-            .sort(
-              (a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0),
-            )
-            .map((group: any) => {
-              const groupLines = (linesByGroup as any)[group.id] || [];
+          {groups
+            .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+            .map((group) => {
+              const groupLines = linesByGroup[group.id] || [];
+
               return (
                 <Card key={group.id} className="border-dashed">
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between gap-2">
                       <div>
-                        <CardTitle className="text-base">
-                          {group.name}
-                        </CardTitle>
+                        <CardTitle className="text-base">{group.name}</CardTitle>
                         {group.description && (
-                          <p className="text-xs text-muted-foreground">
-                            {group.description}
-                          </p>
+                          <p className="text-xs text-muted-foreground">{group.description}</p>
                         )}
                       </div>
+
                       {!group.client_visible && (
                         <Badge variant="outline" className="text-xs">
                           Internal only
@@ -470,6 +596,7 @@ export function ProjectBudgetBuilderTab({
                       )}
                     </div>
                   </CardHeader>
+
                   <CardContent className="pt-0">
                     {groupLines.length === 0 ? (
                       <p className="text-xs text-muted-foreground">
@@ -478,11 +605,7 @@ export function ProjectBudgetBuilderTab({
                     ) : (
                       <div className="space-y-1">
                         {groupLines
-                          .sort(
-                            (a: any, b: any) =>
-                              (a.sort_order ?? 0) -
-                              (b.sort_order ?? 0),
-                          )
+                          .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
                           .map(renderLineRow)}
                       </div>
                     )}
@@ -491,18 +614,16 @@ export function ProjectBudgetBuilderTab({
               );
             })}
 
-          {ungroupedLines.length > 0 && (
+          {linesByGroup['ungrouped']?.length > 0 && (
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base">Ungrouped</CardTitle>
               </CardHeader>
+
               <CardContent className="pt-0">
                 <div className="space-y-1">
-                  {ungroupedLines
-                    .sort(
-                      (a: any, b: any) =>
-                        (a.sort_order ?? 0) - (b.sort_order ?? 0),
-                    )
+                  {linesByGroup['ungrouped']
+                    .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
                     .map(renderLineRow)}
                 </div>
               </CardContent>
@@ -516,9 +637,7 @@ export function ProjectBudgetBuilderTab({
           open={workOrderDialogOpen}
           onOpenChange={(open) => {
             setWorkOrderDialogOpen(open);
-            if (!open) {
-              setSelectedBudgetLine(null);
-            }
+            if (!open) setSelectedBudgetLine(null);
           }}
           projectId={projectId}
           budgetItemId={selectedBudgetLine.id}

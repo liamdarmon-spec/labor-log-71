@@ -157,6 +157,9 @@ export function CreateProposalDialog({
 
       const todayISO = new Date().toISOString().split('T')[0];
 
+      // Get current user for created_by field
+      const { data: { user } } = await supabase.auth.getUser();
+
       // Create proposal - metadata only, NO proposal_sections/items
       const { data: proposal, error: proposalError } = await supabase
         .from('proposals')
@@ -166,12 +169,13 @@ export function CreateProposalDialog({
           title,
           status: 'draft',
           acceptance_status: 'pending',
-          subtotal_amount: estimate.subtotal_amount,
-          tax_amount: estimate.tax_amount,
-          total_amount: estimate.total_amount,
+          subtotal_amount: estimate.subtotal_amount ?? 0,
+          tax_amount: estimate.tax_amount ?? 0,
+          total_amount: estimate.total_amount ?? 0,
           proposal_date: todayISO,
           validity_days: 30,
           settings,
+          created_by: user?.id ?? null,
         })
         .select()
         .single();
@@ -184,9 +188,12 @@ export function CreateProposalDialog({
       setPresentationMode('detailed');
       onOpenChange(false);
       onSuccess(proposal.id);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating proposal:', error);
-      toast.error('Failed to create proposal');
+      // Show detailed error message
+      const errorMessage = error?.message || error?.details || 'Unknown error';
+      console.error('Error details:', JSON.stringify(error, null, 2));
+      toast.error(`Failed to create proposal: ${errorMessage}`);
     } finally {
       setLoading(false);
     }

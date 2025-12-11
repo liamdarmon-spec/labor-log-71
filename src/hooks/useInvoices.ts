@@ -82,9 +82,71 @@ export function useCreateInvoice() {
       }
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      queryClient.invalidateQueries({ queryKey: ['invoices-summary'] });
+      
+      // Invalidate project financials if project_id is available
+      if (data?.project_id) {
+        queryClient.invalidateQueries({ queryKey: ['project-financials', data.project_id] });
+        queryClient.invalidateQueries({ queryKey: ['project-financials-v3', data.project_id] });
+        queryClient.invalidateQueries({ queryKey: ['unified-project-budget', data.project_id] });
+      }
+      
+      // Invalidate global financial summaries
+      queryClient.invalidateQueries({ queryKey: ['financial-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['job-costing'] });
     },
+  });
+}
+
+// Fetch documents for an invoice
+export function useInvoiceDocuments(invoiceId: string | null) {
+  return useQuery({
+    queryKey: ['invoice-documents', invoiceId],
+    queryFn: async () => {
+      if (!invoiceId) return [];
+      
+      const { data, error } = await supabase
+        .from('documents')
+        .select('id, file_name, file_url, document_type, doc_type')
+        .eq('related_invoice_id', invoiceId)
+        .eq('is_archived', false)
+        .order('uploaded_at', { ascending: false });
+      
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!invoiceId,
+  });
+}
+
+// Fetch document counts for multiple invoices (for table display)
+export function useInvoiceDocumentCounts(invoiceIds: string[]) {
+  return useQuery({
+    queryKey: ['invoice-document-counts', invoiceIds.sort().join(',')],
+    queryFn: async () => {
+      if (invoiceIds.length === 0) return {};
+      
+      const { data, error } = await supabase
+        .from('documents')
+        .select('related_invoice_id')
+        .in('related_invoice_id', invoiceIds)
+        .eq('is_archived', false);
+      
+      if (error) throw error;
+      
+      // Count documents per invoice
+      const counts: Record<string, number> = {};
+      (data || []).forEach((doc: any) => {
+        if (doc.related_invoice_id) {
+          counts[doc.related_invoice_id] = (counts[doc.related_invoice_id] || 0) + 1;
+        }
+      });
+      
+      return counts;
+    },
+    enabled: invoiceIds.length > 0,
   });
 }
 
@@ -106,8 +168,23 @@ export function useUpdateInvoice() {
       }
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      // Invalidate all invoice-related queries
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      queryClient.invalidateQueries({ queryKey: ['invoices-summary'] });
+      
+      // Invalidate project financials if project_id is available
+      if (data?.project_id) {
+        queryClient.invalidateQueries({ queryKey: ['project-financials', data.project_id] });
+        queryClient.invalidateQueries({ queryKey: ['project-financials-v3', data.project_id] });
+        queryClient.invalidateQueries({ queryKey: ['project-financials-v2', data.project_id] });
+        queryClient.invalidateQueries({ queryKey: ['unified-project-budget', data.project_id] });
+        queryClient.invalidateQueries({ queryKey: ['project-stats', data.project_id] });
+      }
+      
+      // Invalidate global financial summaries
+      queryClient.invalidateQueries({ queryKey: ['financial-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['job-costing'] });
     },
   });
 }

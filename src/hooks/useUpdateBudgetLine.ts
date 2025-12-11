@@ -9,6 +9,7 @@ export interface UpdateBudgetLinePayload {
   qty?: number;
   unit?: string | null;
   unit_cost?: number;
+  budget_amount?: number;
   line_type?: 'labor' | 'subs' | 'materials' | 'other' | null;
   scope_type?: 'base' | 'change_order' | 'allowance' | 'option';
   is_optional?: boolean;

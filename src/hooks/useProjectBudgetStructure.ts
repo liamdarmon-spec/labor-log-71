@@ -8,7 +8,7 @@ export interface ProjectBudgetHeader {
   id: string;
   project_id: string;
   name: string;
-  status: 'draft' | 'active' | 'archived';
+  status: 'draft' | 'active' | 'archived' | 'locked';
   labor_budget: number;
   subs_budget: number;
   materials_budget: number;
@@ -16,6 +16,8 @@ export interface ProjectBudgetHeader {
   default_markup_pct: number | null;
   default_tax_pct: number | null;
   notes: string | null;
+  is_locked?: boolean | null;
+  baseline_estimate_id?: string | null;
 }
 
 export interface ProjectBudgetGroup {
@@ -48,14 +50,14 @@ export interface ProjectBudgetLine {
   client_visible: boolean;
   sort_order: number;
   internal_notes: string | null;
-  is_allowance: boolean | null; // legacy field still exists
+  is_allowance: boolean | null;
 }
 
 export interface ProjectBudgetStructure {
   budget: ProjectBudgetHeader | null;
   groups: ProjectBudgetGroup[];
   lines: ProjectBudgetLine[];
-  linesByGroup: Record<string, ProjectBudgetLine[]>; // group_id or 'ungrouped'
+  linesByGroup: Record<string, ProjectBudgetLine[]>;
 }
 
 export function useProjectBudgetStructure(projectId: string | undefined) {
@@ -74,18 +76,18 @@ export function useProjectBudgetStructure(projectId: string | undefined) {
         };
       }
 
-      // 1) Header
-      const { data: budget, error: budgetError } = await supabase
+      // --- FIX: must NOT chain order() with maybeSingle() ---
+      const { data: budgets, error: budgetError } = await supabase
         .from('project_budgets')
         .select('*')
         .eq('project_id', projectId)
-        .maybeSingle();
+        .order('created_at', { ascending: true });
 
       if (budgetError) throw budgetError;
 
-      let budgetId = budget?.id as string | undefined;
+      let budget = budgets?.[0] ?? null;
+      let budgetId = budget?.id;
 
-      // If no budget exists yet, create a default one on the fly
       if (!budgetId) {
         const { data: created, error: createError } = await supabase
           .from('project_budgets')
@@ -95,16 +97,13 @@ export function useProjectBudgetStructure(projectId: string | undefined) {
             status: 'draft',
           })
           .select('*')
-          .maybeSingle();
+          .single();
 
         if (createError) throw createError;
-        if (!created) {
-          throw new Error('Failed to create budget');
-        }
+        budget = created;
         budgetId = created.id;
       }
 
-      // 2) Groups
       const { data: groups, error: groupsError } = await supabase
         .from('project_budget_groups')
         .select('*')
@@ -113,46 +112,36 @@ export function useProjectBudgetStructure(projectId: string | undefined) {
 
       if (groupsError) throw groupsError;
 
-      // 3) Lines
       const { data: lines, error: linesError } = await supabase
         .from('project_budget_lines')
         .select('*')
-        .eq('project_id', projectId)
         .eq('project_budget_id', budgetId)
         .order('group_id', { ascending: true })
         .order('sort_order', { ascending: true });
 
       if (linesError) throw linesError;
 
-      const safeGroups = (groups || []) as ProjectBudgetGroup[];
-      const safeLines = (lines || []) as ProjectBudgetLine[];
-
-      // 4) Group lines by group_id (use 'ungrouped' key)
       const linesByGroup: Record<string, ProjectBudgetLine[]> = {};
-
-      safeLines.forEach((line) => {
+      (lines || []).forEach((line) => {
         const key = line.group_id || 'ungrouped';
         if (!linesByGroup[key]) linesByGroup[key] = [];
         linesByGroup[key].push(line);
       });
 
       return {
-        budget: (budget || budgetId ? { ...(budget || {}), id: budgetId } : null) as ProjectBudgetHeader | null,
-        groups: safeGroups,
-        lines: safeLines,
+        budget: budget as ProjectBudgetHeader,
+        groups: (groups || []) as ProjectBudgetGroup[],
+        lines: (lines || []) as ProjectBudgetLine[],
         linesByGroup,
       };
     },
   });
-
-  // ---------- Mutations ----------
 
   const invalidate = () => {
     if (!projectId) return;
     queryClient.invalidateQueries({ queryKey: ['project-budget-structure', projectId] });
   };
 
-  // Groups
   const createGroup = useMutation({
     mutationFn: async (payload: { project_budget_id: string; name: string }) => {
       const { data, error } = await supabase
@@ -162,13 +151,9 @@ export function useProjectBudgetStructure(projectId: string | undefined) {
           name: payload.name,
         })
         .select('*')
-        .maybeSingle();
-
+        .single();
       if (error) throw error;
-      if (!data) {
-        throw new Error('Failed to create budget group');
-      }
-      return data as ProjectBudgetGroup;
+      return data;
     },
     onSuccess: invalidate,
   });
@@ -180,24 +165,16 @@ export function useProjectBudgetStructure(projectId: string | undefined) {
         .update(payload.patch)
         .eq('id', payload.id)
         .select('*')
-        .maybeSingle();
-
+        .single();
       if (error) throw error;
-      if (!data) {
-        throw new Error('Budget group not found');
-      }
-      return data as ProjectBudgetGroup;
+      return data;
     },
     onSuccess: invalidate,
   });
 
   const deleteGroup = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('project_budget_groups')
-        .delete()
-        .eq('id', id);
-
+      const { error } = await supabase.from('project_budget_groups').delete().eq('id', id);
       if (error) throw error;
     },
     onSuccess: invalidate,
@@ -206,20 +183,13 @@ export function useProjectBudgetStructure(projectId: string | undefined) {
   const reorderGroups = useMutation({
     mutationFn: async (orderedIds: string[]) => {
       const updates = orderedIds.map((id, index) =>
-        supabase
-          .from('project_budget_groups')
-          .update({ sort_order: index })
-          .eq('id', id)
+        supabase.from('project_budget_groups').update({ sort_order: index }).eq('id', id)
       );
-
-      const results = await Promise.all(updates);
-      const error = results.find((r) => r.error)?.error;
-      if (error) throw error;
+      await Promise.all(updates);
     },
     onSuccess: invalidate,
   });
 
-  // Lines
   const createLine = useMutation({
     mutationFn: async (payload: {
       project_id: string;
@@ -228,7 +198,6 @@ export function useProjectBudgetStructure(projectId: string | undefined) {
       line_type: BudgetCategory;
     }) => {
       const unassignedId = await getUnassignedCostCodeId();
-      
       const { data, error } = await supabase
         .from('project_budget_lines')
         .insert([{
@@ -246,13 +215,9 @@ export function useProjectBudgetStructure(projectId: string | undefined) {
           cost_code_id: unassignedId,
         }])
         .select('*')
-        .maybeSingle();
-
+        .single();
       if (error) throw error;
-      if (!data) {
-        throw new Error('Failed to create budget line');
-      }
-      return data as ProjectBudgetLine;
+      return data;
     },
     onSuccess: invalidate,
   });
@@ -264,24 +229,16 @@ export function useProjectBudgetStructure(projectId: string | undefined) {
         .update(payload.patch)
         .eq('id', payload.id)
         .select('*')
-        .maybeSingle();
-
+        .single();
       if (error) throw error;
-      if (!data) {
-        throw new Error('Budget line not found');
-      }
-      return data as ProjectBudgetLine;
+      return data;
     },
     onSuccess: invalidate,
   });
 
   const deleteLine = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('project_budget_lines')
-        .delete()
-        .eq('id', id);
-
+      const { error } = await supabase.from('project_budget_lines').delete().eq('id', id);
       if (error) throw error;
     },
     onSuccess: invalidate,
@@ -297,13 +254,9 @@ export function useProjectBudgetStructure(projectId: string | undefined) {
         })
         .eq('id', payload.id)
         .select('*')
-        .maybeSingle();
-
+        .single();
       if (error) throw error;
-      if (!data) {
-        throw new Error('Budget line not found');
-      }
-      return data as ProjectBudgetLine;
+      return data;
     },
     onSuccess: invalidate,
   });
