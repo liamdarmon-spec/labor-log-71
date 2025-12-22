@@ -37,8 +37,8 @@ CREATE TABLE IF NOT EXISTS scope_blocks (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
 
-CREATE INDEX idx_scope_blocks_entity ON scope_blocks(entity_type, entity_id);
-CREATE INDEX idx_scope_blocks_parent ON scope_blocks(parent_id);
+CREATE INDEX IF NOT EXISTS idx_scope_blocks_entity ON scope_blocks(entity_type, entity_id);
+CREATE INDEX IF NOT EXISTS idx_scope_blocks_parent ON scope_blocks(parent_id);
 
 -- 4. Create scope_block_cost_items table
 CREATE TABLE IF NOT EXISTS scope_block_cost_items (
@@ -59,7 +59,7 @@ CREATE TABLE IF NOT EXISTS scope_block_cost_items (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
 
-CREATE INDEX idx_scope_block_cost_items_block ON scope_block_cost_items(scope_block_id);
+CREATE INDEX IF NOT EXISTS idx_scope_block_cost_items_block ON scope_block_cost_items(scope_block_id);
 
 -- 5. Create proposal_estimate_settings table
 CREATE TABLE IF NOT EXISTS proposal_estimate_settings (
@@ -94,8 +94,8 @@ CREATE TABLE IF NOT EXISTS entity_change_log (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
 
-CREATE INDEX idx_change_log_entity ON entity_change_log(entity_type, entity_id);
-CREATE INDEX idx_change_log_version ON entity_change_log(entity_type, entity_id, version);
+CREATE INDEX IF NOT EXISTS idx_change_log_entity ON entity_change_log(entity_type, entity_id);
+CREATE INDEX IF NOT EXISTS idx_change_log_version ON entity_change_log(entity_type, entity_id, version);
 
 -- 7. Update trigger for scope_blocks
 CREATE OR REPLACE FUNCTION update_scope_block_updated_at()
@@ -106,12 +106,14 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS scope_blocks_updated_at ON scope_blocks;
 CREATE TRIGGER scope_blocks_updated_at
   BEFORE UPDATE ON scope_blocks
   FOR EACH ROW
   EXECUTE FUNCTION update_scope_block_updated_at();
 
 -- 8. Update trigger for scope_block_cost_items
+DROP TRIGGER IF EXISTS scope_block_cost_items_updated_at ON scope_block_cost_items;
 CREATE TRIGGER scope_block_cost_items_updated_at
   BEFORE UPDATE ON scope_block_cost_items
   FOR EACH ROW
@@ -127,6 +129,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS calculate_scope_item_total ON scope_block_cost_items;
 CREATE TRIGGER calculate_scope_item_total
   BEFORE INSERT OR UPDATE ON scope_block_cost_items
   FOR EACH ROW

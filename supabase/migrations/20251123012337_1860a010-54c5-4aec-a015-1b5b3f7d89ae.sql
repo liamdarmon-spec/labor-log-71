@@ -123,10 +123,10 @@ ALTER TABLE public.material_receipts
   CHECK (cost_code_id IS NOT NULL);
 
 -- 3. Add additional performance indexes
-CREATE INDEX IF NOT EXISTS idx_material_receipts_project_id ON public.material_receipts(project_id);
-CREATE INDEX IF NOT EXISTS idx_costs_project_category ON public.costs(project_id, category);
-CREATE INDEX IF NOT EXISTS idx_costs_linked_receipt ON public.costs((vendor_type)) WHERE vendor_type = 'material_vendor';
-CREATE INDEX IF NOT EXISTS idx_costs_vendor_type_category ON public.costs(vendor_type, category);
+CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_material_receipts_project_id ON public.material_receipts(project_id);
+CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_costs_project_category ON public.costs(project_id, category);
+CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_costs_linked_receipt ON public.costs((vendor_type)) WHERE vendor_type = 'material_vendor';
+CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_costs_vendor_type_category ON public.costs(vendor_type, category);
 
 -- 4. Add function to get material actuals by project (single source of truth)
 CREATE OR REPLACE FUNCTION public.get_material_actuals_by_project(p_project_id UUID)

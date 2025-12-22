@@ -22,5 +22,5 @@ GROUP BY i.project_id;
 -- ---------------------------------
 -- INDEX: for invoices by project + status
 -- ---------------------------------
-CREATE INDEX IF NOT EXISTS idx_invoices_project_status
+CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_invoices_project_status
   ON public.invoices(project_id, status);

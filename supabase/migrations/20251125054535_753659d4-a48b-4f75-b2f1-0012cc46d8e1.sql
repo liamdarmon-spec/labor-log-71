@@ -30,10 +30,10 @@ ALTER TABLE costs ADD COLUMN IF NOT EXISTS status text;
 UPDATE costs SET status = 'unpaid' WHERE status IS NULL;
 ALTER TABLE costs ALTER COLUMN status SET DEFAULT 'unpaid';
 
-CREATE INDEX IF NOT EXISTS idx_costs_project_id       ON costs(project_id);
-CREATE INDEX IF NOT EXISTS idx_costs_vendor           ON costs(vendor_type, vendor_id);
-CREATE INDEX IF NOT EXISTS idx_costs_status           ON costs(status);
-CREATE INDEX IF NOT EXISTS idx_costs_date_incurred    ON costs(date_incurred);
+CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_costs_project_id       ON costs(project_id);
+CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_costs_vendor           ON costs(vendor_type, vendor_id);
+CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_costs_status           ON costs(status);
+CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_costs_date_incurred    ON costs(date_incurred);
 
 -- ============================================================================
 -- 3) VENDOR PAYMENTS TABLES
@@ -62,19 +62,19 @@ CREATE TABLE IF NOT EXISTS vendor_payment_items (
   created_at timestamptz DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_vendor_payments_vendor
+CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_vendor_payments_vendor
   ON vendor_payments(vendor_type, vendor_id);
 
-CREATE INDEX IF NOT EXISTS idx_vendor_payments_date
+CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_vendor_payments_date
   ON vendor_payments(payment_date);
 
-CREATE INDEX IF NOT EXISTS idx_vendor_payments_status
+CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_vendor_payments_status
   ON vendor_payments(status);
 
-CREATE INDEX IF NOT EXISTS idx_vendor_payment_items_payment
+CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_vendor_payment_items_payment
   ON vendor_payment_items(payment_id);
 
-CREATE INDEX IF NOT EXISTS idx_vendor_payment_items_cost
+CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_vendor_payment_items_cost
   ON vendor_payment_items(cost_id);
 
 -- ============================================================================

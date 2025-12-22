@@ -23,9 +23,9 @@ CREATE TABLE IF NOT EXISTS public.proposal_images (
 );
 
 -- Add indexes for performance
-CREATE INDEX IF NOT EXISTS idx_proposal_images_proposal_id ON public.proposal_images(proposal_id);
-CREATE INDEX IF NOT EXISTS idx_proposal_images_section_id ON public.proposal_images(section_id);
-CREATE INDEX IF NOT EXISTS idx_proposal_templates_created_by ON public.proposal_templates(created_by);
+CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_proposal_images_proposal_id ON public.proposal_images(proposal_id);
+CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_proposal_images_section_id ON public.proposal_images(section_id);
+CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_proposal_templates_created_by ON public.proposal_templates(created_by);
 
 -- Enable RLS
 ALTER TABLE public.proposal_templates ENABLE ROW LEVEL SECURITY;
@@ -44,6 +44,7 @@ CREATE POLICY "Anyone can update proposal images" ON public.proposal_images FOR 
 CREATE POLICY "Anyone can delete proposal images" ON public.proposal_images FOR DELETE USING (true);
 
 -- Trigger for updated_at on templates
+DROP TRIGGER IF EXISTS update_proposal_templates_updated_at ON public.proposal_templates;
 CREATE TRIGGER update_proposal_templates_updated_at
   BEFORE UPDATE ON public.proposal_templates
   FOR EACH ROW

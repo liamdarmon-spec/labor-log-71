@@ -23,10 +23,10 @@ CREATE TABLE IF NOT EXISTS public.proposal_events (
 );
 
 -- Add indexes for performance
-CREATE INDEX IF NOT EXISTS idx_proposals_public_token ON public.proposals(public_token);
-CREATE INDEX IF NOT EXISTS idx_proposals_acceptance_status ON public.proposals(acceptance_status);
-CREATE INDEX IF NOT EXISTS idx_proposal_events_proposal_id ON public.proposal_events(proposal_id);
-CREATE INDEX IF NOT EXISTS idx_proposal_events_created_at ON public.proposal_events(created_at DESC);
+CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_proposals_public_token ON public.proposals(public_token);
+CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_proposals_acceptance_status ON public.proposals(acceptance_status);
+CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_proposal_events_proposal_id ON public.proposal_events(proposal_id);
+CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_proposal_events_created_at ON public.proposal_events(created_at DESC);
 
 -- Enable RLS
 ALTER TABLE public.proposal_events ENABLE ROW LEVEL SECURITY;
@@ -78,6 +78,7 @@ END;
 $$;
 
 -- Trigger for proposal creation
+DROP TRIGGER IF EXISTS trigger_log_proposal_created ON public.proposals;
 CREATE TRIGGER trigger_log_proposal_created
   AFTER INSERT ON public.proposals
   FOR EACH ROW

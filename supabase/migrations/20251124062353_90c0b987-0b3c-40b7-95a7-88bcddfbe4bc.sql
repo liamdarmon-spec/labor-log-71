@@ -114,6 +114,7 @@ END;
 $$;
 
 -- Recreate the trigger
+DROP TRIGGER IF EXISTS sync_schedule_to_timelog ON work_schedules;
 CREATE TRIGGER sync_schedule_to_timelog
   BEFORE INSERT OR UPDATE ON work_schedules
   FOR EACH ROW

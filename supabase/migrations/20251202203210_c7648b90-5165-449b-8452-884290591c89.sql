@@ -57,23 +57,23 @@ $function$;
 -- Phase 2: Add performance indexes
 
 -- For schedule-to-time-log sync lookups
-CREATE INDEX IF NOT EXISTS idx_time_logs_source_schedule 
+CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_time_logs_source_schedule 
 ON public.time_logs(source_schedule_id)
 WHERE source_schedule_id IS NOT NULL;
 
 -- For unpaid labor queries (Pay Center)
-CREATE INDEX IF NOT EXISTS idx_time_logs_unpaid_company 
+CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_time_logs_unpaid_company 
 ON public.time_logs(company_id, date)
 WHERE payment_status = 'unpaid';
 
 -- For schedule conflict detection
-CREATE INDEX IF NOT EXISTS idx_work_schedules_worker_status 
+CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_work_schedules_worker_status 
 ON public.work_schedules(worker_id, scheduled_date, status)
 WHERE status NOT IN ('cancelled', 'deleted');
 
 -- For cost code aggregations in budget views
-CREATE INDEX IF NOT EXISTS idx_time_logs_cost_code_project 
+CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_time_logs_cost_code_project 
 ON public.time_logs(project_id, cost_code_id);
 
-CREATE INDEX IF NOT EXISTS idx_costs_cost_code_project 
+CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_costs_cost_code_project 
 ON public.costs(project_id, cost_code_id);

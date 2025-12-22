@@ -6,7 +6,7 @@ BEGIN
     SELECT 1 FROM pg_tables
     WHERE schemaname = 'public' AND tablename = 'measurement_units'
   ) THEN
-    CREATE TABLE public.measurement_units (
+    CREATE TABLE IF NOT EXISTS public.measurement_units(
       id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
       code text NOT NULL UNIQUE,
       label text NOT NULL,

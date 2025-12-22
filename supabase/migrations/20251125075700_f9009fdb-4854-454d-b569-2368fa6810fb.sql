@@ -104,10 +104,10 @@ FROM labor_summary, costs_summary, revenue_summary, retention_held_summary, rete
 -- ---------------------------------
 -- INDEXES (READ PERFORMANCE ONLY)
 -- ---------------------------------
-CREATE INDEX IF NOT EXISTS idx_time_logs_project_payment
+CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_time_logs_project_payment
   ON public.time_logs(project_id, payment_status);
 
-CREATE INDEX IF NOT EXISTS idx_costs_project_category_status
+CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_costs_project_category_status
   ON public.costs(project_id, category, status);
 
 COMMIT;

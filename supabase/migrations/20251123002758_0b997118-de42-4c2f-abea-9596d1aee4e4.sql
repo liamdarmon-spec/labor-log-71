@@ -25,16 +25,16 @@ END $$;
 -- PHASE 4: PERFORMANCE OPTIMIZATION
 
 -- 3. Add composite index for proposal_events queries (proposal_id + created_at desc)
-CREATE INDEX IF NOT EXISTS idx_proposal_events_proposal_created 
+CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_proposal_events_proposal_created 
   ON proposal_events(proposal_id, created_at DESC);
 
 -- 4. Add index on public_token for fast lookups
-CREATE INDEX IF NOT EXISTS idx_proposals_public_token 
+CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_proposals_public_token 
   ON proposals(public_token) 
   WHERE public_token IS NOT NULL;
 
 -- 5. Add index on acceptance_status for filtering
-CREATE INDEX IF NOT EXISTS idx_proposals_acceptance_status 
+CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_proposals_acceptance_status 
   ON proposals(acceptance_status);
 
 -- PHASE 2: TOKEN SECURITY - Improve token generation function
@@ -68,7 +68,7 @@ END;
 $$;
 
 -- PHASE 3: ACCEPTANCE FLOW HARDENING
--- Create function to safely update acceptance status (prevents double submission)
+-- CREATE OR REPLACE FUNCTION to safely update acceptance status (prevents double submission)
 CREATE OR REPLACE FUNCTION update_proposal_acceptance(
   p_proposal_id uuid,
   p_new_status text,
@@ -128,7 +128,7 @@ BEGIN
 END;
 $$;
 
--- Create function to log proposal event (with deduplication for 'viewed')
+-- CREATE OR REPLACE FUNCTION to log proposal event (with deduplication for 'viewed')
 CREATE OR REPLACE FUNCTION log_proposal_event(
   p_proposal_id uuid,
   p_event_type text,

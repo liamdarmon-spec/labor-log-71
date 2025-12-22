@@ -21,10 +21,10 @@ ADD COLUMN IF NOT EXISTS compliance_license_expiration DATE,
 ADD COLUMN IF NOT EXISTS compliance_notes TEXT;
 
 -- Create indexes for better query performance
-CREATE INDEX IF NOT EXISTS idx_documents_ai_last_run_status ON documents(ai_last_run_status);
-CREATE INDEX IF NOT EXISTS idx_documents_ai_expiration_date ON documents(ai_expiration_date);
-CREATE INDEX IF NOT EXISTS idx_subs_compliance_coi ON subs(compliance_coi_expiration);
-CREATE INDEX IF NOT EXISTS idx_subs_compliance_license ON subs(compliance_license_expiration);
+CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_documents_ai_last_run_status ON documents(ai_last_run_status);
+CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_documents_ai_expiration_date ON documents(ai_expiration_date);
+CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_subs_compliance_coi ON subs(compliance_coi_expiration);
+CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_subs_compliance_license ON subs(compliance_license_expiration);
 
 -- Create a function to auto-update sub compliance from documents
 CREATE OR REPLACE FUNCTION update_sub_compliance_from_document()

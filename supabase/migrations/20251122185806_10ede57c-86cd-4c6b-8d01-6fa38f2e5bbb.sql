@@ -73,22 +73,22 @@ CREATE TABLE IF NOT EXISTS labor_pay_run_items (
 );
 
 -- 5. Create indexes for performance
-CREATE INDEX idx_work_schedules_worker_date ON work_schedules(worker_id, scheduled_date);
-CREATE INDEX idx_work_schedules_project ON work_schedules(project_id);
-CREATE INDEX idx_work_schedules_company_date ON work_schedules(company_id, scheduled_date);
-CREATE INDEX idx_work_schedules_date ON work_schedules(scheduled_date);
+CREATE INDEX IF NOT EXISTS idx_work_schedules_worker_date ON work_schedules(worker_id, scheduled_date);
+CREATE INDEX IF NOT EXISTS idx_work_schedules_project ON work_schedules(project_id);
+CREATE INDEX IF NOT EXISTS idx_work_schedules_company_date ON work_schedules(company_id, scheduled_date);
+CREATE INDEX IF NOT EXISTS idx_work_schedules_date ON work_schedules(scheduled_date);
 
-CREATE INDEX idx_time_logs_worker_date ON time_logs(worker_id, date);
-CREATE INDEX idx_time_logs_project ON time_logs(project_id);
-CREATE INDEX idx_time_logs_company_date ON time_logs(company_id, date);
-CREATE INDEX idx_time_logs_payment_status ON time_logs(payment_status);
-CREATE INDEX idx_time_logs_date ON time_logs(date);
+CREATE INDEX IF NOT EXISTS idx_time_logs_worker_date ON time_logs(worker_id, date);
+CREATE INDEX IF NOT EXISTS idx_time_logs_project ON time_logs(project_id);
+CREATE INDEX IF NOT EXISTS idx_time_logs_company_date ON time_logs(company_id, date);
+CREATE INDEX IF NOT EXISTS idx_time_logs_payment_status ON time_logs(payment_status);
+CREATE INDEX IF NOT EXISTS idx_time_logs_date ON time_logs(date);
 
-CREATE INDEX idx_labor_pay_runs_status ON labor_pay_runs(status);
-CREATE INDEX idx_labor_pay_runs_dates ON labor_pay_runs(date_range_start, date_range_end);
+CREATE INDEX IF NOT EXISTS idx_labor_pay_runs_status ON labor_pay_runs(status);
+CREATE INDEX IF NOT EXISTS idx_labor_pay_runs_dates ON labor_pay_runs(date_range_start, date_range_end);
 
-CREATE INDEX idx_labor_pay_run_items_pay_run ON labor_pay_run_items(pay_run_id);
-CREATE INDEX idx_labor_pay_run_items_time_log ON labor_pay_run_items(time_log_id);
+CREATE INDEX IF NOT EXISTS idx_labor_pay_run_items_pay_run ON labor_pay_run_items(pay_run_id);
+CREATE INDEX IF NOT EXISTS idx_labor_pay_run_items_time_log ON labor_pay_run_items(time_log_id);
 
 -- 6. Enable RLS
 ALTER TABLE work_schedules ENABLE ROW LEVEL SECURITY;
@@ -137,11 +137,13 @@ CREATE POLICY "Anyone can delete labor pay run items"
   ON labor_pay_run_items FOR DELETE USING (true);
 
 -- 11. Triggers for updated_at
+DROP TRIGGER IF EXISTS update_work_schedules_updated_at ON work_schedules;
 CREATE TRIGGER update_work_schedules_updated_at
   BEFORE UPDATE ON work_schedules
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_labor_pay_runs_updated_at ON labor_pay_runs;
 CREATE TRIGGER update_labor_pay_runs_updated_at
   BEFORE UPDATE ON labor_pay_runs
   FOR EACH ROW

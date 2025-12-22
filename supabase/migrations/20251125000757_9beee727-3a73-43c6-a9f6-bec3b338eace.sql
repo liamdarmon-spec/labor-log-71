@@ -103,6 +103,7 @@ END;
 $function$;
 
 -- AFTER trigger so work_schedules.id definitely exists
+DROP TRIGGER IF EXISTS sync_schedule_to_timelog_trigger ON work_schedules;
 CREATE TRIGGER sync_schedule_to_timelog_trigger
 AFTER INSERT OR UPDATE ON work_schedules
 FOR EACH ROW

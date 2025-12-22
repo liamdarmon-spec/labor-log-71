@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS schedule_of_values (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
 
-CREATE INDEX idx_sov_project ON schedule_of_values(project_id);
+CREATE INDEX IF NOT EXISTS idx_sov_project ON schedule_of_values(project_id);
 
 -- 3. Create customer_payments table
 CREATE TABLE IF NOT EXISTS customer_payments (
@@ -49,8 +49,8 @@ CREATE TABLE IF NOT EXISTS customer_payments (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
 
-CREATE INDEX idx_customer_payments_project ON customer_payments(project_id);
-CREATE INDEX idx_customer_payments_invoice ON customer_payments(invoice_id);
+CREATE INDEX IF NOT EXISTS idx_customer_payments_project ON customer_payments(project_id);
+CREATE INDEX IF NOT EXISTS idx_customer_payments_invoice ON customer_payments(invoice_id);
 
 -- 4. Create project_financials_snapshot table for caching calculations
 CREATE TABLE IF NOT EXISTS project_financials_snapshot (
@@ -106,7 +106,7 @@ CREATE TABLE IF NOT EXISTS budget_revisions (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
 
-CREATE INDEX idx_budget_revisions_project ON budget_revisions(project_id);
+CREATE INDEX IF NOT EXISTS idx_budget_revisions_project ON budget_revisions(project_id);
 
 -- 7. Create cost_entries table (unified cost tracking)
 CREATE TABLE IF NOT EXISTS cost_entries (
@@ -130,10 +130,10 @@ CREATE TABLE IF NOT EXISTS cost_entries (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
 
-CREATE INDEX idx_cost_entries_project ON cost_entries(project_id);
-CREATE INDEX idx_cost_entries_code ON cost_entries(cost_code_id);
-CREATE INDEX idx_cost_entries_type ON cost_entries(entry_type);
-CREATE INDEX idx_cost_entries_date ON cost_entries(entry_date);
+CREATE INDEX IF NOT EXISTS idx_cost_entries_project ON cost_entries(project_id);
+CREATE INDEX IF NOT EXISTS idx_cost_entries_code ON cost_entries(cost_code_id);
+CREATE INDEX IF NOT EXISTS idx_cost_entries_type ON cost_entries(entry_type);
+CREATE INDEX IF NOT EXISTS idx_cost_entries_date ON cost_entries(entry_date);
 
 -- 8. RLS Policies for new tables
 ALTER TABLE schedule_of_values ENABLE ROW LEVEL SECURITY;
@@ -166,21 +166,25 @@ CREATE POLICY "Anyone can update cost entries" ON cost_entries FOR UPDATE USING 
 CREATE POLICY "Anyone can delete cost entries" ON cost_entries FOR DELETE USING (true);
 
 -- 9. Update triggers
+DROP TRIGGER IF EXISTS schedule_of_values_updated_at ON schedule_of_values;
 CREATE TRIGGER schedule_of_values_updated_at
   BEFORE UPDATE ON schedule_of_values
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS customer_payments_updated_at ON customer_payments;
 CREATE TRIGGER customer_payments_updated_at
   BEFORE UPDATE ON customer_payments
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS project_financials_snapshot_updated_at ON project_financials_snapshot;
 CREATE TRIGGER project_financials_snapshot_updated_at
   BEFORE UPDATE ON project_financials_snapshot
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS cost_entries_updated_at ON cost_entries;
 CREATE TRIGGER cost_entries_updated_at
   BEFORE UPDATE ON cost_entries
   FOR EACH ROW
@@ -236,6 +240,7 @@ BEGIN
 END;
 $$;
 
+DROP TRIGGER IF EXISTS sync_daily_log_cost_entry ON daily_logs;
 CREATE TRIGGER sync_daily_log_cost_entry
   AFTER INSERT OR UPDATE ON daily_logs
   FOR EACH ROW

@@ -81,6 +81,7 @@ END;
 $function$;
 
 -- 5) Create clean AFTER trigger on work_schedules
+DROP TRIGGER IF EXISTS sync_schedule_to_timelog_trigger ON work_schedules;
 CREATE TRIGGER sync_schedule_to_timelog_trigger
 AFTER INSERT OR UPDATE ON work_schedules
 FOR EACH ROW

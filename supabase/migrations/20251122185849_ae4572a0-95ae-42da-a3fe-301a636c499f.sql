@@ -193,26 +193,31 @@ END;
 $$;
 
 -- 5. Create triggers
+DROP TRIGGER IF EXISTS auto_populate_work_schedule_company ON work_schedules;
 CREATE TRIGGER auto_populate_work_schedule_company
   BEFORE INSERT OR UPDATE ON work_schedules
   FOR EACH ROW
   EXECUTE FUNCTION auto_populate_company_id();
 
+DROP TRIGGER IF EXISTS auto_populate_time_log_company ON time_logs;
 CREATE TRIGGER auto_populate_time_log_company
   BEFORE INSERT OR UPDATE ON time_logs
   FOR EACH ROW
   EXECUTE FUNCTION auto_populate_company_id();
 
+DROP TRIGGER IF EXISTS auto_populate_time_log_rate ON time_logs;
 CREATE TRIGGER auto_populate_time_log_rate
   BEFORE INSERT OR UPDATE ON time_logs
   FOR EACH ROW
   EXECUTE FUNCTION auto_populate_worker_rate();
 
+DROP TRIGGER IF EXISTS sync_schedule_to_log ON work_schedules;
 CREATE TRIGGER sync_schedule_to_log
   BEFORE INSERT OR UPDATE ON work_schedules
   FOR EACH ROW
   EXECUTE FUNCTION sync_work_schedule_to_time_log();
 
+DROP TRIGGER IF EXISTS sync_log_to_schedule ON time_logs;
 CREATE TRIGGER sync_log_to_schedule
   BEFORE INSERT OR UPDATE ON time_logs
   FOR EACH ROW
@@ -241,6 +246,7 @@ BEGIN
 END;
 $$;
 
+DROP TRIGGER IF EXISTS mark_logs_paid_trigger ON labor_pay_runs;
 CREATE TRIGGER mark_logs_paid_trigger
   AFTER INSERT OR UPDATE ON labor_pay_runs
   FOR EACH ROW

@@ -34,20 +34,40 @@ SET row_security = off;
 -- Name: app_role; Type: TYPE; Schema: public; Owner: -
 --
 
-CREATE TYPE public.app_role AS ENUM (
-    'admin',
-    'field_user'
-);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_type t
+    JOIN pg_namespace n ON n.oid = t.typnamespace
+    WHERE t.typname = 'app_role'
+      AND n.nspname = 'public'
+  ) THEN
+    DO $$
+BEGIN
+  CREATE TYPE public.app_role AS ENUM (
+        'admin',
+        'field_user'
+      );
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END
+$$;
+  END IF;
+END
+$$;
 
 
 --
 -- Name: auto_assign_labor_cost_code(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.auto_assign_labor_cost_code() RETURNS trigger
-    LANGUAGE plpgsql SECURITY DEFINER
-    SET search_path TO 'public'
-    AS $$
+CREATE OR REPLACE FUNCTION public.auto_assign_labor_cost_code()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
 DECLARE
   v_trade_id UUID;
   v_labor_cost_code_id UUID;
@@ -58,20 +78,20 @@ BEGIN
     SELECT trade_id INTO v_trade_id
     FROM workers
     WHERE id = NEW.worker_id;
-    
+
     IF v_trade_id IS NOT NULL THEN
       -- Find the Labor cost code for this trade
       SELECT default_labor_cost_code_id INTO v_labor_cost_code_id
       FROM trades
       WHERE id = v_trade_id;
-      
+
       -- Assign it if found
       IF v_labor_cost_code_id IS NOT NULL THEN
         NEW.cost_code_id := v_labor_cost_code_id;
       END IF;
     END IF;
   END IF;
-  
+
   RETURN NEW;
 END;
 $$;
@@ -81,10 +101,12 @@ $$;
 -- Name: auto_assign_sub_cost_code(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.auto_assign_sub_cost_code() RETURNS trigger
-    LANGUAGE plpgsql SECURITY DEFINER
-    SET search_path TO 'public'
-    AS $$
+CREATE OR REPLACE FUNCTION public.auto_assign_sub_cost_code()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
 DECLARE
   v_trade_id UUID;
   v_sub_cost_code_id UUID;
@@ -95,20 +117,20 @@ BEGIN
     SELECT trade_id INTO v_trade_id
     FROM subs
     WHERE id = NEW.sub_id;
-    
+
     IF v_trade_id IS NOT NULL THEN
       -- Find the Sub cost code for this trade
       SELECT default_sub_cost_code_id INTO v_sub_cost_code_id
       FROM trades
       WHERE id = v_trade_id;
-      
+
       -- Assign it if found
       IF v_sub_cost_code_id IS NOT NULL THEN
         NEW.cost_code_id := v_sub_cost_code_id;
       END IF;
     END IF;
   END IF;
-  
+
   RETURN NEW;
 END;
 $$;
@@ -118,7 +140,7 @@ $$;
 -- Name: auto_create_past_logs(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.auto_create_past_logs() RETURNS void
+CREATE OR REPLACE FUNCTION public.auto_create_past_logs() RETURNS void
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public'
     AS $$
@@ -159,10 +181,12 @@ $$;
 -- Name: delete_old_archived_logs(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.delete_old_archived_logs() RETURNS void
-    LANGUAGE plpgsql SECURITY DEFINER
-    SET search_path TO 'public'
-    AS $$
+CREATE OR REPLACE FUNCTION public.delete_old_archived_logs()
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
 BEGIN
   DELETE FROM public.archived_daily_logs
   WHERE archived_at < NOW() - INTERVAL '24 hours';
@@ -174,13 +198,16 @@ $$;
 -- Name: handle_new_user(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.handle_new_user() RETURNS trigger
-    LANGUAGE plpgsql SECURITY DEFINER
-    SET search_path TO 'public'
-    AS $$
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
 BEGIN
   INSERT INTO public.user_roles (user_id, role)
-  VALUES (NEW.id, 'field_user');
+  VALUES (NEW.id, 'field_user')
+  ON CONFLICT DO NOTHING;
   RETURN NEW;
 END;
 $$;
@@ -190,7 +217,7 @@ $$;
 -- Name: has_role(uuid, public.app_role); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.has_role(_user_id uuid, _role public.app_role) RETURNS boolean
+CREATE OR REPLACE FUNCTION public.has_role(_user_id uuid, _role public.app_role) RETURNS boolean
     LANGUAGE sql STABLE SECURITY DEFINER
     SET search_path TO 'public'
     AS $$
@@ -207,7 +234,7 @@ $$;
 -- Name: log_activity(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.log_activity() RETURNS trigger
+CREATE OR REPLACE FUNCTION public.log_activity() RETURNS trigger
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public'
     AS $$
@@ -236,7 +263,7 @@ $$;
 -- Name: migrate_to_day_cards(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.migrate_to_day_cards() RETURNS void
+CREATE OR REPLACE FUNCTION public.migrate_to_day_cards() RETURNS void
     LANGUAGE plpgsql
     AS $$
 DECLARE
@@ -362,7 +389,7 @@ $$;
 -- Name: split_schedule_for_multi_project(uuid, jsonb); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.split_schedule_for_multi_project(p_original_schedule_id uuid, p_time_log_entries jsonb) RETURNS TABLE(schedule_id uuid, time_log_id uuid)
+CREATE OR REPLACE FUNCTION public.split_schedule_for_multi_project(p_original_schedule_id uuid, p_time_log_entries jsonb) RETURNS TABLE(schedule_id uuid, time_log_id uuid)
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public'
     AS $$
@@ -551,7 +578,7 @@ $$;
 -- Name: sync_estimate_to_budget(uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.sync_estimate_to_budget(p_estimate_id uuid) RETURNS void
+CREATE OR REPLACE FUNCTION public.sync_estimate_to_budget(p_estimate_id uuid) RETURNS void
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public'
     AS $$
@@ -660,7 +687,7 @@ $$;
 -- Name: sync_payment_to_logs(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.sync_payment_to_logs() RETURNS trigger
+CREATE OR REPLACE FUNCTION public.sync_payment_to_logs() RETURNS trigger
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public'
     AS $$
@@ -687,7 +714,7 @@ $$;
 -- Name: sync_schedule_to_timelog(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.sync_schedule_to_timelog() RETURNS trigger
+CREATE OR REPLACE FUNCTION public.sync_schedule_to_timelog() RETURNS trigger
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public'
     AS $$
@@ -793,7 +820,7 @@ $$;
 -- Name: sync_timelog_to_schedule(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.sync_timelog_to_schedule() RETURNS trigger
+CREATE OR REPLACE FUNCTION public.sync_timelog_to_schedule() RETURNS trigger
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public'
     AS $$
@@ -850,7 +877,7 @@ $$;
 -- Name: update_updated_at_column(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.update_updated_at_column() RETURNS trigger
+CREATE OR REPLACE FUNCTION public.update_updated_at_column() RETURNS trigger
     LANGUAGE plpgsql
     SET search_path TO 'public'
     AS $$
@@ -867,7 +894,7 @@ SET default_table_access_method = heap;
 -- Name: activity_log; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.activity_log (
+CREATE TABLE IF NOT EXISTS public.activity_log(
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     entity_type text NOT NULL,
     entity_id uuid NOT NULL,
@@ -884,7 +911,7 @@ CREATE TABLE public.activity_log (
 -- Name: archived_daily_logs; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.archived_daily_logs (
+CREATE TABLE IF NOT EXISTS public.archived_daily_logs(
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     original_id uuid NOT NULL,
     date date NOT NULL,
@@ -904,7 +931,7 @@ CREATE TABLE public.archived_daily_logs (
 -- Name: bid_invitations; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.bid_invitations (
+CREATE TABLE IF NOT EXISTS public.bid_invitations(
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     bid_package_id uuid NOT NULL,
     sub_id uuid NOT NULL,
@@ -919,7 +946,7 @@ CREATE TABLE public.bid_invitations (
 -- Name: bid_packages; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.bid_packages (
+CREATE TABLE IF NOT EXISTS public.bid_packages(
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     project_id uuid NOT NULL,
     title text NOT NULL,
@@ -938,7 +965,7 @@ CREATE TABLE public.bid_packages (
 -- Name: companies; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.companies (
+CREATE TABLE IF NOT EXISTS public.companies(
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     name text NOT NULL,
     created_at timestamp with time zone DEFAULT now()
@@ -949,7 +976,7 @@ CREATE TABLE public.companies (
 -- Name: day_cards; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.day_cards (
+CREATE TABLE IF NOT EXISTS public.day_cards(
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     worker_id uuid NOT NULL,
     date date NOT NULL,
@@ -1006,7 +1033,7 @@ CREATE VIEW public.company_payroll_summary AS
 -- Name: cost_codes; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.cost_codes (
+CREATE TABLE IF NOT EXISTS public.cost_codes(
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     code text NOT NULL,
     name text NOT NULL,
@@ -1024,7 +1051,7 @@ CREATE TABLE public.cost_codes (
 -- Name: projects; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.projects (
+CREATE TABLE IF NOT EXISTS public.projects(
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     project_name text NOT NULL,
     client_name text NOT NULL,
@@ -1041,7 +1068,7 @@ CREATE TABLE public.projects (
 -- Name: time_log_allocations; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.time_log_allocations (
+CREATE TABLE IF NOT EXISTS public.time_log_allocations(
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     day_card_id uuid NOT NULL,
     project_id uuid NOT NULL,
@@ -1081,7 +1108,7 @@ CREATE VIEW public.cost_code_actuals AS
 -- Name: daily_logs; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.daily_logs (
+CREATE TABLE IF NOT EXISTS public.daily_logs(
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     date date DEFAULT CURRENT_DATE NOT NULL,
     worker_id uuid NOT NULL,
@@ -1106,7 +1133,7 @@ CREATE TABLE public.daily_logs (
 -- Name: day_card_jobs; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.day_card_jobs (
+CREATE TABLE IF NOT EXISTS public.day_card_jobs(
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     day_card_id uuid NOT NULL,
     project_id uuid NOT NULL,
@@ -1150,7 +1177,7 @@ SELECT
 -- Name: documents; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.documents (
+CREATE TABLE IF NOT EXISTS public.documents(
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     project_id uuid,
     file_name text NOT NULL,
@@ -1190,7 +1217,7 @@ CREATE TABLE public.documents (
 -- Name: estimate_items; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.estimate_items (
+CREATE TABLE IF NOT EXISTS public.estimate_items(
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     estimate_id uuid NOT NULL,
     description text NOT NULL,
@@ -1213,7 +1240,7 @@ CREATE TABLE public.estimate_items (
 -- Name: estimates; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.estimates (
+CREATE TABLE IF NOT EXISTS public.estimates(
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     project_id uuid NOT NULL,
     title text NOT NULL,
@@ -1232,7 +1259,7 @@ CREATE TABLE public.estimates (
 -- Name: invitations; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.invitations (
+CREATE TABLE IF NOT EXISTS public.invitations(
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     email text NOT NULL,
     role public.app_role DEFAULT 'field_user'::public.app_role NOT NULL,
@@ -1247,7 +1274,7 @@ CREATE TABLE public.invitations (
 -- Name: invoice_items; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.invoice_items (
+CREATE TABLE IF NOT EXISTS public.invoice_items(
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     invoice_id uuid NOT NULL,
     description text NOT NULL,
@@ -1263,7 +1290,7 @@ CREATE TABLE public.invoice_items (
 -- Name: invoices; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.invoices (
+CREATE TABLE IF NOT EXISTS public.invoices(
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     project_id uuid NOT NULL,
     invoice_number text NOT NULL,
@@ -1284,7 +1311,7 @@ CREATE TABLE public.invoices (
 -- Name: workers; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.workers (
+CREATE TABLE IF NOT EXISTS public.workers(
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     name text NOT NULL,
     trade text NOT NULL,
@@ -1319,7 +1346,7 @@ CREATE VIEW public.labor_actuals_by_cost_code AS
 -- Name: material_receipts; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.material_receipts (
+CREATE TABLE IF NOT EXISTS public.material_receipts(
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     project_id uuid NOT NULL,
     vendor text NOT NULL,
@@ -1341,7 +1368,7 @@ CREATE TABLE public.material_receipts (
 -- Name: payments; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.payments (
+CREATE TABLE IF NOT EXISTS public.payments(
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     start_date date NOT NULL,
     end_date date NOT NULL,
@@ -1412,7 +1439,7 @@ CREATE VIEW public.project_activity_view AS
 -- Name: project_budget_lines; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.project_budget_lines (
+CREATE TABLE IF NOT EXISTS public.project_budget_lines(
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     project_id uuid NOT NULL,
     cost_code_id uuid,
@@ -1432,7 +1459,7 @@ CREATE TABLE public.project_budget_lines (
 -- Name: project_budgets; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.project_budgets (
+CREATE TABLE IF NOT EXISTS public.project_budgets(
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     project_id uuid NOT NULL,
     labor_budget numeric(12,2) DEFAULT 0,
@@ -1555,7 +1582,7 @@ CREATE VIEW public.project_labor_summary AS
 -- Name: scheduled_shifts; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.scheduled_shifts (
+CREATE TABLE IF NOT EXISTS public.scheduled_shifts(
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     worker_id uuid NOT NULL,
     project_id uuid NOT NULL,
@@ -1597,7 +1624,7 @@ CREATE VIEW public.project_schedule_view AS
 -- Name: project_subcontracts; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.project_subcontracts (
+CREATE TABLE IF NOT EXISTS public.project_subcontracts(
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     project_id uuid NOT NULL,
     sub_id uuid NOT NULL,
@@ -1616,7 +1643,7 @@ CREATE TABLE public.project_subcontracts (
 -- Name: project_todos; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.project_todos (
+CREATE TABLE IF NOT EXISTS public.project_todos(
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     project_id uuid NOT NULL,
     title text NOT NULL,
@@ -1639,7 +1666,7 @@ CREATE TABLE public.project_todos (
 -- Name: proposal_line_groups; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.proposal_line_groups (
+CREATE TABLE IF NOT EXISTS public.proposal_line_groups(
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     proposal_id uuid NOT NULL,
     estimate_id uuid,
@@ -1659,7 +1686,7 @@ CREATE TABLE public.proposal_line_groups (
 -- Name: proposal_line_overrides; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.proposal_line_overrides (
+CREATE TABLE IF NOT EXISTS public.proposal_line_overrides(
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     proposal_id uuid NOT NULL,
     estimate_line_id uuid NOT NULL,
@@ -1677,7 +1704,7 @@ CREATE TABLE public.proposal_line_overrides (
 -- Name: proposal_section_items; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.proposal_section_items (
+CREATE TABLE IF NOT EXISTS public.proposal_section_items(
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     proposal_section_id uuid NOT NULL,
     estimate_item_id uuid NOT NULL,
@@ -1695,7 +1722,7 @@ CREATE TABLE public.proposal_section_items (
 -- Name: proposal_sections; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.proposal_sections (
+CREATE TABLE IF NOT EXISTS public.proposal_sections(
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     proposal_id uuid NOT NULL,
     title text NOT NULL,
@@ -1713,7 +1740,7 @@ CREATE TABLE public.proposal_sections (
 -- Name: proposals; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.proposals (
+CREATE TABLE IF NOT EXISTS public.proposals(
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     project_id uuid NOT NULL,
     title text NOT NULL,
@@ -1745,7 +1772,7 @@ CREATE TABLE public.proposals (
 -- Name: schedule_modifications; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.schedule_modifications (
+CREATE TABLE IF NOT EXISTS public.schedule_modifications(
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     original_schedule_id uuid NOT NULL,
     new_schedule_id uuid,
@@ -1761,7 +1788,7 @@ CREATE TABLE public.schedule_modifications (
 -- Name: sub_bids; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.sub_bids (
+CREATE TABLE IF NOT EXISTS public.sub_bids(
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     bid_package_id uuid NOT NULL,
     sub_id uuid NOT NULL,
@@ -1777,7 +1804,7 @@ CREATE TABLE public.sub_bids (
 -- Name: sub_compliance_documents; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.sub_compliance_documents (
+CREATE TABLE IF NOT EXISTS public.sub_compliance_documents(
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     sub_id uuid NOT NULL,
     doc_type text NOT NULL,
@@ -1819,7 +1846,7 @@ SELECT
 -- Name: sub_contracts; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.sub_contracts (
+CREATE TABLE IF NOT EXISTS public.sub_contracts(
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     project_id uuid NOT NULL,
     sub_id uuid NOT NULL,
@@ -1845,7 +1872,7 @@ CREATE TABLE public.sub_contracts (
 -- Name: sub_invoices; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.sub_invoices (
+CREATE TABLE IF NOT EXISTS public.sub_invoices(
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     project_id uuid NOT NULL,
     sub_id uuid NOT NULL,
@@ -1873,7 +1900,7 @@ CREATE TABLE public.sub_invoices (
 -- Name: sub_logs; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.sub_logs (
+CREATE TABLE IF NOT EXISTS public.sub_logs(
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     sub_id uuid NOT NULL,
     project_id uuid NOT NULL,
@@ -1890,7 +1917,7 @@ CREATE TABLE public.sub_logs (
 -- Name: sub_payments; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.sub_payments (
+CREATE TABLE IF NOT EXISTS public.sub_payments(
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     project_subcontract_id uuid,
     sub_invoice_id uuid,
@@ -1908,7 +1935,7 @@ CREATE TABLE public.sub_payments (
 -- Name: sub_scheduled_shifts; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.sub_scheduled_shifts (
+CREATE TABLE IF NOT EXISTS public.sub_scheduled_shifts(
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     sub_id uuid NOT NULL,
     project_id uuid NOT NULL,
@@ -1926,7 +1953,7 @@ CREATE TABLE public.sub_scheduled_shifts (
 -- Name: subs; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.subs (
+CREATE TABLE IF NOT EXISTS public.subs(
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     name text NOT NULL,
     company_name text,
@@ -1946,7 +1973,7 @@ CREATE TABLE public.subs (
 -- Name: trades; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.trades (
+CREATE TABLE IF NOT EXISTS public.trades(
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     name text NOT NULL,
     description text,
@@ -1985,7 +2012,7 @@ CREATE VIEW public.unpaid_labor_bills AS
 -- Name: user_roles; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.user_roles (
+CREATE TABLE IF NOT EXISTS public.user_roles(
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
     role public.app_role DEFAULT 'field_user'::public.app_role NOT NULL,
@@ -2527,28 +2554,28 @@ ALTER TABLE ONLY public.workers
 -- Name: idx_activity_log_created; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_activity_log_created ON public.activity_log USING btree (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_activity_log_created ON public.activity_log USING btree (created_at DESC);
 
 
 --
 -- Name: idx_activity_log_entity; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_activity_log_entity ON public.activity_log USING btree (entity_type, entity_id);
+CREATE INDEX IF NOT EXISTS idx_activity_log_entity ON public.activity_log USING btree (entity_type, entity_id);
 
 
 --
 -- Name: idx_bid_invitations_package; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_bid_invitations_package ON public.bid_invitations USING btree (bid_package_id);
+CREATE INDEX IF NOT EXISTS idx_bid_invitations_package ON public.bid_invitations USING btree (bid_package_id);
 
 
 --
 -- Name: idx_bid_packages_project; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_bid_packages_project ON public.bid_packages USING btree (project_id);
+CREATE INDEX IF NOT EXISTS idx_bid_packages_project ON public.bid_packages USING btree (project_id);
 
 
 --
@@ -2562,49 +2589,49 @@ CREATE UNIQUE INDEX idx_cost_codes_trade_category_unique ON public.cost_codes US
 -- Name: idx_cost_codes_trade_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_cost_codes_trade_id ON public.cost_codes USING btree (trade_id);
+CREATE INDEX IF NOT EXISTS idx_cost_codes_trade_id ON public.cost_codes USING btree (trade_id);
 
 
 --
 -- Name: idx_daily_logs_cost_code; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_daily_logs_cost_code ON public.daily_logs USING btree (cost_code_id);
+CREATE INDEX IF NOT EXISTS idx_daily_logs_cost_code ON public.daily_logs USING btree (cost_code_id);
 
 
 --
 -- Name: idx_daily_logs_cost_code_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_daily_logs_cost_code_id ON public.daily_logs USING btree (cost_code_id);
+CREATE INDEX IF NOT EXISTS idx_daily_logs_cost_code_id ON public.daily_logs USING btree (cost_code_id);
 
 
 --
 -- Name: idx_daily_logs_created_at; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_daily_logs_created_at ON public.daily_logs USING btree (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_daily_logs_created_at ON public.daily_logs USING btree (created_at DESC);
 
 
 --
 -- Name: idx_daily_logs_date; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_daily_logs_date ON public.daily_logs USING btree (date);
+CREATE INDEX IF NOT EXISTS idx_daily_logs_date ON public.daily_logs USING btree (date);
 
 
 --
 -- Name: idx_daily_logs_payment_status; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_daily_logs_payment_status ON public.daily_logs USING btree (project_id, payment_status) WHERE (payment_status = 'unpaid'::text);
+CREATE INDEX IF NOT EXISTS idx_daily_logs_payment_status ON public.daily_logs USING btree (project_id, payment_status) WHERE (payment_status = 'unpaid'::text);
 
 
 --
 -- Name: idx_daily_logs_project; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_daily_logs_project ON public.daily_logs USING btree (project_id);
+CREATE INDEX IF NOT EXISTS idx_daily_logs_project ON public.daily_logs USING btree (project_id);
 
 
 --
@@ -2618,567 +2645,567 @@ CREATE UNIQUE INDEX idx_daily_logs_schedule_id ON public.daily_logs USING btree 
 -- Name: idx_daily_logs_trade_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_daily_logs_trade_id ON public.daily_logs USING btree (trade_id);
+CREATE INDEX IF NOT EXISTS idx_daily_logs_trade_id ON public.daily_logs USING btree (trade_id);
 
 
 --
 -- Name: idx_daily_logs_worker; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_daily_logs_worker ON public.daily_logs USING btree (worker_id);
+CREATE INDEX IF NOT EXISTS idx_daily_logs_worker ON public.daily_logs USING btree (worker_id);
 
 
 --
 -- Name: idx_daily_logs_worker_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_daily_logs_worker_id ON public.daily_logs USING btree (worker_id);
+CREATE INDEX IF NOT EXISTS idx_daily_logs_worker_id ON public.daily_logs USING btree (worker_id);
 
 
 --
 -- Name: idx_day_card_jobs_day_card; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_day_card_jobs_day_card ON public.day_card_jobs USING btree (day_card_id);
+CREATE INDEX IF NOT EXISTS idx_day_card_jobs_day_card ON public.day_card_jobs USING btree (day_card_id);
 
 
 --
 -- Name: idx_day_card_jobs_project; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_day_card_jobs_project ON public.day_card_jobs USING btree (project_id);
+CREATE INDEX IF NOT EXISTS idx_day_card_jobs_project ON public.day_card_jobs USING btree (project_id);
 
 
 --
 -- Name: idx_day_cards_date; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_day_cards_date ON public.day_cards USING btree (date);
+CREATE INDEX IF NOT EXISTS idx_day_cards_date ON public.day_cards USING btree (date);
 
 
 --
 -- Name: idx_day_cards_pay_status; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_day_cards_pay_status ON public.day_cards USING btree (pay_status);
+CREATE INDEX IF NOT EXISTS idx_day_cards_pay_status ON public.day_cards USING btree (pay_status);
 
 
 --
 -- Name: idx_day_cards_status; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_day_cards_status ON public.day_cards USING btree (status);
+CREATE INDEX IF NOT EXISTS idx_day_cards_status ON public.day_cards USING btree (status);
 
 
 --
 -- Name: idx_day_cards_worker_date; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_day_cards_worker_date ON public.day_cards USING btree (worker_id, date);
+CREATE INDEX IF NOT EXISTS idx_day_cards_worker_date ON public.day_cards USING btree (worker_id, date);
 
 
 --
 -- Name: idx_documents_ai_status; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_documents_ai_status ON public.documents USING btree (ai_status);
+CREATE INDEX IF NOT EXISTS idx_documents_ai_status ON public.documents USING btree (ai_status);
 
 
 --
 -- Name: idx_documents_cost_code; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_documents_cost_code ON public.documents USING btree (cost_code_id);
+CREATE INDEX IF NOT EXISTS idx_documents_cost_code ON public.documents USING btree (cost_code_id);
 
 
 --
 -- Name: idx_documents_doc_type; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_documents_doc_type ON public.documents USING btree (doc_type);
+CREATE INDEX IF NOT EXISTS idx_documents_doc_type ON public.documents USING btree (doc_type);
 
 
 --
 -- Name: idx_documents_owner; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_documents_owner ON public.documents USING btree (owner_type, owner_id);
+CREATE INDEX IF NOT EXISTS idx_documents_owner ON public.documents USING btree (owner_type, owner_id);
 
 
 --
 -- Name: idx_documents_project; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_documents_project ON public.documents USING btree (project_id);
+CREATE INDEX IF NOT EXISTS idx_documents_project ON public.documents USING btree (project_id);
 
 
 --
 -- Name: idx_documents_type; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_documents_type ON public.documents USING btree (document_type);
+CREATE INDEX IF NOT EXISTS idx_documents_type ON public.documents USING btree (document_type);
 
 
 --
 -- Name: idx_documents_uploaded_at; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_documents_uploaded_at ON public.documents USING btree (uploaded_at);
+CREATE INDEX IF NOT EXISTS idx_documents_uploaded_at ON public.documents USING btree (uploaded_at);
 
 
 --
 -- Name: idx_estimate_items_cost_code; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_estimate_items_cost_code ON public.estimate_items USING btree (cost_code_id);
+CREATE INDEX IF NOT EXISTS idx_estimate_items_cost_code ON public.estimate_items USING btree (cost_code_id);
 
 
 --
 -- Name: idx_estimate_items_estimate_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_estimate_items_estimate_id ON public.estimate_items USING btree (estimate_id);
+CREATE INDEX IF NOT EXISTS idx_estimate_items_estimate_id ON public.estimate_items USING btree (estimate_id);
 
 
 --
 -- Name: idx_estimate_items_trade; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_estimate_items_trade ON public.estimate_items USING btree (trade_id);
+CREATE INDEX IF NOT EXISTS idx_estimate_items_trade ON public.estimate_items USING btree (trade_id);
 
 
 --
 -- Name: idx_estimates_project_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_estimates_project_id ON public.estimates USING btree (project_id);
+CREATE INDEX IF NOT EXISTS idx_estimates_project_id ON public.estimates USING btree (project_id);
 
 
 --
 -- Name: idx_estimates_status; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_estimates_status ON public.estimates USING btree (status);
+CREATE INDEX IF NOT EXISTS idx_estimates_status ON public.estimates USING btree (status);
 
 
 --
 -- Name: idx_invitations_email; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_invitations_email ON public.invitations USING btree (email);
+CREATE INDEX IF NOT EXISTS idx_invitations_email ON public.invitations USING btree (email);
 
 
 --
 -- Name: idx_invitations_used; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_invitations_used ON public.invitations USING btree (used);
+CREATE INDEX IF NOT EXISTS idx_invitations_used ON public.invitations USING btree (used);
 
 
 --
 -- Name: idx_invoice_items_invoice_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_invoice_items_invoice_id ON public.invoice_items USING btree (invoice_id);
+CREATE INDEX IF NOT EXISTS idx_invoice_items_invoice_id ON public.invoice_items USING btree (invoice_id);
 
 
 --
 -- Name: idx_invoices_project_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_invoices_project_id ON public.invoices USING btree (project_id);
+CREATE INDEX IF NOT EXISTS idx_invoices_project_id ON public.invoices USING btree (project_id);
 
 
 --
 -- Name: idx_invoices_status; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_invoices_status ON public.invoices USING btree (status);
+CREATE INDEX IF NOT EXISTS idx_invoices_status ON public.invoices USING btree (status);
 
 
 --
 -- Name: idx_material_receipts_cost_code; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_material_receipts_cost_code ON public.material_receipts USING btree (cost_code_id);
+CREATE INDEX IF NOT EXISTS idx_material_receipts_cost_code ON public.material_receipts USING btree (cost_code_id);
 
 
 --
 -- Name: idx_material_receipts_project; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_material_receipts_project ON public.material_receipts USING btree (project_id);
+CREATE INDEX IF NOT EXISTS idx_material_receipts_project ON public.material_receipts USING btree (project_id);
 
 
 --
 -- Name: idx_payments_company; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_payments_company ON public.payments USING btree (company_id);
+CREATE INDEX IF NOT EXISTS idx_payments_company ON public.payments USING btree (company_id);
 
 
 --
 -- Name: idx_payments_company_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_payments_company_id ON public.payments USING btree (company_id);
+CREATE INDEX IF NOT EXISTS idx_payments_company_id ON public.payments USING btree (company_id);
 
 
 --
 -- Name: idx_payments_created_at; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_payments_created_at ON public.payments USING btree (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_payments_created_at ON public.payments USING btree (created_at DESC);
 
 
 --
 -- Name: idx_payments_dates; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_payments_dates ON public.payments USING btree (start_date, end_date);
+CREATE INDEX IF NOT EXISTS idx_payments_dates ON public.payments USING btree (start_date, end_date);
 
 
 --
 -- Name: idx_project_budget_lines_cost_code; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_project_budget_lines_cost_code ON public.project_budget_lines USING btree (cost_code_id);
+CREATE INDEX IF NOT EXISTS idx_project_budget_lines_cost_code ON public.project_budget_lines USING btree (cost_code_id);
 
 
 --
 -- Name: idx_project_budget_lines_project; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_project_budget_lines_project ON public.project_budget_lines USING btree (project_id);
+CREATE INDEX IF NOT EXISTS idx_project_budget_lines_project ON public.project_budget_lines USING btree (project_id);
 
 
 --
 -- Name: idx_project_subcontracts_project; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_project_subcontracts_project ON public.project_subcontracts USING btree (project_id);
+CREATE INDEX IF NOT EXISTS idx_project_subcontracts_project ON public.project_subcontracts USING btree (project_id);
 
 
 --
 -- Name: idx_project_subcontracts_sub; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_project_subcontracts_sub ON public.project_subcontracts USING btree (sub_id);
+CREATE INDEX IF NOT EXISTS idx_project_subcontracts_sub ON public.project_subcontracts USING btree (sub_id);
 
 
 --
 -- Name: idx_project_todos_assigned_worker_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_project_todos_assigned_worker_id ON public.project_todos USING btree (assigned_worker_id);
+CREATE INDEX IF NOT EXISTS idx_project_todos_assigned_worker_id ON public.project_todos USING btree (assigned_worker_id);
 
 
 --
 -- Name: idx_project_todos_due_date; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_project_todos_due_date ON public.project_todos USING btree (due_date);
+CREATE INDEX IF NOT EXISTS idx_project_todos_due_date ON public.project_todos USING btree (due_date);
 
 
 --
 -- Name: idx_project_todos_project_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_project_todos_project_id ON public.project_todos USING btree (project_id);
+CREATE INDEX IF NOT EXISTS idx_project_todos_project_id ON public.project_todos USING btree (project_id);
 
 
 --
 -- Name: idx_project_todos_status; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_project_todos_status ON public.project_todos USING btree (status);
+CREATE INDEX IF NOT EXISTS idx_project_todos_status ON public.project_todos USING btree (status);
 
 
 --
 -- Name: idx_project_todos_task_type; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_project_todos_task_type ON public.project_todos USING btree (task_type);
+CREATE INDEX IF NOT EXISTS idx_project_todos_task_type ON public.project_todos USING btree (task_type);
 
 
 --
 -- Name: idx_proposal_line_groups_proposal_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_proposal_line_groups_proposal_id ON public.proposal_line_groups USING btree (proposal_id);
+CREATE INDEX IF NOT EXISTS idx_proposal_line_groups_proposal_id ON public.proposal_line_groups USING btree (proposal_id);
 
 
 --
 -- Name: idx_proposal_line_overrides_proposal_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_proposal_line_overrides_proposal_id ON public.proposal_line_overrides USING btree (proposal_id);
+CREATE INDEX IF NOT EXISTS idx_proposal_line_overrides_proposal_id ON public.proposal_line_overrides USING btree (proposal_id);
 
 
 --
 -- Name: idx_proposal_section_items_estimate_item_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_proposal_section_items_estimate_item_id ON public.proposal_section_items USING btree (estimate_item_id);
+CREATE INDEX IF NOT EXISTS idx_proposal_section_items_estimate_item_id ON public.proposal_section_items USING btree (estimate_item_id);
 
 
 --
 -- Name: idx_proposal_section_items_section_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_proposal_section_items_section_id ON public.proposal_section_items USING btree (proposal_section_id);
+CREATE INDEX IF NOT EXISTS idx_proposal_section_items_section_id ON public.proposal_section_items USING btree (proposal_section_id);
 
 
 --
 -- Name: idx_proposal_sections_proposal_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_proposal_sections_proposal_id ON public.proposal_sections USING btree (proposal_id);
+CREATE INDEX IF NOT EXISTS idx_proposal_sections_proposal_id ON public.proposal_sections USING btree (proposal_id);
 
 
 --
 -- Name: idx_proposals_estimate_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_proposals_estimate_id ON public.proposals USING btree (primary_estimate_id);
+CREATE INDEX IF NOT EXISTS idx_proposals_estimate_id ON public.proposals USING btree (primary_estimate_id);
 
 
 --
 -- Name: idx_proposals_project_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_proposals_project_id ON public.proposals USING btree (project_id);
+CREATE INDEX IF NOT EXISTS idx_proposals_project_id ON public.proposals USING btree (project_id);
 
 
 --
 -- Name: idx_proposals_status; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_proposals_status ON public.proposals USING btree (status);
+CREATE INDEX IF NOT EXISTS idx_proposals_status ON public.proposals USING btree (status);
 
 
 --
 -- Name: idx_schedule_modifications_new; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_schedule_modifications_new ON public.schedule_modifications USING btree (new_schedule_id);
+CREATE INDEX IF NOT EXISTS idx_schedule_modifications_new ON public.schedule_modifications USING btree (new_schedule_id);
 
 
 --
 -- Name: idx_schedule_modifications_original; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_schedule_modifications_original ON public.schedule_modifications USING btree (original_schedule_id);
+CREATE INDEX IF NOT EXISTS idx_schedule_modifications_original ON public.schedule_modifications USING btree (original_schedule_id);
 
 
 --
 -- Name: idx_scheduled_shifts_cost_code; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_scheduled_shifts_cost_code ON public.scheduled_shifts USING btree (cost_code_id);
+CREATE INDEX IF NOT EXISTS idx_scheduled_shifts_cost_code ON public.scheduled_shifts USING btree (cost_code_id);
 
 
 --
 -- Name: idx_scheduled_shifts_created_at; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_scheduled_shifts_created_at ON public.scheduled_shifts USING btree (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_scheduled_shifts_created_at ON public.scheduled_shifts USING btree (created_at DESC);
 
 
 --
 -- Name: idx_scheduled_shifts_date; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_scheduled_shifts_date ON public.scheduled_shifts USING btree (scheduled_date);
+CREATE INDEX IF NOT EXISTS idx_scheduled_shifts_date ON public.scheduled_shifts USING btree (scheduled_date);
 
 
 --
 -- Name: idx_scheduled_shifts_project; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_scheduled_shifts_project ON public.scheduled_shifts USING btree (project_id);
+CREATE INDEX IF NOT EXISTS idx_scheduled_shifts_project ON public.scheduled_shifts USING btree (project_id);
 
 
 --
 -- Name: idx_scheduled_shifts_worker; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_scheduled_shifts_worker ON public.scheduled_shifts USING btree (worker_id);
+CREATE INDEX IF NOT EXISTS idx_scheduled_shifts_worker ON public.scheduled_shifts USING btree (worker_id);
 
 
 --
 -- Name: idx_scheduled_shifts_worker_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_scheduled_shifts_worker_id ON public.scheduled_shifts USING btree (worker_id);
+CREATE INDEX IF NOT EXISTS idx_scheduled_shifts_worker_id ON public.scheduled_shifts USING btree (worker_id);
 
 
 --
 -- Name: idx_sub_bids_package; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_sub_bids_package ON public.sub_bids USING btree (bid_package_id);
+CREATE INDEX IF NOT EXISTS idx_sub_bids_package ON public.sub_bids USING btree (bid_package_id);
 
 
 --
 -- Name: idx_sub_compliance_expiry; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_sub_compliance_expiry ON public.sub_compliance_documents USING btree (expiry_date);
+CREATE INDEX IF NOT EXISTS idx_sub_compliance_expiry ON public.sub_compliance_documents USING btree (expiry_date);
 
 
 --
 -- Name: idx_sub_compliance_sub_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_sub_compliance_sub_id ON public.sub_compliance_documents USING btree (sub_id);
+CREATE INDEX IF NOT EXISTS idx_sub_compliance_sub_id ON public.sub_compliance_documents USING btree (sub_id);
 
 
 --
 -- Name: idx_sub_contracts_project; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_sub_contracts_project ON public.sub_contracts USING btree (project_id);
+CREATE INDEX IF NOT EXISTS idx_sub_contracts_project ON public.sub_contracts USING btree (project_id);
 
 
 --
 -- Name: idx_sub_contracts_sub; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_sub_contracts_sub ON public.sub_contracts USING btree (sub_id);
+CREATE INDEX IF NOT EXISTS idx_sub_contracts_sub ON public.sub_contracts USING btree (sub_id);
 
 
 --
 -- Name: idx_sub_invoices_project; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_sub_invoices_project ON public.sub_invoices USING btree (project_id);
+CREATE INDEX IF NOT EXISTS idx_sub_invoices_project ON public.sub_invoices USING btree (project_id);
 
 
 --
 -- Name: idx_sub_invoices_sub; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_sub_invoices_sub ON public.sub_invoices USING btree (sub_id);
+CREATE INDEX IF NOT EXISTS idx_sub_invoices_sub ON public.sub_invoices USING btree (sub_id);
 
 
 --
 -- Name: idx_sub_logs_cost_code; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_sub_logs_cost_code ON public.sub_logs USING btree (cost_code_id);
+CREATE INDEX IF NOT EXISTS idx_sub_logs_cost_code ON public.sub_logs USING btree (cost_code_id);
 
 
 --
 -- Name: idx_sub_logs_date; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_sub_logs_date ON public.sub_logs USING btree (date);
+CREATE INDEX IF NOT EXISTS idx_sub_logs_date ON public.sub_logs USING btree (date);
 
 
 --
 -- Name: idx_sub_logs_project_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_sub_logs_project_id ON public.sub_logs USING btree (project_id);
+CREATE INDEX IF NOT EXISTS idx_sub_logs_project_id ON public.sub_logs USING btree (project_id);
 
 
 --
 -- Name: idx_sub_logs_sub_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_sub_logs_sub_id ON public.sub_logs USING btree (sub_id);
+CREATE INDEX IF NOT EXISTS idx_sub_logs_sub_id ON public.sub_logs USING btree (sub_id);
 
 
 --
 -- Name: idx_sub_payments_contract; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_sub_payments_contract ON public.sub_payments USING btree (project_subcontract_id);
+CREATE INDEX IF NOT EXISTS idx_sub_payments_contract ON public.sub_payments USING btree (project_subcontract_id);
 
 
 --
 -- Name: idx_sub_payments_date; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_sub_payments_date ON public.sub_payments USING btree (payment_date);
+CREATE INDEX IF NOT EXISTS idx_sub_payments_date ON public.sub_payments USING btree (payment_date);
 
 
 --
 -- Name: idx_sub_payments_invoice; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_sub_payments_invoice ON public.sub_payments USING btree (sub_invoice_id);
+CREATE INDEX IF NOT EXISTS idx_sub_payments_invoice ON public.sub_payments USING btree (sub_invoice_id);
 
 
 --
 -- Name: idx_sub_scheduled_shifts_cost_code; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_sub_scheduled_shifts_cost_code ON public.sub_scheduled_shifts USING btree (cost_code_id);
+CREATE INDEX IF NOT EXISTS idx_sub_scheduled_shifts_cost_code ON public.sub_scheduled_shifts USING btree (cost_code_id);
 
 
 --
 -- Name: idx_sub_scheduled_shifts_date; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_sub_scheduled_shifts_date ON public.sub_scheduled_shifts USING btree (scheduled_date);
+CREATE INDEX IF NOT EXISTS idx_sub_scheduled_shifts_date ON public.sub_scheduled_shifts USING btree (scheduled_date);
 
 
 --
 -- Name: idx_sub_scheduled_shifts_project_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_sub_scheduled_shifts_project_id ON public.sub_scheduled_shifts USING btree (project_id);
+CREATE INDEX IF NOT EXISTS idx_sub_scheduled_shifts_project_id ON public.sub_scheduled_shifts USING btree (project_id);
 
 
 --
 -- Name: idx_sub_scheduled_shifts_sub_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_sub_scheduled_shifts_sub_id ON public.sub_scheduled_shifts USING btree (sub_id);
+CREATE INDEX IF NOT EXISTS idx_sub_scheduled_shifts_sub_id ON public.sub_scheduled_shifts USING btree (sub_id);
 
 
 --
 -- Name: idx_time_log_allocations_cost_code; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_time_log_allocations_cost_code ON public.time_log_allocations USING btree (cost_code_id);
+CREATE INDEX IF NOT EXISTS idx_time_log_allocations_cost_code ON public.time_log_allocations USING btree (cost_code_id);
 
 
 --
 -- Name: idx_time_log_allocations_day_card; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_time_log_allocations_day_card ON public.time_log_allocations USING btree (day_card_id);
+CREATE INDEX IF NOT EXISTS idx_time_log_allocations_day_card ON public.time_log_allocations USING btree (day_card_id);
 
 
 --
 -- Name: idx_time_log_allocations_project; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_time_log_allocations_project ON public.time_log_allocations USING btree (project_id);
+CREATE INDEX IF NOT EXISTS idx_time_log_allocations_project ON public.time_log_allocations USING btree (project_id);
 
 
 --
 -- Name: idx_trades_default_labor_cost_code; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_trades_default_labor_cost_code ON public.trades USING btree (default_labor_cost_code_id);
+CREATE INDEX IF NOT EXISTS idx_trades_default_labor_cost_code ON public.trades USING btree (default_labor_cost_code_id);
 
 
 --
 -- Name: idx_trades_default_material_cost_code; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_trades_default_material_cost_code ON public.trades USING btree (default_material_cost_code_id);
+CREATE INDEX IF NOT EXISTS idx_trades_default_material_cost_code ON public.trades USING btree (default_material_cost_code_id);
 
 
 --
 -- Name: idx_workers_trade; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_workers_trade ON public.workers USING btree (trade_id);
+CREATE INDEX IF NOT EXISTS idx_workers_trade ON public.workers USING btree (trade_id);
 
 
 --
@@ -3280,6 +3307,7 @@ CREATE OR REPLACE VIEW public.worker_day_summary AS
 -- Name: daily_logs auto_assign_labor_cost_code_trigger; Type: TRIGGER; Schema: public; Owner: -
 --
 
+DROP TRIGGER IF EXISTS auto_assign_labor_cost_code_trigger ON public.daily_logs;
 CREATE TRIGGER auto_assign_labor_cost_code_trigger BEFORE INSERT ON public.daily_logs FOR EACH ROW EXECUTE FUNCTION public.auto_assign_labor_cost_code();
 
 
@@ -3287,6 +3315,7 @@ CREATE TRIGGER auto_assign_labor_cost_code_trigger BEFORE INSERT ON public.daily
 -- Name: sub_logs auto_assign_sub_cost_code_trigger; Type: TRIGGER; Schema: public; Owner: -
 --
 
+DROP TRIGGER IF EXISTS auto_assign_sub_cost_code_trigger ON public.sub_logs;
 CREATE TRIGGER auto_assign_sub_cost_code_trigger BEFORE INSERT ON public.sub_logs FOR EACH ROW EXECUTE FUNCTION public.auto_assign_sub_cost_code();
 
 
@@ -3294,6 +3323,7 @@ CREATE TRIGGER auto_assign_sub_cost_code_trigger BEFORE INSERT ON public.sub_log
 -- Name: day_cards day_cards_activity_log; Type: TRIGGER; Schema: public; Owner: -
 --
 
+DROP TRIGGER IF EXISTS day_cards_activity_log ON public.day_cards;
 CREATE TRIGGER day_cards_activity_log AFTER INSERT OR DELETE OR UPDATE ON public.day_cards FOR EACH ROW EXECUTE FUNCTION public.log_activity('log');
 
 
@@ -3301,6 +3331,7 @@ CREATE TRIGGER day_cards_activity_log AFTER INSERT OR DELETE OR UPDATE ON public
 -- Name: payments payments_activity_log; Type: TRIGGER; Schema: public; Owner: -
 --
 
+DROP TRIGGER IF EXISTS payments_activity_log ON public.payments;
 CREATE TRIGGER payments_activity_log AFTER INSERT OR DELETE OR UPDATE ON public.payments FOR EACH ROW EXECUTE FUNCTION public.log_activity('payment');
 
 
@@ -3308,6 +3339,7 @@ CREATE TRIGGER payments_activity_log AFTER INSERT OR DELETE OR UPDATE ON public.
 -- Name: payments sync_payment_to_logs_trigger; Type: TRIGGER; Schema: public; Owner: -
 --
 
+DROP TRIGGER IF EXISTS sync_payment_to_logs_trigger ON public.payments;
 CREATE TRIGGER sync_payment_to_logs_trigger AFTER INSERT ON public.payments FOR EACH ROW EXECUTE FUNCTION public.sync_payment_to_logs();
 
 
@@ -3315,6 +3347,7 @@ CREATE TRIGGER sync_payment_to_logs_trigger AFTER INSERT ON public.payments FOR 
 -- Name: scheduled_shifts sync_schedule_to_timelog_trigger; Type: TRIGGER; Schema: public; Owner: -
 --
 
+DROP TRIGGER IF EXISTS sync_schedule_to_timelog_trigger ON public.scheduled_shifts;
 CREATE TRIGGER sync_schedule_to_timelog_trigger BEFORE UPDATE ON public.scheduled_shifts FOR EACH ROW EXECUTE FUNCTION public.sync_schedule_to_timelog();
 
 
@@ -3322,6 +3355,7 @@ CREATE TRIGGER sync_schedule_to_timelog_trigger BEFORE UPDATE ON public.schedule
 -- Name: daily_logs sync_timelog_to_schedule_trigger; Type: TRIGGER; Schema: public; Owner: -
 --
 
+DROP TRIGGER IF EXISTS sync_timelog_to_schedule_trigger ON public.daily_logs;
 CREATE TRIGGER sync_timelog_to_schedule_trigger AFTER UPDATE ON public.daily_logs FOR EACH ROW EXECUTE FUNCTION public.sync_timelog_to_schedule();
 
 
@@ -3329,6 +3363,7 @@ CREATE TRIGGER sync_timelog_to_schedule_trigger AFTER UPDATE ON public.daily_log
 -- Name: daily_logs trigger_auto_assign_labor_cost_code; Type: TRIGGER; Schema: public; Owner: -
 --
 
+DROP TRIGGER IF EXISTS trigger_auto_assign_labor_cost_code ON public.daily_logs;
 CREATE TRIGGER trigger_auto_assign_labor_cost_code BEFORE INSERT ON public.daily_logs FOR EACH ROW EXECUTE FUNCTION public.auto_assign_labor_cost_code();
 
 
@@ -3336,6 +3371,7 @@ CREATE TRIGGER trigger_auto_assign_labor_cost_code BEFORE INSERT ON public.daily
 -- Name: sub_logs trigger_auto_assign_sub_cost_code; Type: TRIGGER; Schema: public; Owner: -
 --
 
+DROP TRIGGER IF EXISTS trigger_auto_assign_sub_cost_code ON public.sub_logs;
 CREATE TRIGGER trigger_auto_assign_sub_cost_code BEFORE INSERT ON public.sub_logs FOR EACH ROW EXECUTE FUNCTION public.auto_assign_sub_cost_code();
 
 
@@ -3343,6 +3379,7 @@ CREATE TRIGGER trigger_auto_assign_sub_cost_code BEFORE INSERT ON public.sub_log
 -- Name: scheduled_shifts trigger_sync_schedule_to_timelog; Type: TRIGGER; Schema: public; Owner: -
 --
 
+DROP TRIGGER IF EXISTS trigger_sync_schedule_to_timelog ON public.scheduled_shifts;
 CREATE TRIGGER trigger_sync_schedule_to_timelog BEFORE UPDATE ON public.scheduled_shifts FOR EACH ROW EXECUTE FUNCTION public.sync_schedule_to_timelog();
 
 
@@ -3350,6 +3387,7 @@ CREATE TRIGGER trigger_sync_schedule_to_timelog BEFORE UPDATE ON public.schedule
 -- Name: daily_logs trigger_sync_timelog_to_schedule; Type: TRIGGER; Schema: public; Owner: -
 --
 
+DROP TRIGGER IF EXISTS trigger_sync_timelog_to_schedule ON public.daily_logs;
 CREATE TRIGGER trigger_sync_timelog_to_schedule BEFORE UPDATE ON public.daily_logs FOR EACH ROW WHEN ((new.schedule_id IS NOT NULL)) EXECUTE FUNCTION public.sync_timelog_to_schedule();
 
 
@@ -3357,6 +3395,7 @@ CREATE TRIGGER trigger_sync_timelog_to_schedule BEFORE UPDATE ON public.daily_lo
 -- Name: bid_packages update_bid_packages_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
+DROP TRIGGER IF EXISTS update_bid_packages_updated_at ON public.bid_packages;
 CREATE TRIGGER update_bid_packages_updated_at BEFORE UPDATE ON public.bid_packages FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 
@@ -3364,6 +3403,7 @@ CREATE TRIGGER update_bid_packages_updated_at BEFORE UPDATE ON public.bid_packag
 -- Name: cost_codes update_cost_codes_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
+DROP TRIGGER IF EXISTS update_cost_codes_updated_at ON public.cost_codes;
 CREATE TRIGGER update_cost_codes_updated_at BEFORE UPDATE ON public.cost_codes FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 
@@ -3371,6 +3411,7 @@ CREATE TRIGGER update_cost_codes_updated_at BEFORE UPDATE ON public.cost_codes F
 -- Name: day_card_jobs update_day_card_jobs_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
+DROP TRIGGER IF EXISTS update_day_card_jobs_updated_at ON public.day_card_jobs;
 CREATE TRIGGER update_day_card_jobs_updated_at BEFORE UPDATE ON public.day_card_jobs FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 
@@ -3378,6 +3419,7 @@ CREATE TRIGGER update_day_card_jobs_updated_at BEFORE UPDATE ON public.day_card_
 -- Name: day_cards update_day_cards_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
+DROP TRIGGER IF EXISTS update_day_cards_updated_at ON public.day_cards;
 CREATE TRIGGER update_day_cards_updated_at BEFORE UPDATE ON public.day_cards FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 
@@ -3385,6 +3427,7 @@ CREATE TRIGGER update_day_cards_updated_at BEFORE UPDATE ON public.day_cards FOR
 -- Name: documents update_documents_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
+DROP TRIGGER IF EXISTS update_documents_updated_at ON public.documents;
 CREATE TRIGGER update_documents_updated_at BEFORE UPDATE ON public.documents FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 
@@ -3392,6 +3435,7 @@ CREATE TRIGGER update_documents_updated_at BEFORE UPDATE ON public.documents FOR
 -- Name: estimates update_estimates_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
+DROP TRIGGER IF EXISTS update_estimates_updated_at ON public.estimates;
 CREATE TRIGGER update_estimates_updated_at BEFORE UPDATE ON public.estimates FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 
@@ -3399,6 +3443,7 @@ CREATE TRIGGER update_estimates_updated_at BEFORE UPDATE ON public.estimates FOR
 -- Name: invoices update_invoices_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
+DROP TRIGGER IF EXISTS update_invoices_updated_at ON public.invoices;
 CREATE TRIGGER update_invoices_updated_at BEFORE UPDATE ON public.invoices FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 
@@ -3406,6 +3451,7 @@ CREATE TRIGGER update_invoices_updated_at BEFORE UPDATE ON public.invoices FOR E
 -- Name: material_receipts update_material_receipts_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
+DROP TRIGGER IF EXISTS update_material_receipts_updated_at ON public.material_receipts;
 CREATE TRIGGER update_material_receipts_updated_at BEFORE UPDATE ON public.material_receipts FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 
@@ -3413,6 +3459,7 @@ CREATE TRIGGER update_material_receipts_updated_at BEFORE UPDATE ON public.mater
 -- Name: payments update_payments_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
+DROP TRIGGER IF EXISTS update_payments_updated_at ON public.payments;
 CREATE TRIGGER update_payments_updated_at BEFORE UPDATE ON public.payments FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 
@@ -3420,6 +3467,7 @@ CREATE TRIGGER update_payments_updated_at BEFORE UPDATE ON public.payments FOR E
 -- Name: project_budget_lines update_project_budget_lines_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
+DROP TRIGGER IF EXISTS update_project_budget_lines_updated_at ON public.project_budget_lines;
 CREATE TRIGGER update_project_budget_lines_updated_at BEFORE UPDATE ON public.project_budget_lines FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 
@@ -3427,6 +3475,7 @@ CREATE TRIGGER update_project_budget_lines_updated_at BEFORE UPDATE ON public.pr
 -- Name: project_budgets update_project_budgets_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
+DROP TRIGGER IF EXISTS update_project_budgets_updated_at ON public.project_budgets;
 CREATE TRIGGER update_project_budgets_updated_at BEFORE UPDATE ON public.project_budgets FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 
@@ -3434,6 +3483,7 @@ CREATE TRIGGER update_project_budgets_updated_at BEFORE UPDATE ON public.project
 -- Name: project_subcontracts update_project_subcontracts_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
+DROP TRIGGER IF EXISTS update_project_subcontracts_updated_at ON public.project_subcontracts;
 CREATE TRIGGER update_project_subcontracts_updated_at BEFORE UPDATE ON public.project_subcontracts FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 
@@ -3441,6 +3491,7 @@ CREATE TRIGGER update_project_subcontracts_updated_at BEFORE UPDATE ON public.pr
 -- Name: project_todos update_project_todos_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
+DROP TRIGGER IF EXISTS update_project_todos_updated_at ON public.project_todos;
 CREATE TRIGGER update_project_todos_updated_at BEFORE UPDATE ON public.project_todos FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 
@@ -3448,6 +3499,7 @@ CREATE TRIGGER update_project_todos_updated_at BEFORE UPDATE ON public.project_t
 -- Name: projects update_projects_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
+DROP TRIGGER IF EXISTS update_projects_updated_at ON public.projects;
 CREATE TRIGGER update_projects_updated_at BEFORE UPDATE ON public.projects FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 
@@ -3455,6 +3507,7 @@ CREATE TRIGGER update_projects_updated_at BEFORE UPDATE ON public.projects FOR E
 -- Name: proposals update_proposals_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
+DROP TRIGGER IF EXISTS update_proposals_updated_at ON public.proposals;
 CREATE TRIGGER update_proposals_updated_at BEFORE UPDATE ON public.proposals FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 
@@ -3462,6 +3515,7 @@ CREATE TRIGGER update_proposals_updated_at BEFORE UPDATE ON public.proposals FOR
 -- Name: scheduled_shifts update_scheduled_shifts_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
+DROP TRIGGER IF EXISTS update_scheduled_shifts_updated_at ON public.scheduled_shifts;
 CREATE TRIGGER update_scheduled_shifts_updated_at BEFORE UPDATE ON public.scheduled_shifts FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 
@@ -3469,6 +3523,7 @@ CREATE TRIGGER update_scheduled_shifts_updated_at BEFORE UPDATE ON public.schedu
 -- Name: sub_compliance_documents update_sub_compliance_documents_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
+DROP TRIGGER IF EXISTS update_sub_compliance_documents_updated_at ON public.sub_compliance_documents;
 CREATE TRIGGER update_sub_compliance_documents_updated_at BEFORE UPDATE ON public.sub_compliance_documents FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 
@@ -3476,6 +3531,7 @@ CREATE TRIGGER update_sub_compliance_documents_updated_at BEFORE UPDATE ON publi
 -- Name: sub_contracts update_sub_contracts_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
+DROP TRIGGER IF EXISTS update_sub_contracts_updated_at ON public.sub_contracts;
 CREATE TRIGGER update_sub_contracts_updated_at BEFORE UPDATE ON public.sub_contracts FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 
@@ -3483,6 +3539,7 @@ CREATE TRIGGER update_sub_contracts_updated_at BEFORE UPDATE ON public.sub_contr
 -- Name: sub_invoices update_sub_invoices_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
+DROP TRIGGER IF EXISTS update_sub_invoices_updated_at ON public.sub_invoices;
 CREATE TRIGGER update_sub_invoices_updated_at BEFORE UPDATE ON public.sub_invoices FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 
@@ -3490,6 +3547,7 @@ CREATE TRIGGER update_sub_invoices_updated_at BEFORE UPDATE ON public.sub_invoic
 -- Name: sub_scheduled_shifts update_sub_scheduled_shifts_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
+DROP TRIGGER IF EXISTS update_sub_scheduled_shifts_updated_at ON public.sub_scheduled_shifts;
 CREATE TRIGGER update_sub_scheduled_shifts_updated_at BEFORE UPDATE ON public.sub_scheduled_shifts FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 
@@ -3497,6 +3555,7 @@ CREATE TRIGGER update_sub_scheduled_shifts_updated_at BEFORE UPDATE ON public.su
 -- Name: subs update_subs_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
+DROP TRIGGER IF EXISTS update_subs_updated_at ON public.subs;
 CREATE TRIGGER update_subs_updated_at BEFORE UPDATE ON public.subs FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 
@@ -3504,6 +3563,7 @@ CREATE TRIGGER update_subs_updated_at BEFORE UPDATE ON public.subs FOR EACH ROW 
 -- Name: time_log_allocations update_time_log_allocations_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
+DROP TRIGGER IF EXISTS update_time_log_allocations_updated_at ON public.time_log_allocations;
 CREATE TRIGGER update_time_log_allocations_updated_at BEFORE UPDATE ON public.time_log_allocations FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 
@@ -3511,6 +3571,7 @@ CREATE TRIGGER update_time_log_allocations_updated_at BEFORE UPDATE ON public.ti
 -- Name: workers update_workers_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
+DROP TRIGGER IF EXISTS update_workers_updated_at ON public.workers;
 CREATE TRIGGER update_workers_updated_at BEFORE UPDATE ON public.workers FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 
