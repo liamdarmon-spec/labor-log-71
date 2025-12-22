@@ -4187,7 +4187,7 @@ DELETE FROM public.cost_codes t
 USING ranked r
 WHERE t.id = r.id AND r.rn > 1;
 
-CREATE UNIQUE INDEX idx_cost_codes_trade_category_unique ON public.cost_codes USING btree (trade_id, category) WHERE ((is_active = true) AND (trade_id IS NOT NULL));
+CREATE UNIQUE INDEX IF NOT EXISTS idx_cost_codes_trade_category_unique ON public.cost_codes USING btree (trade_id, category) WHERE ((is_active = true) AND (trade_id IS NOT NULL));
 
 
 --
@@ -4259,7 +4259,7 @@ DELETE FROM public.daily_logs t
 USING ranked r
 WHERE t.id = r.id AND r.rn > 1;
 
-CREATE UNIQUE INDEX idx_daily_logs_schedule_id ON public.daily_logs USING btree (schedule_id) WHERE (schedule_id IS NOT NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_daily_logs_schedule_id ON public.daily_logs USING btree (schedule_id) WHERE (schedule_id IS NOT NULL);
 
 
 --
