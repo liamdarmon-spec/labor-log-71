@@ -88,14 +88,14 @@ CREATE TABLE IF NOT EXISTS checklist_question_answers (
 );
 
 -- Create indexes for performance
-CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_checklist_templates_project_type ON checklist_templates(project_type);
-CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_checklist_templates_phase ON checklist_templates(phase);
-CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_checklist_template_items_template ON checklist_template_items(checklist_template_id);
-CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_project_checklists_project ON project_checklists(project_id);
-CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_project_checklists_estimate ON project_checklists(estimate_id);
-CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_project_checklist_items_checklist ON project_checklist_items(project_checklist_id);
-CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_checklist_questions_project_type ON checklist_questions(project_type);
-CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_checklist_question_answers_estimate ON checklist_question_answers(estimate_id);
+CREATE INDEX IF NOT EXISTS idx_checklist_templates_project_type ON checklist_templates(project_type);
+CREATE INDEX IF NOT EXISTS idx_checklist_templates_phase ON checklist_templates(phase);
+CREATE INDEX IF NOT EXISTS idx_checklist_template_items_template ON checklist_template_items(checklist_template_id);
+CREATE INDEX IF NOT EXISTS idx_project_checklists_project ON project_checklists(project_id);
+CREATE INDEX IF NOT EXISTS idx_project_checklists_estimate ON project_checklists(estimate_id);
+CREATE INDEX IF NOT EXISTS idx_project_checklist_items_checklist ON project_checklist_items(project_checklist_id);
+CREATE INDEX IF NOT EXISTS idx_checklist_questions_project_type ON checklist_questions(project_type);
+CREATE INDEX IF NOT EXISTS idx_checklist_question_answers_estimate ON checklist_question_answers(estimate_id);
 
 -- Enable RLS
 ALTER TABLE checklist_templates ENABLE ROW LEVEL SECURITY;

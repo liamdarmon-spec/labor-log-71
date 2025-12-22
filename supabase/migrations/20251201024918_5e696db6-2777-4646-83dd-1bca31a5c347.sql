@@ -1,7 +1,8 @@
 -- Create optimized view for unpaid time logs available for pay runs
 -- This view excludes time logs already in non-cancelled pay runs
 
-CREATE OR REPLACE VIEW public.unpaid_time_logs_available_for_pay_run AS
+DROP VIEW IF EXISTS public.unpaid_time_logs_available_for_pay_run CASCADE;
+CREATE VIEW public.unpaid_time_logs_available_for_pay_run AS
 SELECT tl.*
 FROM public.time_logs tl
 WHERE tl.payment_status = 'unpaid'

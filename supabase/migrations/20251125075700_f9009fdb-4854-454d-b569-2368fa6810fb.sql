@@ -10,7 +10,8 @@ BEGIN;
 -- ---------------------------------
 -- VIEW 1: Project-level COST summary
 -- ---------------------------------
-CREATE OR REPLACE VIEW public.project_cost_summary_view AS
+DROP VIEW IF EXISTS public.project_cost_summary_view CASCADE;
+CREATE VIEW public.project_cost_summary_view AS
 SELECT
   c.project_id,
   p.company_id,
@@ -32,7 +33,8 @@ GROUP BY c.project_id, p.company_id, p.project_name;
 -- ---------------------------------
 -- VIEW 2: Project-level LABOR summary
 -- ---------------------------------
-CREATE OR REPLACE VIEW public.project_labor_summary_view AS
+DROP VIEW IF EXISTS public.project_labor_summary_view CASCADE;
+CREATE VIEW public.project_labor_summary_view AS
 SELECT
   tl.project_id,
   tl.company_id,
@@ -52,7 +54,8 @@ GROUP BY tl.project_id, tl.company_id, p.project_name;
 -- ---------------------------------
 -- VIEW 3: GLOBAL financial summary
 -- ---------------------------------
-CREATE OR REPLACE VIEW public.global_financial_summary_view AS
+DROP VIEW IF EXISTS public.global_financial_summary_view CASCADE;
+CREATE VIEW public.global_financial_summary_view AS
 WITH labor_summary AS (
   SELECT
     COALESCE(SUM(labor_cost), 0) AS total_labor_cost,
@@ -104,10 +107,10 @@ FROM labor_summary, costs_summary, revenue_summary, retention_held_summary, rete
 -- ---------------------------------
 -- INDEXES (READ PERFORMANCE ONLY)
 -- ---------------------------------
-CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_time_logs_project_payment
+CREATE INDEX IF NOT EXISTS idx_time_logs_project_payment
   ON public.time_logs(project_id, payment_status);
 
-CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_costs_project_category_status
+CREATE INDEX IF NOT EXISTS idx_costs_project_category_status
   ON public.costs(project_id, category, status);
 
 COMMIT;

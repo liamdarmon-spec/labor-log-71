@@ -20,7 +20,7 @@ REFERENCES work_schedules(id)
 ON DELETE SET NULL;
 
 -- Step 4: Add index for better query performance
-CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_daily_logs_schedule_id 
+CREATE INDEX IF NOT EXISTS idx_daily_logs_schedule_id 
 ON daily_logs(schedule_id) 
 WHERE schedule_id IS NOT NULL;
 

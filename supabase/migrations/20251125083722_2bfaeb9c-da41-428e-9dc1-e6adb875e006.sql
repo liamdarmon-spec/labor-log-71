@@ -3,7 +3,8 @@
 -- ---------------------------------
 -- One row per project with total billed amount
 -- (matches what useJobCosting is currently doing in JS)
-CREATE OR REPLACE VIEW public.project_revenue_summary_view AS
+DROP VIEW IF EXISTS public.project_revenue_summary_view CASCADE;
+CREATE VIEW public.project_revenue_summary_view AS
 SELECT
   i.project_id,
   COALESCE(
@@ -22,5 +23,5 @@ GROUP BY i.project_id;
 -- ---------------------------------
 -- INDEX: for invoices by project + status
 -- ---------------------------------
-CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_invoices_project_status
+CREATE INDEX IF NOT EXISTS idx_invoices_project_status
   ON public.invoices(project_id, status);

@@ -37,15 +37,15 @@ ALTER TABLE public.invoice_items
   ADD COLUMN IF NOT EXISTS category TEXT CHECK (category IN ('labor', 'subs', 'materials', 'misc'));
 
 -- Add indexes for performance on costs table
-CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_costs_project_id ON public.costs(project_id);
-CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_costs_date_incurred ON public.costs(date_incurred);
-CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_costs_category ON public.costs(category);
-CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_costs_vendor_id ON public.costs(vendor_id);
-CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_costs_status ON public.costs(status);
-CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_costs_company_id ON public.costs(company_id);
+CREATE INDEX IF NOT EXISTS idx_costs_project_id ON public.costs(project_id);
+CREATE INDEX IF NOT EXISTS idx_costs_date_incurred ON public.costs(date_incurred);
+CREATE INDEX IF NOT EXISTS idx_costs_category ON public.costs(category);
+CREATE INDEX IF NOT EXISTS idx_costs_vendor_id ON public.costs(vendor_id);
+CREATE INDEX IF NOT EXISTS idx_costs_status ON public.costs(status);
+CREATE INDEX IF NOT EXISTS idx_costs_company_id ON public.costs(company_id);
 
 -- Add index on invoice_items for new cost_code_id column
-CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_invoice_items_cost_code_id ON public.invoice_items(cost_code_id);
+CREATE INDEX IF NOT EXISTS idx_invoice_items_cost_code_id ON public.invoice_items(cost_code_id);
 
 -- Add RLS policies for costs
 ALTER TABLE public.costs ENABLE ROW LEVEL SECURITY;

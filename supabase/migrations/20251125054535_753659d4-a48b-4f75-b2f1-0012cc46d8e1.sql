@@ -30,10 +30,10 @@ ALTER TABLE costs ADD COLUMN IF NOT EXISTS status text;
 UPDATE costs SET status = 'unpaid' WHERE status IS NULL;
 ALTER TABLE costs ALTER COLUMN status SET DEFAULT 'unpaid';
 
-CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_costs_project_id       ON costs(project_id);
-CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_costs_vendor           ON costs(vendor_type, vendor_id);
-CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_costs_status           ON costs(status);
-CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_costs_date_incurred    ON costs(date_incurred);
+CREATE INDEX IF NOT EXISTS idx_costs_project_id       ON costs(project_id);
+CREATE INDEX IF NOT EXISTS idx_costs_vendor           ON costs(vendor_type, vendor_id);
+CREATE INDEX IF NOT EXISTS idx_costs_status           ON costs(status);
+CREATE INDEX IF NOT EXISTS idx_costs_date_incurred    ON costs(date_incurred);
 
 -- ============================================================================
 -- 3) VENDOR PAYMENTS TABLES
@@ -62,19 +62,19 @@ CREATE TABLE IF NOT EXISTS vendor_payment_items (
   created_at timestamptz DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_vendor_payments_vendor
+CREATE INDEX IF NOT EXISTS idx_vendor_payments_vendor
   ON vendor_payments(vendor_type, vendor_id);
 
-CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_vendor_payments_date
+CREATE INDEX IF NOT EXISTS idx_vendor_payments_date
   ON vendor_payments(payment_date);
 
-CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_vendor_payments_status
+CREATE INDEX IF NOT EXISTS idx_vendor_payments_status
   ON vendor_payments(status);
 
-CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_vendor_payment_items_payment
+CREATE INDEX IF NOT EXISTS idx_vendor_payment_items_payment
   ON vendor_payment_items(payment_id);
 
-CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_vendor_payment_items_cost
+CREATE INDEX IF NOT EXISTS idx_vendor_payment_items_cost
   ON vendor_payment_items(cost_id);
 
 -- ============================================================================
@@ -114,7 +114,8 @@ CREATE TRIGGER trg_mark_costs_paid_on_vendor_payment
 -- 5) RECREATE ALL REPORTING VIEWS
 -- ============================================================================
 
-CREATE OR REPLACE VIEW project_costs_view AS
+DROP VIEW IF EXISTS project_costs_view CASCADE;
+CREATE VIEW project_costs_view AS
 SELECT 
   p.id AS project_id,
   p.project_name,
@@ -133,7 +134,8 @@ JOIN costs c ON c.project_id = p.id
 LEFT JOIN cost_codes cc ON cc.id = c.cost_code_id
 GROUP BY p.id, p.project_name, c.category, c.cost_code_id, cc.code, cc.name;
 
-CREATE OR REPLACE VIEW project_labor_costs_view AS
+DROP VIEW IF EXISTS project_labor_costs_view CASCADE;
+CREATE VIEW project_labor_costs_view AS
 SELECT
   t.project_id,
   t.cost_code_id,
@@ -150,7 +152,8 @@ FROM time_logs t
 LEFT JOIN cost_codes cc ON cc.id = t.cost_code_id
 GROUP BY t.project_id, t.cost_code_id, cc.code, cc.name;
 
-CREATE OR REPLACE VIEW project_budget_vs_actual_view AS
+DROP VIEW IF EXISTS project_budget_vs_actual_view CASCADE;
+CREATE VIEW project_budget_vs_actual_view AS
 SELECT
   p.id AS project_id,
   p.project_name,
@@ -186,7 +189,8 @@ LEFT JOIN (
     FROM costs WHERE category='other' GROUP BY project_id
 ) other ON other.project_id = p.id;
 
-CREATE OR REPLACE VIEW monthly_costs_view AS
+DROP VIEW IF EXISTS monthly_costs_view CASCADE;
+CREATE VIEW monthly_costs_view AS
 SELECT
   date_trunc('month', c.date_incurred)::date AS month,
   c.category,
@@ -197,7 +201,8 @@ SELECT
 FROM costs c
 GROUP BY date_trunc('month', c.date_incurred), c.category;
 
-CREATE OR REPLACE VIEW monthly_labor_costs_view AS
+DROP VIEW IF EXISTS monthly_labor_costs_view CASCADE;
+CREATE VIEW monthly_labor_costs_view AS
 SELECT
   date_trunc('month', t.date)::date AS month,
   SUM(t.labor_cost) AS total_labor_cost,

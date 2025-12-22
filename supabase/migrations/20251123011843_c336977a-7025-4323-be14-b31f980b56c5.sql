@@ -174,11 +174,11 @@ CREATE POLICY "Anyone can delete material vendors"
   USING (true);
 
 -- 6. Add indexes for performance
-CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_material_receipts_vendor_id ON public.material_receipts(vendor_id);
-CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_material_receipts_receipt_date ON public.material_receipts(receipt_date);
-CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_material_receipts_linked_cost_id ON public.material_receipts(linked_cost_id);
-CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_material_vendors_trade_id ON public.material_vendors(trade_id);
-CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_material_vendors_active ON public.material_vendors(active);
+CREATE INDEX IF NOT EXISTS idx_material_receipts_vendor_id ON public.material_receipts(vendor_id);
+CREATE INDEX IF NOT EXISTS idx_material_receipts_receipt_date ON public.material_receipts(receipt_date);
+CREATE INDEX IF NOT EXISTS idx_material_receipts_linked_cost_id ON public.material_receipts(linked_cost_id);
+CREATE INDEX IF NOT EXISTS idx_material_vendors_trade_id ON public.material_vendors(trade_id);
+CREATE INDEX IF NOT EXISTS idx_material_vendors_active ON public.material_vendors(active);
 
 -- 7. Add updated_at trigger for material_vendors
 DROP TRIGGER IF EXISTS update_material_vendors_updated_at ON public.material_vendors;

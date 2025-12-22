@@ -1,6 +1,7 @@
 DROP VIEW IF EXISTS public.global_financial_summary_view;
 
-CREATE OR REPLACE VIEW public.global_financial_summary_view AS
+DROP VIEW IF EXISTS public.global_financial_summary_view CASCADE;
+CREATE VIEW public.global_financial_summary_view AS
 WITH labor_summary AS (
     SELECT 
         COALESCE(sum(time_logs.labor_cost), 0) AS total_labor_cost,

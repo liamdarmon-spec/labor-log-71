@@ -25,16 +25,16 @@ END $$;
 -- PHASE 4: PERFORMANCE OPTIMIZATION
 
 -- 3. Add composite index for proposal_events queries (proposal_id + created_at desc)
-CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_proposal_events_proposal_created 
+CREATE INDEX IF NOT EXISTS idx_proposal_events_proposal_created 
   ON proposal_events(proposal_id, created_at DESC);
 
 -- 4. Add index on public_token for fast lookups
-CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_proposals_public_token 
+CREATE INDEX IF NOT EXISTS idx_proposals_public_token 
   ON proposals(public_token) 
   WHERE public_token IS NOT NULL;
 
 -- 5. Add index on acceptance_status for filtering
-CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_proposals_acceptance_status 
+CREATE INDEX IF NOT EXISTS idx_proposals_acceptance_status 
   ON proposals(acceptance_status);
 
 -- PHASE 2: TOKEN SECURITY - Improve token generation function

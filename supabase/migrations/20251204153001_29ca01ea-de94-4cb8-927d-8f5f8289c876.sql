@@ -10,11 +10,11 @@ ADD COLUMN IF NOT EXISTS version_number integer NOT NULL DEFAULT 1,
 ADD COLUMN IF NOT EXISTS notes text NULL;
 
 -- Create secondary indexes for new columns
-CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_documents_source_context ON public.documents(source_context);
-CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_documents_related_cost_id ON public.documents(related_cost_id);
-CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_documents_related_invoice_id ON public.documents(related_invoice_id);
-CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_documents_is_archived ON public.documents(is_archived);
-CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_documents_version_group_id ON public.documents(version_group_id);
+CREATE INDEX IF NOT EXISTS idx_documents_source_context ON public.documents(source_context);
+CREATE INDEX IF NOT EXISTS idx_documents_related_cost_id ON public.documents(related_cost_id);
+CREATE INDEX IF NOT EXISTS idx_documents_related_invoice_id ON public.documents(related_invoice_id);
+CREATE INDEX IF NOT EXISTS idx_documents_is_archived ON public.documents(is_archived);
+CREATE INDEX IF NOT EXISTS idx_documents_version_group_id ON public.documents(version_group_id);
 
 -- Create document_tags table
 CREATE TABLE IF NOT EXISTS public.document_tags (
@@ -26,8 +26,8 @@ CREATE TABLE IF NOT EXISTS public.document_tags (
 );
 
 -- Create indexes for document_tags
-CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_document_tags_document_id ON public.document_tags(document_id);
-CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_document_tags_tag ON public.document_tags(tag);
+CREATE INDEX IF NOT EXISTS idx_document_tags_document_id ON public.document_tags(document_id);
+CREATE INDEX IF NOT EXISTS idx_document_tags_tag ON public.document_tags(tag);
 
 -- Enable RLS on document_tags
 ALTER TABLE public.document_tags ENABLE ROW LEVEL SECURITY;

@@ -25,5 +25,5 @@ ALTER TABLE proposals ADD COLUMN IF NOT EXISTS intro_text text;
 -- (projects already has address column based on schema check)
 
 -- CREATE INDEX IF NOT EXISTS for faster proposal lookups by project
-CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_proposals_project_id ON proposals(project_id);
-CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_proposals_primary_estimate_id ON proposals(primary_estimate_id);
+CREATE INDEX IF NOT EXISTS idx_proposals_project_id ON proposals(project_id);
+CREATE INDEX IF NOT EXISTS idx_proposals_primary_estimate_id ON proposals(primary_estimate_id);

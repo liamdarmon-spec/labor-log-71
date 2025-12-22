@@ -6,7 +6,8 @@
 -- Drop existing view if present (safe / idempotent)
 DROP VIEW IF EXISTS public.project_budget_vs_actual_view;
 
-CREATE OR REPLACE VIEW public.project_budget_vs_actual_view AS
+DROP VIEW IF EXISTS public.project_budget_vs_actual_view CASCADE;
+CREATE VIEW public.project_budget_vs_actual_view AS
 WITH budget AS (
     SELECT
         pb.project_id,

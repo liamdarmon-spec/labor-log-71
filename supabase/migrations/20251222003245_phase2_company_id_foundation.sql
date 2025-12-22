@@ -297,25 +297,25 @@ WHERE tla.day_card_id = dc.id
 -- =====================================================
 -- PART 3: INDEXES (REDUCED SET)
 -- =====================================================
-CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_invoices_company              ON invoices(company_id);
-CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_invoice_items_company         ON invoice_items(company_id);
-CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_estimates_company             ON estimates(company_id);
-CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_estimate_items_company        ON estimate_items(company_id);
-CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_documents_company             ON documents(company_id);
-CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_daily_logs_company            ON daily_logs(company_id);
-CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_time_log_allocations_company  ON time_log_allocations(company_id);
-CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_schedule_of_values_company    ON schedule_of_values(company_id);
-CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_scheduled_shifts_company      ON scheduled_shifts(company_id);
-CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_sub_contracts_company         ON sub_contracts(company_id);
-CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_sub_invoices_company          ON sub_invoices(company_id);
-CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_customer_payments_company     ON customer_payments(company_id);
+CREATE INDEX IF NOT EXISTS idx_invoices_company              ON invoices(company_id);
+CREATE INDEX IF NOT EXISTS idx_invoice_items_company         ON invoice_items(company_id);
+CREATE INDEX IF NOT EXISTS idx_estimates_company             ON estimates(company_id);
+CREATE INDEX IF NOT EXISTS idx_estimate_items_company        ON estimate_items(company_id);
+CREATE INDEX IF NOT EXISTS idx_documents_company             ON documents(company_id);
+CREATE INDEX IF NOT EXISTS idx_daily_logs_company            ON daily_logs(company_id);
+CREATE INDEX IF NOT EXISTS idx_time_log_allocations_company  ON time_log_allocations(company_id);
+CREATE INDEX IF NOT EXISTS idx_schedule_of_values_company    ON schedule_of_values(company_id);
+CREATE INDEX IF NOT EXISTS idx_scheduled_shifts_company      ON scheduled_shifts(company_id);
+CREATE INDEX IF NOT EXISTS idx_sub_contracts_company         ON sub_contracts(company_id);
+CREATE INDEX IF NOT EXISTS idx_sub_invoices_company          ON sub_invoices(company_id);
+CREATE INDEX IF NOT EXISTS idx_customer_payments_company     ON customer_payments(company_id);
 
-CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_invoices_company_project      ON invoices(company_id, project_id);
-CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_estimates_company_project     ON estimates(company_id, project_id);
-CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_daily_logs_company_project    ON daily_logs(company_id, project_id);
-CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_scheduled_shifts_company_proj ON scheduled_shifts(company_id, project_id);
-CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_sub_invoices_company_project  ON sub_invoices(company_id, project_id);
-CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_documents_company_project     ON documents(company_id, project_id);
+CREATE INDEX IF NOT EXISTS idx_invoices_company_project      ON invoices(company_id, project_id);
+CREATE INDEX IF NOT EXISTS idx_estimates_company_project     ON estimates(company_id, project_id);
+CREATE INDEX IF NOT EXISTS idx_daily_logs_company_project    ON daily_logs(company_id, project_id);
+CREATE INDEX IF NOT EXISTS idx_scheduled_shifts_company_proj ON scheduled_shifts(company_id, project_id);
+CREATE INDEX IF NOT EXISTS idx_sub_invoices_company_project  ON sub_invoices(company_id, project_id);
+CREATE INDEX IF NOT EXISTS idx_documents_company_project     ON documents(company_id, project_id);
 
 -- =====================================================
 -- PART 4: AUTO-FILL FUNCTIONS (NO SECURITY DEFINER)

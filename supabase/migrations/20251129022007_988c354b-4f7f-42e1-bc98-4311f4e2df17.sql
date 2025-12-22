@@ -232,8 +232,8 @@ FOR EACH ROW
 EXECUTE FUNCTION public.set_timestamp();
 
 -- Helpful indexes for budget lookups
-CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_project_budget_lines_project_budget 
+CREATE INDEX IF NOT EXISTS idx_project_budget_lines_project_budget 
   ON public.project_budget_lines (project_budget_id, group_id, sort_order);
 
-CREATE INDEX IF NOT EXISTS IF NOT EXISTS idx_project_budget_lines_project_costcode 
+CREATE INDEX IF NOT EXISTS idx_project_budget_lines_project_costcode 
   ON public.project_budget_lines (project_budget_id, cost_code_id);
