@@ -5,6 +5,9 @@ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'estimates_project_id_fkey'
   ) THEN
     ALTER TABLE public.estimates
+    DROP CONSTRAINT IF EXISTS estimates_project_id_fkey;
+
+ALTER TABLE public.estimates
     ADD CONSTRAINT estimates_project_id_fkey
       FOREIGN KEY (project_id)
       REFERENCES public.projects(id)
@@ -19,6 +22,9 @@ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'project_budgets_project_id_fkey'
   ) THEN
     ALTER TABLE public.project_budgets
+    DROP CONSTRAINT IF EXISTS project_budgets_project_id_fkey;
+
+ALTER TABLE public.project_budgets
     ADD CONSTRAINT project_budgets_project_id_fkey
       FOREIGN KEY (project_id)
       REFERENCES public.projects(id)
@@ -33,6 +39,9 @@ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'project_budget_lines_project_id_fkey'
   ) THEN
     ALTER TABLE public.project_budget_lines
+    DROP CONSTRAINT IF EXISTS project_budget_lines_project_id_fkey;
+
+ALTER TABLE public.project_budget_lines
     ADD CONSTRAINT project_budget_lines_project_id_fkey
       FOREIGN KEY (project_id)
       REFERENCES public.projects(id)
@@ -47,6 +56,9 @@ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'project_budget_lines_budget_id_fkey'
   ) THEN
     ALTER TABLE public.project_budget_lines
+    DROP CONSTRAINT IF EXISTS project_budget_lines_budget_id_fkey;
+
+ALTER TABLE public.project_budget_lines
     ADD CONSTRAINT project_budget_lines_budget_id_fkey
       FOREIGN KEY (project_budget_id)
       REFERENCES public.project_budgets(id)

@@ -27,5 +27,8 @@ WHERE pr.status = 'draft'
 
 -- 3. Add UNIQUE constraint on time_log_id
 ALTER TABLE public.labor_pay_run_items
-  ADD CONSTRAINT labor_pay_run_items_time_log_id_unique
+    DROP CONSTRAINT IF EXISTS labor_pay_run_items_time_log_id_unique;
+
+ALTER TABLE public.labor_pay_run_items
+    ADD CONSTRAINT labor_pay_run_items_time_log_id_unique
   UNIQUE (time_log_id);

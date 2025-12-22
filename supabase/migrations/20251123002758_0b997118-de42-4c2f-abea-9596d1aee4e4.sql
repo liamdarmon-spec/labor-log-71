@@ -6,6 +6,9 @@ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_constraint WHERE conname = 'proposals_public_token_unique'
   ) THEN
+
+    ALTER TABLE proposals
+        DROP CONSTRAINT IF EXISTS proposals_public_token_unique;
     ALTER TABLE proposals ADD CONSTRAINT proposals_public_token_unique UNIQUE (public_token);
   END IF;
 END $$;

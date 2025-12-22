@@ -11,6 +11,9 @@ ALTER TABLE activity_log DROP CONSTRAINT IF EXISTS activity_log_entity_type_chec
 -- (allowing any entity type for flexibility)
 DO $$
 BEGIN
+
+  ALTER TABLE activity_log
+      DROP CONSTRAINT IF EXISTS activity_log_entity_type_check;
   ALTER TABLE activity_log ADD CONSTRAINT activity_log_entity_type_check 
   CHECK (entity_type IS NOT NULL AND length(entity_type) > 0);
 EXCEPTION

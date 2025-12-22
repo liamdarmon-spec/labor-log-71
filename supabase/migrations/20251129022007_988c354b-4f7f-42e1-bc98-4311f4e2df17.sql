@@ -39,7 +39,10 @@ BEGIN
     WHERE conname = 'project_budgets_status_check'
   ) THEN
     ALTER TABLE public.project_budgets
-      ADD CONSTRAINT project_budgets_status_check
+    DROP CONSTRAINT IF EXISTS project_budgets_status_check;
+
+ALTER TABLE public.project_budgets
+    ADD CONSTRAINT project_budgets_status_check
       CHECK (status IN ('draft','active','archived'));
   END IF;
 END;
@@ -82,7 +85,10 @@ BEGIN
     WHERE conname = 'project_budget_groups_project_budget_id_fkey'
   ) THEN
     ALTER TABLE public.project_budget_groups
-      ADD CONSTRAINT project_budget_groups_project_budget_id_fkey
+    DROP CONSTRAINT IF EXISTS project_budget_groups_project_budget_id_fkey;
+
+ALTER TABLE public.project_budget_groups
+    ADD CONSTRAINT project_budget_groups_project_budget_id_fkey
       FOREIGN KEY (project_budget_id) REFERENCES public.project_budgets(id) ON DELETE CASCADE;
   END IF;
 END;
@@ -179,7 +185,10 @@ BEGIN
     WHERE conname = 'project_budget_lines_project_budget_id_fkey'
   ) THEN
     ALTER TABLE public.project_budget_lines
-      ADD CONSTRAINT project_budget_lines_project_budget_id_fkey
+    DROP CONSTRAINT IF EXISTS project_budget_lines_project_budget_id_fkey;
+
+ALTER TABLE public.project_budget_lines
+    ADD CONSTRAINT project_budget_lines_project_budget_id_fkey
       FOREIGN KEY (project_budget_id) REFERENCES public.project_budgets(id) ON DELETE CASCADE;
   END IF;
 END;
@@ -192,7 +201,10 @@ BEGIN
     WHERE conname = 'project_budget_lines_group_id_fkey'
   ) THEN
     ALTER TABLE public.project_budget_lines
-      ADD CONSTRAINT project_budget_lines_group_id_fkey
+    DROP CONSTRAINT IF EXISTS project_budget_lines_group_id_fkey;
+
+ALTER TABLE public.project_budget_lines
+    ADD CONSTRAINT project_budget_lines_group_id_fkey
       FOREIGN KEY (group_id) REFERENCES public.project_budget_groups(id) ON DELETE SET NULL;
   END IF;
 END;
@@ -206,7 +218,10 @@ BEGIN
     WHERE conname = 'project_budget_lines_scope_type_check'
   ) THEN
     ALTER TABLE public.project_budget_lines
-      ADD CONSTRAINT project_budget_lines_scope_type_check
+    DROP CONSTRAINT IF EXISTS project_budget_lines_scope_type_check;
+
+ALTER TABLE public.project_budget_lines
+    ADD CONSTRAINT project_budget_lines_scope_type_check
       CHECK (scope_type IN ('base','change_order','allowance','option'));
   END IF;
 END;
@@ -219,7 +234,10 @@ BEGIN
     WHERE conname = 'project_budget_lines_line_type_check'
   ) THEN
     ALTER TABLE public.project_budget_lines
-      ADD CONSTRAINT project_budget_lines_line_type_check
+    DROP CONSTRAINT IF EXISTS project_budget_lines_line_type_check;
+
+ALTER TABLE public.project_budget_lines
+    ADD CONSTRAINT project_budget_lines_line_type_check
       CHECK (line_type IS NULL OR line_type IN ('labor','subs','materials','other'));
   END IF;
 END;
