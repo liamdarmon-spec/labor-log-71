@@ -43,16 +43,10 @@ BEGIN
     WHERE t.typname = 'app_role'
       AND n.nspname = 'public'
   ) THEN
-    DO $$
-BEGIN
-  CREATE TYPE public.app_role AS ENUM (
-        'admin',
-        'field_user'
-      );
-EXCEPTION
-  WHEN duplicate_object THEN NULL;
-END
-$$;
+    CREATE TYPE public.app_role AS ENUM (
+      'admin',
+      'field_user'
+    );
   END IF;
 END
 $$;
