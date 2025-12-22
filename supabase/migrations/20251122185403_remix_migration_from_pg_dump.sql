@@ -1001,7 +1001,7 @@ CREATE TABLE IF NOT EXISTS public.day_cards(
 -- Name: company_payroll_summary; Type: VIEW; Schema: public; Owner: -
 --
 
-CREATE VIEW public.company_payroll_summary AS
+CREATE OR REPLACE VIEW public.company_payroll_summary AS
  SELECT c.id AS company_id,
     c.name AS company_name,
     count(DISTINCT dc.worker_id) AS worker_count,
@@ -1080,7 +1080,7 @@ CREATE TABLE IF NOT EXISTS public.time_log_allocations(
 -- Name: cost_code_actuals; Type: VIEW; Schema: public; Owner: -
 --
 
-CREATE VIEW public.cost_code_actuals AS
+CREATE OR REPLACE VIEW public.cost_code_actuals AS
  SELECT cc.id AS cost_code_id,
     cc.code,
     cc.name AS cost_code_name,
@@ -1144,7 +1144,7 @@ CREATE TABLE IF NOT EXISTS public.day_card_jobs(
 -- Name: day_cards_with_details; Type: VIEW; Schema: public; Owner: -
 --
 
-CREATE VIEW public.day_cards_with_details AS
+CREATE OR REPLACE VIEW public.day_cards_with_details AS
 SELECT
     NULL::uuid AS id,
     NULL::uuid AS worker_id,
@@ -1322,7 +1322,7 @@ CREATE TABLE IF NOT EXISTS public.workers(
 -- Name: labor_actuals_by_cost_code; Type: VIEW; Schema: public; Owner: -
 --
 
-CREATE VIEW public.labor_actuals_by_cost_code AS
+CREATE OR REPLACE VIEW public.labor_actuals_by_cost_code AS
  SELECT dl.project_id,
     dl.cost_code_id,
     cc.code AS cost_code,
@@ -1385,7 +1385,7 @@ CREATE TABLE IF NOT EXISTS public.payments(
 -- Name: payment_labor_summary; Type: VIEW; Schema: public; Owner: -
 --
 
-CREATE VIEW public.payment_labor_summary AS
+CREATE OR REPLACE VIEW public.payment_labor_summary AS
  SELECT p.id AS payment_id,
     p.start_date,
     p.end_date,
@@ -1410,7 +1410,7 @@ CREATE VIEW public.payment_labor_summary AS
 -- Name: project_activity_view; Type: VIEW; Schema: public; Owner: -
 --
 
-CREATE VIEW public.project_activity_view AS
+CREATE OR REPLACE VIEW public.project_activity_view AS
  SELECT dl.id AS log_id,
     dl.project_id,
     dl.worker_id,
@@ -1470,7 +1470,7 @@ CREATE TABLE IF NOT EXISTS public.project_budgets(
 -- Name: project_costs_view; Type: VIEW; Schema: public; Owner: -
 --
 
-CREATE VIEW public.project_costs_view AS
+CREATE OR REPLACE VIEW public.project_costs_view AS
  WITH labor_costs AS (
          SELECT dl.project_id,
             sum(dl.hours_worked) AS total_hours,
@@ -1526,7 +1526,7 @@ CREATE VIEW public.project_costs_view AS
 -- Name: project_dashboard_view; Type: VIEW; Schema: public; Owner: -
 --
 
-CREATE VIEW public.project_dashboard_view AS
+CREATE OR REPLACE VIEW public.project_dashboard_view AS
  SELECT p.id AS project_id,
     p.project_name,
     p.client_name,
@@ -1548,7 +1548,7 @@ CREATE VIEW public.project_dashboard_view AS
 -- Name: project_labor_summary; Type: VIEW; Schema: public; Owner: -
 --
 
-CREATE VIEW public.project_labor_summary AS
+CREATE OR REPLACE VIEW public.project_labor_summary AS
  SELECT p.id AS project_id,
     p.project_name,
     count(DISTINCT dc.worker_id) AS worker_count,
@@ -1599,7 +1599,7 @@ CREATE TABLE IF NOT EXISTS public.scheduled_shifts(
 -- Name: project_schedule_view; Type: VIEW; Schema: public; Owner: -
 --
 
-CREATE VIEW public.project_schedule_view AS
+CREATE OR REPLACE VIEW public.project_schedule_view AS
  SELECT id,
     project_id,
     worker_id,
@@ -1817,7 +1817,7 @@ CREATE TABLE IF NOT EXISTS public.sub_compliance_documents(
 -- Name: sub_contract_summary; Type: VIEW; Schema: public; Owner: -
 --
 
-CREATE VIEW public.sub_contract_summary AS
+CREATE OR REPLACE VIEW public.sub_contract_summary AS
 SELECT
     NULL::uuid AS contract_id,
     NULL::uuid AS project_id,
@@ -1982,7 +1982,7 @@ CREATE TABLE IF NOT EXISTS public.trades(
 -- Name: unpaid_labor_bills; Type: VIEW; Schema: public; Owner: -
 --
 
-CREATE VIEW public.unpaid_labor_bills AS
+CREATE OR REPLACE VIEW public.unpaid_labor_bills AS
  SELECT p.company_id,
     c.name AS company_name,
     dl.project_id,
@@ -2018,7 +2018,7 @@ CREATE TABLE IF NOT EXISTS public.user_roles(
 -- Name: worker_day_summary; Type: VIEW; Schema: public; Owner: -
 --
 
-CREATE VIEW public.worker_day_summary AS
+CREATE OR REPLACE VIEW public.worker_day_summary AS
 SELECT
     NULL::uuid AS day_card_id,
     NULL::uuid AS worker_id,
@@ -2043,7 +2043,7 @@ SELECT
 -- Name: workers_public; Type: VIEW; Schema: public; Owner: -
 --
 
-CREATE VIEW public.workers_public AS
+CREATE OR REPLACE VIEW public.workers_public AS
  SELECT id,
     name,
     trade_id,
@@ -2063,7 +2063,7 @@ CREATE VIEW public.workers_public AS
 -- Name: workforce_activity_feed; Type: VIEW; Schema: public; Owner: -
 --
 
-CREATE VIEW public.workforce_activity_feed AS
+CREATE OR REPLACE VIEW public.workforce_activity_feed AS
  SELECT ('schedule:'::text || (ss.id)::text) AS id,
         CASE
             WHEN (ss.created_at = ss.updated_at) THEN 'schedule_created'::text

@@ -1,7 +1,7 @@
 -- Drop and recreate workforce_activity_feed view with proper type casting
 DROP VIEW IF EXISTS workforce_activity_feed CASCADE;
 
-CREATE VIEW workforce_activity_feed AS
+CREATE OR REPLACE VIEW workforce_activity_feed AS
 SELECT 
   al.id::text as id,
   al.action || '_' || al.entity_type as event_type,
