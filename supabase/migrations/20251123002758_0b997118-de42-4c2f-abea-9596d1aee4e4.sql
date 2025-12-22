@@ -1,18 +1,14 @@
 -- PHASE 1: DATA MODEL & INTEGRITY HARDENING (REVISED)
 
 -- 1. Add unique constraint to public_token to prevent duplicates
--- Pre-clean: Remove duplicates from proposals on (public_token)
--- Keep: smallest created_at (or smallest id if no created_at), delete rest
 
+-- Pre-clean: Remove duplicates from proposals on (public_token) keep smallest id
 WITH ranked AS (
   SELECT
     id,
     ROW_NUMBER() OVER (
       PARTITION BY public_token
-      ORDER BY
-        (CASE WHEN created_at IS NULL THEN 1 ELSE 0 END),
-        created_at ASC NULLS LAST,
-        id ASC
+      ORDER BY id ASC
     ) AS rn
   FROM public.proposals
   WHERE public_token IS NOT NULL
