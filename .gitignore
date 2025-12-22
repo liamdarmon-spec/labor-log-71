@@ -26,3 +26,5 @@ dist-ssr
 # local one-off tools
 fix_migrations_idempotent.py
 supabase/.temp/
+fix_constraints_idempotent.py
+scripts/
