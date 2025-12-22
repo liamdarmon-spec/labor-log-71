@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# local one-off tools
+fix_migrations_idempotent.py
+supabase/.temp/
