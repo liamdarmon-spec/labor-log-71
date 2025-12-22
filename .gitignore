@@ -28,3 +28,6 @@ fix_migrations_idempotent.py
 supabase/.temp/
 fix_constraints_idempotent.py
 scripts/
+
+# local one-off scripts
+scripts/_local/
