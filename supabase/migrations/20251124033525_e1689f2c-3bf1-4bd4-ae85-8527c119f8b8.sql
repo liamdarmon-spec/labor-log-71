@@ -13,11 +13,24 @@ AND NOT EXISTS (
 );
 
 -- Step 3: Add new foreign key constraint pointing to work_schedules
-ALTER TABLE daily_logs 
-ADD CONSTRAINT daily_logs_schedule_id_fkey 
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'daily_logs_schedule_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE daily_logs 
+    ADD CONSTRAINT daily_logs_schedule_id_fkey 
 FOREIGN KEY (schedule_id) 
 REFERENCES work_schedules(id) 
 ON DELETE SET NULL;
+  END IF;
+END
+$$;
 
 -- Step 4: Add index for better query performance
 CREATE INDEX IF NOT EXISTS idx_daily_logs_schedule_id 

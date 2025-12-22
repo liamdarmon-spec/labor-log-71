@@ -29,6 +29,19 @@ WHERE pr.status = 'draft'
 ALTER TABLE public.labor_pay_run_items
     DROP CONSTRAINT IF EXISTS labor_pay_run_items_time_log_id_unique;
 
-ALTER TABLE public.labor_pay_run_items
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'labor_pay_run_items_time_log_id_unique'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE public.labor_pay_run_items
     ADD CONSTRAINT labor_pay_run_items_time_log_id_unique
   UNIQUE (time_log_id);
+  END IF;
+END
+$$;

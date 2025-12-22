@@ -23,7 +23,6 @@ ALTER TABLE public.invoices
 
 -- Update invoices status constraint to include new statuses
 ALTER TABLE public.invoices 
-  DROP CONSTRAINT IF EXISTS invoices_status_check;
   
 ALTER TABLE public.invoices
   ADD CONSTRAINT invoices_status_check 

@@ -7,9 +7,21 @@ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'proposals_public_token_unique'
   ) THEN
 
-    ALTER TABLE proposals
-        DROP CONSTRAINT IF EXISTS proposals_public_token_unique;
-    ALTER TABLE proposals ADD CONSTRAINT proposals_public_token_unique UNIQUE (public_token);
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint c
+        JOIN pg_class t ON t.oid = c.conrelid
+        JOIN pg_namespace n ON n.oid = t.relnamespace
+        WHERE c.conname = 'proposals_public_token_unique'
+          AND n.nspname = 'public'
+      ) THEN
+        ALTER TABLE proposals
+          ADD CONSTRAINT proposals_public_token_unique UNIQUE (public_token);
+      END IF;
+    END
+    $$;
   END IF;
 END $$;
 
