@@ -177,6 +177,10 @@ CREATE TABLE IF NOT EXISTS public.material_vendors (
   updated_at timestamptz DEFAULT now()
 );
 
+-- Ensure required columns exist even if table was created earlier with a smaller shape
+ALTER TABLE public.material_vendors
+  ADD COLUMN IF NOT EXISTS company_id uuid;
+
 CREATE INDEX IF NOT EXISTS idx_material_vendors_company ON public.material_vendors(company_id);
 
 -- customer_payments: Customer payment tracking
