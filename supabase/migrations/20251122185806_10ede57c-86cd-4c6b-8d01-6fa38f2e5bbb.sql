@@ -85,7 +85,30 @@ CREATE INDEX IF NOT EXISTS idx_time_logs_payment_status ON time_logs(payment_sta
 CREATE INDEX IF NOT EXISTS idx_time_logs_date ON time_logs(date);
 
 CREATE INDEX IF NOT EXISTS idx_labor_pay_runs_status ON labor_pay_runs(status);
-CREATE INDEX IF NOT EXISTS idx_labor_pay_runs_dates ON labor_pay_runs(date_range_start, date_range_end);
+
+DO $$
+BEGIN
+  IF to_regclass('public.labor_pay_runs') IS NOT NULL THEN
+    -- Ensure required columns exist for the index
+    EXECUTE 'ALTER TABLE public.labor_pay_runs ADD COLUMN IF NOT EXISTS date_range_start date';
+    EXECUTE 'ALTER TABLE public.labor_pay_runs ADD COLUMN IF NOT EXISTS date_range_end date';
+
+    -- Create index only if both columns exist (belt + suspenders)
+    IF EXISTS (
+      SELECT 1 FROM information_schema.columns
+      WHERE table_schema='public' AND table_name='labor_pay_runs' AND column_name='date_range_start'
+    )
+    AND EXISTS (
+      SELECT 1 FROM information_schema.columns
+      WHERE table_schema='public' AND table_name='labor_pay_runs' AND column_name='date_range_end'
+    ) THEN
+      EXECUTE 'CREATE INDEX IF NOT EXISTS idx_labor_pay_runs_dates ON public.labor_pay_runs(date_range_start, date_range_end)';
+    END IF;
+  END IF;
+END $$;
+
+-- moved to guarded DO block above
+-- CREATE INDEX IF NOT EXISTS idx_labor_pay_runs_dates ON labor_pay_runs(date_range_start, date_range_end);
 
 CREATE INDEX IF NOT EXISTS idx_labor_pay_run_items_pay_run ON labor_pay_run_items(pay_run_id);
 CREATE INDEX IF NOT EXISTS idx_labor_pay_run_items_time_log ON labor_pay_run_items(time_log_id);
