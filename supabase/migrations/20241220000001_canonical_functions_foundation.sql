@@ -116,10 +116,12 @@ END;
 $$;
 
 -- log_activity: Activity logging trigger function (stub)
-CREATE OR REPLACE FUNCTION public.log_activity(entity_type text)
+CREATE OR REPLACE FUNCTION public.log_activity()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 AS $$
+DECLARE
+  v_arg0 text := COALESCE(TG_ARGV[0], 'unknown');
 BEGIN
   IF TG_OP = 'DELETE' THEN
     RETURN OLD;
@@ -146,3 +148,14 @@ $$;
 -- Later migrations can safely redefine these with CREATE OR REPLACE FUNCTION.
 -- ============================================================================
 
+
+-- update_updated_at_column: common trigger helper
+CREATE OR REPLACE FUNCTION public.update_updated_at_column()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$;
