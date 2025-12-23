@@ -2,7 +2,7 @@
 DROP VIEW IF EXISTS workforce_activity_feed CASCADE;
 
 DROP VIEW IF EXISTS workforce_activity_feed CASCADE;
-DO $$
+DO $do$
 BEGIN
   IF to_regclass('public.time_logs') IS NOT NULL
      AND to_regclass('public.payments') IS NOT NULL
@@ -85,7 +85,7 @@ LEFT JOIN projects proj2 ON tl.project_id = proj2.id
 WHERE al.entity_type IN ('work_schedule', 'time_log', 'payment');
      $view$;
   END IF;
-END $$;
+END $do$;
 
 -- Add triggers to log activity for work_schedules
 DROP TRIGGER IF EXISTS log_work_schedule_activity ON work_schedules;
