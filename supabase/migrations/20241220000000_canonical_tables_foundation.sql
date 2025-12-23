@@ -47,10 +47,6 @@ CREATE TABLE IF NOT EXISTS public.time_logs (
   updated_at timestamptz DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_time_logs_company ON public.time_logs(company_id);
-CREATE INDEX IF NOT EXISTS idx_time_logs_project ON public.time_logs(project_id);
-CREATE INDEX IF NOT EXISTS idx_time_logs_worker ON public.time_logs(worker_id);
-CREATE INDEX IF NOT EXISTS idx_time_logs_date ON public.time_logs(date);
 
 -- work_schedules: Scheduling source of truth
 CREATE TABLE IF NOT EXISTS public.work_schedules (
@@ -71,10 +67,6 @@ CREATE TABLE IF NOT EXISTS public.work_schedules (
   updated_at timestamptz DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_work_schedules_company ON public.work_schedules(company_id);
-CREATE INDEX IF NOT EXISTS idx_work_schedules_project ON public.work_schedules(project_id);
-CREATE INDEX IF NOT EXISTS idx_work_schedules_worker ON public.work_schedules(worker_id);
-CREATE INDEX IF NOT EXISTS idx_work_schedules_date ON public.work_schedules(scheduled_date);
 
 -- ============================================================================
 -- COST & PAYMENT TABLES
@@ -98,9 +90,6 @@ CREATE TABLE IF NOT EXISTS public.costs (
   updated_at timestamptz DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_costs_company ON public.costs(company_id);
-CREATE INDEX IF NOT EXISTS idx_costs_project ON public.costs(project_id);
-CREATE INDEX IF NOT EXISTS idx_costs_cost_code ON public.costs(cost_code_id);
 
 -- cost_entries: Cost entry tracking
 CREATE TABLE IF NOT EXISTS public.cost_entries (
@@ -119,8 +108,6 @@ CREATE TABLE IF NOT EXISTS public.cost_entries (
 ALTER TABLE public.cost_entries
   ADD COLUMN IF NOT EXISTS company_id uuid;
 
-CREATE INDEX IF NOT EXISTS idx_cost_entries_company ON public.cost_entries(company_id);
-CREATE INDEX IF NOT EXISTS idx_cost_entries_project ON public.cost_entries(project_id);
 
 -- labor_pay_runs: Payment batches
 CREATE TABLE IF NOT EXISTS public.labor_pay_runs (
@@ -141,7 +128,6 @@ ALTER TABLE public.labor_pay_runs
 ALTER TABLE public.labor_pay_runs
   ADD COLUMN IF NOT EXISTS payer_company_id uuid;
 
-CREATE INDEX IF NOT EXISTS idx_labor_pay_runs_company ON public.labor_pay_runs(company_id);
 
 -- labor_pay_run_items: Payment line items
 CREATE TABLE IF NOT EXISTS public.labor_pay_run_items (
@@ -161,8 +147,6 @@ CREATE TABLE IF NOT EXISTS public.labor_pay_run_items (
 ALTER TABLE public.labor_pay_run_items
   ADD COLUMN IF NOT EXISTS company_id uuid;
 
-CREATE INDEX IF NOT EXISTS idx_labor_pay_run_items_pay_run ON public.labor_pay_run_items(pay_run_id);
-CREATE INDEX IF NOT EXISTS idx_labor_pay_run_items_company ON public.labor_pay_run_items(company_id);
 
 -- material_vendors: Vendor registry
 CREATE TABLE IF NOT EXISTS public.material_vendors (
@@ -181,7 +165,6 @@ CREATE TABLE IF NOT EXISTS public.material_vendors (
 ALTER TABLE public.material_vendors
   ADD COLUMN IF NOT EXISTS company_id uuid;
 
-CREATE INDEX IF NOT EXISTS idx_material_vendors_company ON public.material_vendors(company_id);
 
 -- customer_payments: Customer payment tracking
 CREATE TABLE IF NOT EXISTS public.customer_payments (
@@ -202,9 +185,6 @@ CREATE TABLE IF NOT EXISTS public.customer_payments (
 ALTER TABLE public.customer_payments
   ADD COLUMN IF NOT EXISTS company_id uuid;
 
-CREATE INDEX IF NOT EXISTS idx_customer_payments_company ON public.customer_payments(company_id);
-CREATE INDEX IF NOT EXISTS idx_customer_payments_invoice ON public.customer_payments(invoice_id);
-CREATE INDEX IF NOT EXISTS idx_customer_payments_project ON public.customer_payments(project_id);
 
 -- ============================================================================
 -- SUPPORTING TABLES
@@ -218,8 +198,6 @@ CREATE TABLE IF NOT EXISTS public.document_tags (
   created_at timestamptz DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_document_tags_document ON public.document_tags(document_id);
-CREATE INDEX IF NOT EXISTS idx_document_tags_tag ON public.document_tags(tag);
 
 -- measurement_units: Unit of measure (aligned with 20251201063606 schema)
 CREATE TABLE IF NOT EXISTS public.measurement_units (
@@ -234,13 +212,11 @@ CREATE TABLE IF NOT EXISTS public.measurement_units (
 );
 
 -- Add unique constraint on code for ON CONFLICT usage
-CREATE UNIQUE INDEX IF NOT EXISTS measurement_units_code_key ON public.measurement_units(code);
 
 -- Ensure required columns exist even if table was created earlier with a smaller shape
 ALTER TABLE public.measurement_units
   ADD COLUMN IF NOT EXISTS company_id uuid;
 
-CREATE INDEX IF NOT EXISTS idx_measurement_units_company ON public.measurement_units(company_id);
 
 -- project_budget_groups: Budget grouping
 CREATE TABLE IF NOT EXISTS public.project_budget_groups (
@@ -253,8 +229,6 @@ CREATE TABLE IF NOT EXISTS public.project_budget_groups (
   updated_at timestamptz DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_project_budget_groups_project ON public.project_budget_groups(project_id);
-CREATE INDEX IF NOT EXISTS idx_project_budget_groups_company ON public.project_budget_groups(company_id);
 
 -- scope_block_cost_items: Scope block cost items
 CREATE TABLE IF NOT EXISTS public.scope_block_cost_items (
@@ -273,8 +247,6 @@ CREATE TABLE IF NOT EXISTS public.scope_block_cost_items (
 ALTER TABLE public.scope_block_cost_items
   ADD COLUMN IF NOT EXISTS company_id uuid;
 
-CREATE INDEX IF NOT EXISTS idx_scope_block_cost_items_scope_block ON public.scope_block_cost_items(scope_block_id);
-CREATE INDEX IF NOT EXISTS idx_scope_block_cost_items_company ON public.scope_block_cost_items(company_id);
 
 -- budget_revisions: Project budget revision tracking
 CREATE TABLE IF NOT EXISTS public.budget_revisions (
@@ -287,8 +259,6 @@ CREATE TABLE IF NOT EXISTS public.budget_revisions (
   updated_at timestamptz DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_budget_revisions_project ON public.budget_revisions(project_id);
-CREATE INDEX IF NOT EXISTS idx_budget_revisions_company ON public.budget_revisions(company_id);
 
 -- schedule_of_values: Schedule of values tracking
 CREATE TABLE IF NOT EXISTS public.schedule_of_values (
@@ -302,8 +272,6 @@ CREATE TABLE IF NOT EXISTS public.schedule_of_values (
   updated_at timestamptz DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_schedule_of_values_project ON public.schedule_of_values(project_id);
-CREATE INDEX IF NOT EXISTS idx_schedule_of_values_company ON public.schedule_of_values(company_id);
 
 -- proposal_events: Proposal event tracking
 CREATE TABLE IF NOT EXISTS public.proposal_events (
@@ -317,9 +285,6 @@ CREATE TABLE IF NOT EXISTS public.proposal_events (
   updated_at timestamptz DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_proposal_events_proposal ON public.proposal_events(proposal_id);
-CREATE INDEX IF NOT EXISTS idx_proposal_events_company ON public.proposal_events(company_id);
-CREATE INDEX IF NOT EXISTS idx_proposal_events_created_at ON public.proposal_events(created_at);
 
 -- proposal_settings: Proposal settings/configuration
 CREATE TABLE IF NOT EXISTS public.proposal_settings (
@@ -333,8 +298,6 @@ CREATE TABLE IF NOT EXISTS public.proposal_settings (
   updated_at timestamptz DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_proposal_settings_company ON public.proposal_settings(company_id);
-CREATE INDEX IF NOT EXISTS idx_proposal_settings_proposal ON public.proposal_settings(proposal_id);
 
 -- proposal_templates: Proposal templates
 CREATE TABLE IF NOT EXISTS public.proposal_templates (
@@ -348,8 +311,6 @@ CREATE TABLE IF NOT EXISTS public.proposal_templates (
   updated_at timestamptz DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_proposal_templates_company ON public.proposal_templates(company_id);
-CREATE INDEX IF NOT EXISTS idx_proposal_templates_name ON public.proposal_templates(name);
 
 -- proposal_sections: Proposal sections
 CREATE TABLE IF NOT EXISTS public.proposal_sections (
@@ -363,8 +324,6 @@ CREATE TABLE IF NOT EXISTS public.proposal_sections (
   updated_at timestamptz DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_proposal_sections_proposal ON public.proposal_sections(proposal_id);
-CREATE INDEX IF NOT EXISTS idx_proposal_sections_company ON public.proposal_sections(company_id);
 
 -- scope_blocks: Scope blocks for proposals/estimates
 CREATE TABLE IF NOT EXISTS public.scope_blocks (
@@ -379,8 +338,6 @@ CREATE TABLE IF NOT EXISTS public.scope_blocks (
   updated_at timestamptz DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_scope_blocks_entity ON public.scope_blocks(entity_type, entity_id);
-CREATE INDEX IF NOT EXISTS idx_scope_blocks_company ON public.scope_blocks(company_id);
 
 -- ============================================================================
 -- SUMMARY
@@ -401,4 +358,5 @@ CREATE INDEX IF NOT EXISTS idx_scope_blocks_company ON public.scope_blocks(compa
 --
 -- All later COMMENT ON TABLE, ALTER TABLE, and trigger statements will now succeed.
 -- ============================================================================
+
 
