@@ -115,6 +115,20 @@ BEGIN
 END;
 $$;
 
+-- log_activity: Activity logging trigger function (stub)
+CREATE OR REPLACE FUNCTION public.log_activity(entity_type text)
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF TG_OP = 'DELETE' THEN
+    RETURN OLD;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
 -- ============================================================================
 -- SUMMARY
 -- ============================================================================
