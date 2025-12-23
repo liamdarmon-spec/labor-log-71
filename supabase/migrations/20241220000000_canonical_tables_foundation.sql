@@ -236,6 +236,10 @@ CREATE TABLE IF NOT EXISTS public.measurement_units (
 -- Add unique constraint on code for ON CONFLICT usage
 CREATE UNIQUE INDEX IF NOT EXISTS measurement_units_code_key ON public.measurement_units(code);
 
+-- Ensure required columns exist even if table was created earlier with a smaller shape
+ALTER TABLE public.measurement_units
+  ADD COLUMN IF NOT EXISTS company_id uuid;
+
 CREATE INDEX IF NOT EXISTS idx_measurement_units_company ON public.measurement_units(company_id);
 
 -- project_budget_groups: Budget grouping
