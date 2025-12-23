@@ -68,7 +68,7 @@ $$;
 
 
 CREATE TABLE IF NOT EXISTS public.activity_log(
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
     entity_type text NOT NULL,
     entity_id uuid NOT NULL,
     action text NOT NULL,
@@ -79,7 +79,7 @@ CREATE TABLE IF NOT EXISTS public.activity_log(
 
 
 CREATE TABLE IF NOT EXISTS public.archived_daily_logs(
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
     original_id uuid NOT NULL,
     date date NOT NULL,
     worker_id uuid NOT NULL,
@@ -96,7 +96,7 @@ CREATE TABLE IF NOT EXISTS public.archived_daily_logs(
 
 
 CREATE TABLE IF NOT EXISTS public.bid_invitations(
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
     bid_package_id uuid NOT NULL,
     sub_id uuid NOT NULL,
     status text DEFAULT 'invited'::text,
@@ -109,7 +109,7 @@ CREATE TABLE IF NOT EXISTS public.bid_invitations(
 
 
 CREATE TABLE IF NOT EXISTS public.bid_packages(
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
     project_id uuid NOT NULL,
     title text NOT NULL,
     scope_summary text,
@@ -126,14 +126,14 @@ CREATE TABLE IF NOT EXISTS public.bid_packages(
 
 
 CREATE TABLE IF NOT EXISTS public.companies(
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
     name text NOT NULL,
     created_at timestamp with time zone DEFAULT now()
 );
 
 
 CREATE TABLE IF NOT EXISTS public.day_cards(
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
     worker_id uuid NOT NULL,
     date date NOT NULL,
     scheduled_hours numeric DEFAULT 0,
@@ -157,7 +157,7 @@ CREATE TABLE IF NOT EXISTS public.day_cards(
 
 
 CREATE TABLE IF NOT EXISTS public.cost_codes(
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
     code text NOT NULL,
     name text NOT NULL,
     category text NOT NULL,
@@ -172,7 +172,7 @@ CREATE TABLE IF NOT EXISTS public.cost_codes(
 
 
 CREATE TABLE IF NOT EXISTS public.projects(
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
     project_name text NOT NULL,
     client_name text NOT NULL,
     address text,
@@ -187,7 +187,7 @@ CREATE TABLE IF NOT EXISTS public.projects(
 
 
 CREATE TABLE IF NOT EXISTS public.time_log_allocations(
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
     day_card_id uuid NOT NULL,
     project_id uuid NOT NULL,
     trade_id uuid,
@@ -202,7 +202,7 @@ CREATE TABLE IF NOT EXISTS public.time_log_allocations(
 
 
 CREATE TABLE IF NOT EXISTS public.daily_logs(
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
     date date DEFAULT CURRENT_DATE NOT NULL,
     worker_id uuid NOT NULL,
     project_id uuid NOT NULL,
@@ -222,7 +222,7 @@ CREATE TABLE IF NOT EXISTS public.daily_logs(
 
 
 CREATE TABLE IF NOT EXISTS public.day_card_jobs(
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
     day_card_id uuid NOT NULL,
     project_id uuid NOT NULL,
     trade_id uuid,
@@ -237,7 +237,7 @@ CREATE TABLE IF NOT EXISTS public.day_card_jobs(
 
 
 CREATE TABLE IF NOT EXISTS public.documents(
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
     project_id uuid,
     file_name text NOT NULL,
     file_url text NOT NULL,
@@ -274,7 +274,7 @@ CREATE TABLE IF NOT EXISTS public.documents(
 
 
 CREATE TABLE IF NOT EXISTS public.estimate_items(
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
     estimate_id uuid NOT NULL,
     description text NOT NULL,
     quantity numeric(12,2) DEFAULT 1 NOT NULL,
@@ -294,7 +294,7 @@ CREATE TABLE IF NOT EXISTS public.estimate_items(
 
 
 CREATE TABLE IF NOT EXISTS public.estimates(
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
     project_id uuid NOT NULL,
     title text NOT NULL,
     status text DEFAULT 'draft'::text NOT NULL,
@@ -309,7 +309,7 @@ CREATE TABLE IF NOT EXISTS public.estimates(
 
 
 CREATE TABLE IF NOT EXISTS public.invitations(
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
     email text NOT NULL,
     role public.app_role DEFAULT 'field_user'::public.app_role NOT NULL,
     invited_by uuid,
@@ -320,7 +320,7 @@ CREATE TABLE IF NOT EXISTS public.invitations(
 
 
 CREATE TABLE IF NOT EXISTS public.invoice_items(
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
     invoice_id uuid NOT NULL,
     description text NOT NULL,
     quantity numeric(12,2) DEFAULT 1 NOT NULL,
@@ -333,7 +333,7 @@ CREATE TABLE IF NOT EXISTS public.invoice_items(
 
 
 CREATE TABLE IF NOT EXISTS public.invoices(
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
     project_id uuid NOT NULL,
     invoice_number text NOT NULL,
     status text DEFAULT 'draft'::text NOT NULL,
@@ -350,7 +350,7 @@ CREATE TABLE IF NOT EXISTS public.invoices(
 
 
 CREATE TABLE IF NOT EXISTS public.workers(
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
     name text NOT NULL,
     trade text NOT NULL,
     hourly_rate numeric(10,2) NOT NULL,
@@ -365,7 +365,7 @@ CREATE TABLE IF NOT EXISTS public.workers(
 
 
 CREATE TABLE IF NOT EXISTS public.material_receipts(
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
     project_id uuid NOT NULL,
     vendor text NOT NULL,
     date date DEFAULT CURRENT_DATE NOT NULL,
@@ -384,7 +384,7 @@ CREATE TABLE IF NOT EXISTS public.material_receipts(
 
 
 CREATE TABLE IF NOT EXISTS public.payments(
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
     start_date date NOT NULL,
     end_date date NOT NULL,
     company_id uuid,
@@ -402,7 +402,7 @@ CREATE TABLE IF NOT EXISTS public.payments(
 
 
 CREATE TABLE IF NOT EXISTS public.project_budget_lines(
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
     project_id uuid NOT NULL,
     cost_code_id uuid,
     category text NOT NULL,
@@ -418,7 +418,7 @@ CREATE TABLE IF NOT EXISTS public.project_budget_lines(
 
 
 CREATE TABLE IF NOT EXISTS public.project_budgets(
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
     project_id uuid NOT NULL,
     labor_budget numeric(12,2) DEFAULT 0,
     subs_budget numeric(12,2) DEFAULT 0,
@@ -433,7 +433,7 @@ CREATE TABLE IF NOT EXISTS public.project_budgets(
 
 
 CREATE TABLE IF NOT EXISTS public.scheduled_shifts(
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
     worker_id uuid NOT NULL,
     project_id uuid NOT NULL,
     trade_id uuid,
@@ -452,7 +452,7 @@ CREATE TABLE IF NOT EXISTS public.scheduled_shifts(
 
 
 CREATE TABLE IF NOT EXISTS public.project_subcontracts(
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
     project_id uuid NOT NULL,
     sub_id uuid NOT NULL,
     contract_amount numeric DEFAULT 0 NOT NULL,
@@ -467,7 +467,7 @@ CREATE TABLE IF NOT EXISTS public.project_subcontracts(
 
 
 CREATE TABLE IF NOT EXISTS public.project_todos(
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
     project_id uuid NOT NULL,
     title text NOT NULL,
     description text,
@@ -485,7 +485,7 @@ CREATE TABLE IF NOT EXISTS public.project_todos(
 
 
 CREATE TABLE IF NOT EXISTS public.proposal_line_groups(
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
     proposal_id uuid NOT NULL,
     estimate_id uuid,
     estimate_group_id uuid,
@@ -500,7 +500,7 @@ CREATE TABLE IF NOT EXISTS public.proposal_line_groups(
 
 
 CREATE TABLE IF NOT EXISTS public.proposal_line_overrides(
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
     proposal_id uuid NOT NULL,
     estimate_line_id uuid NOT NULL,
     show_to_client boolean DEFAULT true NOT NULL,
@@ -514,7 +514,7 @@ CREATE TABLE IF NOT EXISTS public.proposal_line_overrides(
 
 
 CREATE TABLE IF NOT EXISTS public.proposal_section_items(
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
     proposal_section_id uuid NOT NULL,
     estimate_item_id uuid NOT NULL,
     sort_order integer DEFAULT 0 NOT NULL,
@@ -530,7 +530,7 @@ CREATE TABLE IF NOT EXISTS public.proposal_section_items(
 
 
 CREATE TABLE IF NOT EXISTS public.proposal_sections(
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
     proposal_id uuid NOT NULL,
     title text NOT NULL,
     sort_order integer DEFAULT 0 NOT NULL,
@@ -545,7 +545,7 @@ CREATE TABLE IF NOT EXISTS public.proposal_sections(
 
 
 CREATE TABLE IF NOT EXISTS public.proposals(
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
     project_id uuid NOT NULL,
     title text NOT NULL,
     status text DEFAULT 'draft'::text NOT NULL,
@@ -573,7 +573,7 @@ CREATE TABLE IF NOT EXISTS public.proposals(
 
 
 CREATE TABLE IF NOT EXISTS public.schedule_modifications(
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
     original_schedule_id uuid NOT NULL,
     new_schedule_id uuid,
     modification_type text NOT NULL,
@@ -587,7 +587,7 @@ CREATE TABLE IF NOT EXISTS public.schedule_modifications(
 
 
 CREATE TABLE IF NOT EXISTS public.sub_bids(
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
     bid_package_id uuid NOT NULL,
     sub_id uuid NOT NULL,
     bid_amount numeric NOT NULL,
@@ -601,7 +601,7 @@ CREATE TABLE IF NOT EXISTS public.sub_bids(
 
 
 CREATE TABLE IF NOT EXISTS public.sub_compliance_documents(
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
     sub_id uuid NOT NULL,
     doc_type text NOT NULL,
     file_url text,
@@ -618,7 +618,7 @@ CREATE TABLE IF NOT EXISTS public.sub_compliance_documents(
 
 
 CREATE TABLE IF NOT EXISTS public.sub_contracts(
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
     project_id uuid NOT NULL,
     sub_id uuid NOT NULL,
     contract_value numeric DEFAULT 0 NOT NULL,
@@ -640,7 +640,7 @@ CREATE TABLE IF NOT EXISTS public.sub_contracts(
 
 
 CREATE TABLE IF NOT EXISTS public.sub_invoices(
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
     project_id uuid NOT NULL,
     sub_id uuid NOT NULL,
     contract_id uuid,
@@ -664,7 +664,7 @@ CREATE TABLE IF NOT EXISTS public.sub_invoices(
 
 
 CREATE TABLE IF NOT EXISTS public.sub_logs(
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
     sub_id uuid NOT NULL,
     project_id uuid NOT NULL,
     date date DEFAULT CURRENT_DATE NOT NULL,
@@ -678,7 +678,7 @@ CREATE TABLE IF NOT EXISTS public.sub_logs(
 
 
 CREATE TABLE IF NOT EXISTS public.sub_payments(
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
     project_subcontract_id uuid,
     sub_invoice_id uuid,
     payment_date date DEFAULT CURRENT_DATE NOT NULL,
@@ -693,7 +693,7 @@ CREATE TABLE IF NOT EXISTS public.sub_payments(
 
 
 CREATE TABLE IF NOT EXISTS public.sub_scheduled_shifts(
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
     sub_id uuid NOT NULL,
     project_id uuid NOT NULL,
     scheduled_date date NOT NULL,
@@ -709,7 +709,7 @@ CREATE TABLE IF NOT EXISTS public.sub_scheduled_shifts(
 
 
 CREATE TABLE IF NOT EXISTS public.subs(
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
     name text NOT NULL,
     company_name text,
     trade text,
@@ -727,7 +727,7 @@ CREATE TABLE IF NOT EXISTS public.subs(
 
 
 CREATE TABLE IF NOT EXISTS public.trades(
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
     name text NOT NULL,
     description text,
     created_at timestamp with time zone DEFAULT now(),
@@ -740,7 +740,7 @@ CREATE TABLE IF NOT EXISTS public.trades(
 
 
 CREATE TABLE IF NOT EXISTS public.user_roles(
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
     role public.app_role DEFAULT 'field_user'::public.app_role NOT NULL,
     created_at timestamp with time zone DEFAULT now()
