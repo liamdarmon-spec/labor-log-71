@@ -5035,6 +5035,8 @@ DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM public.companies WHERE name = 'Default Company') THEN
     INSERT INTO public.companies (name) VALUES ('Default Company');
+  END IF;
+END $$;
 
 
 
