@@ -135,6 +135,12 @@ CREATE TABLE IF NOT EXISTS public.labor_pay_runs (
   updated_at timestamptz DEFAULT now()
 );
 
+-- Ensure required columns exist even if table was created earlier with a smaller shape
+ALTER TABLE public.labor_pay_runs
+  ADD COLUMN IF NOT EXISTS company_id uuid;
+ALTER TABLE public.labor_pay_runs
+  ADD COLUMN IF NOT EXISTS payer_company_id uuid;
+
 CREATE INDEX IF NOT EXISTS idx_labor_pay_runs_company ON public.labor_pay_runs(company_id);
 
 -- labor_pay_run_items: Payment line items
