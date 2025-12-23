@@ -18,7 +18,7 @@ BEGIN
      AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='payments' AND column_name='start_date')
      AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='payments' AND column_name='end_date')
   THEN
-     EXECUTE $$CREATE OR REPLACE VIEW public.workforce_activity_feed AS
+     EXECUTE $view$CREATE OR REPLACE VIEW public.workforce_activity_feed AS
 SELECT 
   al.id::text as id,
   al.action || '_' || al.entity_type as event_type,
@@ -83,7 +83,7 @@ LEFT JOIN companies c3 ON p.company_id = c3.id
 LEFT JOIN projects proj1 ON ws.project_id = proj1.id
 LEFT JOIN projects proj2 ON tl.project_id = proj2.id
 WHERE al.entity_type IN ('work_schedule', 'time_log', 'payment');
-     $$;
+     $view$;
   END IF;
 END $$;
 
