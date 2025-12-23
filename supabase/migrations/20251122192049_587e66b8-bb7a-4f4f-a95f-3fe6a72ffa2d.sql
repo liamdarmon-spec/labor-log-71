@@ -2,7 +2,23 @@
 DROP VIEW IF EXISTS workforce_activity_feed CASCADE;
 
 DROP VIEW IF EXISTS workforce_activity_feed CASCADE;
-CREATE VIEW workforce_activity_feed AS
+DO $$
+BEGIN
+  IF to_regclass('public.time_logs') IS NOT NULL
+     AND to_regclass('public.payments') IS NOT NULL
+     AND to_regclass('public.activity_log') IS NOT NULL
+     AND to_regclass('public.work_schedules') IS NOT NULL
+     AND to_regclass('public.workers') IS NOT NULL
+     AND to_regclass('public.companies') IS NOT NULL
+     AND to_regclass('public.projects') IS NOT NULL
+     AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='time_logs' AND column_name='payment_id')
+     AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='payments' AND column_name='id')
+     AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='payments' AND column_name='company_id')
+     AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='payments' AND column_name='amount')
+     AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='payments' AND column_name='start_date')
+     AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='payments' AND column_name='end_date')
+  THEN
+     EXECUTE $$CREATE OR REPLACE VIEW public.workforce_activity_feed AS
 SELECT 
   al.id::text as id,
   al.action || '_' || al.entity_type as event_type,
@@ -67,6 +83,9 @@ LEFT JOIN companies c3 ON p.company_id = c3.id
 LEFT JOIN projects proj1 ON ws.project_id = proj1.id
 LEFT JOIN projects proj2 ON tl.project_id = proj2.id
 WHERE al.entity_type IN ('work_schedule', 'time_log', 'payment');
+     $$;
+  END IF;
+END $$;
 
 -- Add triggers to log activity for work_schedules
 DROP TRIGGER IF EXISTS log_work_schedule_activity ON work_schedules;
