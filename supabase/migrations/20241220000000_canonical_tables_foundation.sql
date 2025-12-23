@@ -198,6 +198,10 @@ CREATE TABLE IF NOT EXISTS public.customer_payments (
   updated_at timestamptz DEFAULT now()
 );
 
+-- Ensure required columns exist even if table was created earlier with a smaller shape
+ALTER TABLE public.customer_payments
+  ADD COLUMN IF NOT EXISTS company_id uuid;
+
 CREATE INDEX IF NOT EXISTS idx_customer_payments_company ON public.customer_payments(company_id);
 CREATE INDEX IF NOT EXISTS idx_customer_payments_invoice ON public.customer_payments(invoice_id);
 CREATE INDEX IF NOT EXISTS idx_customer_payments_project ON public.customer_payments(project_id);
