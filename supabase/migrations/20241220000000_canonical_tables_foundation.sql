@@ -269,6 +269,10 @@ CREATE TABLE IF NOT EXISTS public.scope_block_cost_items (
   updated_at timestamptz DEFAULT now()
 );
 
+-- Ensure required columns exist even if table was created earlier with a smaller shape
+ALTER TABLE public.scope_block_cost_items
+  ADD COLUMN IF NOT EXISTS company_id uuid;
+
 CREATE INDEX IF NOT EXISTS idx_scope_block_cost_items_scope_block ON public.scope_block_cost_items(scope_block_id);
 CREATE INDEX IF NOT EXISTS idx_scope_block_cost_items_company ON public.scope_block_cost_items(company_id);
 
