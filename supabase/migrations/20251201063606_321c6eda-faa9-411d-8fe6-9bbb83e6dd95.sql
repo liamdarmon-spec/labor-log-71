@@ -17,6 +17,21 @@ BEGIN
     );
   END IF;
 
+  -- Ensure ON CONFLICT (code) target exists even if table was created earlier without UNIQUE(code)
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_index i
+    JOIN pg_class ic ON ic.oid = i.indexrelid
+    JOIN pg_class tc ON tc.oid = i.indrelid
+    JOIN pg_namespace n ON n.oid = tc.relnamespace
+    WHERE n.nspname = 'public'
+      AND tc.relname = 'measurement_units'
+      AND i.indisunique
+      AND pg_get_indexdef(i.indexrelid) LIKE '%(code)%'
+  ) THEN
+    CREATE UNIQUE INDEX IF NOT EXISTS measurement_units_code_key ON public.measurement_units(code);
+  END IF;
+
   -- 2) Seed residential construction units (American standards)
   INSERT INTO public.measurement_units (code, label, category, sort_order)
   VALUES
