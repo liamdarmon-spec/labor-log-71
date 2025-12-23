@@ -1,9 +1,8 @@
--- Extracted from 0001_clean_schema.sql (baseline surgery)
--- Category: views
--- Count: 36
+--
+-- Name: company_payroll_summary; Type: VIEW; Schema: public; Owner: -
+--
 
 DROP VIEW IF EXISTS public.company_payroll_summary CASCADE;
-
 CREATE VIEW public.company_payroll_summary AS
  SELECT c.id AS company_id,
     c.name AS company_name,
@@ -25,8 +24,13 @@ CREATE VIEW public.company_payroll_summary AS
   WHERE (dc.logged_hours > (0)::numeric)
   GROUP BY c.id, c.name;
 
-DROP VIEW IF EXISTS public.cost_code_actuals CASCADE;
 
+
+--
+-- Name: cost_code_actuals; Type: VIEW; Schema: public; Owner: -
+--
+
+DROP VIEW IF EXISTS public.cost_code_actuals CASCADE;
 CREATE VIEW public.cost_code_actuals AS
  SELECT cc.id AS cost_code_id,
     cc.code,
@@ -44,8 +48,13 @@ CREATE VIEW public.cost_code_actuals AS
   WHERE (dc.logged_hours > (0)::numeric)
   GROUP BY cc.id, cc.code, cc.name, cc.category, tla.project_id, p.project_name;
 
-DROP VIEW IF EXISTS public.day_cards_with_details CASCADE;
 
+
+--
+-- Name: day_cards_with_details; Type: VIEW; Schema: public; Owner: -
+--
+
+DROP VIEW IF EXISTS public.day_cards_with_details CASCADE;
 CREATE VIEW public.day_cards_with_details AS
 SELECT
     NULL::uuid AS id,
@@ -68,8 +77,13 @@ SELECT
     NULL::text AS trade_name,
     NULL::jsonb[] AS jobs;
 
-DROP VIEW IF EXISTS public.labor_actuals_by_cost_code CASCADE;
 
+
+--
+-- Name: labor_actuals_by_cost_code; Type: VIEW; Schema: public; Owner: -
+--
+
+DROP VIEW IF EXISTS public.labor_actuals_by_cost_code CASCADE;
 CREATE VIEW public.labor_actuals_by_cost_code AS
  SELECT dl.project_id,
     dl.cost_code_id,
@@ -83,8 +97,13 @@ CREATE VIEW public.labor_actuals_by_cost_code AS
      LEFT JOIN public.workers w ON ((dl.worker_id = w.id)))
   GROUP BY dl.project_id, dl.cost_code_id, cc.code, cc.name;
 
-DROP VIEW IF EXISTS public.payment_labor_summary CASCADE;
 
+
+--
+-- Name: payment_labor_summary; Type: VIEW; Schema: public; Owner: -
+--
+
+DROP VIEW IF EXISTS public.payment_labor_summary CASCADE;
 CREATE VIEW public.payment_labor_summary AS
  SELECT p.id AS payment_id,
     p.start_date,
@@ -105,8 +124,13 @@ CREATE VIEW public.payment_labor_summary AS
   WHERE ((dl.date >= p.start_date) AND (dl.date <= p.end_date))
   GROUP BY p.id, p.start_date, p.end_date, p.paid_by, p.payment_date, dl.worker_id, w.name, w.trade, dl.project_id, proj.project_name;
 
-DROP VIEW IF EXISTS public.project_activity_view CASCADE;
 
+
+--
+-- Name: project_activity_view; Type: VIEW; Schema: public; Owner: -
+--
+
+DROP VIEW IF EXISTS public.project_activity_view CASCADE;
 CREATE VIEW public.project_activity_view AS
  SELECT dl.id AS log_id,
     dl.project_id,
@@ -125,8 +149,13 @@ CREATE VIEW public.project_activity_view AS
      LEFT JOIN public.workers w ON ((dl.worker_id = w.id)))
      LEFT JOIN public.projects p ON ((dl.project_id = p.id)));
 
-DROP VIEW IF EXISTS public.project_costs_view CASCADE;
 
+
+--
+-- Name: project_costs_view; Type: VIEW; Schema: public; Owner: -
+--
+
+DROP VIEW IF EXISTS public.project_costs_view CASCADE;
 CREATE VIEW public.project_costs_view AS
  WITH labor_costs AS (
          SELECT dl.project_id,
@@ -178,8 +207,13 @@ CREATE VIEW public.project_costs_view AS
      LEFT JOIN unpaid_labor ul ON ((p.id = ul.project_id)))
      LEFT JOIN public.project_budgets pb ON ((p.id = pb.project_id)));
 
-DROP VIEW IF EXISTS public.project_dashboard_view CASCADE;
 
+
+--
+-- Name: project_dashboard_view; Type: VIEW; Schema: public; Owner: -
+--
+
+DROP VIEW IF EXISTS public.project_dashboard_view CASCADE;
 CREATE VIEW public.project_dashboard_view AS
  SELECT p.id AS project_id,
     p.project_name,
@@ -197,8 +231,13 @@ CREATE VIEW public.project_dashboard_view AS
      LEFT JOIN public.workers w ON ((dl.worker_id = w.id)))
   GROUP BY p.id, p.project_name, p.client_name, p.company_id, p.status, p.address, p.project_manager;
 
-DROP VIEW IF EXISTS public.project_labor_summary CASCADE;
 
+
+--
+-- Name: project_labor_summary; Type: VIEW; Schema: public; Owner: -
+--
+
+DROP VIEW IF EXISTS public.project_labor_summary CASCADE;
 CREATE VIEW public.project_labor_summary AS
  SELECT p.id AS project_id,
     p.project_name,
@@ -222,8 +261,13 @@ CREATE VIEW public.project_labor_summary AS
      LEFT JOIN public.day_cards dc ON ((dc.id = tla.day_card_id)))
   GROUP BY p.id, p.project_name;
 
-DROP VIEW IF EXISTS public.project_schedule_view CASCADE;
 
+
+--
+-- Name: project_schedule_view; Type: VIEW; Schema: public; Owner: -
+--
+
+DROP VIEW IF EXISTS public.project_schedule_view CASCADE;
 CREATE VIEW public.project_schedule_view AS
  SELECT id,
     project_id,
@@ -238,8 +282,13 @@ CREATE VIEW public.project_schedule_view AS
     updated_at
    FROM public.scheduled_shifts;
 
-DROP VIEW IF EXISTS public.sub_contract_summary CASCADE;
 
+
+--
+-- Name: sub_contract_summary; Type: VIEW; Schema: public; Owner: -
+--
+
+DROP VIEW IF EXISTS public.sub_contract_summary CASCADE;
 CREATE VIEW public.sub_contract_summary AS
 SELECT
     NULL::uuid AS contract_id,
@@ -258,8 +307,13 @@ SELECT
     NULL::numeric AS remaining_to_bill,
     NULL::numeric AS outstanding_balance;
 
-DROP VIEW IF EXISTS public.unpaid_labor_bills CASCADE;
 
+
+--
+-- Name: unpaid_labor_bills; Type: VIEW; Schema: public; Owner: -
+--
+
+DROP VIEW IF EXISTS public.unpaid_labor_bills CASCADE;
 CREATE VIEW public.unpaid_labor_bills AS
  SELECT p.company_id,
     c.name AS company_name,
@@ -279,8 +333,13 @@ CREATE VIEW public.unpaid_labor_bills AS
   GROUP BY p.company_id, c.name, dl.project_id, proj.project_name
   ORDER BY (max(dl.date)) DESC;
 
-DROP VIEW IF EXISTS public.worker_day_summary CASCADE;
 
+
+--
+-- Name: worker_day_summary; Type: VIEW; Schema: public; Owner: -
+--
+
+DROP VIEW IF EXISTS public.worker_day_summary CASCADE;
 CREATE VIEW public.worker_day_summary AS
 SELECT
     NULL::uuid AS day_card_id,
@@ -301,8 +360,13 @@ SELECT
     NULL::numeric AS unpaid_amount,
     NULL::json AS allocations;
 
-DROP VIEW IF EXISTS public.workers_public CASCADE;
 
+
+--
+-- Name: workers_public; Type: VIEW; Schema: public; Owner: -
+--
+
+DROP VIEW IF EXISTS public.workers_public CASCADE;
 CREATE VIEW public.workers_public AS
  SELECT id,
     name,
@@ -318,8 +382,13 @@ CREATE VIEW public.workers_public AS
         END AS phone
    FROM public.workers;
 
-DROP VIEW IF EXISTS public.workforce_activity_feed CASCADE;
 
+
+--
+-- Name: workforce_activity_feed; Type: VIEW; Schema: public; Owner: -
+--
+
+DROP VIEW IF EXISTS public.workforce_activity_feed CASCADE;
 CREATE VIEW public.workforce_activity_feed AS
  SELECT ('schedule:'::text || (ss.id)::text) AS id,
         CASE
@@ -384,8 +453,9 @@ UNION ALL
      LEFT JOIN public.companies c ON ((c.id = pay.company_id)))
   WHERE (pay.created_at > (now() - '90 days'::interval));
 
-DROP VIEW IF EXISTS public.day_cards_with_details CASCADE;
+--
 
+DROP VIEW IF EXISTS public.day_cards_with_details CASCADE;
 CREATE VIEW public.day_cards_with_details AS
  SELECT dc.id,
     dc.worker_id,
@@ -413,8 +483,13 @@ CREATE VIEW public.day_cards_with_details AS
      LEFT JOIN public.projects p ON ((dcj.project_id = p.id)))
   GROUP BY dc.id, w.name, w.hourly_rate, t.name;
 
-DROP VIEW IF EXISTS public.sub_contract_summary CASCADE;
 
+
+--
+-- Name: sub_contract_summary _RETURN; Type: RULE; Schema: public; Owner: -
+--
+
+DROP VIEW IF EXISTS public.sub_contract_summary CASCADE;
 CREATE VIEW public.sub_contract_summary AS
  SELECT sc.id AS contract_id,
     sc.project_id,
@@ -437,8 +512,13 @@ CREATE VIEW public.sub_contract_summary AS
      LEFT JOIN public.sub_payments sp ON ((sp.project_subcontract_id = sc.id)))
   GROUP BY sc.id, s.name, s.company_name, s.trade;
 
-DROP VIEW IF EXISTS public.worker_day_summary CASCADE;
 
+
+--
+-- Name: worker_day_summary _RETURN; Type: RULE; Schema: public; Owner: -
+--
+
+DROP VIEW IF EXISTS public.worker_day_summary CASCADE;
 CREATE VIEW public.worker_day_summary AS
  SELECT dc.id AS day_card_id,
     dc.worker_id,

@@ -1,6 +1,6 @@
--- Extracted from 0001_clean_schema.sql (baseline surgery)
--- Category: constraints
--- Count: 174
+--
+-- Name: activity_log activity_log_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
 
 DO $$
 
@@ -32,6 +32,12 @@ END
 
 $$;
 
+
+
+--
+-- Name: archived_daily_logs archived_daily_logs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
 DO $$
 
 BEGIN
@@ -61,6 +67,12 @@ ALTER TABLE ONLY public.archived_daily_logs
 END
 
 $$;
+
+
+
+--
+-- Name: bid_invitations bid_invitations_bid_package_id_sub_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
 
 DO $$
 
@@ -92,6 +104,12 @@ END
 
 $$;
 
+
+
+--
+-- Name: bid_invitations bid_invitations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
 DO $$
 
 BEGIN
@@ -121,6 +139,12 @@ ALTER TABLE ONLY public.bid_invitations
 END
 
 $$;
+
+
+
+--
+-- Name: bid_packages bid_packages_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
 
 DO $$
 
@@ -152,6 +176,12 @@ END
 
 $$;
 
+
+
+--
+-- Name: companies companies_name_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
 DO $$
 
 BEGIN
@@ -181,6 +211,12 @@ ALTER TABLE ONLY public.companies
 END
 
 $$;
+
+
+
+--
+-- Name: companies companies_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
 
 DO $$
 
@@ -212,6 +248,12 @@ END
 
 $$;
 
+
+
+--
+-- Name: cost_codes cost_codes_code_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
 DO $$
 
 BEGIN
@@ -241,6 +283,12 @@ ALTER TABLE ONLY public.cost_codes
 END
 
 $$;
+
+
+
+--
+-- Name: cost_codes cost_codes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
 
 DO $$
 
@@ -272,6 +320,12 @@ END
 
 $$;
 
+
+
+--
+-- Name: daily_logs daily_logs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
 DO $$
 
 BEGIN
@@ -301,6 +355,12 @@ ALTER TABLE ONLY public.daily_logs
 END
 
 $$;
+
+
+
+--
+-- Name: day_card_jobs day_card_jobs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
 
 DO $$
 
@@ -332,6 +392,12 @@ END
 
 $$;
 
+
+
+--
+-- Name: day_cards day_cards_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
 DO $$
 
 BEGIN
@@ -361,6 +427,12 @@ ALTER TABLE ONLY public.day_cards
 END
 
 $$;
+
+
+
+--
+-- Name: day_cards day_cards_worker_id_date_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
 
 DO $$
 
@@ -392,6 +464,12 @@ END
 
 $$;
 
+
+
+--
+-- Name: documents documents_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
 DO $$
 
 BEGIN
@@ -421,6 +499,12 @@ ALTER TABLE ONLY public.documents
 END
 
 $$;
+
+
+
+--
+-- Name: estimate_items estimate_items_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
 
 DO $$
 
@@ -452,6 +536,12 @@ END
 
 $$;
 
+
+
+--
+-- Name: estimates estimates_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
 DO $$
 
 BEGIN
@@ -481,6 +571,12 @@ ALTER TABLE ONLY public.estimates
 END
 
 $$;
+
+
+
+--
+-- Name: invitations invitations_email_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
 
 DO $$
 
@@ -512,6 +608,12 @@ END
 
 $$;
 
+
+
+--
+-- Name: invitations invitations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
 DO $$
 
 BEGIN
@@ -541,6 +643,12 @@ ALTER TABLE ONLY public.invitations
 END
 
 $$;
+
+
+
+--
+-- Name: invoice_items invoice_items_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
 
 DO $$
 
@@ -572,6 +680,12 @@ END
 
 $$;
 
+
+
+--
+-- Name: invoices invoices_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
 DO $$
 
 BEGIN
@@ -601,6 +715,12 @@ ALTER TABLE ONLY public.invoices
 END
 
 $$;
+
+
+
+--
+-- Name: material_receipts material_receipts_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
 
 DO $$
 
@@ -632,6 +752,12 @@ END
 
 $$;
 
+
+
+--
+-- Name: payments payments_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
 DO $$
 
 BEGIN
@@ -661,6 +787,12 @@ ALTER TABLE ONLY public.payments
 END
 
 $$;
+
+
+
+--
+-- Name: project_budget_lines project_budget_lines_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
 
 DO $$
 
@@ -692,6 +824,19 @@ END
 
 $$;
 
+
+
+--
+-- Name: project_budget_lines project_budget_lines_project_cost_code_unique; Type: CONSTRAINT; Schema: public; Owner: -
+-- REMOVED: Constraint creation moved to forward migration 20251223090003_postbaseline_constraints_and_indexes.sql
+-- Reason: Fails on duplicate data; needs dedupe first
+--
+
+
+--
+-- Name: project_budgets project_budgets_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
 DO $$
 
 BEGIN
@@ -721,6 +866,12 @@ ALTER TABLE ONLY public.project_budgets
 END
 
 $$;
+
+
+
+--
+-- Name: project_budgets project_budgets_project_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
 
 DO $$
 
@@ -752,6 +903,12 @@ END
 
 $$;
 
+
+
+--
+-- Name: project_subcontracts project_subcontracts_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
 DO $$
 
 BEGIN
@@ -781,6 +938,12 @@ ALTER TABLE ONLY public.project_subcontracts
 END
 
 $$;
+
+
+
+--
+-- Name: project_subcontracts project_subcontracts_project_id_sub_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
 
 DO $$
 
@@ -812,6 +975,12 @@ END
 
 $$;
 
+
+
+--
+-- Name: project_todos project_todos_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
 DO $$
 
 BEGIN
@@ -841,6 +1010,12 @@ ALTER TABLE ONLY public.project_todos
 END
 
 $$;
+
+
+
+--
+-- Name: projects projects_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
 
 DO $$
 
@@ -872,6 +1047,12 @@ END
 
 $$;
 
+
+
+--
+-- Name: proposal_line_groups proposal_line_groups_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
 DO $$
 
 BEGIN
@@ -901,6 +1082,12 @@ ALTER TABLE ONLY public.proposal_line_groups
 END
 
 $$;
+
+
+
+--
+-- Name: proposal_line_overrides proposal_line_overrides_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
 
 DO $$
 
@@ -932,6 +1119,12 @@ END
 
 $$;
 
+
+
+--
+-- Name: proposal_section_items proposal_section_items_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
 DO $$
 
 BEGIN
@@ -961,6 +1154,12 @@ ALTER TABLE ONLY public.proposal_section_items
 END
 
 $$;
+
+
+
+--
+-- Name: proposal_sections proposal_sections_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
 
 DO $$
 
@@ -992,6 +1191,12 @@ END
 
 $$;
 
+
+
+--
+-- Name: proposals proposals_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
 DO $$
 
 BEGIN
@@ -1021,6 +1226,12 @@ ALTER TABLE ONLY public.proposals
 END
 
 $$;
+
+
+
+--
+-- Name: schedule_modifications schedule_modifications_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
 
 DO $$
 
@@ -1052,6 +1263,12 @@ END
 
 $$;
 
+
+
+--
+-- Name: scheduled_shifts scheduled_shifts_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
 DO $$
 
 BEGIN
@@ -1081,6 +1298,12 @@ ALTER TABLE ONLY public.scheduled_shifts
 END
 
 $$;
+
+
+
+--
+-- Name: sub_bids sub_bids_bid_package_id_sub_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
 
 DO $$
 
@@ -1112,6 +1335,12 @@ END
 
 $$;
 
+
+
+--
+-- Name: sub_bids sub_bids_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
 DO $$
 
 BEGIN
@@ -1141,6 +1370,12 @@ ALTER TABLE ONLY public.sub_bids
 END
 
 $$;
+
+
+
+--
+-- Name: sub_compliance_documents sub_compliance_documents_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
 
 DO $$
 
@@ -1172,6 +1407,12 @@ END
 
 $$;
 
+
+
+--
+-- Name: sub_contracts sub_contracts_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
 DO $$
 
 BEGIN
@@ -1201,6 +1442,12 @@ ALTER TABLE ONLY public.sub_contracts
 END
 
 $$;
+
+
+
+--
+-- Name: sub_invoices sub_invoices_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
 
 DO $$
 
@@ -1232,6 +1479,12 @@ END
 
 $$;
 
+
+
+--
+-- Name: sub_logs sub_logs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
 DO $$
 
 BEGIN
@@ -1261,6 +1514,12 @@ ALTER TABLE ONLY public.sub_logs
 END
 
 $$;
+
+
+
+--
+-- Name: sub_payments sub_payments_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
 
 DO $$
 
@@ -1292,6 +1551,12 @@ END
 
 $$;
 
+
+
+--
+-- Name: sub_scheduled_shifts sub_scheduled_shifts_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
 DO $$
 
 BEGIN
@@ -1321,6 +1586,12 @@ ALTER TABLE ONLY public.sub_scheduled_shifts
 END
 
 $$;
+
+
+
+--
+-- Name: subs subs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
 
 DO $$
 
@@ -1352,6 +1623,12 @@ END
 
 $$;
 
+
+
+--
+-- Name: time_log_allocations time_log_allocations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
 DO $$
 
 BEGIN
@@ -1381,6 +1658,12 @@ ALTER TABLE ONLY public.time_log_allocations
 END
 
 $$;
+
+
+
+--
+-- Name: trades trades_name_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
 
 DO $$
 
@@ -1412,6 +1695,12 @@ END
 
 $$;
 
+
+
+--
+-- Name: trades trades_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
 DO $$
 
 BEGIN
@@ -1441,6 +1730,12 @@ ALTER TABLE ONLY public.trades
 END
 
 $$;
+
+
+
+--
+-- Name: user_roles user_roles_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
 
 DO $$
 
@@ -1472,6 +1767,12 @@ END
 
 $$;
 
+
+
+--
+-- Name: user_roles user_roles_user_id_role_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
 DO $$
 
 BEGIN
@@ -1501,6 +1802,12 @@ ALTER TABLE ONLY public.user_roles
 END
 
 $$;
+
+
+
+--
+-- Name: workers workers_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
 
 DO $$
 
@@ -1532,6 +1839,12 @@ END
 
 $$;
 
+
+
+--
+-- Name: activity_log activity_log_actor_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
 DO $$
 
 BEGIN
@@ -1561,6 +1874,12 @@ ALTER TABLE ONLY public.activity_log
 END
 
 $$;
+
+
+
+--
+-- Name: bid_invitations bid_invitations_bid_package_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
 
 DO $$
 
@@ -1592,6 +1911,12 @@ END
 
 $$;
 
+
+
+--
+-- Name: bid_invitations bid_invitations_sub_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
 DO $$
 
 BEGIN
@@ -1621,6 +1946,12 @@ ALTER TABLE ONLY public.bid_invitations
 END
 
 $$;
+
+
+
+--
+-- Name: bid_packages bid_packages_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
 
 DO $$
 
@@ -1652,6 +1983,12 @@ END
 
 $$;
 
+
+
+--
+-- Name: cost_codes cost_codes_default_trade_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
 DO $$
 
 BEGIN
@@ -1681,6 +2018,12 @@ ALTER TABLE ONLY public.cost_codes
 END
 
 $$;
+
+
+
+--
+-- Name: cost_codes cost_codes_trade_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
 
 DO $$
 
@@ -1712,6 +2055,12 @@ END
 
 $$;
 
+
+
+--
+-- Name: daily_logs daily_logs_cost_code_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
 DO $$
 
 BEGIN
@@ -1741,6 +2090,12 @@ ALTER TABLE ONLY public.daily_logs
 END
 
 $$;
+
+
+
+--
+-- Name: daily_logs daily_logs_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
 
 DO $$
 
@@ -1772,6 +2127,12 @@ END
 
 $$;
 
+
+
+--
+-- Name: daily_logs daily_logs_payment_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
 DO $$
 
 BEGIN
@@ -1801,6 +2162,12 @@ ALTER TABLE ONLY public.daily_logs
 END
 
 $$;
+
+
+
+--
+-- Name: daily_logs daily_logs_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
 
 DO $$
 
@@ -1832,6 +2199,12 @@ END
 
 $$;
 
+
+
+--
+-- Name: daily_logs daily_logs_schedule_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
 DO $$
 
 BEGIN
@@ -1861,6 +2234,12 @@ ALTER TABLE ONLY public.daily_logs
 END
 
 $$;
+
+
+
+--
+-- Name: daily_logs daily_logs_trade_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
 
 DO $$
 
@@ -1892,6 +2271,12 @@ END
 
 $$;
 
+
+
+--
+-- Name: daily_logs daily_logs_worker_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
 DO $$
 
 BEGIN
@@ -1921,6 +2306,12 @@ ALTER TABLE ONLY public.daily_logs
 END
 
 $$;
+
+
+
+--
+-- Name: day_card_jobs day_card_jobs_cost_code_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
 
 DO $$
 
@@ -1952,6 +2343,12 @@ END
 
 $$;
 
+
+
+--
+-- Name: day_card_jobs day_card_jobs_day_card_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
 DO $$
 
 BEGIN
@@ -1981,6 +2378,12 @@ ALTER TABLE ONLY public.day_card_jobs
 END
 
 $$;
+
+
+
+--
+-- Name: day_card_jobs day_card_jobs_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
 
 DO $$
 
@@ -2012,6 +2415,12 @@ END
 
 $$;
 
+
+
+--
+-- Name: day_card_jobs day_card_jobs_trade_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
 DO $$
 
 BEGIN
@@ -2041,6 +2450,12 @@ ALTER TABLE ONLY public.day_card_jobs
 END
 
 $$;
+
+
+
+--
+-- Name: day_cards day_cards_approved_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
 
 DO $$
 
@@ -2072,6 +2487,12 @@ END
 
 $$;
 
+
+
+--
+-- Name: day_cards day_cards_company_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
 DO $$
 
 BEGIN
@@ -2101,6 +2522,12 @@ ALTER TABLE ONLY public.day_cards
 END
 
 $$;
+
+
+
+--
+-- Name: day_cards day_cards_worker_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
 
 DO $$
 
@@ -2132,6 +2559,12 @@ END
 
 $$;
 
+
+
+--
+-- Name: documents documents_cost_code_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
 DO $$
 
 BEGIN
@@ -2161,6 +2594,12 @@ ALTER TABLE ONLY public.documents
 END
 
 $$;
+
+
+
+--
+-- Name: documents documents_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
 
 DO $$
 
@@ -2192,6 +2631,12 @@ END
 
 $$;
 
+
+
+--
+-- Name: estimate_items estimate_items_cost_code_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
 DO $$
 
 BEGIN
@@ -2221,6 +2666,12 @@ ALTER TABLE ONLY public.estimate_items
 END
 
 $$;
+
+
+
+--
+-- Name: estimate_items estimate_items_estimate_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
 
 DO $$
 
@@ -2252,6 +2703,12 @@ END
 
 $$;
 
+
+
+--
+-- Name: estimate_items estimate_items_trade_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
 DO $$
 
 BEGIN
@@ -2281,6 +2738,12 @@ ALTER TABLE ONLY public.estimate_items
 END
 
 $$;
+
+
+
+--
+-- Name: estimates estimates_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
 
 DO $$
 
@@ -2312,6 +2775,12 @@ END
 
 $$;
 
+
+
+--
+-- Name: invitations invitations_invited_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
 DO $$
 
 BEGIN
@@ -2341,6 +2810,12 @@ ALTER TABLE ONLY public.invitations
 END
 
 $$;
+
+
+
+--
+-- Name: invoice_items invoice_items_invoice_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
 
 DO $$
 
@@ -2372,6 +2847,12 @@ END
 
 $$;
 
+
+
+--
+-- Name: invoices invoices_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
 DO $$
 
 BEGIN
@@ -2401,6 +2882,12 @@ ALTER TABLE ONLY public.invoices
 END
 
 $$;
+
+
+
+--
+-- Name: material_receipts material_receipts_cost_code_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
 
 DO $$
 
@@ -2432,6 +2919,12 @@ END
 
 $$;
 
+
+
+--
+-- Name: material_receipts material_receipts_linked_document_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
 DO $$
 
 BEGIN
@@ -2461,6 +2954,12 @@ ALTER TABLE ONLY public.material_receipts
 END
 
 $$;
+
+
+
+--
+-- Name: material_receipts material_receipts_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
 
 DO $$
 
@@ -2492,6 +2991,12 @@ END
 
 $$;
 
+
+
+--
+-- Name: payments payments_company_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
 DO $$
 
 BEGIN
@@ -2521,6 +3026,12 @@ ALTER TABLE ONLY public.payments
 END
 
 $$;
+
+
+
+--
+-- Name: project_budget_lines project_budget_lines_cost_code_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
 
 DO $$
 
@@ -2552,6 +3063,12 @@ END
 
 $$;
 
+
+
+--
+-- Name: project_budget_lines project_budget_lines_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
 DO $$
 
 BEGIN
@@ -2581,6 +3098,12 @@ ALTER TABLE ONLY public.project_budget_lines
 END
 
 $$;
+
+
+
+--
+-- Name: project_budget_lines project_budget_lines_source_estimate_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
 
 DO $$
 
@@ -2612,6 +3135,12 @@ END
 
 $$;
 
+
+
+--
+-- Name: project_budgets project_budgets_baseline_estimate_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
 DO $$
 
 BEGIN
@@ -2641,6 +3170,12 @@ ALTER TABLE ONLY public.project_budgets
 END
 
 $$;
+
+
+
+--
+-- Name: project_budgets project_budgets_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
 
 DO $$
 
@@ -2672,6 +3207,12 @@ END
 
 $$;
 
+
+
+--
+-- Name: project_subcontracts project_subcontracts_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
 DO $$
 
 BEGIN
@@ -2701,6 +3242,12 @@ ALTER TABLE ONLY public.project_subcontracts
 END
 
 $$;
+
+
+
+--
+-- Name: project_subcontracts project_subcontracts_sub_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
 
 DO $$
 
@@ -2732,6 +3279,12 @@ END
 
 $$;
 
+
+
+--
+-- Name: project_todos project_todos_assigned_worker_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
 DO $$
 
 BEGIN
@@ -2761,6 +3314,12 @@ ALTER TABLE ONLY public.project_todos
 END
 
 $$;
+
+
+
+--
+-- Name: project_todos project_todos_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
 
 DO $$
 
@@ -2792,6 +3351,12 @@ END
 
 $$;
 
+
+
+--
+-- Name: projects projects_company_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
 DO $$
 
 BEGIN
@@ -2821,6 +3386,12 @@ ALTER TABLE ONLY public.projects
 END
 
 $$;
+
+
+
+--
+-- Name: proposal_line_groups proposal_line_groups_estimate_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
 
 DO $$
 
@@ -2852,6 +3423,12 @@ END
 
 $$;
 
+
+
+--
+-- Name: proposal_line_groups proposal_line_groups_proposal_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
 DO $$
 
 BEGIN
@@ -2881,6 +3458,12 @@ ALTER TABLE ONLY public.proposal_line_groups
 END
 
 $$;
+
+
+
+--
+-- Name: proposal_line_overrides proposal_line_overrides_estimate_line_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
 
 DO $$
 
@@ -2912,6 +3495,12 @@ END
 
 $$;
 
+
+
+--
+-- Name: proposal_line_overrides proposal_line_overrides_proposal_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
 DO $$
 
 BEGIN
@@ -2941,6 +3530,12 @@ ALTER TABLE ONLY public.proposal_line_overrides
 END
 
 $$;
+
+
+
+--
+-- Name: proposal_section_items proposal_section_items_estimate_item_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
 
 DO $$
 
@@ -2972,6 +3567,12 @@ END
 
 $$;
 
+
+
+--
+-- Name: proposal_section_items proposal_section_items_proposal_section_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
 DO $$
 
 BEGIN
@@ -3001,6 +3602,12 @@ ALTER TABLE ONLY public.proposal_section_items
 END
 
 $$;
+
+
+
+--
+-- Name: proposal_sections proposal_sections_proposal_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
 
 DO $$
 
@@ -3032,6 +3639,12 @@ END
 
 $$;
 
+
+
+--
+-- Name: proposals proposals_primary_estimate_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
 DO $$
 
 BEGIN
@@ -3061,6 +3674,12 @@ ALTER TABLE ONLY public.proposals
 END
 
 $$;
+
+
+
+--
+-- Name: proposals proposals_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
 
 DO $$
 
@@ -3092,6 +3711,12 @@ END
 
 $$;
 
+
+
+--
+-- Name: scheduled_shifts scheduled_shifts_cost_code_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
 DO $$
 
 BEGIN
@@ -3121,6 +3746,12 @@ ALTER TABLE ONLY public.scheduled_shifts
 END
 
 $$;
+
+
+
+--
+-- Name: scheduled_shifts scheduled_shifts_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
 
 DO $$
 
@@ -3152,6 +3783,12 @@ END
 
 $$;
 
+
+
+--
+-- Name: scheduled_shifts scheduled_shifts_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
 DO $$
 
 BEGIN
@@ -3181,6 +3818,12 @@ ALTER TABLE ONLY public.scheduled_shifts
 END
 
 $$;
+
+
+
+--
+-- Name: scheduled_shifts scheduled_shifts_trade_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
 
 DO $$
 
@@ -3212,6 +3855,12 @@ END
 
 $$;
 
+
+
+--
+-- Name: scheduled_shifts scheduled_shifts_worker_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
 DO $$
 
 BEGIN
@@ -3241,6 +3890,12 @@ ALTER TABLE ONLY public.scheduled_shifts
 END
 
 $$;
+
+
+
+--
+-- Name: sub_bids sub_bids_bid_package_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
 
 DO $$
 
@@ -3272,6 +3927,12 @@ END
 
 $$;
 
+
+
+--
+-- Name: sub_bids sub_bids_sub_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
 DO $$
 
 BEGIN
@@ -3301,6 +3962,12 @@ ALTER TABLE ONLY public.sub_bids
 END
 
 $$;
+
+
+
+--
+-- Name: sub_compliance_documents sub_compliance_documents_document_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
 
 DO $$
 
@@ -3332,6 +3999,12 @@ END
 
 $$;
 
+
+
+--
+-- Name: sub_compliance_documents sub_compliance_documents_sub_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
 DO $$
 
 BEGIN
@@ -3361,6 +4034,12 @@ ALTER TABLE ONLY public.sub_compliance_documents
 END
 
 $$;
+
+
+
+--
+-- Name: sub_contracts sub_contracts_linked_document_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
 
 DO $$
 
@@ -3392,6 +4071,12 @@ END
 
 $$;
 
+
+
+--
+-- Name: sub_contracts sub_contracts_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
 DO $$
 
 BEGIN
@@ -3421,6 +4106,12 @@ ALTER TABLE ONLY public.sub_contracts
 END
 
 $$;
+
+
+
+--
+-- Name: sub_contracts sub_contracts_sub_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
 
 DO $$
 
@@ -3452,6 +4143,12 @@ END
 
 $$;
 
+
+
+--
+-- Name: sub_invoices sub_invoices_contract_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
 DO $$
 
 BEGIN
@@ -3481,6 +4178,12 @@ ALTER TABLE ONLY public.sub_invoices
 END
 
 $$;
+
+
+
+--
+-- Name: sub_invoices sub_invoices_linked_document_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
 
 DO $$
 
@@ -3512,6 +4215,12 @@ END
 
 $$;
 
+
+
+--
+-- Name: sub_invoices sub_invoices_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
 DO $$
 
 BEGIN
@@ -3541,6 +4250,12 @@ ALTER TABLE ONLY public.sub_invoices
 END
 
 $$;
+
+
+
+--
+-- Name: sub_invoices sub_invoices_sub_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
 
 DO $$
 
@@ -3572,6 +4287,12 @@ END
 
 $$;
 
+
+
+--
+-- Name: sub_logs sub_logs_cost_code_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
 DO $$
 
 BEGIN
@@ -3601,6 +4322,12 @@ ALTER TABLE ONLY public.sub_logs
 END
 
 $$;
+
+
+
+--
+-- Name: sub_logs sub_logs_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
 
 DO $$
 
@@ -3632,6 +4359,12 @@ END
 
 $$;
 
+
+
+--
+-- Name: sub_logs sub_logs_sub_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
 DO $$
 
 BEGIN
@@ -3661,6 +4394,12 @@ ALTER TABLE ONLY public.sub_logs
 END
 
 $$;
+
+
+
+--
+-- Name: sub_payments sub_payments_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
 
 DO $$
 
@@ -3692,6 +4431,12 @@ END
 
 $$;
 
+
+
+--
+-- Name: sub_payments sub_payments_payment_batch_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
 DO $$
 
 BEGIN
@@ -3721,6 +4466,12 @@ ALTER TABLE ONLY public.sub_payments
 END
 
 $$;
+
+
+
+--
+-- Name: sub_payments sub_payments_project_subcontract_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
 
 DO $$
 
@@ -3752,6 +4503,12 @@ END
 
 $$;
 
+
+
+--
+-- Name: sub_payments sub_payments_sub_invoice_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
 DO $$
 
 BEGIN
@@ -3781,6 +4538,12 @@ ALTER TABLE ONLY public.sub_payments
 END
 
 $$;
+
+
+
+--
+-- Name: sub_scheduled_shifts sub_scheduled_shifts_cost_code_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
 
 DO $$
 
@@ -3812,6 +4575,12 @@ END
 
 $$;
 
+
+
+--
+-- Name: sub_scheduled_shifts sub_scheduled_shifts_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
 DO $$
 
 BEGIN
@@ -3841,6 +4610,12 @@ ALTER TABLE ONLY public.sub_scheduled_shifts
 END
 
 $$;
+
+
+
+--
+-- Name: sub_scheduled_shifts sub_scheduled_shifts_sub_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
 
 DO $$
 
@@ -3872,6 +4647,12 @@ END
 
 $$;
 
+
+
+--
+-- Name: subs subs_trade_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
 DO $$
 
 BEGIN
@@ -3901,6 +4682,12 @@ ALTER TABLE ONLY public.subs
 END
 
 $$;
+
+
+
+--
+-- Name: time_log_allocations time_log_allocations_cost_code_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
 
 DO $$
 
@@ -3932,6 +4719,12 @@ END
 
 $$;
 
+
+
+--
+-- Name: time_log_allocations time_log_allocations_day_card_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
 DO $$
 
 BEGIN
@@ -3961,6 +4754,12 @@ ALTER TABLE ONLY public.time_log_allocations
 END
 
 $$;
+
+
+
+--
+-- Name: time_log_allocations time_log_allocations_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
 
 DO $$
 
@@ -3992,6 +4791,12 @@ END
 
 $$;
 
+
+
+--
+-- Name: time_log_allocations time_log_allocations_trade_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
 DO $$
 
 BEGIN
@@ -4021,6 +4826,12 @@ ALTER TABLE ONLY public.time_log_allocations
 END
 
 $$;
+
+
+
+--
+-- Name: trades trades_default_labor_cost_code_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
 
 DO $$
 
@@ -4052,6 +4863,12 @@ END
 
 $$;
 
+
+
+--
+-- Name: trades trades_default_material_cost_code_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
 DO $$
 
 BEGIN
@@ -4081,6 +4898,12 @@ ALTER TABLE ONLY public.trades
 END
 
 $$;
+
+
+
+--
+-- Name: trades trades_default_sub_cost_code_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
 
 DO $$
 
@@ -4112,6 +4935,12 @@ END
 
 $$;
 
+
+
+--
+-- Name: user_roles user_roles_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
 DO $$
 
 BEGIN
@@ -4142,6 +4971,12 @@ END
 
 $$;
 
+
+
+--
+-- Name: workers workers_trade_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
 DO $$
 
 BEGIN
@@ -4171,73 +5006,3 @@ ALTER TABLE ONLY public.workers
 END
 
 $$;
-
-ALTER TABLE public.projects FORCE ROW LEVEL SECURITY;
-
-ALTER TABLE public.day_cards FORCE ROW LEVEL SECURITY;
-
-ALTER TABLE public.scheduled_shifts FORCE ROW LEVEL SECURITY;
-
-ALTER TABLE public.daily_logs FORCE ROW LEVEL SECURITY;
-
-ALTER TABLE public.documents FORCE ROW LEVEL SECURITY;
-
-ALTER TABLE public.payments FORCE ROW LEVEL SECURITY;
-
-ALTER TABLE public.material_receipts FORCE ROW LEVEL SECURITY;
-
-ALTER TABLE public.sub_logs FORCE ROW LEVEL SECURITY;
-
-ALTER TABLE public.subs FORCE ROW LEVEL SECURITY;
-
-ALTER TABLE public.workers FORCE ROW LEVEL SECURITY;
-
-ALTER TABLE public.cost_codes FORCE ROW LEVEL SECURITY;
-
-ALTER TABLE public.trades FORCE ROW LEVEL SECURITY;
-
-ALTER TABLE public.project_budget_lines FORCE ROW LEVEL SECURITY;
-
-ALTER TABLE public.estimates FORCE ROW LEVEL SECURITY;
-
-ALTER TABLE public.estimate_items FORCE ROW LEVEL SECURITY;
-
-ALTER TABLE public.invoices FORCE ROW LEVEL SECURITY;
-
-ALTER TABLE public.invoice_items FORCE ROW LEVEL SECURITY;
-
-ALTER TABLE public.bid_packages FORCE ROW LEVEL SECURITY;
-
-ALTER TABLE public.bid_invitations FORCE ROW LEVEL SECURITY;
-
-ALTER TABLE public.project_budgets FORCE ROW LEVEL SECURITY;
-
-ALTER TABLE public.project_todos FORCE ROW LEVEL SECURITY;
-
-ALTER TABLE public.proposals FORCE ROW LEVEL SECURITY;
-
-ALTER TABLE public.proposal_sections FORCE ROW LEVEL SECURITY;
-
-ALTER TABLE public.proposal_section_items FORCE ROW LEVEL SECURITY;
-
-ALTER TABLE public.sub_contracts FORCE ROW LEVEL SECURITY;
-
-ALTER TABLE public.sub_invoices FORCE ROW LEVEL SECURITY;
-
-ALTER TABLE public.sub_bids FORCE ROW LEVEL SECURITY;
-
-ALTER TABLE public.time_log_allocations FORCE ROW LEVEL SECURITY;
-
-ALTER TABLE public.day_card_jobs FORCE ROW LEVEL SECURITY;
-
-ALTER TABLE public.archived_daily_logs FORCE ROW LEVEL SECURITY;
-
-ALTER TABLE public.schedule_modifications FORCE ROW LEVEL SECURITY;
-
-ALTER TABLE public.sub_scheduled_shifts FORCE ROW LEVEL SECURITY;
-
-ALTER TABLE public.sub_payments FORCE ROW LEVEL SECURITY;
-
-ALTER TABLE public.sub_compliance_documents FORCE ROW LEVEL SECURITY;
-
-ALTER TABLE public.material_receipts FORCE ROW LEVEL SECURITY;
