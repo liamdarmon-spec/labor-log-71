@@ -166,7 +166,8 @@ END;
 $$;
 
 -- Create new RPC function to split time logs directly
-CREATE OR REPLACE FUNCTION split_time_log_for_multi_project(
+DROP FUNCTION IF EXISTS public.split_time_log_for_multi_project(uuid, jsonb);
+CREATE FUNCTION split_time_log_for_multi_project(
   p_original_time_log_id UUID,
   p_entries JSONB
 )

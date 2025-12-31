@@ -142,29 +142,43 @@ ALTER TABLE project_financials_snapshot ENABLE ROW LEVEL SECURITY;
 ALTER TABLE budget_revisions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE cost_entries ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Anyone can view SOV" ON schedule_of_values;
 CREATE POLICY "Anyone can view SOV" ON schedule_of_values FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Anyone can insert SOV" ON schedule_of_values;
 CREATE POLICY "Anyone can insert SOV" ON schedule_of_values FOR INSERT WITH CHECK (true);
+DROP POLICY IF EXISTS "Anyone can update SOV" ON schedule_of_values;
 CREATE POLICY "Anyone can update SOV" ON schedule_of_values FOR UPDATE USING (true);
+DROP POLICY IF EXISTS "Anyone can delete SOV" ON schedule_of_values;
 CREATE POLICY "Anyone can delete SOV" ON schedule_of_values FOR DELETE USING (true);
-
+DROP POLICY IF EXISTS "Anyone can view customer payments" ON customer_payments;
 CREATE POLICY "Anyone can view customer payments" ON customer_payments FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Anyone can insert customer payments" ON customer_payments;
 CREATE POLICY "Anyone can insert customer payments" ON customer_payments FOR INSERT WITH CHECK (true);
+DROP POLICY IF EXISTS "Anyone can update customer payments" ON customer_payments;
 CREATE POLICY "Anyone can update customer payments" ON customer_payments FOR UPDATE USING (true);
+DROP POLICY IF EXISTS "Anyone can delete customer payments" ON customer_payments;
 CREATE POLICY "Anyone can delete customer payments" ON customer_payments FOR DELETE USING (true);
-
+DROP POLICY IF EXISTS "Anyone can view financials snapshot" ON project_financials_snapshot;
 CREATE POLICY "Anyone can view financials snapshot" ON project_financials_snapshot FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Anyone can insert financials snapshot" ON project_financials_snapshot;
 CREATE POLICY "Anyone can insert financials snapshot" ON project_financials_snapshot FOR INSERT WITH CHECK (true);
+DROP POLICY IF EXISTS "Anyone can update financials snapshot" ON project_financials_snapshot;
 CREATE POLICY "Anyone can update financials snapshot" ON project_financials_snapshot FOR UPDATE USING (true);
 
+DROP POLICY IF EXISTS "Anyone can view budget revisions" ON budget_revisions;
 CREATE POLICY "Anyone can view budget revisions" ON budget_revisions FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Anyone can insert budget revisions" ON budget_revisions;
 CREATE POLICY "Anyone can insert budget revisions" ON budget_revisions FOR INSERT WITH CHECK (true);
+DROP POLICY IF EXISTS "Anyone can update budget revisions" ON budget_revisions;
 CREATE POLICY "Anyone can update budget revisions" ON budget_revisions FOR UPDATE USING (true);
-
+DROP POLICY IF EXISTS "Anyone can view cost entries" ON cost_entries;
 CREATE POLICY "Anyone can view cost entries" ON cost_entries FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Anyone can insert cost entries" ON cost_entries;
 CREATE POLICY "Anyone can insert cost entries" ON cost_entries FOR INSERT WITH CHECK (true);
+DROP POLICY IF EXISTS "Anyone can update cost entries" ON cost_entries;
 CREATE POLICY "Anyone can update cost entries" ON cost_entries FOR UPDATE USING (true);
+DROP POLICY IF EXISTS "Anyone can delete cost entries" ON cost_entries;
 CREATE POLICY "Anyone can delete cost entries" ON cost_entries FOR DELETE USING (true);
-
 -- 9. Update triggers
 DROP TRIGGER IF EXISTS schedule_of_values_updated_at ON schedule_of_values;
 CREATE TRIGGER schedule_of_values_updated_at

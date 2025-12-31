@@ -4,6 +4,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useCompany } from '@/company/CompanyProvider';
 export interface SOVItem {
   id: string;
   project_id: string;
@@ -45,12 +46,14 @@ export function useSOVItems(projectId: string) {
 
 export function useCreateSOVItem() {
   const queryClient = useQueryClient();
+  const { activeCompanyId } = useCompany();
 
   return useMutation({
     mutationFn: async (item: Partial<SOVItem> & { project_id: string; description: string }) => {
+      if (!activeCompanyId) throw new Error('No active company selected');
       const { data, error } = await supabase
         .from('schedule_of_values')
-        .insert([item as any])
+        .insert([{ ...(item as any), company_id: activeCompanyId }])
         .select()
         .single();
       if (error) throw error;

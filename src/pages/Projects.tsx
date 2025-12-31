@@ -187,7 +187,7 @@ const Projects = () => {
                 <Card
                   key={project.id}
                   className="hover:shadow-lg transition-shadow cursor-pointer"
-                  onClick={() => navigate(`/projects/${project.id}`)}
+                  onClick={() => navigate(`/app/projects/${project.id}`)}
                 >
                   <CardHeader>
                     <div className="flex items-start justify-between">
@@ -288,7 +288,7 @@ const Projects = () => {
                         className="gap-2"
                         onClick={(e) => {
                           e.stopPropagation();
-                          navigate(`/projects/${project.id}`);
+                          navigate(`/app/projects/${project.id}`);
                         }}
                       >
                         View Details

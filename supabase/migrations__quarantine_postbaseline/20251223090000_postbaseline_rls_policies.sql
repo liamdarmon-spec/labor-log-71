@@ -963,6 +963,7 @@ $$;
 -- Name: bid_invitations Anyone can delete bid invitations; Type: POLICY; Schema: public; Owner: -
 --
 
+DROP POLICY IF EXISTS "Anyone can delete bid invitations" ON public.bid_invitations;
 CREATE POLICY "Anyone can delete bid invitations" ON public.bid_invitations FOR DELETE USING (true);
 
 
@@ -971,6 +972,7 @@ CREATE POLICY "Anyone can delete bid invitations" ON public.bid_invitations FOR 
 
 --
 
+DROP POLICY IF EXISTS "Anyone can delete bid packages" ON public.bid_packages;
 CREATE POLICY "Anyone can delete bid packages" ON public.bid_packages FOR DELETE USING (true);
 
 
@@ -979,6 +981,7 @@ CREATE POLICY "Anyone can delete bid packages" ON public.bid_packages FOR DELETE
 
 --
 
+DROP POLICY IF EXISTS "Anyone can delete budget lines" ON public.project_budget_lines;
 CREATE POLICY "Anyone can delete budget lines" ON public.project_budget_lines FOR DELETE USING (true);
 
 
@@ -987,6 +990,7 @@ CREATE POLICY "Anyone can delete budget lines" ON public.project_budget_lines FO
 
 --
 
+DROP POLICY IF EXISTS "Anyone can delete cost codes" ON public.cost_codes;
 CREATE POLICY "Anyone can delete cost codes" ON public.cost_codes FOR DELETE USING (true);
 
 
@@ -995,6 +999,7 @@ CREATE POLICY "Anyone can delete cost codes" ON public.cost_codes FOR DELETE USI
 
 --
 
+DROP POLICY IF EXISTS "Anyone can delete day card jobs" ON public.day_card_jobs;
 CREATE POLICY "Anyone can delete day card jobs" ON public.day_card_jobs FOR DELETE USING (true);
 
 
@@ -1003,6 +1008,7 @@ CREATE POLICY "Anyone can delete day card jobs" ON public.day_card_jobs FOR DELE
 
 --
 
+DROP POLICY IF EXISTS "Anyone can delete day cards" ON public.day_cards;
 CREATE POLICY "Anyone can delete day cards" ON public.day_cards FOR DELETE USING (true);
 
 
@@ -1011,6 +1017,7 @@ CREATE POLICY "Anyone can delete day cards" ON public.day_cards FOR DELETE USING
 
 --
 
+DROP POLICY IF EXISTS "Anyone can delete documents" ON public.documents;
 CREATE POLICY "Anyone can delete documents" ON public.documents FOR DELETE USING (true);
 
 
@@ -1019,6 +1026,7 @@ CREATE POLICY "Anyone can delete documents" ON public.documents FOR DELETE USING
 
 --
 
+DROP POLICY IF EXISTS "Anyone can delete estimate items" ON public.estimate_items;
 CREATE POLICY "Anyone can delete estimate items" ON public.estimate_items FOR DELETE USING (true);
 
 
@@ -1027,6 +1035,7 @@ CREATE POLICY "Anyone can delete estimate items" ON public.estimate_items FOR DE
 
 --
 
+DROP POLICY IF EXISTS "Anyone can delete estimates" ON public.estimates;
 CREATE POLICY "Anyone can delete estimates" ON public.estimates FOR DELETE USING (true);
 
 
@@ -1035,6 +1044,7 @@ CREATE POLICY "Anyone can delete estimates" ON public.estimates FOR DELETE USING
 
 --
 
+DROP POLICY IF EXISTS "Anyone can delete invoice items" ON public.invoice_items;
 CREATE POLICY "Anyone can delete invoice items" ON public.invoice_items FOR DELETE USING (true);
 
 
@@ -1043,6 +1053,7 @@ CREATE POLICY "Anyone can delete invoice items" ON public.invoice_items FOR DELE
 
 --
 
+DROP POLICY IF EXISTS "Anyone can delete invoices" ON public.invoices;
 CREATE POLICY "Anyone can delete invoices" ON public.invoices FOR DELETE USING (true);
 
 
@@ -1051,6 +1062,7 @@ CREATE POLICY "Anyone can delete invoices" ON public.invoices FOR DELETE USING (
 
 --
 
+DROP POLICY IF EXISTS "Anyone can delete material receipts" ON public.material_receipts;
 CREATE POLICY "Anyone can delete material receipts" ON public.material_receipts FOR DELETE USING (true);
 
 
@@ -1059,6 +1071,7 @@ CREATE POLICY "Anyone can delete material receipts" ON public.material_receipts 
 
 --
 
+DROP POLICY IF EXISTS "Anyone can delete project budgets" ON public.project_budgets;
 CREATE POLICY "Anyone can delete project budgets" ON public.project_budgets FOR DELETE USING (true);
 
 
@@ -1067,6 +1080,7 @@ CREATE POLICY "Anyone can delete project budgets" ON public.project_budgets FOR 
 
 --
 
+DROP POLICY IF EXISTS "Anyone can delete project subcontracts" ON public.project_subcontracts;
 CREATE POLICY "Anyone can delete project subcontracts" ON public.project_subcontracts FOR DELETE USING (true);
 
 
@@ -1075,6 +1089,7 @@ CREATE POLICY "Anyone can delete project subcontracts" ON public.project_subcont
 
 --
 
+DROP POLICY IF EXISTS "Anyone can delete proposal line groups" ON public.proposal_line_groups;
 CREATE POLICY "Anyone can delete proposal line groups" ON public.proposal_line_groups FOR DELETE USING (true);
 
 
@@ -1083,6 +1098,7 @@ CREATE POLICY "Anyone can delete proposal line groups" ON public.proposal_line_g
 
 --
 
+DROP POLICY IF EXISTS "Anyone can delete proposal line overrides" ON public.proposal_line_overrides;
 CREATE POLICY "Anyone can delete proposal line overrides" ON public.proposal_line_overrides FOR DELETE USING (true);
 
 
@@ -1091,6 +1107,7 @@ CREATE POLICY "Anyone can delete proposal line overrides" ON public.proposal_lin
 
 --
 
+DROP POLICY IF EXISTS "Anyone can delete proposal section items" ON public.proposal_section_items;
 CREATE POLICY "Anyone can delete proposal section items" ON public.proposal_section_items FOR DELETE USING (true);
 
 
@@ -1099,6 +1116,7 @@ CREATE POLICY "Anyone can delete proposal section items" ON public.proposal_sect
 
 --
 
+DROP POLICY IF EXISTS "Anyone can delete proposal sections" ON public.proposal_sections;
 CREATE POLICY "Anyone can delete proposal sections" ON public.proposal_sections FOR DELETE USING (true);
 
 
@@ -1107,6 +1125,7 @@ CREATE POLICY "Anyone can delete proposal sections" ON public.proposal_sections 
 
 --
 
+DROP POLICY IF EXISTS "Anyone can delete proposals" ON public.proposals;
 CREATE POLICY "Anyone can delete proposals" ON public.proposals FOR DELETE USING (true);
 
 
@@ -1115,6 +1134,7 @@ CREATE POLICY "Anyone can delete proposals" ON public.proposals FOR DELETE USING
 
 --
 
+DROP POLICY IF EXISTS "Anyone can delete sub bids" ON public.sub_bids;
 CREATE POLICY "Anyone can delete sub bids" ON public.sub_bids FOR DELETE USING (true);
 
 
@@ -1123,6 +1143,7 @@ CREATE POLICY "Anyone can delete sub bids" ON public.sub_bids FOR DELETE USING (
 
 --
 
+DROP POLICY IF EXISTS "Anyone can delete sub compliance" ON public.sub_compliance_documents;
 CREATE POLICY "Anyone can delete sub compliance" ON public.sub_compliance_documents FOR DELETE USING (true);
 
 
@@ -1131,6 +1152,7 @@ CREATE POLICY "Anyone can delete sub compliance" ON public.sub_compliance_docume
 
 --
 
+DROP POLICY IF EXISTS "Anyone can delete sub contracts" ON public.sub_contracts;
 CREATE POLICY "Anyone can delete sub contracts" ON public.sub_contracts FOR DELETE USING (true);
 
 
@@ -1139,6 +1161,7 @@ CREATE POLICY "Anyone can delete sub contracts" ON public.sub_contracts FOR DELE
 
 --
 
+DROP POLICY IF EXISTS "Anyone can delete sub invoices" ON public.sub_invoices;
 CREATE POLICY "Anyone can delete sub invoices" ON public.sub_invoices FOR DELETE USING (true);
 
 
@@ -1147,6 +1170,7 @@ CREATE POLICY "Anyone can delete sub invoices" ON public.sub_invoices FOR DELETE
 
 --
 
+DROP POLICY IF EXISTS "Anyone can delete sub logs" ON public.sub_logs;
 CREATE POLICY "Anyone can delete sub logs" ON public.sub_logs FOR DELETE USING (true);
 
 
@@ -1155,6 +1179,7 @@ CREATE POLICY "Anyone can delete sub logs" ON public.sub_logs FOR DELETE USING (
 
 --
 
+DROP POLICY IF EXISTS "Anyone can delete sub payments" ON public.sub_payments;
 CREATE POLICY "Anyone can delete sub payments" ON public.sub_payments FOR DELETE USING (true);
 
 
@@ -1163,6 +1188,7 @@ CREATE POLICY "Anyone can delete sub payments" ON public.sub_payments FOR DELETE
 
 --
 
+DROP POLICY IF EXISTS "Anyone can delete sub schedules" ON public.sub_scheduled_shifts;
 CREATE POLICY "Anyone can delete sub schedules" ON public.sub_scheduled_shifts FOR DELETE USING (true);
 
 
@@ -1171,6 +1197,7 @@ CREATE POLICY "Anyone can delete sub schedules" ON public.sub_scheduled_shifts F
 
 --
 
+DROP POLICY IF EXISTS "Anyone can delete subs" ON public.subs;
 CREATE POLICY "Anyone can delete subs" ON public.subs FOR DELETE USING (true);
 
 
@@ -1179,6 +1206,7 @@ CREATE POLICY "Anyone can delete subs" ON public.subs FOR DELETE USING (true);
 
 --
 
+DROP POLICY IF EXISTS "Anyone can delete time log allocations" ON public.time_log_allocations;
 CREATE POLICY "Anyone can delete time log allocations" ON public.time_log_allocations FOR DELETE USING (true);
 
 
@@ -1187,6 +1215,7 @@ CREATE POLICY "Anyone can delete time log allocations" ON public.time_log_alloca
 
 --
 
+DROP POLICY IF EXISTS "Anyone can delete todos" ON public.project_todos;
 CREATE POLICY "Anyone can delete todos" ON public.project_todos FOR DELETE USING (true);
 
 
@@ -1195,6 +1224,7 @@ CREATE POLICY "Anyone can delete todos" ON public.project_todos FOR DELETE USING
 
 --
 
+DROP POLICY IF EXISTS "Anyone can insert activity log" ON public.activity_log;
 CREATE POLICY "Anyone can insert activity log" ON public.activity_log FOR INSERT WITH CHECK (true);
 
 
@@ -1203,6 +1233,7 @@ CREATE POLICY "Anyone can insert activity log" ON public.activity_log FOR INSERT
 
 --
 
+DROP POLICY IF EXISTS "Anyone can insert bid invitations" ON public.bid_invitations;
 CREATE POLICY "Anyone can insert bid invitations" ON public.bid_invitations FOR INSERT WITH CHECK (true);
 
 
@@ -1211,6 +1242,7 @@ CREATE POLICY "Anyone can insert bid invitations" ON public.bid_invitations FOR 
 
 --
 
+DROP POLICY IF EXISTS "Anyone can insert bid packages" ON public.bid_packages;
 CREATE POLICY "Anyone can insert bid packages" ON public.bid_packages FOR INSERT WITH CHECK (true);
 
 
@@ -1219,6 +1251,7 @@ CREATE POLICY "Anyone can insert bid packages" ON public.bid_packages FOR INSERT
 
 --
 
+DROP POLICY IF EXISTS "Anyone can insert budget lines" ON public.project_budget_lines;
 CREATE POLICY "Anyone can insert budget lines" ON public.project_budget_lines FOR INSERT WITH CHECK (true);
 
 
@@ -1227,6 +1260,7 @@ CREATE POLICY "Anyone can insert budget lines" ON public.project_budget_lines FO
 
 --
 
+DROP POLICY IF EXISTS "Anyone can insert cost codes" ON public.cost_codes;
 CREATE POLICY "Anyone can insert cost codes" ON public.cost_codes FOR INSERT WITH CHECK (true);
 
 
@@ -1235,6 +1269,7 @@ CREATE POLICY "Anyone can insert cost codes" ON public.cost_codes FOR INSERT WIT
 
 --
 
+DROP POLICY IF EXISTS "Anyone can insert day card jobs" ON public.day_card_jobs;
 CREATE POLICY "Anyone can insert day card jobs" ON public.day_card_jobs FOR INSERT WITH CHECK (true);
 
 
@@ -1243,6 +1278,7 @@ CREATE POLICY "Anyone can insert day card jobs" ON public.day_card_jobs FOR INSE
 
 --
 
+DROP POLICY IF EXISTS "Anyone can insert day cards" ON public.day_cards;
 CREATE POLICY "Anyone can insert day cards" ON public.day_cards FOR INSERT WITH CHECK (true);
 
 
@@ -1251,6 +1287,7 @@ CREATE POLICY "Anyone can insert day cards" ON public.day_cards FOR INSERT WITH 
 
 --
 
+DROP POLICY IF EXISTS "Anyone can insert documents" ON public.documents;
 CREATE POLICY "Anyone can insert documents" ON public.documents FOR INSERT WITH CHECK (true);
 
 
@@ -1259,6 +1296,7 @@ CREATE POLICY "Anyone can insert documents" ON public.documents FOR INSERT WITH 
 
 --
 
+DROP POLICY IF EXISTS "Anyone can insert estimate items" ON public.estimate_items;
 CREATE POLICY "Anyone can insert estimate items" ON public.estimate_items FOR INSERT WITH CHECK (true);
 
 
@@ -1267,6 +1305,7 @@ CREATE POLICY "Anyone can insert estimate items" ON public.estimate_items FOR IN
 
 --
 
+DROP POLICY IF EXISTS "Anyone can insert estimates" ON public.estimates;
 CREATE POLICY "Anyone can insert estimates" ON public.estimates FOR INSERT WITH CHECK (true);
 
 
@@ -1275,6 +1314,7 @@ CREATE POLICY "Anyone can insert estimates" ON public.estimates FOR INSERT WITH 
 
 --
 
+DROP POLICY IF EXISTS "Anyone can insert invoice items" ON public.invoice_items;
 CREATE POLICY "Anyone can insert invoice items" ON public.invoice_items FOR INSERT WITH CHECK (true);
 
 
@@ -1283,6 +1323,7 @@ CREATE POLICY "Anyone can insert invoice items" ON public.invoice_items FOR INSE
 
 --
 
+DROP POLICY IF EXISTS "Anyone can insert invoices" ON public.invoices;
 CREATE POLICY "Anyone can insert invoices" ON public.invoices FOR INSERT WITH CHECK (true);
 
 
@@ -1291,6 +1332,7 @@ CREATE POLICY "Anyone can insert invoices" ON public.invoices FOR INSERT WITH CH
 
 --
 
+DROP POLICY IF EXISTS "Anyone can insert material receipts" ON public.material_receipts;
 CREATE POLICY "Anyone can insert material receipts" ON public.material_receipts FOR INSERT WITH CHECK (true);
 
 
@@ -1299,6 +1341,7 @@ CREATE POLICY "Anyone can insert material receipts" ON public.material_receipts 
 
 --
 
+DROP POLICY IF EXISTS "Anyone can insert project budgets" ON public.project_budgets;
 CREATE POLICY "Anyone can insert project budgets" ON public.project_budgets FOR INSERT WITH CHECK (true);
 
 
@@ -1307,6 +1350,7 @@ CREATE POLICY "Anyone can insert project budgets" ON public.project_budgets FOR 
 
 --
 
+DROP POLICY IF EXISTS "Anyone can insert project subcontracts" ON public.project_subcontracts;
 CREATE POLICY "Anyone can insert project subcontracts" ON public.project_subcontracts FOR INSERT WITH CHECK (true);
 
 
@@ -1315,6 +1359,7 @@ CREATE POLICY "Anyone can insert project subcontracts" ON public.project_subcont
 
 --
 
+DROP POLICY IF EXISTS "Anyone can insert proposal line groups" ON public.proposal_line_groups;
 CREATE POLICY "Anyone can insert proposal line groups" ON public.proposal_line_groups FOR INSERT WITH CHECK (true);
 
 
@@ -1323,6 +1368,7 @@ CREATE POLICY "Anyone can insert proposal line groups" ON public.proposal_line_g
 
 --
 
+DROP POLICY IF EXISTS "Anyone can insert proposal line overrides" ON public.proposal_line_overrides;
 CREATE POLICY "Anyone can insert proposal line overrides" ON public.proposal_line_overrides FOR INSERT WITH CHECK (true);
 
 
@@ -1331,6 +1377,7 @@ CREATE POLICY "Anyone can insert proposal line overrides" ON public.proposal_lin
 
 --
 
+DROP POLICY IF EXISTS "Anyone can insert proposal section items" ON public.proposal_section_items;
 CREATE POLICY "Anyone can insert proposal section items" ON public.proposal_section_items FOR INSERT WITH CHECK (true);
 
 
@@ -1339,6 +1386,7 @@ CREATE POLICY "Anyone can insert proposal section items" ON public.proposal_sect
 
 --
 
+DROP POLICY IF EXISTS "Anyone can insert proposal sections" ON public.proposal_sections;
 CREATE POLICY "Anyone can insert proposal sections" ON public.proposal_sections FOR INSERT WITH CHECK (true);
 
 
@@ -1347,6 +1395,7 @@ CREATE POLICY "Anyone can insert proposal sections" ON public.proposal_sections 
 
 --
 
+DROP POLICY IF EXISTS "Anyone can insert proposals" ON public.proposals;
 CREATE POLICY "Anyone can insert proposals" ON public.proposals FOR INSERT WITH CHECK (true);
 
 
@@ -1355,6 +1404,7 @@ CREATE POLICY "Anyone can insert proposals" ON public.proposals FOR INSERT WITH 
 
 --
 
+DROP POLICY IF EXISTS "Anyone can insert sub bids" ON public.sub_bids;
 CREATE POLICY "Anyone can insert sub bids" ON public.sub_bids FOR INSERT WITH CHECK (true);
 
 
@@ -1363,6 +1413,7 @@ CREATE POLICY "Anyone can insert sub bids" ON public.sub_bids FOR INSERT WITH CH
 
 --
 
+DROP POLICY IF EXISTS "Anyone can insert sub compliance" ON public.sub_compliance_documents;
 CREATE POLICY "Anyone can insert sub compliance" ON public.sub_compliance_documents FOR INSERT WITH CHECK (true);
 
 
@@ -1371,6 +1422,7 @@ CREATE POLICY "Anyone can insert sub compliance" ON public.sub_compliance_docume
 
 --
 
+DROP POLICY IF EXISTS "Anyone can insert sub contracts" ON public.sub_contracts;
 CREATE POLICY "Anyone can insert sub contracts" ON public.sub_contracts FOR INSERT WITH CHECK (true);
 
 
@@ -1379,6 +1431,7 @@ CREATE POLICY "Anyone can insert sub contracts" ON public.sub_contracts FOR INSE
 
 --
 
+DROP POLICY IF EXISTS "Anyone can insert sub invoices" ON public.sub_invoices;
 CREATE POLICY "Anyone can insert sub invoices" ON public.sub_invoices FOR INSERT WITH CHECK (true);
 
 
@@ -1387,6 +1440,7 @@ CREATE POLICY "Anyone can insert sub invoices" ON public.sub_invoices FOR INSERT
 
 --
 
+DROP POLICY IF EXISTS "Anyone can insert sub logs" ON public.sub_logs;
 CREATE POLICY "Anyone can insert sub logs" ON public.sub_logs FOR INSERT WITH CHECK (true);
 
 
@@ -1395,6 +1449,7 @@ CREATE POLICY "Anyone can insert sub logs" ON public.sub_logs FOR INSERT WITH CH
 
 --
 
+DROP POLICY IF EXISTS "Anyone can insert sub payments" ON public.sub_payments;
 CREATE POLICY "Anyone can insert sub payments" ON public.sub_payments FOR INSERT WITH CHECK (true);
 
 
@@ -1403,6 +1458,7 @@ CREATE POLICY "Anyone can insert sub payments" ON public.sub_payments FOR INSERT
 
 --
 
+DROP POLICY IF EXISTS "Anyone can insert sub schedules" ON public.sub_scheduled_shifts;
 CREATE POLICY "Anyone can insert sub schedules" ON public.sub_scheduled_shifts FOR INSERT WITH CHECK (true);
 
 
@@ -1411,6 +1467,7 @@ CREATE POLICY "Anyone can insert sub schedules" ON public.sub_scheduled_shifts F
 
 --
 
+DROP POLICY IF EXISTS "Anyone can insert subs" ON public.subs;
 CREATE POLICY "Anyone can insert subs" ON public.subs FOR INSERT WITH CHECK (true);
 
 
@@ -1419,6 +1476,7 @@ CREATE POLICY "Anyone can insert subs" ON public.subs FOR INSERT WITH CHECK (tru
 
 --
 
+DROP POLICY IF EXISTS "Anyone can insert time log allocations" ON public.time_log_allocations;
 CREATE POLICY "Anyone can insert time log allocations" ON public.time_log_allocations FOR INSERT WITH CHECK (true);
 
 
@@ -1427,6 +1485,7 @@ CREATE POLICY "Anyone can insert time log allocations" ON public.time_log_alloca
 
 --
 
+DROP POLICY IF EXISTS "Anyone can insert todos" ON public.project_todos;
 CREATE POLICY "Anyone can insert todos" ON public.project_todos FOR INSERT WITH CHECK (true);
 
 
@@ -1435,6 +1494,7 @@ CREATE POLICY "Anyone can insert todos" ON public.project_todos FOR INSERT WITH 
 
 --
 
+DROP POLICY IF EXISTS "Anyone can update bid invitations" ON public.bid_invitations;
 CREATE POLICY "Anyone can update bid invitations" ON public.bid_invitations FOR UPDATE USING (true);
 
 
@@ -1443,6 +1503,7 @@ CREATE POLICY "Anyone can update bid invitations" ON public.bid_invitations FOR 
 
 --
 
+DROP POLICY IF EXISTS "Anyone can update bid packages" ON public.bid_packages;
 CREATE POLICY "Anyone can update bid packages" ON public.bid_packages FOR UPDATE USING (true);
 
 
@@ -1451,6 +1512,7 @@ CREATE POLICY "Anyone can update bid packages" ON public.bid_packages FOR UPDATE
 
 --
 
+DROP POLICY IF EXISTS "Anyone can update budget lines" ON public.project_budget_lines;
 CREATE POLICY "Anyone can update budget lines" ON public.project_budget_lines FOR UPDATE USING (true);
 
 
@@ -1459,6 +1521,7 @@ CREATE POLICY "Anyone can update budget lines" ON public.project_budget_lines FO
 
 --
 
+DROP POLICY IF EXISTS "Anyone can update cost codes" ON public.cost_codes;
 CREATE POLICY "Anyone can update cost codes" ON public.cost_codes FOR UPDATE USING (true);
 
 
@@ -1467,6 +1530,7 @@ CREATE POLICY "Anyone can update cost codes" ON public.cost_codes FOR UPDATE USI
 
 --
 
+DROP POLICY IF EXISTS "Anyone can update day card jobs" ON public.day_card_jobs;
 CREATE POLICY "Anyone can update day card jobs" ON public.day_card_jobs FOR UPDATE USING (true);
 
 
@@ -1475,6 +1539,7 @@ CREATE POLICY "Anyone can update day card jobs" ON public.day_card_jobs FOR UPDA
 
 --
 
+DROP POLICY IF EXISTS "Anyone can update day cards" ON public.day_cards;
 CREATE POLICY "Anyone can update day cards" ON public.day_cards FOR UPDATE USING (true);
 
 
@@ -1483,6 +1548,7 @@ CREATE POLICY "Anyone can update day cards" ON public.day_cards FOR UPDATE USING
 
 --
 
+DROP POLICY IF EXISTS "Anyone can update documents" ON public.documents;
 CREATE POLICY "Anyone can update documents" ON public.documents FOR UPDATE USING (true);
 
 
@@ -1491,6 +1557,7 @@ CREATE POLICY "Anyone can update documents" ON public.documents FOR UPDATE USING
 
 --
 
+DROP POLICY IF EXISTS "Anyone can update estimate items" ON public.estimate_items;
 CREATE POLICY "Anyone can update estimate items" ON public.estimate_items FOR UPDATE USING (true);
 
 
@@ -1499,6 +1566,7 @@ CREATE POLICY "Anyone can update estimate items" ON public.estimate_items FOR UP
 
 --
 
+DROP POLICY IF EXISTS "Anyone can update estimates" ON public.estimates;
 CREATE POLICY "Anyone can update estimates" ON public.estimates FOR UPDATE USING (true);
 
 
@@ -1507,6 +1575,7 @@ CREATE POLICY "Anyone can update estimates" ON public.estimates FOR UPDATE USING
 
 --
 
+DROP POLICY IF EXISTS "Anyone can update invoice items" ON public.invoice_items;
 CREATE POLICY "Anyone can update invoice items" ON public.invoice_items FOR UPDATE USING (true);
 
 
@@ -1515,6 +1584,7 @@ CREATE POLICY "Anyone can update invoice items" ON public.invoice_items FOR UPDA
 
 --
 
+DROP POLICY IF EXISTS "Anyone can update invoices" ON public.invoices;
 CREATE POLICY "Anyone can update invoices" ON public.invoices FOR UPDATE USING (true);
 
 
@@ -1523,6 +1593,7 @@ CREATE POLICY "Anyone can update invoices" ON public.invoices FOR UPDATE USING (
 
 --
 
+DROP POLICY IF EXISTS "Anyone can update material receipts" ON public.material_receipts;
 CREATE POLICY "Anyone can update material receipts" ON public.material_receipts FOR UPDATE USING (true);
 
 
@@ -1531,6 +1602,7 @@ CREATE POLICY "Anyone can update material receipts" ON public.material_receipts 
 
 --
 
+DROP POLICY IF EXISTS "Anyone can update project budgets" ON public.project_budgets;
 CREATE POLICY "Anyone can update project budgets" ON public.project_budgets FOR UPDATE USING (true);
 
 
@@ -1539,6 +1611,7 @@ CREATE POLICY "Anyone can update project budgets" ON public.project_budgets FOR 
 
 --
 
+DROP POLICY IF EXISTS "Anyone can update project subcontracts" ON public.project_subcontracts;
 CREATE POLICY "Anyone can update project subcontracts" ON public.project_subcontracts FOR UPDATE USING (true);
 
 
@@ -1547,6 +1620,7 @@ CREATE POLICY "Anyone can update project subcontracts" ON public.project_subcont
 
 --
 
+DROP POLICY IF EXISTS "Anyone can update proposal line groups" ON public.proposal_line_groups;
 CREATE POLICY "Anyone can update proposal line groups" ON public.proposal_line_groups FOR UPDATE USING (true);
 
 
@@ -1555,6 +1629,7 @@ CREATE POLICY "Anyone can update proposal line groups" ON public.proposal_line_g
 
 --
 
+DROP POLICY IF EXISTS "Anyone can update proposal line overrides" ON public.proposal_line_overrides;
 CREATE POLICY "Anyone can update proposal line overrides" ON public.proposal_line_overrides FOR UPDATE USING (true);
 
 
@@ -1563,6 +1638,7 @@ CREATE POLICY "Anyone can update proposal line overrides" ON public.proposal_lin
 
 --
 
+DROP POLICY IF EXISTS "Anyone can update proposal section items" ON public.proposal_section_items;
 CREATE POLICY "Anyone can update proposal section items" ON public.proposal_section_items FOR UPDATE USING (true);
 
 
@@ -1571,6 +1647,7 @@ CREATE POLICY "Anyone can update proposal section items" ON public.proposal_sect
 
 --
 
+DROP POLICY IF EXISTS "Anyone can update proposal sections" ON public.proposal_sections;
 CREATE POLICY "Anyone can update proposal sections" ON public.proposal_sections FOR UPDATE USING (true);
 
 
@@ -1579,6 +1656,7 @@ CREATE POLICY "Anyone can update proposal sections" ON public.proposal_sections 
 
 --
 
+DROP POLICY IF EXISTS "Anyone can update proposals" ON public.proposals;
 CREATE POLICY "Anyone can update proposals" ON public.proposals FOR UPDATE USING (true);
 
 
@@ -1587,6 +1665,7 @@ CREATE POLICY "Anyone can update proposals" ON public.proposals FOR UPDATE USING
 
 --
 
+DROP POLICY IF EXISTS "Anyone can update sub bids" ON public.sub_bids;
 CREATE POLICY "Anyone can update sub bids" ON public.sub_bids FOR UPDATE USING (true);
 
 
@@ -1595,6 +1674,7 @@ CREATE POLICY "Anyone can update sub bids" ON public.sub_bids FOR UPDATE USING (
 
 --
 
+DROP POLICY IF EXISTS "Anyone can update sub compliance" ON public.sub_compliance_documents;
 CREATE POLICY "Anyone can update sub compliance" ON public.sub_compliance_documents FOR UPDATE USING (true);
 
 
@@ -1603,6 +1683,7 @@ CREATE POLICY "Anyone can update sub compliance" ON public.sub_compliance_docume
 
 --
 
+DROP POLICY IF EXISTS "Anyone can update sub contracts" ON public.sub_contracts;
 CREATE POLICY "Anyone can update sub contracts" ON public.sub_contracts FOR UPDATE USING (true);
 
 
@@ -1611,6 +1692,7 @@ CREATE POLICY "Anyone can update sub contracts" ON public.sub_contracts FOR UPDA
 
 --
 
+DROP POLICY IF EXISTS "Anyone can update sub invoices" ON public.sub_invoices;
 CREATE POLICY "Anyone can update sub invoices" ON public.sub_invoices FOR UPDATE USING (true);
 
 
@@ -1619,6 +1701,7 @@ CREATE POLICY "Anyone can update sub invoices" ON public.sub_invoices FOR UPDATE
 
 --
 
+DROP POLICY IF EXISTS "Anyone can update sub logs" ON public.sub_logs;
 CREATE POLICY "Anyone can update sub logs" ON public.sub_logs FOR UPDATE USING (true);
 
 
@@ -1627,6 +1710,7 @@ CREATE POLICY "Anyone can update sub logs" ON public.sub_logs FOR UPDATE USING (
 
 --
 
+DROP POLICY IF EXISTS "Anyone can update sub payments" ON public.sub_payments;
 CREATE POLICY "Anyone can update sub payments" ON public.sub_payments FOR UPDATE USING (true);
 
 
@@ -1635,6 +1719,7 @@ CREATE POLICY "Anyone can update sub payments" ON public.sub_payments FOR UPDATE
 
 --
 
+DROP POLICY IF EXISTS "Anyone can update sub schedules" ON public.sub_scheduled_shifts;
 CREATE POLICY "Anyone can update sub schedules" ON public.sub_scheduled_shifts FOR UPDATE USING (true);
 
 
@@ -1643,6 +1728,7 @@ CREATE POLICY "Anyone can update sub schedules" ON public.sub_scheduled_shifts F
 
 --
 
+DROP POLICY IF EXISTS "Anyone can update subs" ON public.subs;
 CREATE POLICY "Anyone can update subs" ON public.subs FOR UPDATE USING (true);
 
 
@@ -1651,6 +1737,7 @@ CREATE POLICY "Anyone can update subs" ON public.subs FOR UPDATE USING (true);
 
 --
 
+DROP POLICY IF EXISTS "Anyone can update time log allocations" ON public.time_log_allocations;
 CREATE POLICY "Anyone can update time log allocations" ON public.time_log_allocations FOR UPDATE USING (true);
 
 
@@ -1659,6 +1746,7 @@ CREATE POLICY "Anyone can update time log allocations" ON public.time_log_alloca
 
 --
 
+DROP POLICY IF EXISTS "Anyone can update todos" ON public.project_todos;
 CREATE POLICY "Anyone can update todos" ON public.project_todos FOR UPDATE USING (true);
 
 
@@ -1667,6 +1755,7 @@ CREATE POLICY "Anyone can update todos" ON public.project_todos FOR UPDATE USING
 
 --
 
+DROP POLICY IF EXISTS "Anyone can view activity log" ON public.activity_log;
 CREATE POLICY "Anyone can view activity log" ON public.activity_log FOR SELECT USING (true);
 
 
@@ -1675,6 +1764,7 @@ CREATE POLICY "Anyone can view activity log" ON public.activity_log FOR SELECT U
 
 --
 
+DROP POLICY IF EXISTS "Anyone can view bid invitations" ON public.bid_invitations;
 CREATE POLICY "Anyone can view bid invitations" ON public.bid_invitations FOR SELECT USING (true);
 
 
@@ -1683,6 +1773,7 @@ CREATE POLICY "Anyone can view bid invitations" ON public.bid_invitations FOR SE
 
 --
 
+DROP POLICY IF EXISTS "Anyone can view bid packages" ON public.bid_packages;
 CREATE POLICY "Anyone can view bid packages" ON public.bid_packages FOR SELECT USING (true);
 
 
@@ -1691,6 +1782,7 @@ CREATE POLICY "Anyone can view bid packages" ON public.bid_packages FOR SELECT U
 
 --
 
+DROP POLICY IF EXISTS "Anyone can view budget lines" ON public.project_budget_lines;
 CREATE POLICY "Anyone can view budget lines" ON public.project_budget_lines FOR SELECT USING (true);
 
 
@@ -1699,6 +1791,7 @@ CREATE POLICY "Anyone can view budget lines" ON public.project_budget_lines FOR 
 
 --
 
+DROP POLICY IF EXISTS "Anyone can view cost codes" ON public.cost_codes;
 CREATE POLICY "Anyone can view cost codes" ON public.cost_codes FOR SELECT USING (true);
 
 
@@ -1707,6 +1800,7 @@ CREATE POLICY "Anyone can view cost codes" ON public.cost_codes FOR SELECT USING
 
 --
 
+DROP POLICY IF EXISTS "Anyone can view day card jobs" ON public.day_card_jobs;
 CREATE POLICY "Anyone can view day card jobs" ON public.day_card_jobs FOR SELECT USING (true);
 
 
@@ -1715,6 +1809,7 @@ CREATE POLICY "Anyone can view day card jobs" ON public.day_card_jobs FOR SELECT
 
 --
 
+DROP POLICY IF EXISTS "Anyone can view day cards" ON public.day_cards;
 CREATE POLICY "Anyone can view day cards" ON public.day_cards FOR SELECT USING (true);
 
 
@@ -1723,6 +1818,7 @@ CREATE POLICY "Anyone can view day cards" ON public.day_cards FOR SELECT USING (
 
 --
 
+DROP POLICY IF EXISTS "Anyone can view documents" ON public.documents;
 CREATE POLICY "Anyone can view documents" ON public.documents FOR SELECT USING (true);
 
 
@@ -1731,6 +1827,7 @@ CREATE POLICY "Anyone can view documents" ON public.documents FOR SELECT USING (
 
 --
 
+DROP POLICY IF EXISTS "Anyone can view estimate items" ON public.estimate_items;
 CREATE POLICY "Anyone can view estimate items" ON public.estimate_items FOR SELECT USING (true);
 
 
@@ -1739,6 +1836,7 @@ CREATE POLICY "Anyone can view estimate items" ON public.estimate_items FOR SELE
 
 --
 
+DROP POLICY IF EXISTS "Anyone can view estimates" ON public.estimates;
 CREATE POLICY "Anyone can view estimates" ON public.estimates FOR SELECT USING (true);
 
 
@@ -1747,6 +1845,7 @@ CREATE POLICY "Anyone can view estimates" ON public.estimates FOR SELECT USING (
 
 --
 
+DROP POLICY IF EXISTS "Anyone can view invoice items" ON public.invoice_items;
 CREATE POLICY "Anyone can view invoice items" ON public.invoice_items FOR SELECT USING (true);
 
 
@@ -1755,6 +1854,7 @@ CREATE POLICY "Anyone can view invoice items" ON public.invoice_items FOR SELECT
 
 --
 
+DROP POLICY IF EXISTS "Anyone can view invoices" ON public.invoices;
 CREATE POLICY "Anyone can view invoices" ON public.invoices FOR SELECT USING (true);
 
 
@@ -1763,6 +1863,7 @@ CREATE POLICY "Anyone can view invoices" ON public.invoices FOR SELECT USING (tr
 
 --
 
+DROP POLICY IF EXISTS "Anyone can view material receipts" ON public.material_receipts;
 CREATE POLICY "Anyone can view material receipts" ON public.material_receipts FOR SELECT USING (true);
 
 
@@ -1771,6 +1872,7 @@ CREATE POLICY "Anyone can view material receipts" ON public.material_receipts FO
 
 --
 
+DROP POLICY IF EXISTS "Anyone can view project budgets" ON public.project_budgets;
 CREATE POLICY "Anyone can view project budgets" ON public.project_budgets FOR SELECT USING (true);
 
 
@@ -1779,6 +1881,7 @@ CREATE POLICY "Anyone can view project budgets" ON public.project_budgets FOR SE
 
 --
 
+DROP POLICY IF EXISTS "Anyone can view project subcontracts" ON public.project_subcontracts;
 CREATE POLICY "Anyone can view project subcontracts" ON public.project_subcontracts FOR SELECT USING (true);
 
 
@@ -1787,6 +1890,7 @@ CREATE POLICY "Anyone can view project subcontracts" ON public.project_subcontra
 
 --
 
+DROP POLICY IF EXISTS "Anyone can view proposal line groups" ON public.proposal_line_groups;
 CREATE POLICY "Anyone can view proposal line groups" ON public.proposal_line_groups FOR SELECT USING (true);
 
 
@@ -1795,6 +1899,7 @@ CREATE POLICY "Anyone can view proposal line groups" ON public.proposal_line_gro
 
 --
 
+DROP POLICY IF EXISTS "Anyone can view proposal line overrides" ON public.proposal_line_overrides;
 CREATE POLICY "Anyone can view proposal line overrides" ON public.proposal_line_overrides FOR SELECT USING (true);
 
 
@@ -1803,6 +1908,7 @@ CREATE POLICY "Anyone can view proposal line overrides" ON public.proposal_line_
 
 --
 
+DROP POLICY IF EXISTS "Anyone can view proposal section items" ON public.proposal_section_items;
 CREATE POLICY "Anyone can view proposal section items" ON public.proposal_section_items FOR SELECT USING (true);
 
 
@@ -1811,6 +1917,7 @@ CREATE POLICY "Anyone can view proposal section items" ON public.proposal_sectio
 
 --
 
+DROP POLICY IF EXISTS "Anyone can view proposal sections" ON public.proposal_sections;
 CREATE POLICY "Anyone can view proposal sections" ON public.proposal_sections FOR SELECT USING (true);
 
 
@@ -1819,6 +1926,7 @@ CREATE POLICY "Anyone can view proposal sections" ON public.proposal_sections FO
 
 --
 
+DROP POLICY IF EXISTS "Anyone can view proposals" ON public.proposals;
 CREATE POLICY "Anyone can view proposals" ON public.proposals FOR SELECT USING (true);
 
 
@@ -1827,6 +1935,7 @@ CREATE POLICY "Anyone can view proposals" ON public.proposals FOR SELECT USING (
 
 --
 
+DROP POLICY IF EXISTS "Anyone can view sub bids" ON public.sub_bids;
 CREATE POLICY "Anyone can view sub bids" ON public.sub_bids FOR SELECT USING (true);
 
 
@@ -1835,6 +1944,7 @@ CREATE POLICY "Anyone can view sub bids" ON public.sub_bids FOR SELECT USING (tr
 
 --
 
+DROP POLICY IF EXISTS "Anyone can view sub compliance" ON public.sub_compliance_documents;
 CREATE POLICY "Anyone can view sub compliance" ON public.sub_compliance_documents FOR SELECT USING (true);
 
 
@@ -1843,6 +1953,7 @@ CREATE POLICY "Anyone can view sub compliance" ON public.sub_compliance_document
 
 --
 
+DROP POLICY IF EXISTS "Anyone can view sub contracts" ON public.sub_contracts;
 CREATE POLICY "Anyone can view sub contracts" ON public.sub_contracts FOR SELECT USING (true);
 
 
@@ -1851,6 +1962,7 @@ CREATE POLICY "Anyone can view sub contracts" ON public.sub_contracts FOR SELECT
 
 --
 
+DROP POLICY IF EXISTS "Anyone can view sub invoices" ON public.sub_invoices;
 CREATE POLICY "Anyone can view sub invoices" ON public.sub_invoices FOR SELECT USING (true);
 
 
@@ -1859,6 +1971,7 @@ CREATE POLICY "Anyone can view sub invoices" ON public.sub_invoices FOR SELECT U
 
 --
 
+DROP POLICY IF EXISTS "Anyone can view sub logs" ON public.sub_logs;
 CREATE POLICY "Anyone can view sub logs" ON public.sub_logs FOR SELECT USING (true);
 
 
@@ -1867,6 +1980,7 @@ CREATE POLICY "Anyone can view sub logs" ON public.sub_logs FOR SELECT USING (tr
 
 --
 
+DROP POLICY IF EXISTS "Anyone can view sub payments" ON public.sub_payments;
 CREATE POLICY "Anyone can view sub payments" ON public.sub_payments FOR SELECT USING (true);
 
 
@@ -1875,6 +1989,7 @@ CREATE POLICY "Anyone can view sub payments" ON public.sub_payments FOR SELECT U
 
 --
 
+DROP POLICY IF EXISTS "Anyone can view sub schedules" ON public.sub_scheduled_shifts;
 CREATE POLICY "Anyone can view sub schedules" ON public.sub_scheduled_shifts FOR SELECT USING (true);
 
 
@@ -1883,6 +1998,7 @@ CREATE POLICY "Anyone can view sub schedules" ON public.sub_scheduled_shifts FOR
 
 --
 
+DROP POLICY IF EXISTS "Anyone can view subs" ON public.subs;
 CREATE POLICY "Anyone can view subs" ON public.subs FOR SELECT USING (true);
 
 
@@ -1891,6 +2007,7 @@ CREATE POLICY "Anyone can view subs" ON public.subs FOR SELECT USING (true);
 
 --
 
+DROP POLICY IF EXISTS "Anyone can view time log allocations" ON public.time_log_allocations;
 CREATE POLICY "Anyone can view time log allocations" ON public.time_log_allocations FOR SELECT USING (true);
 
 
@@ -1899,6 +2016,7 @@ CREATE POLICY "Anyone can view time log allocations" ON public.time_log_allocati
 
 --
 
+DROP POLICY IF EXISTS "Anyone can view todos" ON public.project_todos;
 CREATE POLICY "Anyone can view todos" ON public.project_todos FOR SELECT USING (true);
 
 
@@ -2129,6 +2247,7 @@ ALTER TABLE public.projects FORCE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS projects_select_policy ON public.projects;
 
+DROP POLICY IF EXISTS projects_select_policy ON public.projects;
 CREATE POLICY projects_select_policy ON public.projects
   FOR SELECT
   USING (public.is_company_member(company_id));
@@ -2313,7 +2432,6 @@ ALTER TABLE public.material_receipts FORCE ROW LEVEL SECURITY;
 -- Name: bid_invitations Anyone can delete bid invitations; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY "Anyone can delete bid invitations" ON public.bid_invitations FOR DELETE USING (true);
 
 
 --
@@ -2321,7 +2439,6 @@ CREATE POLICY "Anyone can delete bid invitations" ON public.bid_invitations FOR 
 
 --
 
-CREATE POLICY "Anyone can delete bid packages" ON public.bid_packages FOR DELETE USING (true);
 
 
 --
@@ -2329,7 +2446,6 @@ CREATE POLICY "Anyone can delete bid packages" ON public.bid_packages FOR DELETE
 
 --
 
-CREATE POLICY "Anyone can delete budget lines" ON public.project_budget_lines FOR DELETE USING (true);
 
 
 --
@@ -2337,7 +2453,6 @@ CREATE POLICY "Anyone can delete budget lines" ON public.project_budget_lines FO
 
 --
 
-CREATE POLICY "Anyone can delete cost codes" ON public.cost_codes FOR DELETE USING (true);
 
 
 --
@@ -2345,7 +2460,6 @@ CREATE POLICY "Anyone can delete cost codes" ON public.cost_codes FOR DELETE USI
 
 --
 
-CREATE POLICY "Anyone can delete day card jobs" ON public.day_card_jobs FOR DELETE USING (true);
 
 
 --
@@ -2353,7 +2467,6 @@ CREATE POLICY "Anyone can delete day card jobs" ON public.day_card_jobs FOR DELE
 
 --
 
-CREATE POLICY "Anyone can delete day cards" ON public.day_cards FOR DELETE USING (true);
 
 
 --
@@ -2361,7 +2474,6 @@ CREATE POLICY "Anyone can delete day cards" ON public.day_cards FOR DELETE USING
 
 --
 
-CREATE POLICY "Anyone can delete documents" ON public.documents FOR DELETE USING (true);
 
 
 --
@@ -2369,7 +2481,6 @@ CREATE POLICY "Anyone can delete documents" ON public.documents FOR DELETE USING
 
 --
 
-CREATE POLICY "Anyone can delete estimate items" ON public.estimate_items FOR DELETE USING (true);
 
 
 --
@@ -2377,7 +2488,6 @@ CREATE POLICY "Anyone can delete estimate items" ON public.estimate_items FOR DE
 
 --
 
-CREATE POLICY "Anyone can delete estimates" ON public.estimates FOR DELETE USING (true);
 
 
 --
@@ -2385,7 +2495,6 @@ CREATE POLICY "Anyone can delete estimates" ON public.estimates FOR DELETE USING
 
 --
 
-CREATE POLICY "Anyone can delete invoice items" ON public.invoice_items FOR DELETE USING (true);
 
 
 --
@@ -2393,7 +2502,6 @@ CREATE POLICY "Anyone can delete invoice items" ON public.invoice_items FOR DELE
 
 --
 
-CREATE POLICY "Anyone can delete invoices" ON public.invoices FOR DELETE USING (true);
 
 
 --
@@ -2401,7 +2509,6 @@ CREATE POLICY "Anyone can delete invoices" ON public.invoices FOR DELETE USING (
 
 --
 
-CREATE POLICY "Anyone can delete material receipts" ON public.material_receipts FOR DELETE USING (true);
 
 
 --
@@ -2409,7 +2516,6 @@ CREATE POLICY "Anyone can delete material receipts" ON public.material_receipts 
 
 --
 
-CREATE POLICY "Anyone can delete project budgets" ON public.project_budgets FOR DELETE USING (true);
 
 
 --
@@ -2417,7 +2523,6 @@ CREATE POLICY "Anyone can delete project budgets" ON public.project_budgets FOR 
 
 --
 
-CREATE POLICY "Anyone can delete project subcontracts" ON public.project_subcontracts FOR DELETE USING (true);
 
 
 --
@@ -2425,7 +2530,6 @@ CREATE POLICY "Anyone can delete project subcontracts" ON public.project_subcont
 
 --
 
-CREATE POLICY "Anyone can delete proposal line groups" ON public.proposal_line_groups FOR DELETE USING (true);
 
 
 --
@@ -2433,7 +2537,6 @@ CREATE POLICY "Anyone can delete proposal line groups" ON public.proposal_line_g
 
 --
 
-CREATE POLICY "Anyone can delete proposal line overrides" ON public.proposal_line_overrides FOR DELETE USING (true);
 
 
 --
@@ -2441,7 +2544,6 @@ CREATE POLICY "Anyone can delete proposal line overrides" ON public.proposal_lin
 
 --
 
-CREATE POLICY "Anyone can delete proposal section items" ON public.proposal_section_items FOR DELETE USING (true);
 
 
 --
@@ -2449,7 +2551,6 @@ CREATE POLICY "Anyone can delete proposal section items" ON public.proposal_sect
 
 --
 
-CREATE POLICY "Anyone can delete proposal sections" ON public.proposal_sections FOR DELETE USING (true);
 
 
 --
@@ -2457,7 +2558,6 @@ CREATE POLICY "Anyone can delete proposal sections" ON public.proposal_sections 
 
 --
 
-CREATE POLICY "Anyone can delete proposals" ON public.proposals FOR DELETE USING (true);
 
 
 --
@@ -2465,7 +2565,6 @@ CREATE POLICY "Anyone can delete proposals" ON public.proposals FOR DELETE USING
 
 --
 
-CREATE POLICY "Anyone can delete sub bids" ON public.sub_bids FOR DELETE USING (true);
 
 
 --
@@ -2473,7 +2572,6 @@ CREATE POLICY "Anyone can delete sub bids" ON public.sub_bids FOR DELETE USING (
 
 --
 
-CREATE POLICY "Anyone can delete sub compliance" ON public.sub_compliance_documents FOR DELETE USING (true);
 
 
 --
@@ -2481,7 +2579,6 @@ CREATE POLICY "Anyone can delete sub compliance" ON public.sub_compliance_docume
 
 --
 
-CREATE POLICY "Anyone can delete sub contracts" ON public.sub_contracts FOR DELETE USING (true);
 
 
 --
@@ -2489,7 +2586,6 @@ CREATE POLICY "Anyone can delete sub contracts" ON public.sub_contracts FOR DELE
 
 --
 
-CREATE POLICY "Anyone can delete sub invoices" ON public.sub_invoices FOR DELETE USING (true);
 
 
 --
@@ -2497,7 +2593,6 @@ CREATE POLICY "Anyone can delete sub invoices" ON public.sub_invoices FOR DELETE
 
 --
 
-CREATE POLICY "Anyone can delete sub logs" ON public.sub_logs FOR DELETE USING (true);
 
 
 --
@@ -2505,7 +2600,6 @@ CREATE POLICY "Anyone can delete sub logs" ON public.sub_logs FOR DELETE USING (
 
 --
 
-CREATE POLICY "Anyone can delete sub payments" ON public.sub_payments FOR DELETE USING (true);
 
 
 --
@@ -2513,7 +2607,6 @@ CREATE POLICY "Anyone can delete sub payments" ON public.sub_payments FOR DELETE
 
 --
 
-CREATE POLICY "Anyone can delete sub schedules" ON public.sub_scheduled_shifts FOR DELETE USING (true);
 
 
 --
@@ -2521,7 +2614,6 @@ CREATE POLICY "Anyone can delete sub schedules" ON public.sub_scheduled_shifts F
 
 --
 
-CREATE POLICY "Anyone can delete subs" ON public.subs FOR DELETE USING (true);
 
 
 --
@@ -2529,7 +2621,6 @@ CREATE POLICY "Anyone can delete subs" ON public.subs FOR DELETE USING (true);
 
 --
 
-CREATE POLICY "Anyone can delete time log allocations" ON public.time_log_allocations FOR DELETE USING (true);
 
 
 --
@@ -2537,7 +2628,6 @@ CREATE POLICY "Anyone can delete time log allocations" ON public.time_log_alloca
 
 --
 
-CREATE POLICY "Anyone can delete todos" ON public.project_todos FOR DELETE USING (true);
 
 
 --
@@ -2545,7 +2635,6 @@ CREATE POLICY "Anyone can delete todos" ON public.project_todos FOR DELETE USING
 
 --
 
-CREATE POLICY "Anyone can insert activity log" ON public.activity_log FOR INSERT WITH CHECK (true);
 
 
 --
@@ -2553,7 +2642,6 @@ CREATE POLICY "Anyone can insert activity log" ON public.activity_log FOR INSERT
 
 --
 
-CREATE POLICY "Anyone can insert bid invitations" ON public.bid_invitations FOR INSERT WITH CHECK (true);
 
 
 --
@@ -2561,7 +2649,6 @@ CREATE POLICY "Anyone can insert bid invitations" ON public.bid_invitations FOR 
 
 --
 
-CREATE POLICY "Anyone can insert bid packages" ON public.bid_packages FOR INSERT WITH CHECK (true);
 
 
 --
@@ -2569,7 +2656,6 @@ CREATE POLICY "Anyone can insert bid packages" ON public.bid_packages FOR INSERT
 
 --
 
-CREATE POLICY "Anyone can insert budget lines" ON public.project_budget_lines FOR INSERT WITH CHECK (true);
 
 
 --
@@ -2577,7 +2663,6 @@ CREATE POLICY "Anyone can insert budget lines" ON public.project_budget_lines FO
 
 --
 
-CREATE POLICY "Anyone can insert cost codes" ON public.cost_codes FOR INSERT WITH CHECK (true);
 
 
 --
@@ -2585,7 +2670,6 @@ CREATE POLICY "Anyone can insert cost codes" ON public.cost_codes FOR INSERT WIT
 
 --
 
-CREATE POLICY "Anyone can insert day card jobs" ON public.day_card_jobs FOR INSERT WITH CHECK (true);
 
 
 --
@@ -2593,7 +2677,6 @@ CREATE POLICY "Anyone can insert day card jobs" ON public.day_card_jobs FOR INSE
 
 --
 
-CREATE POLICY "Anyone can insert day cards" ON public.day_cards FOR INSERT WITH CHECK (true);
 
 
 --
@@ -2601,7 +2684,6 @@ CREATE POLICY "Anyone can insert day cards" ON public.day_cards FOR INSERT WITH 
 
 --
 
-CREATE POLICY "Anyone can insert documents" ON public.documents FOR INSERT WITH CHECK (true);
 
 
 --
@@ -2609,7 +2691,6 @@ CREATE POLICY "Anyone can insert documents" ON public.documents FOR INSERT WITH 
 
 --
 
-CREATE POLICY "Anyone can insert estimate items" ON public.estimate_items FOR INSERT WITH CHECK (true);
 
 
 --
@@ -2617,7 +2698,6 @@ CREATE POLICY "Anyone can insert estimate items" ON public.estimate_items FOR IN
 
 --
 
-CREATE POLICY "Anyone can insert estimates" ON public.estimates FOR INSERT WITH CHECK (true);
 
 
 --
@@ -2625,7 +2705,6 @@ CREATE POLICY "Anyone can insert estimates" ON public.estimates FOR INSERT WITH 
 
 --
 
-CREATE POLICY "Anyone can insert invoice items" ON public.invoice_items FOR INSERT WITH CHECK (true);
 
 
 --
@@ -2633,7 +2712,6 @@ CREATE POLICY "Anyone can insert invoice items" ON public.invoice_items FOR INSE
 
 --
 
-CREATE POLICY "Anyone can insert invoices" ON public.invoices FOR INSERT WITH CHECK (true);
 
 
 --
@@ -2641,7 +2719,6 @@ CREATE POLICY "Anyone can insert invoices" ON public.invoices FOR INSERT WITH CH
 
 --
 
-CREATE POLICY "Anyone can insert material receipts" ON public.material_receipts FOR INSERT WITH CHECK (true);
 
 
 --
@@ -2649,7 +2726,6 @@ CREATE POLICY "Anyone can insert material receipts" ON public.material_receipts 
 
 --
 
-CREATE POLICY "Anyone can insert project budgets" ON public.project_budgets FOR INSERT WITH CHECK (true);
 
 
 --
@@ -2657,7 +2733,6 @@ CREATE POLICY "Anyone can insert project budgets" ON public.project_budgets FOR 
 
 --
 
-CREATE POLICY "Anyone can insert project subcontracts" ON public.project_subcontracts FOR INSERT WITH CHECK (true);
 
 
 --
@@ -2665,7 +2740,6 @@ CREATE POLICY "Anyone can insert project subcontracts" ON public.project_subcont
 
 --
 
-CREATE POLICY "Anyone can insert proposal line groups" ON public.proposal_line_groups FOR INSERT WITH CHECK (true);
 
 
 --
@@ -2673,7 +2747,6 @@ CREATE POLICY "Anyone can insert proposal line groups" ON public.proposal_line_g
 
 --
 
-CREATE POLICY "Anyone can insert proposal line overrides" ON public.proposal_line_overrides FOR INSERT WITH CHECK (true);
 
 
 --
@@ -2681,7 +2754,6 @@ CREATE POLICY "Anyone can insert proposal line overrides" ON public.proposal_lin
 
 --
 
-CREATE POLICY "Anyone can insert proposal section items" ON public.proposal_section_items FOR INSERT WITH CHECK (true);
 
 
 --
@@ -2689,7 +2761,6 @@ CREATE POLICY "Anyone can insert proposal section items" ON public.proposal_sect
 
 --
 
-CREATE POLICY "Anyone can insert proposal sections" ON public.proposal_sections FOR INSERT WITH CHECK (true);
 
 
 --
@@ -2697,7 +2768,6 @@ CREATE POLICY "Anyone can insert proposal sections" ON public.proposal_sections 
 
 --
 
-CREATE POLICY "Anyone can insert proposals" ON public.proposals FOR INSERT WITH CHECK (true);
 
 
 --
@@ -2705,7 +2775,6 @@ CREATE POLICY "Anyone can insert proposals" ON public.proposals FOR INSERT WITH 
 
 --
 
-CREATE POLICY "Anyone can insert sub bids" ON public.sub_bids FOR INSERT WITH CHECK (true);
 
 
 --
@@ -2713,7 +2782,6 @@ CREATE POLICY "Anyone can insert sub bids" ON public.sub_bids FOR INSERT WITH CH
 
 --
 
-CREATE POLICY "Anyone can insert sub compliance" ON public.sub_compliance_documents FOR INSERT WITH CHECK (true);
 
 
 --
@@ -2721,7 +2789,6 @@ CREATE POLICY "Anyone can insert sub compliance" ON public.sub_compliance_docume
 
 --
 
-CREATE POLICY "Anyone can insert sub contracts" ON public.sub_contracts FOR INSERT WITH CHECK (true);
 
 
 --
@@ -2729,7 +2796,6 @@ CREATE POLICY "Anyone can insert sub contracts" ON public.sub_contracts FOR INSE
 
 --
 
-CREATE POLICY "Anyone can insert sub invoices" ON public.sub_invoices FOR INSERT WITH CHECK (true);
 
 
 --
@@ -2737,7 +2803,6 @@ CREATE POLICY "Anyone can insert sub invoices" ON public.sub_invoices FOR INSERT
 
 --
 
-CREATE POLICY "Anyone can insert sub logs" ON public.sub_logs FOR INSERT WITH CHECK (true);
 
 
 --
@@ -2745,7 +2810,6 @@ CREATE POLICY "Anyone can insert sub logs" ON public.sub_logs FOR INSERT WITH CH
 
 --
 
-CREATE POLICY "Anyone can insert sub payments" ON public.sub_payments FOR INSERT WITH CHECK (true);
 
 
 --
@@ -2753,7 +2817,6 @@ CREATE POLICY "Anyone can insert sub payments" ON public.sub_payments FOR INSERT
 
 --
 
-CREATE POLICY "Anyone can insert sub schedules" ON public.sub_scheduled_shifts FOR INSERT WITH CHECK (true);
 
 
 --
@@ -2761,7 +2824,6 @@ CREATE POLICY "Anyone can insert sub schedules" ON public.sub_scheduled_shifts F
 
 --
 
-CREATE POLICY "Anyone can insert subs" ON public.subs FOR INSERT WITH CHECK (true);
 
 
 --
@@ -2769,7 +2831,6 @@ CREATE POLICY "Anyone can insert subs" ON public.subs FOR INSERT WITH CHECK (tru
 
 --
 
-CREATE POLICY "Anyone can insert time log allocations" ON public.time_log_allocations FOR INSERT WITH CHECK (true);
 
 
 --
@@ -2777,7 +2838,6 @@ CREATE POLICY "Anyone can insert time log allocations" ON public.time_log_alloca
 
 --
 
-CREATE POLICY "Anyone can insert todos" ON public.project_todos FOR INSERT WITH CHECK (true);
 
 
 --
@@ -2785,7 +2845,6 @@ CREATE POLICY "Anyone can insert todos" ON public.project_todos FOR INSERT WITH 
 
 --
 
-CREATE POLICY "Anyone can update bid invitations" ON public.bid_invitations FOR UPDATE USING (true);
 
 
 --
@@ -2793,7 +2852,6 @@ CREATE POLICY "Anyone can update bid invitations" ON public.bid_invitations FOR 
 
 --
 
-CREATE POLICY "Anyone can update bid packages" ON public.bid_packages FOR UPDATE USING (true);
 
 
 --
@@ -2801,7 +2859,6 @@ CREATE POLICY "Anyone can update bid packages" ON public.bid_packages FOR UPDATE
 
 --
 
-CREATE POLICY "Anyone can update budget lines" ON public.project_budget_lines FOR UPDATE USING (true);
 
 
 --
@@ -2809,7 +2866,6 @@ CREATE POLICY "Anyone can update budget lines" ON public.project_budget_lines FO
 
 --
 
-CREATE POLICY "Anyone can update cost codes" ON public.cost_codes FOR UPDATE USING (true);
 
 
 --
@@ -2817,7 +2873,6 @@ CREATE POLICY "Anyone can update cost codes" ON public.cost_codes FOR UPDATE USI
 
 --
 
-CREATE POLICY "Anyone can update day card jobs" ON public.day_card_jobs FOR UPDATE USING (true);
 
 
 --
@@ -2825,7 +2880,6 @@ CREATE POLICY "Anyone can update day card jobs" ON public.day_card_jobs FOR UPDA
 
 --
 
-CREATE POLICY "Anyone can update day cards" ON public.day_cards FOR UPDATE USING (true);
 
 
 --
@@ -2833,7 +2887,6 @@ CREATE POLICY "Anyone can update day cards" ON public.day_cards FOR UPDATE USING
 
 --
 
-CREATE POLICY "Anyone can update documents" ON public.documents FOR UPDATE USING (true);
 
 
 --
@@ -2841,7 +2894,6 @@ CREATE POLICY "Anyone can update documents" ON public.documents FOR UPDATE USING
 
 --
 
-CREATE POLICY "Anyone can update estimate items" ON public.estimate_items FOR UPDATE USING (true);
 
 
 --
@@ -2849,7 +2901,6 @@ CREATE POLICY "Anyone can update estimate items" ON public.estimate_items FOR UP
 
 --
 
-CREATE POLICY "Anyone can update estimates" ON public.estimates FOR UPDATE USING (true);
 
 
 --
@@ -2857,7 +2908,6 @@ CREATE POLICY "Anyone can update estimates" ON public.estimates FOR UPDATE USING
 
 --
 
-CREATE POLICY "Anyone can update invoice items" ON public.invoice_items FOR UPDATE USING (true);
 
 
 --
@@ -2865,7 +2915,6 @@ CREATE POLICY "Anyone can update invoice items" ON public.invoice_items FOR UPDA
 
 --
 
-CREATE POLICY "Anyone can update invoices" ON public.invoices FOR UPDATE USING (true);
 
 
 --
@@ -2873,7 +2922,6 @@ CREATE POLICY "Anyone can update invoices" ON public.invoices FOR UPDATE USING (
 
 --
 
-CREATE POLICY "Anyone can update material receipts" ON public.material_receipts FOR UPDATE USING (true);
 
 
 --
@@ -2881,7 +2929,6 @@ CREATE POLICY "Anyone can update material receipts" ON public.material_receipts 
 
 --
 
-CREATE POLICY "Anyone can update project budgets" ON public.project_budgets FOR UPDATE USING (true);
 
 
 --
@@ -2889,7 +2936,6 @@ CREATE POLICY "Anyone can update project budgets" ON public.project_budgets FOR 
 
 --
 
-CREATE POLICY "Anyone can update project subcontracts" ON public.project_subcontracts FOR UPDATE USING (true);
 
 
 --
@@ -2897,7 +2943,6 @@ CREATE POLICY "Anyone can update project subcontracts" ON public.project_subcont
 
 --
 
-CREATE POLICY "Anyone can update proposal line groups" ON public.proposal_line_groups FOR UPDATE USING (true);
 
 
 --
@@ -2905,7 +2950,6 @@ CREATE POLICY "Anyone can update proposal line groups" ON public.proposal_line_g
 
 --
 
-CREATE POLICY "Anyone can update proposal line overrides" ON public.proposal_line_overrides FOR UPDATE USING (true);
 
 
 --
@@ -2913,7 +2957,6 @@ CREATE POLICY "Anyone can update proposal line overrides" ON public.proposal_lin
 
 --
 
-CREATE POLICY "Anyone can update proposal section items" ON public.proposal_section_items FOR UPDATE USING (true);
 
 
 --
@@ -2921,7 +2964,6 @@ CREATE POLICY "Anyone can update proposal section items" ON public.proposal_sect
 
 --
 
-CREATE POLICY "Anyone can update proposal sections" ON public.proposal_sections FOR UPDATE USING (true);
 
 
 --
@@ -2929,7 +2971,6 @@ CREATE POLICY "Anyone can update proposal sections" ON public.proposal_sections 
 
 --
 
-CREATE POLICY "Anyone can update proposals" ON public.proposals FOR UPDATE USING (true);
 
 
 --
@@ -2937,7 +2978,6 @@ CREATE POLICY "Anyone can update proposals" ON public.proposals FOR UPDATE USING
 
 --
 
-CREATE POLICY "Anyone can update sub bids" ON public.sub_bids FOR UPDATE USING (true);
 
 
 --
@@ -2945,7 +2985,6 @@ CREATE POLICY "Anyone can update sub bids" ON public.sub_bids FOR UPDATE USING (
 
 --
 
-CREATE POLICY "Anyone can update sub compliance" ON public.sub_compliance_documents FOR UPDATE USING (true);
 
 
 --
@@ -2953,7 +2992,6 @@ CREATE POLICY "Anyone can update sub compliance" ON public.sub_compliance_docume
 
 --
 
-CREATE POLICY "Anyone can update sub contracts" ON public.sub_contracts FOR UPDATE USING (true);
 
 
 --
@@ -2961,7 +2999,6 @@ CREATE POLICY "Anyone can update sub contracts" ON public.sub_contracts FOR UPDA
 
 --
 
-CREATE POLICY "Anyone can update sub invoices" ON public.sub_invoices FOR UPDATE USING (true);
 
 
 --
@@ -2969,7 +3006,6 @@ CREATE POLICY "Anyone can update sub invoices" ON public.sub_invoices FOR UPDATE
 
 --
 
-CREATE POLICY "Anyone can update sub logs" ON public.sub_logs FOR UPDATE USING (true);
 
 
 --
@@ -2977,7 +3013,6 @@ CREATE POLICY "Anyone can update sub logs" ON public.sub_logs FOR UPDATE USING (
 
 --
 
-CREATE POLICY "Anyone can update sub payments" ON public.sub_payments FOR UPDATE USING (true);
 
 
 --
@@ -2985,7 +3020,6 @@ CREATE POLICY "Anyone can update sub payments" ON public.sub_payments FOR UPDATE
 
 --
 
-CREATE POLICY "Anyone can update sub schedules" ON public.sub_scheduled_shifts FOR UPDATE USING (true);
 
 
 --
@@ -2993,7 +3027,6 @@ CREATE POLICY "Anyone can update sub schedules" ON public.sub_scheduled_shifts F
 
 --
 
-CREATE POLICY "Anyone can update subs" ON public.subs FOR UPDATE USING (true);
 
 
 --
@@ -3001,7 +3034,6 @@ CREATE POLICY "Anyone can update subs" ON public.subs FOR UPDATE USING (true);
 
 --
 
-CREATE POLICY "Anyone can update time log allocations" ON public.time_log_allocations FOR UPDATE USING (true);
 
 
 --
@@ -3009,7 +3041,6 @@ CREATE POLICY "Anyone can update time log allocations" ON public.time_log_alloca
 
 --
 
-CREATE POLICY "Anyone can update todos" ON public.project_todos FOR UPDATE USING (true);
 
 
 --
@@ -3017,7 +3048,6 @@ CREATE POLICY "Anyone can update todos" ON public.project_todos FOR UPDATE USING
 
 --
 
-CREATE POLICY "Anyone can view activity log" ON public.activity_log FOR SELECT USING (true);
 
 
 --
@@ -3025,7 +3055,6 @@ CREATE POLICY "Anyone can view activity log" ON public.activity_log FOR SELECT U
 
 --
 
-CREATE POLICY "Anyone can view bid invitations" ON public.bid_invitations FOR SELECT USING (true);
 
 
 --
@@ -3033,7 +3062,6 @@ CREATE POLICY "Anyone can view bid invitations" ON public.bid_invitations FOR SE
 
 --
 
-CREATE POLICY "Anyone can view bid packages" ON public.bid_packages FOR SELECT USING (true);
 
 
 --
@@ -3041,7 +3069,6 @@ CREATE POLICY "Anyone can view bid packages" ON public.bid_packages FOR SELECT U
 
 --
 
-CREATE POLICY "Anyone can view budget lines" ON public.project_budget_lines FOR SELECT USING (true);
 
 
 --
@@ -3049,7 +3076,6 @@ CREATE POLICY "Anyone can view budget lines" ON public.project_budget_lines FOR 
 
 --
 
-CREATE POLICY "Anyone can view cost codes" ON public.cost_codes FOR SELECT USING (true);
 
 
 --
@@ -3057,7 +3083,6 @@ CREATE POLICY "Anyone can view cost codes" ON public.cost_codes FOR SELECT USING
 
 --
 
-CREATE POLICY "Anyone can view day card jobs" ON public.day_card_jobs FOR SELECT USING (true);
 
 
 --
@@ -3065,7 +3090,6 @@ CREATE POLICY "Anyone can view day card jobs" ON public.day_card_jobs FOR SELECT
 
 --
 
-CREATE POLICY "Anyone can view day cards" ON public.day_cards FOR SELECT USING (true);
 
 
 --
@@ -3073,7 +3097,6 @@ CREATE POLICY "Anyone can view day cards" ON public.day_cards FOR SELECT USING (
 
 --
 
-CREATE POLICY "Anyone can view documents" ON public.documents FOR SELECT USING (true);
 
 
 --
@@ -3081,7 +3104,6 @@ CREATE POLICY "Anyone can view documents" ON public.documents FOR SELECT USING (
 
 --
 
-CREATE POLICY "Anyone can view estimate items" ON public.estimate_items FOR SELECT USING (true);
 
 
 --
@@ -3089,7 +3111,6 @@ CREATE POLICY "Anyone can view estimate items" ON public.estimate_items FOR SELE
 
 --
 
-CREATE POLICY "Anyone can view estimates" ON public.estimates FOR SELECT USING (true);
 
 
 --
@@ -3097,7 +3118,6 @@ CREATE POLICY "Anyone can view estimates" ON public.estimates FOR SELECT USING (
 
 --
 
-CREATE POLICY "Anyone can view invoice items" ON public.invoice_items FOR SELECT USING (true);
 
 
 --
@@ -3105,7 +3125,6 @@ CREATE POLICY "Anyone can view invoice items" ON public.invoice_items FOR SELECT
 
 --
 
-CREATE POLICY "Anyone can view invoices" ON public.invoices FOR SELECT USING (true);
 
 
 --
@@ -3113,7 +3132,6 @@ CREATE POLICY "Anyone can view invoices" ON public.invoices FOR SELECT USING (tr
 
 --
 
-CREATE POLICY "Anyone can view material receipts" ON public.material_receipts FOR SELECT USING (true);
 
 
 --
@@ -3121,7 +3139,6 @@ CREATE POLICY "Anyone can view material receipts" ON public.material_receipts FO
 
 --
 
-CREATE POLICY "Anyone can view project budgets" ON public.project_budgets FOR SELECT USING (true);
 
 
 --
@@ -3129,7 +3146,6 @@ CREATE POLICY "Anyone can view project budgets" ON public.project_budgets FOR SE
 
 --
 
-CREATE POLICY "Anyone can view project subcontracts" ON public.project_subcontracts FOR SELECT USING (true);
 
 
 --
@@ -3137,7 +3153,6 @@ CREATE POLICY "Anyone can view project subcontracts" ON public.project_subcontra
 
 --
 
-CREATE POLICY "Anyone can view proposal line groups" ON public.proposal_line_groups FOR SELECT USING (true);
 
 
 --
@@ -3145,7 +3160,6 @@ CREATE POLICY "Anyone can view proposal line groups" ON public.proposal_line_gro
 
 --
 
-CREATE POLICY "Anyone can view proposal line overrides" ON public.proposal_line_overrides FOR SELECT USING (true);
 
 
 --
@@ -3153,7 +3167,6 @@ CREATE POLICY "Anyone can view proposal line overrides" ON public.proposal_line_
 
 --
 
-CREATE POLICY "Anyone can view proposal section items" ON public.proposal_section_items FOR SELECT USING (true);
 
 
 --
@@ -3161,7 +3174,6 @@ CREATE POLICY "Anyone can view proposal section items" ON public.proposal_sectio
 
 --
 
-CREATE POLICY "Anyone can view proposal sections" ON public.proposal_sections FOR SELECT USING (true);
 
 
 --
@@ -3169,7 +3181,6 @@ CREATE POLICY "Anyone can view proposal sections" ON public.proposal_sections FO
 
 --
 
-CREATE POLICY "Anyone can view proposals" ON public.proposals FOR SELECT USING (true);
 
 
 --
@@ -3177,7 +3188,6 @@ CREATE POLICY "Anyone can view proposals" ON public.proposals FOR SELECT USING (
 
 --
 
-CREATE POLICY "Anyone can view sub bids" ON public.sub_bids FOR SELECT USING (true);
 
 
 --
@@ -3185,7 +3195,6 @@ CREATE POLICY "Anyone can view sub bids" ON public.sub_bids FOR SELECT USING (tr
 
 --
 
-CREATE POLICY "Anyone can view sub compliance" ON public.sub_compliance_documents FOR SELECT USING (true);
 
 
 --
@@ -3193,7 +3202,6 @@ CREATE POLICY "Anyone can view sub compliance" ON public.sub_compliance_document
 
 --
 
-CREATE POLICY "Anyone can view sub contracts" ON public.sub_contracts FOR SELECT USING (true);
 
 
 --
@@ -3201,7 +3209,6 @@ CREATE POLICY "Anyone can view sub contracts" ON public.sub_contracts FOR SELECT
 
 --
 
-CREATE POLICY "Anyone can view sub invoices" ON public.sub_invoices FOR SELECT USING (true);
 
 
 --
@@ -3209,7 +3216,6 @@ CREATE POLICY "Anyone can view sub invoices" ON public.sub_invoices FOR SELECT U
 
 --
 
-CREATE POLICY "Anyone can view sub logs" ON public.sub_logs FOR SELECT USING (true);
 
 
 --
@@ -3217,7 +3223,6 @@ CREATE POLICY "Anyone can view sub logs" ON public.sub_logs FOR SELECT USING (tr
 
 --
 
-CREATE POLICY "Anyone can view sub payments" ON public.sub_payments FOR SELECT USING (true);
 
 
 --
@@ -3225,7 +3230,6 @@ CREATE POLICY "Anyone can view sub payments" ON public.sub_payments FOR SELECT U
 
 --
 
-CREATE POLICY "Anyone can view sub schedules" ON public.sub_scheduled_shifts FOR SELECT USING (true);
 
 
 --
@@ -3233,7 +3237,6 @@ CREATE POLICY "Anyone can view sub schedules" ON public.sub_scheduled_shifts FOR
 
 --
 
-CREATE POLICY "Anyone can view subs" ON public.subs FOR SELECT USING (true);
 
 
 --
@@ -3241,7 +3244,6 @@ CREATE POLICY "Anyone can view subs" ON public.subs FOR SELECT USING (true);
 
 --
 
-CREATE POLICY "Anyone can view time log allocations" ON public.time_log_allocations FOR SELECT USING (true);
 
 
 --
@@ -3249,7 +3251,6 @@ CREATE POLICY "Anyone can view time log allocations" ON public.time_log_allocati
 
 --
 
-CREATE POLICY "Anyone can view todos" ON public.project_todos FOR SELECT USING (true);
 
 
 --

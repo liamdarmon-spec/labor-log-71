@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import type { TimeLogAllocation } from '@/types/dayCard';
+import { useCompany } from '@/company/CompanyProvider';
 
 /**
  * Fetch allocations for a day card
@@ -35,12 +36,14 @@ export function useTimeLogAllocations(dayCardId?: string) {
  */
 export function useCreateAllocation() {
   const queryClient = useQueryClient();
+  const { activeCompanyId } = useCompany();
 
   return useMutation({
     mutationFn: async (allocation: Omit<TimeLogAllocation, 'id' | 'created_at' | 'updated_at'>) => {
+      if (!activeCompanyId) throw new Error('No active company selected');
       const { data, error } = await supabase
         .from('time_log_allocations')
-        .insert(allocation)
+        .insert({ ...(allocation as any), company_id: activeCompanyId })
         .select()
         .single();
 

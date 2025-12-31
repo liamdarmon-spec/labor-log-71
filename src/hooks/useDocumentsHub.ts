@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useCompany } from '@/company/CompanyProvider';
 import { 
   getDocumentBucket, 
   getDocumentStoragePath, 
@@ -223,9 +224,11 @@ export function useDocumentsList(params: { projectId?: string | null; isArchived
 export function useUploadDocument() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { activeCompanyId } = useCompany();
 
   return useMutation({
     mutationFn: async (params: UploadDocumentParams) => {
+      if (!activeCompanyId) throw new Error('No active company selected');
       const {
         projectId,
         file,
@@ -268,6 +271,7 @@ export function useUploadDocument() {
       const { data: docData, error: dbError } = await supabase
         .from('documents')
         .insert({
+          company_id: activeCompanyId,
           project_id: projectId || null,
           owner_type: projectId ? 'project' : 'global',
           owner_id: projectId || null,
@@ -396,6 +400,7 @@ export function useDeleteDocument() {
  */
 export function useDocumentTags(documentId: string | null) {
   const queryClient = useQueryClient();
+  const { activeCompanyId } = useCompany();
 
   const tagsQuery = useQuery({
     queryKey: ['document-tags', documentId],
@@ -417,10 +422,11 @@ export function useDocumentTags(documentId: string | null) {
   const addTagMutation = useMutation({
     mutationFn: async (tag: string) => {
       if (!documentId) throw new Error('No document ID');
+      if (!activeCompanyId) throw new Error('No active company selected');
       
       const { error } = await supabase
         .from('document_tags')
-        .insert({ document_id: documentId, tag });
+        .insert({ document_id: documentId, tag, company_id: activeCompanyId } as any);
 
       if (error) throw error;
     },

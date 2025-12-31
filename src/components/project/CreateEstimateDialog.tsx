@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
+import { useCompany } from "@/company/CompanyProvider";
 
 interface CreateEstimateDialogProps {
   open: boolean;
@@ -30,12 +31,15 @@ export function CreateEstimateDialog({
   const [title, setTitle] = useState("");
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { activeCompanyId } = useCompany();
 
   const createMutation = useMutation({
     mutationFn: async () => {
+      if (!activeCompanyId) throw new Error("No active company selected");
       const { data, error } = await supabase
         .from("estimates")
         .insert({
+          company_id: activeCompanyId,
           project_id: projectId,
           title: title || "New Estimate",
           status: "draft",

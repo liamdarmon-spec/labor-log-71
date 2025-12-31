@@ -7,6 +7,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { z } from 'zod';
+import { useCompany } from '@/company/CompanyProvider';
+import { tenantInsert } from '@/lib/supabase';
+import { useNavigate } from 'react-router-dom';
 
 const projectSchema = z.object({
   project_name: z.string().trim().nonempty({ message: 'Project name is required' }).max(200),
@@ -28,6 +31,8 @@ interface AddProjectDialogProps {
 }
 
 export const AddProjectDialog = ({ open, onOpenChange, onProjectAdded }: AddProjectDialogProps) => {
+  const navigate = useNavigate();
+  const { activeCompanyId, loading: companyLoading } = useCompany();
   const [companies, setCompanies] = useState<Company[]>([]);
   const [formData, setFormData] = useState({
     project_name: '',
@@ -66,6 +71,18 @@ export const AddProjectDialog = ({ open, onOpenChange, onProjectAdded }: AddProj
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (companyLoading) return;
+    if (!activeCompanyId) {
+      toast({
+        title: 'No company selected',
+        description: 'Select or create a company before creating a project.',
+        variant: 'destructive',
+      });
+      onOpenChange(false);
+      // Push user toward the canonical flow
+      navigate('/onboarding/company');
+      return;
+    }
     setLoading(true);
 
     try {
@@ -75,16 +92,17 @@ export const AddProjectDialog = ({ open, onOpenChange, onProjectAdded }: AddProj
         project_manager: formData.project_manager || undefined,
       });
 
-      const { error } = await supabase.from('projects').insert([
+      const { error } = await tenantInsert(
+        'projects',
         {
           project_name: validatedData.project_name,
           client_name: validatedData.client_name,
           address: validatedData.address || null,
           status: validatedData.status,
           project_manager: validatedData.project_manager || null,
-          company_id: formData.company_id || null,
         },
-      ]);
+        activeCompanyId
+      );
 
       if (error) throw error;
 
@@ -201,7 +219,7 @@ export const AddProjectDialog = ({ open, onOpenChange, onProjectAdded }: AddProj
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={loading}>
+            <Button type="submit" disabled={loading || companyLoading || !activeCompanyId}>
               {loading ? 'Creating...' : 'Create Project'}
             </Button>
           </DialogFooter>

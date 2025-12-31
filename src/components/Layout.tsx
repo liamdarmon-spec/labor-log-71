@@ -4,6 +4,9 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { MobileNav } from '@/components/MobileNav';
 import { MobileBottomNav } from '@/components/MobileBottomNav';
 import { useTranslation } from 'react-i18next';
+import { CompanySwitcher } from '@/company/CompanySwitcher';
+import { useCompany } from '@/company/CompanyProvider';
+import { useAuth } from '@/hooks/useAuth';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,6 +23,8 @@ export const Layout = ({ children, hideNav = false }: LayoutProps) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { t, i18n } = useTranslation();
+  const { user } = useAuth();
+  const { activeCompanyId, companies, lastError } = useCompany();
 
   const changeLanguage = (lng: string) => {
     i18n.changeLanguage(lng);
@@ -49,7 +54,9 @@ export const Layout = ({ children, hideNav = false }: LayoutProps) => {
               <p className="text-[10px] sm:text-xs text-muted-foreground hidden xs:block">{t('app.subtitle')}</p>
             </div>
           </div>
-          <nav className="hidden lg:flex items-center gap-2">
+          <div className="flex items-center gap-2">
+            <CompanySwitcher />
+            <nav className="hidden lg:flex items-center gap-2">
             <Button
               variant={location.pathname === '/projects' || location.pathname.startsWith('/projects/') ? 'default' : 'ghost'}
               size="sm"
@@ -130,13 +137,23 @@ export const Layout = ({ children, hideNav = false }: LayoutProps) => {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-          </nav>
+            </nav>
+          </div>
         </div>
       </header>
       <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-8 mb-20 md:mb-0">
         {children}
       </main>
       <MobileBottomNav />
+
+      {!import.meta.env.PROD && (
+        <div className="fixed bottom-2 right-2 z-[9999] rounded-md border border-border bg-black/80 text-white px-3 py-2 text-[11px] font-mono space-y-1">
+          <div>user: {user?.id ?? 'none'}</div>
+          <div>active_company_id: {activeCompanyId ?? 'none'}</div>
+          <div>memberships: {companies.length}</div>
+          <div>last_error: {lastError ?? 'none'}</div>
+        </div>
+      )}
     </div>
   );
 };

@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useCompany } from '@/company/CompanyProvider';
 
 export interface Project {
   id: string;
@@ -18,13 +19,18 @@ export interface Project {
  * Used across: Admin, Dashboard, Schedule, Financials
  */
 export function useProjects(status?: string) {
+  const { activeCompanyId } = useCompany();
   return useQuery({
-    queryKey: ['projects', status],
+    queryKey: ['projects', activeCompanyId, status],
     queryFn: async () => {
       let query = supabase
         .from('projects')
         .select('*')
         .order('project_name');
+
+      if (activeCompanyId) {
+        query = query.eq('company_id', activeCompanyId);
+      }
       
       if (status) {
         query = query.eq('status', status);
@@ -43,13 +49,18 @@ export function useProjects(status?: string) {
  * Lightweight version for dropdowns - only id, name, and client
  */
 export function useProjectsSimple(activeOnly = true) {
+  const { activeCompanyId } = useCompany();
   return useQuery({
-    queryKey: ['projects-simple', activeOnly],
+    queryKey: ['projects-simple', activeCompanyId, activeOnly],
     queryFn: async () => {
       let query = supabase
         .from('projects')
         .select('id, project_name, client_name, status')
         .order('project_name');
+
+      if (activeCompanyId) {
+        query = query.eq('company_id', activeCompanyId);
+      }
       
       if (activeOnly) {
         query = query.eq('status', 'Active');

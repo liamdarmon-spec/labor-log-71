@@ -28,20 +28,6 @@ ALTER TABLE ONLY public.activity_log
 
   END IF;
 
-END
-
-$$;
-
-
-
---
--- Name: archived_daily_logs archived_daily_logs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-
-BEGIN
-
   IF NOT EXISTS (
 
     SELECT 1
@@ -74,45 +60,22 @@ $$;
 -- Name: bid_invitations bid_invitations_bid_package_id_sub_id_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'bid_invitations_bid_package_id_sub_id_key'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.bid_invitations
-
-    ADD CONSTRAINT bid_invitations_bid_package_id_sub_id_key UNIQUE (bid_package_id, sub_id);
-
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: bid_invitations bid_invitations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
+  DROP CONSTRAINT IF EXISTS bid_invitations_bid_package_id_sub_id_key;
 
 DO $$
-
 BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'bid_invitations_bid_package_id_sub_id_key'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.bid_invitations
+      ADD CONSTRAINT bid_invitations_bid_package_id_sub_id_key UNIQUE (bid_package_id, sub_id);
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -134,21 +97,7 @@ ALTER TABLE ONLY public.bid_invitations
 
     ADD CONSTRAINT bid_invitations_pkey PRIMARY KEY (id);
 
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: bid_packages bid_packages_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-
-BEGIN
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -171,9 +120,7 @@ ALTER TABLE ONLY public.bid_packages
     ADD CONSTRAINT bid_packages_pkey PRIMARY KEY (id);
 
   END IF;
-
 END
-
 $$;
 
 
@@ -182,45 +129,22 @@ $$;
 -- Name: companies companies_name_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'companies_name_key'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.companies
-
-    ADD CONSTRAINT companies_name_key UNIQUE (name);
-
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: companies companies_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
+  DROP CONSTRAINT IF EXISTS companies_name_key;
 
 DO $$
-
 BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'companies_name_key'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.companies
+      ADD CONSTRAINT companies_name_key UNIQUE (name);
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -243,9 +167,7 @@ ALTER TABLE ONLY public.companies
     ADD CONSTRAINT companies_pkey PRIMARY KEY (id);
 
   END IF;
-
 END
-
 $$;
 
 
@@ -254,45 +176,22 @@ $$;
 -- Name: cost_codes cost_codes_code_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'cost_codes_code_key'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.cost_codes
-
-    ADD CONSTRAINT cost_codes_code_key UNIQUE (code);
-
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: cost_codes cost_codes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
+  DROP CONSTRAINT IF EXISTS cost_codes_code_key;
 
 DO $$
-
 BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'cost_codes_code_key'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.cost_codes
+      ADD CONSTRAINT cost_codes_code_key UNIQUE (code);
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -314,21 +213,7 @@ ALTER TABLE ONLY public.cost_codes
 
     ADD CONSTRAINT cost_codes_pkey PRIMARY KEY (id);
 
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: daily_logs daily_logs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-
-BEGIN
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -350,21 +235,7 @@ ALTER TABLE ONLY public.daily_logs
 
     ADD CONSTRAINT daily_logs_pkey PRIMARY KEY (id);
 
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: day_card_jobs day_card_jobs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-
-BEGIN
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -386,21 +257,7 @@ ALTER TABLE ONLY public.day_card_jobs
 
     ADD CONSTRAINT day_card_jobs_pkey PRIMARY KEY (id);
 
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: day_cards day_cards_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-
-BEGIN
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -423,9 +280,7 @@ ALTER TABLE ONLY public.day_cards
     ADD CONSTRAINT day_cards_pkey PRIMARY KEY (id);
 
   END IF;
-
 END
-
 $$;
 
 
@@ -434,45 +289,22 @@ $$;
 -- Name: day_cards day_cards_worker_id_date_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'day_cards_worker_id_date_key'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.day_cards
-
-    ADD CONSTRAINT day_cards_worker_id_date_key UNIQUE (worker_id, date);
-
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: documents documents_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
+  DROP CONSTRAINT IF EXISTS day_cards_worker_id_date_key;
 
 DO $$
-
 BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'day_cards_worker_id_date_key'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.day_cards
+      ADD CONSTRAINT day_cards_worker_id_date_key UNIQUE (worker_id, date);
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -494,21 +326,7 @@ ALTER TABLE ONLY public.documents
 
     ADD CONSTRAINT documents_pkey PRIMARY KEY (id);
 
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: estimate_items estimate_items_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-
-BEGIN
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -530,21 +348,7 @@ ALTER TABLE ONLY public.estimate_items
 
     ADD CONSTRAINT estimate_items_pkey PRIMARY KEY (id);
 
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: estimates estimates_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-
-BEGIN
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -567,9 +371,7 @@ ALTER TABLE ONLY public.estimates
     ADD CONSTRAINT estimates_pkey PRIMARY KEY (id);
 
   END IF;
-
 END
-
 $$;
 
 
@@ -578,45 +380,22 @@ $$;
 -- Name: invitations invitations_email_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'invitations_email_key'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.invitations
-
-    ADD CONSTRAINT invitations_email_key UNIQUE (email);
-
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: invitations invitations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
+  DROP CONSTRAINT IF EXISTS invitations_email_key;
 
 DO $$
-
 BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'invitations_email_key'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.invitations
+      ADD CONSTRAINT invitations_email_key UNIQUE (email);
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -638,21 +417,7 @@ ALTER TABLE ONLY public.invitations
 
     ADD CONSTRAINT invitations_pkey PRIMARY KEY (id);
 
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: invoice_items invoice_items_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-
-BEGIN
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -674,21 +439,7 @@ ALTER TABLE ONLY public.invoice_items
 
     ADD CONSTRAINT invoice_items_pkey PRIMARY KEY (id);
 
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: invoices invoices_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-
-BEGIN
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -710,21 +461,7 @@ ALTER TABLE ONLY public.invoices
 
     ADD CONSTRAINT invoices_pkey PRIMARY KEY (id);
 
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: material_receipts material_receipts_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-
-BEGIN
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -746,21 +483,7 @@ ALTER TABLE ONLY public.material_receipts
 
     ADD CONSTRAINT material_receipts_pkey PRIMARY KEY (id);
 
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: payments payments_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-
-BEGIN
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -782,21 +505,7 @@ ALTER TABLE ONLY public.payments
 
     ADD CONSTRAINT payments_pkey PRIMARY KEY (id);
 
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: project_budget_lines project_budget_lines_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-
-BEGIN
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -818,28 +527,7 @@ ALTER TABLE ONLY public.project_budget_lines
 
     ADD CONSTRAINT project_budget_lines_pkey PRIMARY KEY (id);
 
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: project_budget_lines project_budget_lines_project_cost_code_unique; Type: CONSTRAINT; Schema: public; Owner: -
--- REMOVED: Constraint creation moved to forward migration 20251223090003_postbaseline_constraints_and_indexes.sql
--- Reason: Fails on duplicate data; needs dedupe first
---
-
-
---
--- Name: project_budgets project_budgets_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-
-BEGIN
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -862,9 +550,7 @@ ALTER TABLE ONLY public.project_budgets
     ADD CONSTRAINT project_budgets_pkey PRIMARY KEY (id);
 
   END IF;
-
 END
-
 $$;
 
 
@@ -873,45 +559,22 @@ $$;
 -- Name: project_budgets project_budgets_project_id_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'project_budgets_project_id_key'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.project_budgets
-
-    ADD CONSTRAINT project_budgets_project_id_key UNIQUE (project_id);
-
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: project_subcontracts project_subcontracts_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
+  DROP CONSTRAINT IF EXISTS project_budgets_project_id_key;
 
 DO $$
-
 BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'project_budgets_project_id_key'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.project_budgets
+      ADD CONSTRAINT project_budgets_project_id_key UNIQUE (project_id);
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -934,9 +597,7 @@ ALTER TABLE ONLY public.project_subcontracts
     ADD CONSTRAINT project_subcontracts_pkey PRIMARY KEY (id);
 
   END IF;
-
 END
-
 $$;
 
 
@@ -945,45 +606,22 @@ $$;
 -- Name: project_subcontracts project_subcontracts_project_id_sub_id_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'project_subcontracts_project_id_sub_id_key'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.project_subcontracts
-
-    ADD CONSTRAINT project_subcontracts_project_id_sub_id_key UNIQUE (project_id, sub_id);
-
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: project_todos project_todos_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
+  DROP CONSTRAINT IF EXISTS project_subcontracts_project_id_sub_id_key;
 
 DO $$
-
 BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'project_subcontracts_project_id_sub_id_key'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.project_subcontracts
+      ADD CONSTRAINT project_subcontracts_project_id_sub_id_key UNIQUE (project_id, sub_id);
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -1005,21 +643,7 @@ ALTER TABLE ONLY public.project_todos
 
     ADD CONSTRAINT project_todos_pkey PRIMARY KEY (id);
 
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: projects projects_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-
-BEGIN
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -1041,21 +665,7 @@ ALTER TABLE ONLY public.projects
 
     ADD CONSTRAINT projects_pkey PRIMARY KEY (id);
 
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: proposal_line_groups proposal_line_groups_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-
-BEGIN
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -1077,21 +687,7 @@ ALTER TABLE ONLY public.proposal_line_groups
 
     ADD CONSTRAINT proposal_line_groups_pkey PRIMARY KEY (id);
 
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: proposal_line_overrides proposal_line_overrides_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-
-BEGIN
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -1113,21 +709,7 @@ ALTER TABLE ONLY public.proposal_line_overrides
 
     ADD CONSTRAINT proposal_line_overrides_pkey PRIMARY KEY (id);
 
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: proposal_section_items proposal_section_items_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-
-BEGIN
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -1149,21 +731,7 @@ ALTER TABLE ONLY public.proposal_section_items
 
     ADD CONSTRAINT proposal_section_items_pkey PRIMARY KEY (id);
 
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: proposal_sections proposal_sections_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-
-BEGIN
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -1185,21 +753,7 @@ ALTER TABLE ONLY public.proposal_sections
 
     ADD CONSTRAINT proposal_sections_pkey PRIMARY KEY (id);
 
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: proposals proposals_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-
-BEGIN
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -1221,21 +775,7 @@ ALTER TABLE ONLY public.proposals
 
     ADD CONSTRAINT proposals_pkey PRIMARY KEY (id);
 
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: schedule_modifications schedule_modifications_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-
-BEGIN
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -1257,21 +797,7 @@ ALTER TABLE ONLY public.schedule_modifications
 
     ADD CONSTRAINT schedule_modifications_pkey PRIMARY KEY (id);
 
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: scheduled_shifts scheduled_shifts_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-
-BEGIN
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -1294,9 +820,7 @@ ALTER TABLE ONLY public.scheduled_shifts
     ADD CONSTRAINT scheduled_shifts_pkey PRIMARY KEY (id);
 
   END IF;
-
 END
-
 $$;
 
 
@@ -1305,45 +829,22 @@ $$;
 -- Name: sub_bids sub_bids_bid_package_id_sub_id_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'sub_bids_bid_package_id_sub_id_key'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.sub_bids
-
-    ADD CONSTRAINT sub_bids_bid_package_id_sub_id_key UNIQUE (bid_package_id, sub_id);
-
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: sub_bids sub_bids_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
+  DROP CONSTRAINT IF EXISTS sub_bids_bid_package_id_sub_id_key;
 
 DO $$
-
 BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'sub_bids_bid_package_id_sub_id_key'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.sub_bids
+      ADD CONSTRAINT sub_bids_bid_package_id_sub_id_key UNIQUE (bid_package_id, sub_id);
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -1365,21 +866,7 @@ ALTER TABLE ONLY public.sub_bids
 
     ADD CONSTRAINT sub_bids_pkey PRIMARY KEY (id);
 
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: sub_compliance_documents sub_compliance_documents_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-
-BEGIN
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -1401,21 +888,7 @@ ALTER TABLE ONLY public.sub_compliance_documents
 
     ADD CONSTRAINT sub_compliance_documents_pkey PRIMARY KEY (id);
 
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: sub_contracts sub_contracts_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-
-BEGIN
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -1437,21 +910,7 @@ ALTER TABLE ONLY public.sub_contracts
 
     ADD CONSTRAINT sub_contracts_pkey PRIMARY KEY (id);
 
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: sub_invoices sub_invoices_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-
-BEGIN
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -1473,21 +932,7 @@ ALTER TABLE ONLY public.sub_invoices
 
     ADD CONSTRAINT sub_invoices_pkey PRIMARY KEY (id);
 
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: sub_logs sub_logs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-
-BEGIN
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -1509,21 +954,7 @@ ALTER TABLE ONLY public.sub_logs
 
     ADD CONSTRAINT sub_logs_pkey PRIMARY KEY (id);
 
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: sub_payments sub_payments_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-
-BEGIN
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -1545,21 +976,7 @@ ALTER TABLE ONLY public.sub_payments
 
     ADD CONSTRAINT sub_payments_pkey PRIMARY KEY (id);
 
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: sub_scheduled_shifts sub_scheduled_shifts_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-
-BEGIN
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -1581,21 +998,7 @@ ALTER TABLE ONLY public.sub_scheduled_shifts
 
     ADD CONSTRAINT sub_scheduled_shifts_pkey PRIMARY KEY (id);
 
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: subs subs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-
-BEGIN
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -1617,21 +1020,7 @@ ALTER TABLE ONLY public.subs
 
     ADD CONSTRAINT subs_pkey PRIMARY KEY (id);
 
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: time_log_allocations time_log_allocations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-
-BEGIN
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -1654,9 +1043,7 @@ ALTER TABLE ONLY public.time_log_allocations
     ADD CONSTRAINT time_log_allocations_pkey PRIMARY KEY (id);
 
   END IF;
-
 END
-
 $$;
 
 
@@ -1665,45 +1052,22 @@ $$;
 -- Name: trades trades_name_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'trades_name_key'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.trades
-
-    ADD CONSTRAINT trades_name_key UNIQUE (name);
-
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: trades trades_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
+  DROP CONSTRAINT IF EXISTS trades_name_key;
 
 DO $$
-
 BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'trades_name_key'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.trades
+      ADD CONSTRAINT trades_name_key UNIQUE (name);
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -1725,21 +1089,7 @@ ALTER TABLE ONLY public.trades
 
     ADD CONSTRAINT trades_pkey PRIMARY KEY (id);
 
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: user_roles user_roles_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-
-BEGIN
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -1762,9 +1112,7 @@ ALTER TABLE ONLY public.user_roles
     ADD CONSTRAINT user_roles_pkey PRIMARY KEY (id);
 
   END IF;
-
 END
-
 $$;
 
 
@@ -1773,45 +1121,22 @@ $$;
 -- Name: user_roles user_roles_user_id_role_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'user_roles_user_id_role_key'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.user_roles
-
-    ADD CONSTRAINT user_roles_user_id_role_key UNIQUE (user_id, role);
-
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: workers workers_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
+  DROP CONSTRAINT IF EXISTS user_roles_user_id_role_key;
 
 DO $$
-
 BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'user_roles_user_id_role_key'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.user_roles
+      ADD CONSTRAINT user_roles_user_id_role_key UNIQUE (user_id, role);
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -1834,9 +1159,7 @@ ALTER TABLE ONLY public.workers
     ADD CONSTRAINT workers_pkey PRIMARY KEY (id);
 
   END IF;
-
 END
-
 $$;
 
 
@@ -1845,35 +1168,25 @@ $$;
 -- Name: activity_log activity_log_actor_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'activity_log_actor_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.activity_log
+  DROP CONSTRAINT IF EXISTS activity_log_actor_id_fkey;
 
-    ADD CONSTRAINT activity_log_actor_id_fkey FOREIGN KEY (actor_id) REFERENCES auth.users(id);
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'activity_log_actor_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.activity_log
+      ADD CONSTRAINT activity_log_actor_id_fkey FOREIGN KEY (actor_id) REFERENCES auth.users(id);
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -1881,35 +1194,25 @@ $$;
 -- Name: bid_invitations bid_invitations_bid_package_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'bid_invitations_bid_package_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.bid_invitations
+  DROP CONSTRAINT IF EXISTS bid_invitations_bid_package_id_fkey;
 
-    ADD CONSTRAINT bid_invitations_bid_package_id_fkey FOREIGN KEY (bid_package_id) REFERENCES public.bid_packages(id) ON DELETE CASCADE;
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'bid_invitations_bid_package_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.bid_invitations
+      ADD CONSTRAINT bid_invitations_bid_package_id_fkey FOREIGN KEY (bid_package_id) REFERENCES public.bid_packages(id) ON DELETE CASCADE;
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -1917,35 +1220,25 @@ $$;
 -- Name: bid_invitations bid_invitations_sub_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'bid_invitations_sub_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.bid_invitations
+  DROP CONSTRAINT IF EXISTS bid_invitations_sub_id_fkey;
 
-    ADD CONSTRAINT bid_invitations_sub_id_fkey FOREIGN KEY (sub_id) REFERENCES public.subs(id) ON DELETE CASCADE;
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'bid_invitations_sub_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.bid_invitations
+      ADD CONSTRAINT bid_invitations_sub_id_fkey FOREIGN KEY (sub_id) REFERENCES public.subs(id) ON DELETE CASCADE;
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -1953,35 +1246,25 @@ $$;
 -- Name: bid_packages bid_packages_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'bid_packages_project_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.bid_packages
+  DROP CONSTRAINT IF EXISTS bid_packages_project_id_fkey;
 
-    ADD CONSTRAINT bid_packages_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'bid_packages_project_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.bid_packages
+      ADD CONSTRAINT bid_packages_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -1989,35 +1272,25 @@ $$;
 -- Name: cost_codes cost_codes_default_trade_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'cost_codes_default_trade_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.cost_codes
+  DROP CONSTRAINT IF EXISTS cost_codes_default_trade_id_fkey;
 
-    ADD CONSTRAINT cost_codes_default_trade_id_fkey FOREIGN KEY (default_trade_id) REFERENCES public.trades(id) ON DELETE SET NULL;
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'cost_codes_default_trade_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.cost_codes
+      ADD CONSTRAINT cost_codes_default_trade_id_fkey FOREIGN KEY (default_trade_id) REFERENCES public.trades(id) ON DELETE SET NULL;
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -2025,35 +1298,25 @@ $$;
 -- Name: cost_codes cost_codes_trade_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'cost_codes_trade_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.cost_codes
+  DROP CONSTRAINT IF EXISTS cost_codes_trade_id_fkey;
 
-    ADD CONSTRAINT cost_codes_trade_id_fkey FOREIGN KEY (trade_id) REFERENCES public.trades(id) ON DELETE CASCADE;
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'cost_codes_trade_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.cost_codes
+      ADD CONSTRAINT cost_codes_trade_id_fkey FOREIGN KEY (trade_id) REFERENCES public.trades(id) ON DELETE CASCADE;
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -2061,35 +1324,25 @@ $$;
 -- Name: daily_logs daily_logs_cost_code_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'daily_logs_cost_code_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.daily_logs
+  DROP CONSTRAINT IF EXISTS daily_logs_cost_code_id_fkey;
 
-    ADD CONSTRAINT daily_logs_cost_code_id_fkey FOREIGN KEY (cost_code_id) REFERENCES public.cost_codes(id) ON DELETE SET NULL;
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'daily_logs_cost_code_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.daily_logs
+      ADD CONSTRAINT daily_logs_cost_code_id_fkey FOREIGN KEY (cost_code_id) REFERENCES public.cost_codes(id) ON DELETE SET NULL;
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -2097,35 +1350,25 @@ $$;
 -- Name: daily_logs daily_logs_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'daily_logs_created_by_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.daily_logs
+  DROP CONSTRAINT IF EXISTS daily_logs_created_by_fkey;
 
-    ADD CONSTRAINT daily_logs_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE SET NULL;
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'daily_logs_created_by_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.daily_logs
+      ADD CONSTRAINT daily_logs_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE SET NULL;
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -2133,35 +1376,25 @@ $$;
 -- Name: daily_logs daily_logs_payment_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'daily_logs_payment_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.daily_logs
+  DROP CONSTRAINT IF EXISTS daily_logs_payment_id_fkey;
 
-    ADD CONSTRAINT daily_logs_payment_id_fkey FOREIGN KEY (payment_id) REFERENCES public.payments(id) ON DELETE SET NULL;
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'daily_logs_payment_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.daily_logs
+      ADD CONSTRAINT daily_logs_payment_id_fkey FOREIGN KEY (payment_id) REFERENCES public.payments(id) ON DELETE SET NULL;
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -2169,35 +1402,25 @@ $$;
 -- Name: daily_logs daily_logs_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'daily_logs_project_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.daily_logs
+  DROP CONSTRAINT IF EXISTS daily_logs_project_id_fkey;
 
-    ADD CONSTRAINT daily_logs_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'daily_logs_project_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.daily_logs
+      ADD CONSTRAINT daily_logs_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -2205,35 +1428,25 @@ $$;
 -- Name: daily_logs daily_logs_schedule_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'daily_logs_schedule_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.daily_logs
+  DROP CONSTRAINT IF EXISTS daily_logs_schedule_id_fkey;
 
-    ADD CONSTRAINT daily_logs_schedule_id_fkey FOREIGN KEY (schedule_id) REFERENCES public.scheduled_shifts(id) ON DELETE SET NULL;
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'daily_logs_schedule_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.daily_logs
+      ADD CONSTRAINT daily_logs_schedule_id_fkey FOREIGN KEY (schedule_id) REFERENCES public.scheduled_shifts(id) ON DELETE SET NULL;
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -2241,35 +1454,25 @@ $$;
 -- Name: daily_logs daily_logs_trade_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'daily_logs_trade_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.daily_logs
+  DROP CONSTRAINT IF EXISTS daily_logs_trade_id_fkey;
 
-    ADD CONSTRAINT daily_logs_trade_id_fkey FOREIGN KEY (trade_id) REFERENCES public.trades(id);
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'daily_logs_trade_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.daily_logs
+      ADD CONSTRAINT daily_logs_trade_id_fkey FOREIGN KEY (trade_id) REFERENCES public.trades(id);
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -2277,35 +1480,25 @@ $$;
 -- Name: daily_logs daily_logs_worker_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'daily_logs_worker_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.daily_logs
+  DROP CONSTRAINT IF EXISTS daily_logs_worker_id_fkey;
 
-    ADD CONSTRAINT daily_logs_worker_id_fkey FOREIGN KEY (worker_id) REFERENCES public.workers(id) ON DELETE CASCADE;
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'daily_logs_worker_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.daily_logs
+      ADD CONSTRAINT daily_logs_worker_id_fkey FOREIGN KEY (worker_id) REFERENCES public.workers(id) ON DELETE CASCADE;
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -2313,35 +1506,25 @@ $$;
 -- Name: day_card_jobs day_card_jobs_cost_code_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'day_card_jobs_cost_code_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.day_card_jobs
+  DROP CONSTRAINT IF EXISTS day_card_jobs_cost_code_id_fkey;
 
-    ADD CONSTRAINT day_card_jobs_cost_code_id_fkey FOREIGN KEY (cost_code_id) REFERENCES public.cost_codes(id);
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'day_card_jobs_cost_code_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.day_card_jobs
+      ADD CONSTRAINT day_card_jobs_cost_code_id_fkey FOREIGN KEY (cost_code_id) REFERENCES public.cost_codes(id);
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -2349,35 +1532,25 @@ $$;
 -- Name: day_card_jobs day_card_jobs_day_card_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'day_card_jobs_day_card_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.day_card_jobs
+  DROP CONSTRAINT IF EXISTS day_card_jobs_day_card_id_fkey;
 
-    ADD CONSTRAINT day_card_jobs_day_card_id_fkey FOREIGN KEY (day_card_id) REFERENCES public.day_cards(id) ON DELETE CASCADE;
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'day_card_jobs_day_card_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.day_card_jobs
+      ADD CONSTRAINT day_card_jobs_day_card_id_fkey FOREIGN KEY (day_card_id) REFERENCES public.day_cards(id) ON DELETE CASCADE;
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -2385,35 +1558,25 @@ $$;
 -- Name: day_card_jobs day_card_jobs_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'day_card_jobs_project_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.day_card_jobs
+  DROP CONSTRAINT IF EXISTS day_card_jobs_project_id_fkey;
 
-    ADD CONSTRAINT day_card_jobs_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id);
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'day_card_jobs_project_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.day_card_jobs
+      ADD CONSTRAINT day_card_jobs_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id);
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -2421,35 +1584,25 @@ $$;
 -- Name: day_card_jobs day_card_jobs_trade_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'day_card_jobs_trade_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.day_card_jobs
+  DROP CONSTRAINT IF EXISTS day_card_jobs_trade_id_fkey;
 
-    ADD CONSTRAINT day_card_jobs_trade_id_fkey FOREIGN KEY (trade_id) REFERENCES public.trades(id);
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'day_card_jobs_trade_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.day_card_jobs
+      ADD CONSTRAINT day_card_jobs_trade_id_fkey FOREIGN KEY (trade_id) REFERENCES public.trades(id);
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -2457,35 +1610,25 @@ $$;
 -- Name: day_cards day_cards_approved_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'day_cards_approved_by_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.day_cards
+  DROP CONSTRAINT IF EXISTS day_cards_approved_by_fkey;
 
-    ADD CONSTRAINT day_cards_approved_by_fkey FOREIGN KEY (approved_by) REFERENCES auth.users(id);
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'day_cards_approved_by_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.day_cards
+      ADD CONSTRAINT day_cards_approved_by_fkey FOREIGN KEY (approved_by) REFERENCES auth.users(id);
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -2493,35 +1636,25 @@ $$;
 -- Name: day_cards day_cards_company_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'day_cards_company_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.day_cards
+  DROP CONSTRAINT IF EXISTS day_cards_company_id_fkey;
 
-    ADD CONSTRAINT day_cards_company_id_fkey FOREIGN KEY (company_id) REFERENCES public.companies(id);
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'day_cards_company_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.day_cards
+      ADD CONSTRAINT day_cards_company_id_fkey FOREIGN KEY (company_id) REFERENCES public.companies(id);
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -2529,35 +1662,25 @@ $$;
 -- Name: day_cards day_cards_worker_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'day_cards_worker_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.day_cards
+  DROP CONSTRAINT IF EXISTS day_cards_worker_id_fkey;
 
-    ADD CONSTRAINT day_cards_worker_id_fkey FOREIGN KEY (worker_id) REFERENCES public.workers(id) ON DELETE CASCADE;
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'day_cards_worker_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.day_cards
+      ADD CONSTRAINT day_cards_worker_id_fkey FOREIGN KEY (worker_id) REFERENCES public.workers(id) ON DELETE CASCADE;
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -2565,35 +1688,25 @@ $$;
 -- Name: documents documents_cost_code_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'documents_cost_code_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.documents
+  DROP CONSTRAINT IF EXISTS documents_cost_code_id_fkey;
 
-    ADD CONSTRAINT documents_cost_code_id_fkey FOREIGN KEY (cost_code_id) REFERENCES public.cost_codes(id) ON DELETE SET NULL;
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'documents_cost_code_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.documents
+      ADD CONSTRAINT documents_cost_code_id_fkey FOREIGN KEY (cost_code_id) REFERENCES public.cost_codes(id) ON DELETE SET NULL;
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -2601,35 +1714,25 @@ $$;
 -- Name: documents documents_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'documents_project_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.documents
+  DROP CONSTRAINT IF EXISTS documents_project_id_fkey;
 
-    ADD CONSTRAINT documents_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'documents_project_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.documents
+      ADD CONSTRAINT documents_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -2637,35 +1740,25 @@ $$;
 -- Name: estimate_items estimate_items_cost_code_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'estimate_items_cost_code_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.estimate_items
+  DROP CONSTRAINT IF EXISTS estimate_items_cost_code_id_fkey;
 
-    ADD CONSTRAINT estimate_items_cost_code_id_fkey FOREIGN KEY (cost_code_id) REFERENCES public.cost_codes(id) ON DELETE SET NULL;
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'estimate_items_cost_code_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.estimate_items
+      ADD CONSTRAINT estimate_items_cost_code_id_fkey FOREIGN KEY (cost_code_id) REFERENCES public.cost_codes(id) ON DELETE SET NULL;
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -2673,35 +1766,25 @@ $$;
 -- Name: estimate_items estimate_items_estimate_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'estimate_items_estimate_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.estimate_items
+  DROP CONSTRAINT IF EXISTS estimate_items_estimate_id_fkey;
 
-    ADD CONSTRAINT estimate_items_estimate_id_fkey FOREIGN KEY (estimate_id) REFERENCES public.estimates(id) ON DELETE CASCADE;
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'estimate_items_estimate_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.estimate_items
+      ADD CONSTRAINT estimate_items_estimate_id_fkey FOREIGN KEY (estimate_id) REFERENCES public.estimates(id) ON DELETE CASCADE;
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -2709,35 +1792,25 @@ $$;
 -- Name: estimate_items estimate_items_trade_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'estimate_items_trade_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.estimate_items
+  DROP CONSTRAINT IF EXISTS estimate_items_trade_id_fkey;
 
-    ADD CONSTRAINT estimate_items_trade_id_fkey FOREIGN KEY (trade_id) REFERENCES public.trades(id) ON DELETE SET NULL;
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'estimate_items_trade_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.estimate_items
+      ADD CONSTRAINT estimate_items_trade_id_fkey FOREIGN KEY (trade_id) REFERENCES public.trades(id) ON DELETE SET NULL;
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -2745,35 +1818,25 @@ $$;
 -- Name: estimates estimates_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'estimates_project_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.estimates
+  DROP CONSTRAINT IF EXISTS estimates_project_id_fkey;
 
-    ADD CONSTRAINT estimates_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'estimates_project_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.estimates
+      ADD CONSTRAINT estimates_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -2781,35 +1844,25 @@ $$;
 -- Name: invitations invitations_invited_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'invitations_invited_by_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.invitations
+  DROP CONSTRAINT IF EXISTS invitations_invited_by_fkey;
 
-    ADD CONSTRAINT invitations_invited_by_fkey FOREIGN KEY (invited_by) REFERENCES auth.users(id);
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'invitations_invited_by_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.invitations
+      ADD CONSTRAINT invitations_invited_by_fkey FOREIGN KEY (invited_by) REFERENCES auth.users(id);
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -2817,35 +1870,25 @@ $$;
 -- Name: invoice_items invoice_items_invoice_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'invoice_items_invoice_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.invoice_items
+  DROP CONSTRAINT IF EXISTS invoice_items_invoice_id_fkey;
 
-    ADD CONSTRAINT invoice_items_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES public.invoices(id) ON DELETE CASCADE;
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'invoice_items_invoice_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.invoice_items
+      ADD CONSTRAINT invoice_items_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES public.invoices(id) ON DELETE CASCADE;
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -2853,35 +1896,25 @@ $$;
 -- Name: invoices invoices_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'invoices_project_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.invoices
+  DROP CONSTRAINT IF EXISTS invoices_project_id_fkey;
 
-    ADD CONSTRAINT invoices_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'invoices_project_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.invoices
+      ADD CONSTRAINT invoices_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -2889,35 +1922,25 @@ $$;
 -- Name: material_receipts material_receipts_cost_code_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'material_receipts_cost_code_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.material_receipts
+  DROP CONSTRAINT IF EXISTS material_receipts_cost_code_id_fkey;
 
-    ADD CONSTRAINT material_receipts_cost_code_id_fkey FOREIGN KEY (cost_code_id) REFERENCES public.cost_codes(id) ON DELETE SET NULL;
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'material_receipts_cost_code_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.material_receipts
+      ADD CONSTRAINT material_receipts_cost_code_id_fkey FOREIGN KEY (cost_code_id) REFERENCES public.cost_codes(id) ON DELETE SET NULL;
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -2925,35 +1948,25 @@ $$;
 -- Name: material_receipts material_receipts_linked_document_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'material_receipts_linked_document_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.material_receipts
+  DROP CONSTRAINT IF EXISTS material_receipts_linked_document_id_fkey;
 
-    ADD CONSTRAINT material_receipts_linked_document_id_fkey FOREIGN KEY (linked_document_id) REFERENCES public.documents(id) ON DELETE SET NULL;
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'material_receipts_linked_document_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.material_receipts
+      ADD CONSTRAINT material_receipts_linked_document_id_fkey FOREIGN KEY (linked_document_id) REFERENCES public.documents(id) ON DELETE SET NULL;
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -2961,35 +1974,25 @@ $$;
 -- Name: material_receipts material_receipts_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'material_receipts_project_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.material_receipts
+  DROP CONSTRAINT IF EXISTS material_receipts_project_id_fkey;
 
-    ADD CONSTRAINT material_receipts_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'material_receipts_project_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.material_receipts
+      ADD CONSTRAINT material_receipts_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -2997,35 +2000,25 @@ $$;
 -- Name: payments payments_company_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'payments_company_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.payments
+  DROP CONSTRAINT IF EXISTS payments_company_id_fkey;
 
-    ADD CONSTRAINT payments_company_id_fkey FOREIGN KEY (company_id) REFERENCES public.companies(id);
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'payments_company_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.payments
+      ADD CONSTRAINT payments_company_id_fkey FOREIGN KEY (company_id) REFERENCES public.companies(id);
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -3033,35 +2026,25 @@ $$;
 -- Name: project_budget_lines project_budget_lines_cost_code_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'project_budget_lines_cost_code_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.project_budget_lines
+  DROP CONSTRAINT IF EXISTS project_budget_lines_cost_code_id_fkey;
 
-    ADD CONSTRAINT project_budget_lines_cost_code_id_fkey FOREIGN KEY (cost_code_id) REFERENCES public.cost_codes(id) ON DELETE SET NULL;
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'project_budget_lines_cost_code_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.project_budget_lines
+      ADD CONSTRAINT project_budget_lines_cost_code_id_fkey FOREIGN KEY (cost_code_id) REFERENCES public.cost_codes(id) ON DELETE SET NULL;
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -3069,35 +2052,25 @@ $$;
 -- Name: project_budget_lines project_budget_lines_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'project_budget_lines_project_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.project_budget_lines
+  DROP CONSTRAINT IF EXISTS project_budget_lines_project_id_fkey;
 
-    ADD CONSTRAINT project_budget_lines_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'project_budget_lines_project_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.project_budget_lines
+      ADD CONSTRAINT project_budget_lines_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -3105,35 +2078,25 @@ $$;
 -- Name: project_budget_lines project_budget_lines_source_estimate_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'project_budget_lines_source_estimate_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.project_budget_lines
+  DROP CONSTRAINT IF EXISTS project_budget_lines_source_estimate_id_fkey;
 
-    ADD CONSTRAINT project_budget_lines_source_estimate_id_fkey FOREIGN KEY (source_estimate_id) REFERENCES public.estimates(id) ON DELETE SET NULL;
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'project_budget_lines_source_estimate_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.project_budget_lines
+      ADD CONSTRAINT project_budget_lines_source_estimate_id_fkey FOREIGN KEY (source_estimate_id) REFERENCES public.estimates(id) ON DELETE SET NULL;
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -3141,35 +2104,25 @@ $$;
 -- Name: project_budgets project_budgets_baseline_estimate_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'project_budgets_baseline_estimate_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.project_budgets
+  DROP CONSTRAINT IF EXISTS project_budgets_baseline_estimate_id_fkey;
 
-    ADD CONSTRAINT project_budgets_baseline_estimate_id_fkey FOREIGN KEY (baseline_estimate_id) REFERENCES public.estimates(id) ON DELETE SET NULL;
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'project_budgets_baseline_estimate_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.project_budgets
+      ADD CONSTRAINT project_budgets_baseline_estimate_id_fkey FOREIGN KEY (baseline_estimate_id) REFERENCES public.estimates(id) ON DELETE SET NULL;
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -3177,35 +2130,25 @@ $$;
 -- Name: project_budgets project_budgets_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'project_budgets_project_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.project_budgets
+  DROP CONSTRAINT IF EXISTS project_budgets_project_id_fkey;
 
-    ADD CONSTRAINT project_budgets_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'project_budgets_project_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.project_budgets
+      ADD CONSTRAINT project_budgets_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -3213,35 +2156,25 @@ $$;
 -- Name: project_subcontracts project_subcontracts_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'project_subcontracts_project_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.project_subcontracts
+  DROP CONSTRAINT IF EXISTS project_subcontracts_project_id_fkey;
 
-    ADD CONSTRAINT project_subcontracts_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'project_subcontracts_project_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.project_subcontracts
+      ADD CONSTRAINT project_subcontracts_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -3249,35 +2182,25 @@ $$;
 -- Name: project_subcontracts project_subcontracts_sub_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'project_subcontracts_sub_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.project_subcontracts
+  DROP CONSTRAINT IF EXISTS project_subcontracts_sub_id_fkey;
 
-    ADD CONSTRAINT project_subcontracts_sub_id_fkey FOREIGN KEY (sub_id) REFERENCES public.subs(id) ON DELETE CASCADE;
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'project_subcontracts_sub_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.project_subcontracts
+      ADD CONSTRAINT project_subcontracts_sub_id_fkey FOREIGN KEY (sub_id) REFERENCES public.subs(id) ON DELETE CASCADE;
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -3285,35 +2208,25 @@ $$;
 -- Name: project_todos project_todos_assigned_worker_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'project_todos_assigned_worker_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.project_todos
+  DROP CONSTRAINT IF EXISTS project_todos_assigned_worker_id_fkey;
 
-    ADD CONSTRAINT project_todos_assigned_worker_id_fkey FOREIGN KEY (assigned_worker_id) REFERENCES public.workers(id);
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'project_todos_assigned_worker_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.project_todos
+      ADD CONSTRAINT project_todos_assigned_worker_id_fkey FOREIGN KEY (assigned_worker_id) REFERENCES public.workers(id);
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -3321,35 +2234,25 @@ $$;
 -- Name: project_todos project_todos_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'project_todos_project_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.project_todos
+  DROP CONSTRAINT IF EXISTS project_todos_project_id_fkey;
 
-    ADD CONSTRAINT project_todos_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'project_todos_project_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.project_todos
+      ADD CONSTRAINT project_todos_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -3357,35 +2260,25 @@ $$;
 -- Name: projects projects_company_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'projects_company_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.projects
+  DROP CONSTRAINT IF EXISTS projects_company_id_fkey;
 
-    ADD CONSTRAINT projects_company_id_fkey FOREIGN KEY (company_id) REFERENCES public.companies(id);
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'projects_company_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.projects
+      ADD CONSTRAINT projects_company_id_fkey FOREIGN KEY (company_id) REFERENCES public.companies(id);
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -3393,35 +2286,25 @@ $$;
 -- Name: proposal_line_groups proposal_line_groups_estimate_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'proposal_line_groups_estimate_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.proposal_line_groups
+  DROP CONSTRAINT IF EXISTS proposal_line_groups_estimate_id_fkey;
 
-    ADD CONSTRAINT proposal_line_groups_estimate_id_fkey FOREIGN KEY (estimate_id) REFERENCES public.estimates(id) ON DELETE SET NULL;
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'proposal_line_groups_estimate_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.proposal_line_groups
+      ADD CONSTRAINT proposal_line_groups_estimate_id_fkey FOREIGN KEY (estimate_id) REFERENCES public.estimates(id) ON DELETE SET NULL;
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -3429,35 +2312,25 @@ $$;
 -- Name: proposal_line_groups proposal_line_groups_proposal_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'proposal_line_groups_proposal_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.proposal_line_groups
+  DROP CONSTRAINT IF EXISTS proposal_line_groups_proposal_id_fkey;
 
-    ADD CONSTRAINT proposal_line_groups_proposal_id_fkey FOREIGN KEY (proposal_id) REFERENCES public.proposals(id) ON DELETE CASCADE;
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'proposal_line_groups_proposal_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.proposal_line_groups
+      ADD CONSTRAINT proposal_line_groups_proposal_id_fkey FOREIGN KEY (proposal_id) REFERENCES public.proposals(id) ON DELETE CASCADE;
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -3465,35 +2338,25 @@ $$;
 -- Name: proposal_line_overrides proposal_line_overrides_estimate_line_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'proposal_line_overrides_estimate_line_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.proposal_line_overrides
+  DROP CONSTRAINT IF EXISTS proposal_line_overrides_estimate_line_id_fkey;
 
-    ADD CONSTRAINT proposal_line_overrides_estimate_line_id_fkey FOREIGN KEY (estimate_line_id) REFERENCES public.estimate_items(id) ON DELETE CASCADE;
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'proposal_line_overrides_estimate_line_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.proposal_line_overrides
+      ADD CONSTRAINT proposal_line_overrides_estimate_line_id_fkey FOREIGN KEY (estimate_line_id) REFERENCES public.estimate_items(id) ON DELETE CASCADE;
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -3501,35 +2364,25 @@ $$;
 -- Name: proposal_line_overrides proposal_line_overrides_proposal_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'proposal_line_overrides_proposal_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.proposal_line_overrides
+  DROP CONSTRAINT IF EXISTS proposal_line_overrides_proposal_id_fkey;
 
-    ADD CONSTRAINT proposal_line_overrides_proposal_id_fkey FOREIGN KEY (proposal_id) REFERENCES public.proposals(id) ON DELETE CASCADE;
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'proposal_line_overrides_proposal_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.proposal_line_overrides
+      ADD CONSTRAINT proposal_line_overrides_proposal_id_fkey FOREIGN KEY (proposal_id) REFERENCES public.proposals(id) ON DELETE CASCADE;
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -3537,35 +2390,25 @@ $$;
 -- Name: proposal_section_items proposal_section_items_estimate_item_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'proposal_section_items_estimate_item_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.proposal_section_items
+  DROP CONSTRAINT IF EXISTS proposal_section_items_estimate_item_id_fkey;
 
-    ADD CONSTRAINT proposal_section_items_estimate_item_id_fkey FOREIGN KEY (estimate_item_id) REFERENCES public.estimate_items(id) ON DELETE CASCADE;
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'proposal_section_items_estimate_item_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.proposal_section_items
+      ADD CONSTRAINT proposal_section_items_estimate_item_id_fkey FOREIGN KEY (estimate_item_id) REFERENCES public.estimate_items(id) ON DELETE CASCADE;
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -3573,35 +2416,25 @@ $$;
 -- Name: proposal_section_items proposal_section_items_proposal_section_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'proposal_section_items_proposal_section_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.proposal_section_items
+  DROP CONSTRAINT IF EXISTS proposal_section_items_proposal_section_id_fkey;
 
-    ADD CONSTRAINT proposal_section_items_proposal_section_id_fkey FOREIGN KEY (proposal_section_id) REFERENCES public.proposal_sections(id) ON DELETE CASCADE;
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'proposal_section_items_proposal_section_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.proposal_section_items
+      ADD CONSTRAINT proposal_section_items_proposal_section_id_fkey FOREIGN KEY (proposal_section_id) REFERENCES public.proposal_sections(id) ON DELETE CASCADE;
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -3609,35 +2442,25 @@ $$;
 -- Name: proposal_sections proposal_sections_proposal_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'proposal_sections_proposal_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.proposal_sections
+  DROP CONSTRAINT IF EXISTS proposal_sections_proposal_id_fkey;
 
-    ADD CONSTRAINT proposal_sections_proposal_id_fkey FOREIGN KEY (proposal_id) REFERENCES public.proposals(id) ON DELETE CASCADE;
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'proposal_sections_proposal_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.proposal_sections
+      ADD CONSTRAINT proposal_sections_proposal_id_fkey FOREIGN KEY (proposal_id) REFERENCES public.proposals(id) ON DELETE CASCADE;
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -3645,35 +2468,25 @@ $$;
 -- Name: proposals proposals_primary_estimate_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'proposals_primary_estimate_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.proposals
+  DROP CONSTRAINT IF EXISTS proposals_primary_estimate_id_fkey;
 
-    ADD CONSTRAINT proposals_primary_estimate_id_fkey FOREIGN KEY (primary_estimate_id) REFERENCES public.estimates(id) ON DELETE SET NULL;
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'proposals_primary_estimate_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.proposals
+      ADD CONSTRAINT proposals_primary_estimate_id_fkey FOREIGN KEY (primary_estimate_id) REFERENCES public.estimates(id) ON DELETE SET NULL;
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -3681,35 +2494,25 @@ $$;
 -- Name: proposals proposals_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'proposals_project_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.proposals
+  DROP CONSTRAINT IF EXISTS proposals_project_id_fkey;
 
-    ADD CONSTRAINT proposals_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'proposals_project_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.proposals
+      ADD CONSTRAINT proposals_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -3717,35 +2520,25 @@ $$;
 -- Name: scheduled_shifts scheduled_shifts_cost_code_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'scheduled_shifts_cost_code_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.scheduled_shifts
+  DROP CONSTRAINT IF EXISTS scheduled_shifts_cost_code_id_fkey;
 
-    ADD CONSTRAINT scheduled_shifts_cost_code_id_fkey FOREIGN KEY (cost_code_id) REFERENCES public.cost_codes(id) ON DELETE SET NULL;
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'scheduled_shifts_cost_code_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.scheduled_shifts
+      ADD CONSTRAINT scheduled_shifts_cost_code_id_fkey FOREIGN KEY (cost_code_id) REFERENCES public.cost_codes(id) ON DELETE SET NULL;
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -3753,35 +2546,25 @@ $$;
 -- Name: scheduled_shifts scheduled_shifts_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'scheduled_shifts_created_by_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.scheduled_shifts
+  DROP CONSTRAINT IF EXISTS scheduled_shifts_created_by_fkey;
 
-    ADD CONSTRAINT scheduled_shifts_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE SET NULL;
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'scheduled_shifts_created_by_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.scheduled_shifts
+      ADD CONSTRAINT scheduled_shifts_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE SET NULL;
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -3789,35 +2572,25 @@ $$;
 -- Name: scheduled_shifts scheduled_shifts_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'scheduled_shifts_project_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.scheduled_shifts
+  DROP CONSTRAINT IF EXISTS scheduled_shifts_project_id_fkey;
 
-    ADD CONSTRAINT scheduled_shifts_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'scheduled_shifts_project_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.scheduled_shifts
+      ADD CONSTRAINT scheduled_shifts_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -3825,35 +2598,25 @@ $$;
 -- Name: scheduled_shifts scheduled_shifts_trade_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'scheduled_shifts_trade_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.scheduled_shifts
+  DROP CONSTRAINT IF EXISTS scheduled_shifts_trade_id_fkey;
 
-    ADD CONSTRAINT scheduled_shifts_trade_id_fkey FOREIGN KEY (trade_id) REFERENCES public.trades(id) ON DELETE SET NULL;
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'scheduled_shifts_trade_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.scheduled_shifts
+      ADD CONSTRAINT scheduled_shifts_trade_id_fkey FOREIGN KEY (trade_id) REFERENCES public.trades(id) ON DELETE SET NULL;
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -3861,35 +2624,25 @@ $$;
 -- Name: scheduled_shifts scheduled_shifts_worker_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'scheduled_shifts_worker_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.scheduled_shifts
+  DROP CONSTRAINT IF EXISTS scheduled_shifts_worker_id_fkey;
 
-    ADD CONSTRAINT scheduled_shifts_worker_id_fkey FOREIGN KEY (worker_id) REFERENCES public.workers(id) ON DELETE CASCADE;
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'scheduled_shifts_worker_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.scheduled_shifts
+      ADD CONSTRAINT scheduled_shifts_worker_id_fkey FOREIGN KEY (worker_id) REFERENCES public.workers(id) ON DELETE CASCADE;
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -3897,35 +2650,25 @@ $$;
 -- Name: sub_bids sub_bids_bid_package_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'sub_bids_bid_package_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.sub_bids
+  DROP CONSTRAINT IF EXISTS sub_bids_bid_package_id_fkey;
 
-    ADD CONSTRAINT sub_bids_bid_package_id_fkey FOREIGN KEY (bid_package_id) REFERENCES public.bid_packages(id) ON DELETE CASCADE;
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'sub_bids_bid_package_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.sub_bids
+      ADD CONSTRAINT sub_bids_bid_package_id_fkey FOREIGN KEY (bid_package_id) REFERENCES public.bid_packages(id) ON DELETE CASCADE;
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -3933,35 +2676,25 @@ $$;
 -- Name: sub_bids sub_bids_sub_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'sub_bids_sub_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.sub_bids
+  DROP CONSTRAINT IF EXISTS sub_bids_sub_id_fkey;
 
-    ADD CONSTRAINT sub_bids_sub_id_fkey FOREIGN KEY (sub_id) REFERENCES public.subs(id) ON DELETE CASCADE;
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'sub_bids_sub_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.sub_bids
+      ADD CONSTRAINT sub_bids_sub_id_fkey FOREIGN KEY (sub_id) REFERENCES public.subs(id) ON DELETE CASCADE;
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -3969,35 +2702,25 @@ $$;
 -- Name: sub_compliance_documents sub_compliance_documents_document_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'sub_compliance_documents_document_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.sub_compliance_documents
+  DROP CONSTRAINT IF EXISTS sub_compliance_documents_document_id_fkey;
 
-    ADD CONSTRAINT sub_compliance_documents_document_id_fkey FOREIGN KEY (document_id) REFERENCES public.documents(id) ON DELETE SET NULL;
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'sub_compliance_documents_document_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.sub_compliance_documents
+      ADD CONSTRAINT sub_compliance_documents_document_id_fkey FOREIGN KEY (document_id) REFERENCES public.documents(id) ON DELETE SET NULL;
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -4005,35 +2728,25 @@ $$;
 -- Name: sub_compliance_documents sub_compliance_documents_sub_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'sub_compliance_documents_sub_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.sub_compliance_documents
+  DROP CONSTRAINT IF EXISTS sub_compliance_documents_sub_id_fkey;
 
-    ADD CONSTRAINT sub_compliance_documents_sub_id_fkey FOREIGN KEY (sub_id) REFERENCES public.subs(id) ON DELETE CASCADE;
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'sub_compliance_documents_sub_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.sub_compliance_documents
+      ADD CONSTRAINT sub_compliance_documents_sub_id_fkey FOREIGN KEY (sub_id) REFERENCES public.subs(id) ON DELETE CASCADE;
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -4041,35 +2754,25 @@ $$;
 -- Name: sub_contracts sub_contracts_linked_document_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'sub_contracts_linked_document_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.sub_contracts
+  DROP CONSTRAINT IF EXISTS sub_contracts_linked_document_id_fkey;
 
-    ADD CONSTRAINT sub_contracts_linked_document_id_fkey FOREIGN KEY (linked_document_id) REFERENCES public.documents(id) ON DELETE SET NULL;
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'sub_contracts_linked_document_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.sub_contracts
+      ADD CONSTRAINT sub_contracts_linked_document_id_fkey FOREIGN KEY (linked_document_id) REFERENCES public.documents(id) ON DELETE SET NULL;
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -4077,35 +2780,25 @@ $$;
 -- Name: sub_contracts sub_contracts_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'sub_contracts_project_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.sub_contracts
+  DROP CONSTRAINT IF EXISTS sub_contracts_project_id_fkey;
 
-    ADD CONSTRAINT sub_contracts_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'sub_contracts_project_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.sub_contracts
+      ADD CONSTRAINT sub_contracts_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -4113,35 +2806,25 @@ $$;
 -- Name: sub_contracts sub_contracts_sub_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'sub_contracts_sub_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.sub_contracts
+  DROP CONSTRAINT IF EXISTS sub_contracts_sub_id_fkey;
 
-    ADD CONSTRAINT sub_contracts_sub_id_fkey FOREIGN KEY (sub_id) REFERENCES public.subs(id) ON DELETE CASCADE;
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'sub_contracts_sub_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.sub_contracts
+      ADD CONSTRAINT sub_contracts_sub_id_fkey FOREIGN KEY (sub_id) REFERENCES public.subs(id) ON DELETE CASCADE;
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -4149,35 +2832,25 @@ $$;
 -- Name: sub_invoices sub_invoices_contract_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'sub_invoices_contract_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.sub_invoices
+  DROP CONSTRAINT IF EXISTS sub_invoices_contract_id_fkey;
 
-    ADD CONSTRAINT sub_invoices_contract_id_fkey FOREIGN KEY (contract_id) REFERENCES public.sub_contracts(id) ON DELETE SET NULL;
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'sub_invoices_contract_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.sub_invoices
+      ADD CONSTRAINT sub_invoices_contract_id_fkey FOREIGN KEY (contract_id) REFERENCES public.sub_contracts(id) ON DELETE SET NULL;
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -4185,35 +2858,25 @@ $$;
 -- Name: sub_invoices sub_invoices_linked_document_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'sub_invoices_linked_document_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.sub_invoices
+  DROP CONSTRAINT IF EXISTS sub_invoices_linked_document_id_fkey;
 
-    ADD CONSTRAINT sub_invoices_linked_document_id_fkey FOREIGN KEY (linked_document_id) REFERENCES public.documents(id) ON DELETE SET NULL;
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'sub_invoices_linked_document_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.sub_invoices
+      ADD CONSTRAINT sub_invoices_linked_document_id_fkey FOREIGN KEY (linked_document_id) REFERENCES public.documents(id) ON DELETE SET NULL;
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -4221,35 +2884,25 @@ $$;
 -- Name: sub_invoices sub_invoices_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'sub_invoices_project_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.sub_invoices
+  DROP CONSTRAINT IF EXISTS sub_invoices_project_id_fkey;
 
-    ADD CONSTRAINT sub_invoices_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'sub_invoices_project_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.sub_invoices
+      ADD CONSTRAINT sub_invoices_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -4257,35 +2910,25 @@ $$;
 -- Name: sub_invoices sub_invoices_sub_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'sub_invoices_sub_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.sub_invoices
+  DROP CONSTRAINT IF EXISTS sub_invoices_sub_id_fkey;
 
-    ADD CONSTRAINT sub_invoices_sub_id_fkey FOREIGN KEY (sub_id) REFERENCES public.subs(id) ON DELETE CASCADE;
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'sub_invoices_sub_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.sub_invoices
+      ADD CONSTRAINT sub_invoices_sub_id_fkey FOREIGN KEY (sub_id) REFERENCES public.subs(id) ON DELETE CASCADE;
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -4293,35 +2936,25 @@ $$;
 -- Name: sub_logs sub_logs_cost_code_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'sub_logs_cost_code_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.sub_logs
+  DROP CONSTRAINT IF EXISTS sub_logs_cost_code_id_fkey;
 
-    ADD CONSTRAINT sub_logs_cost_code_id_fkey FOREIGN KEY (cost_code_id) REFERENCES public.cost_codes(id) ON DELETE SET NULL;
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'sub_logs_cost_code_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.sub_logs
+      ADD CONSTRAINT sub_logs_cost_code_id_fkey FOREIGN KEY (cost_code_id) REFERENCES public.cost_codes(id) ON DELETE SET NULL;
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -4329,35 +2962,25 @@ $$;
 -- Name: sub_logs sub_logs_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'sub_logs_project_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.sub_logs
+  DROP CONSTRAINT IF EXISTS sub_logs_project_id_fkey;
 
-    ADD CONSTRAINT sub_logs_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'sub_logs_project_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.sub_logs
+      ADD CONSTRAINT sub_logs_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -4365,35 +2988,25 @@ $$;
 -- Name: sub_logs sub_logs_sub_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'sub_logs_sub_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.sub_logs
+  DROP CONSTRAINT IF EXISTS sub_logs_sub_id_fkey;
 
-    ADD CONSTRAINT sub_logs_sub_id_fkey FOREIGN KEY (sub_id) REFERENCES public.subs(id) ON DELETE CASCADE;
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'sub_logs_sub_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.sub_logs
+      ADD CONSTRAINT sub_logs_sub_id_fkey FOREIGN KEY (sub_id) REFERENCES public.subs(id) ON DELETE CASCADE;
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -4401,35 +3014,25 @@ $$;
 -- Name: sub_payments sub_payments_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'sub_payments_created_by_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.sub_payments
+  DROP CONSTRAINT IF EXISTS sub_payments_created_by_fkey;
 
-    ADD CONSTRAINT sub_payments_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id);
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'sub_payments_created_by_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.sub_payments
+      ADD CONSTRAINT sub_payments_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id);
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -4437,35 +3040,25 @@ $$;
 -- Name: sub_payments sub_payments_payment_batch_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'sub_payments_payment_batch_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.sub_payments
+  DROP CONSTRAINT IF EXISTS sub_payments_payment_batch_id_fkey;
 
-    ADD CONSTRAINT sub_payments_payment_batch_id_fkey FOREIGN KEY (payment_batch_id) REFERENCES public.payments(id) ON DELETE SET NULL;
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'sub_payments_payment_batch_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.sub_payments
+      ADD CONSTRAINT sub_payments_payment_batch_id_fkey FOREIGN KEY (payment_batch_id) REFERENCES public.payments(id) ON DELETE SET NULL;
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -4473,35 +3066,25 @@ $$;
 -- Name: sub_payments sub_payments_project_subcontract_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'sub_payments_project_subcontract_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.sub_payments
+  DROP CONSTRAINT IF EXISTS sub_payments_project_subcontract_id_fkey;
 
-    ADD CONSTRAINT sub_payments_project_subcontract_id_fkey FOREIGN KEY (project_subcontract_id) REFERENCES public.sub_contracts(id) ON DELETE CASCADE;
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'sub_payments_project_subcontract_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.sub_payments
+      ADD CONSTRAINT sub_payments_project_subcontract_id_fkey FOREIGN KEY (project_subcontract_id) REFERENCES public.sub_contracts(id) ON DELETE CASCADE;
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -4509,35 +3092,25 @@ $$;
 -- Name: sub_payments sub_payments_sub_invoice_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'sub_payments_sub_invoice_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.sub_payments
+  DROP CONSTRAINT IF EXISTS sub_payments_sub_invoice_id_fkey;
 
-    ADD CONSTRAINT sub_payments_sub_invoice_id_fkey FOREIGN KEY (sub_invoice_id) REFERENCES public.sub_invoices(id) ON DELETE SET NULL;
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'sub_payments_sub_invoice_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.sub_payments
+      ADD CONSTRAINT sub_payments_sub_invoice_id_fkey FOREIGN KEY (sub_invoice_id) REFERENCES public.sub_invoices(id) ON DELETE SET NULL;
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -4545,35 +3118,25 @@ $$;
 -- Name: sub_scheduled_shifts sub_scheduled_shifts_cost_code_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'sub_scheduled_shifts_cost_code_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.sub_scheduled_shifts
+  DROP CONSTRAINT IF EXISTS sub_scheduled_shifts_cost_code_id_fkey;
 
-    ADD CONSTRAINT sub_scheduled_shifts_cost_code_id_fkey FOREIGN KEY (cost_code_id) REFERENCES public.cost_codes(id) ON DELETE SET NULL;
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'sub_scheduled_shifts_cost_code_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.sub_scheduled_shifts
+      ADD CONSTRAINT sub_scheduled_shifts_cost_code_id_fkey FOREIGN KEY (cost_code_id) REFERENCES public.cost_codes(id) ON DELETE SET NULL;
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -4581,35 +3144,25 @@ $$;
 -- Name: sub_scheduled_shifts sub_scheduled_shifts_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'sub_scheduled_shifts_project_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.sub_scheduled_shifts
+  DROP CONSTRAINT IF EXISTS sub_scheduled_shifts_project_id_fkey;
 
-    ADD CONSTRAINT sub_scheduled_shifts_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'sub_scheduled_shifts_project_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.sub_scheduled_shifts
+      ADD CONSTRAINT sub_scheduled_shifts_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -4617,35 +3170,25 @@ $$;
 -- Name: sub_scheduled_shifts sub_scheduled_shifts_sub_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'sub_scheduled_shifts_sub_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.sub_scheduled_shifts
+  DROP CONSTRAINT IF EXISTS sub_scheduled_shifts_sub_id_fkey;
 
-    ADD CONSTRAINT sub_scheduled_shifts_sub_id_fkey FOREIGN KEY (sub_id) REFERENCES public.subs(id) ON DELETE CASCADE;
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'sub_scheduled_shifts_sub_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.sub_scheduled_shifts
+      ADD CONSTRAINT sub_scheduled_shifts_sub_id_fkey FOREIGN KEY (sub_id) REFERENCES public.subs(id) ON DELETE CASCADE;
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -4653,35 +3196,25 @@ $$;
 -- Name: subs subs_trade_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'subs_trade_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.subs
+  DROP CONSTRAINT IF EXISTS subs_trade_id_fkey;
 
-    ADD CONSTRAINT subs_trade_id_fkey FOREIGN KEY (trade_id) REFERENCES public.trades(id);
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'subs_trade_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.subs
+      ADD CONSTRAINT subs_trade_id_fkey FOREIGN KEY (trade_id) REFERENCES public.trades(id);
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -4689,35 +3222,25 @@ $$;
 -- Name: time_log_allocations time_log_allocations_cost_code_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'time_log_allocations_cost_code_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.time_log_allocations
+  DROP CONSTRAINT IF EXISTS time_log_allocations_cost_code_id_fkey;
 
-    ADD CONSTRAINT time_log_allocations_cost_code_id_fkey FOREIGN KEY (cost_code_id) REFERENCES public.cost_codes(id) ON DELETE SET NULL;
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'time_log_allocations_cost_code_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.time_log_allocations
+      ADD CONSTRAINT time_log_allocations_cost_code_id_fkey FOREIGN KEY (cost_code_id) REFERENCES public.cost_codes(id) ON DELETE SET NULL;
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -4725,35 +3248,25 @@ $$;
 -- Name: time_log_allocations time_log_allocations_day_card_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'time_log_allocations_day_card_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.time_log_allocations
+  DROP CONSTRAINT IF EXISTS time_log_allocations_day_card_id_fkey;
 
-    ADD CONSTRAINT time_log_allocations_day_card_id_fkey FOREIGN KEY (day_card_id) REFERENCES public.day_cards(id) ON DELETE CASCADE;
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'time_log_allocations_day_card_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.time_log_allocations
+      ADD CONSTRAINT time_log_allocations_day_card_id_fkey FOREIGN KEY (day_card_id) REFERENCES public.day_cards(id) ON DELETE CASCADE;
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -4761,35 +3274,25 @@ $$;
 -- Name: time_log_allocations time_log_allocations_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'time_log_allocations_project_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.time_log_allocations
+  DROP CONSTRAINT IF EXISTS time_log_allocations_project_id_fkey;
 
-    ADD CONSTRAINT time_log_allocations_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'time_log_allocations_project_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.time_log_allocations
+      ADD CONSTRAINT time_log_allocations_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -4797,35 +3300,25 @@ $$;
 -- Name: time_log_allocations time_log_allocations_trade_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'time_log_allocations_trade_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.time_log_allocations
+  DROP CONSTRAINT IF EXISTS time_log_allocations_trade_id_fkey;
 
-    ADD CONSTRAINT time_log_allocations_trade_id_fkey FOREIGN KEY (trade_id) REFERENCES public.trades(id) ON DELETE SET NULL;
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'time_log_allocations_trade_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.time_log_allocations
+      ADD CONSTRAINT time_log_allocations_trade_id_fkey FOREIGN KEY (trade_id) REFERENCES public.trades(id) ON DELETE SET NULL;
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -4833,35 +3326,25 @@ $$;
 -- Name: trades trades_default_labor_cost_code_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'trades_default_labor_cost_code_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.trades
+  DROP CONSTRAINT IF EXISTS trades_default_labor_cost_code_id_fkey;
 
-    ADD CONSTRAINT trades_default_labor_cost_code_id_fkey FOREIGN KEY (default_labor_cost_code_id) REFERENCES public.cost_codes(id);
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'trades_default_labor_cost_code_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.trades
+      ADD CONSTRAINT trades_default_labor_cost_code_id_fkey FOREIGN KEY (default_labor_cost_code_id) REFERENCES public.cost_codes(id);
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -4869,35 +3352,25 @@ $$;
 -- Name: trades trades_default_material_cost_code_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'trades_default_material_cost_code_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.trades
+  DROP CONSTRAINT IF EXISTS trades_default_material_cost_code_id_fkey;
 
-    ADD CONSTRAINT trades_default_material_cost_code_id_fkey FOREIGN KEY (default_material_cost_code_id) REFERENCES public.cost_codes(id);
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'trades_default_material_cost_code_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.trades
+      ADD CONSTRAINT trades_default_material_cost_code_id_fkey FOREIGN KEY (default_material_cost_code_id) REFERENCES public.cost_codes(id);
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -4905,35 +3378,25 @@ $$;
 -- Name: trades trades_default_sub_cost_code_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'trades_default_sub_cost_code_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.trades
+  DROP CONSTRAINT IF EXISTS trades_default_sub_cost_code_id_fkey;
 
-    ADD CONSTRAINT trades_default_sub_cost_code_id_fkey FOREIGN KEY (default_sub_cost_code_id) REFERENCES public.cost_codes(id);
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'trades_default_sub_cost_code_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.trades
+      ADD CONSTRAINT trades_default_sub_cost_code_id_fkey FOREIGN KEY (default_sub_cost_code_id) REFERENCES public.cost_codes(id);
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -4941,35 +3404,25 @@ $$;
 -- Name: user_roles user_roles_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'user_roles_user_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.user_roles
+  DROP CONSTRAINT IF EXISTS user_roles_user_id_fkey;
 
-    ADD CONSTRAINT user_roles_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'user_roles_user_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.user_roles
+      ADD CONSTRAINT user_roles_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -4977,35 +3430,25 @@ $$;
 -- Name: workers workers_trade_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-DO $$
-
-BEGIN
-
-  IF NOT EXISTS (
-
-    SELECT 1
-
-    FROM pg_constraint c
-
-    JOIN pg_class t ON t.oid = c.conrelid
-
-    JOIN pg_namespace n ON n.oid = t.relnamespace
-
-    WHERE c.conname = 'workers_trade_id_fkey'
-
-      AND n.nspname = 'public'
-
-  ) THEN
-
 ALTER TABLE ONLY public.workers
+  DROP CONSTRAINT IF EXISTS workers_trade_id_fkey;
 
-    ADD CONSTRAINT workers_trade_id_fkey FOREIGN KEY (trade_id) REFERENCES public.trades(id) ON DELETE SET NULL;
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'workers_trade_id_fkey'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE ONLY public.workers
+      ADD CONSTRAINT workers_trade_id_fkey FOREIGN KEY (trade_id) REFERENCES public.trades(id) ON DELETE SET NULL;
   END IF;
-
 END
-
 $$;
+  
 
 
 CREATE INDEX IF NOT EXISTS idx_companies_created_at ON public.companies(created_at);
@@ -5889,14 +4332,7 @@ BEGIN
     USING ranked r
     WHERE t.id = r.id AND r.rn > 1;
   END IF;
-END $$;
 
-
-
-
--- Conditional dedupe
-DO $$
-BEGIN
   IF current_setting('app.run_dedupe', true) = 'true' THEN
     -- Pre-clean: Remove duplicates from cost_codes on (code), keep smallest created_at then id
     WITH ranked AS (
@@ -5915,14 +4351,7 @@ BEGIN
     USING ranked r
     WHERE t.id = r.id AND r.rn > 1;
   END IF;
-END $$;
 
-
-
-
--- Conditional dedupe
-DO $$
-BEGIN
   IF current_setting('app.run_dedupe', true) = 'true' THEN
     -- Pre-clean: Remove duplicates from day_cards on (worker_id, date), keep smallest created_at then id
     WITH ranked AS (
@@ -5941,14 +4370,7 @@ BEGIN
     USING ranked r
     WHERE t.id = r.id AND r.rn > 1;
   END IF;
-END $$;
 
-
-
-
--- Conditional dedupe
-DO $$
-BEGIN
   IF current_setting('app.run_dedupe', true) = 'true' THEN
     -- Pre-clean: Remove duplicates from invitations on (email), keep smallest created_at then id
     WITH ranked AS (
@@ -5967,14 +4389,7 @@ BEGIN
     USING ranked r
     WHERE t.id = r.id AND r.rn > 1;
   END IF;
-END $$;
 
-
-
-
--- Conditional dedupe
-DO $$
-BEGIN
   IF current_setting('app.run_dedupe', true) = 'true' THEN
     -- Pre-clean: Remove duplicates from project_budget_lines on (project_id, cost_code_id), keep smallest created_at then id
     WITH ranked AS (
@@ -5993,14 +4408,7 @@ BEGIN
     USING ranked r
     WHERE t.id = r.id AND r.rn > 1;
   END IF;
-END $$;
 
-
-
-
--- Conditional dedupe
-DO $$
-BEGIN
   IF current_setting('app.run_dedupe', true) = 'true' THEN
     -- Pre-clean: Remove duplicates from project_budgets on (project_id), keep smallest created_at then id
     WITH ranked AS (
@@ -6019,14 +4427,7 @@ BEGIN
     USING ranked r
     WHERE t.id = r.id AND r.rn > 1;
   END IF;
-END $$;
 
-
-
-
--- Conditional dedupe
-DO $$
-BEGIN
   IF current_setting('app.run_dedupe', true) = 'true' THEN
     -- Pre-clean: Remove duplicates from project_subcontracts on (project_id, sub_id), keep smallest created_at then id
     WITH ranked AS (
@@ -6045,14 +4446,7 @@ BEGIN
     USING ranked r
     WHERE t.id = r.id AND r.rn > 1;
   END IF;
-END $$;
 
-
-
-
--- Conditional dedupe
-DO $$
-BEGIN
   IF current_setting('app.run_dedupe', true) = 'true' THEN
     -- Pre-clean: Remove duplicates from sub_bids on (bid_package_id, sub_id), keep smallest created_at then id
     WITH ranked AS (
@@ -6071,14 +4465,7 @@ BEGIN
     USING ranked r
     WHERE t.id = r.id AND r.rn > 1;
   END IF;
-END $$;
 
-
-
-
--- Conditional dedupe
-DO $$
-BEGIN
   IF current_setting('app.run_dedupe', true) = 'true' THEN
     -- Pre-clean: Remove duplicates from trades on (name), keep smallest created_at then id
     WITH ranked AS (
@@ -6097,14 +4484,7 @@ BEGIN
     USING ranked r
     WHERE t.id = r.id AND r.rn > 1;
   END IF;
-END $$;
 
-
-
-
--- Conditional dedupe
-DO $$
-BEGIN
   IF current_setting('app.run_dedupe', true) = 'true' THEN
     -- Pre-clean: Remove duplicates from user_roles on (user_id, role), keep smallest created_at then id
     WITH ranked AS (
@@ -6123,15 +4503,7 @@ BEGIN
     USING ranked r
     WHERE t.id = r.id AND r.rn > 1;
   END IF;
-END $$;
 
---
-
-
-
--- Conditional dedupe
-DO $$
-BEGIN
   IF current_setting('app.run_dedupe', true) = 'true' THEN
     -- Pre-clean: Remove duplicates from cost_codes on (trade_id, category), keep smallest created_at then id
     WITH ranked AS (
@@ -6150,15 +4522,7 @@ BEGIN
     USING ranked r
     WHERE t.id = r.id AND r.rn > 1;
   END IF;
-END $$;
 
---
-
-
-
--- Conditional dedupe
-DO $$
-BEGIN
   IF current_setting('app.run_dedupe', true) = 'true' THEN
     -- Pre-clean: Remove duplicates from daily_logs on (schedule_id), keep smallest created_at then id
     WITH ranked AS (
@@ -7259,9 +5623,6 @@ BEGIN
       -- Assign it if found
       IF v_labor_cost_code_id IS NOT NULL THEN
         NEW.cost_code_id := v_labor_cost_code_id;
-      END IF;
-    END IF;
-  END IF;
 
   RETURN NEW;
 END;
@@ -7299,9 +5660,6 @@ BEGIN
       -- Assign it if found
       IF v_sub_cost_code_id IS NOT NULL THEN
         NEW.cost_code_id := v_sub_cost_code_id;
-      END IF;
-    END IF;
-  END IF;
 
   RETURN NEW;
 END;
@@ -7487,7 +5845,6 @@ BEGIN
       v_status := 'scheduled';
     ELSE
       v_status := 'scheduled';
-    END IF;
     
     -- Determine pay status from daily_logs
     SELECT CASE 
@@ -7502,7 +5859,6 @@ BEGIN
     
     IF v_pay_status IS NULL THEN
       v_pay_status := 'unpaid';
-    END IF;
     
     -- Create or update the DayCard
     INSERT INTO day_cards (
@@ -7588,7 +5944,6 @@ BEGIN
 
   IF NOT FOUND THEN
     RAISE EXCEPTION 'Original schedule not found';
-  END IF;
 
   -- Disable triggers to prevent infinite recursion during split
   PERFORM set_config('session.split_in_progress', 'true', true);
@@ -7671,7 +6026,6 @@ BEGIN
           now()
         )
         RETURNING id INTO v_new_timelog_id;
-      END IF;
 
       v_first_iteration := false;
     ELSE
@@ -7742,7 +6096,6 @@ BEGIN
           'hours', (v_entry->>'hours')::NUMERIC
         )
       );
-    END IF;
 
     RETURN QUERY SELECT v_new_schedule_id, v_new_timelog_id;
   END LOOP;
@@ -7776,7 +6129,6 @@ BEGIN
 
   IF v_project_id IS NULL THEN
     RAISE EXCEPTION 'Estimate not found';
-  END IF;
 
   -- Clear is_budget_source from all other estimates for this project
   UPDATE estimates
@@ -7904,7 +6256,6 @@ BEGIN
   -- Skip if split operation is in progress
   IF coalesce(current_setting('session.split_in_progress', true), 'false') = 'true' THEN
     RETURN NEW;
-  END IF;
 
   -- CRITICAL: Only auto-sync if ALL these conditions are met:
   -- 1. The scheduled date has ALREADY PASSED (not today, must be in the past)
@@ -7957,7 +6308,6 @@ BEGIN
         NEW.scheduled_date,
         now()
       );
-    END IF;
     
     -- Update schedule status
     NEW.status := 'synced';
@@ -7987,11 +6337,9 @@ BEGIN
         NEW.scheduled_date,
         now()
       );
-    END IF;
     
     NEW.status := 'converted';
     NEW.last_synced_at := now();
-  END IF;
   
   RETURN NEW;
 END;
@@ -8013,7 +6361,6 @@ BEGIN
   -- Skip if split operation is in progress
   IF coalesce(current_setting('session.split_in_progress', true), 'false') = 'true' THEN
     RETURN NEW;
-  END IF;
 
   -- Only process if there's a linked schedule
   IF NEW.schedule_id IS NOT NULL THEN
@@ -8048,8 +6395,6 @@ BEGIN
       );
       
       NEW.last_synced_at := now();
-    END IF;
-  END IF;
   
   RETURN NEW;
 END;
@@ -8098,20 +6443,6 @@ BEGIN
 
   END IF;
 
-END
-
-$$;
-
-
-
---
--- Name: archived_daily_logs archived_daily_logs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-
-BEGIN
-
   IF NOT EXISTS (
 
     SELECT 1
@@ -8144,45 +6475,22 @@ $$;
 -- Name: bid_invitations bid_invitations_bid_package_id_sub_id_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.bid_invitations
+  DROP CONSTRAINT IF EXISTS bid_invitations_bid_package_id_sub_id_key;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'bid_invitations_bid_package_id_sub_id_key'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.bid_invitations
-
       ADD CONSTRAINT bid_invitations_bid_package_id_sub_id_key UNIQUE (bid_package_id, sub_id);
-
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: bid_invitations bid_invitations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-
-BEGIN
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -8204,21 +6512,7 @@ BEGIN
 
       ADD CONSTRAINT bid_invitations_pkey PRIMARY KEY (id);
 
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: bid_packages bid_packages_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-
-BEGIN
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -8241,9 +6535,7 @@ BEGIN
       ADD CONSTRAINT bid_packages_pkey PRIMARY KEY (id);
 
   END IF;
-
 END
-
 $$;
 
 
@@ -8252,45 +6544,22 @@ $$;
 -- Name: companies companies_name_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.companies
+  DROP CONSTRAINT IF EXISTS companies_name_key;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'companies_name_key'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.companies
-
       ADD CONSTRAINT companies_name_key UNIQUE (name);
-
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: companies companies_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-
-BEGIN
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -8313,9 +6582,7 @@ BEGIN
       ADD CONSTRAINT companies_pkey PRIMARY KEY (id);
 
   END IF;
-
 END
-
 $$;
 
 
@@ -8324,45 +6591,22 @@ $$;
 -- Name: cost_codes cost_codes_code_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.cost_codes
+  DROP CONSTRAINT IF EXISTS cost_codes_code_key;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'cost_codes_code_key'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.cost_codes
-
       ADD CONSTRAINT cost_codes_code_key UNIQUE (code);
-
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: cost_codes cost_codes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-
-BEGIN
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -8384,21 +6628,7 @@ BEGIN
 
       ADD CONSTRAINT cost_codes_pkey PRIMARY KEY (id);
 
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: daily_logs daily_logs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-
-BEGIN
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -8420,21 +6650,7 @@ BEGIN
 
       ADD CONSTRAINT daily_logs_pkey PRIMARY KEY (id);
 
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: day_card_jobs day_card_jobs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-
-BEGIN
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -8456,21 +6672,7 @@ BEGIN
 
       ADD CONSTRAINT day_card_jobs_pkey PRIMARY KEY (id);
 
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: day_cards day_cards_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-
-BEGIN
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -8493,9 +6695,7 @@ BEGIN
       ADD CONSTRAINT day_cards_pkey PRIMARY KEY (id);
 
   END IF;
-
 END
-
 $$;
 
 
@@ -8504,45 +6704,22 @@ $$;
 -- Name: day_cards day_cards_worker_id_date_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.day_cards
+  DROP CONSTRAINT IF EXISTS day_cards_worker_id_date_key;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'day_cards_worker_id_date_key'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.day_cards
-
       ADD CONSTRAINT day_cards_worker_id_date_key UNIQUE (worker_id, date);
-
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: documents documents_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-
-BEGIN
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -8564,21 +6741,7 @@ BEGIN
 
       ADD CONSTRAINT documents_pkey PRIMARY KEY (id);
 
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: estimate_items estimate_items_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-
-BEGIN
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -8600,21 +6763,7 @@ BEGIN
 
       ADD CONSTRAINT estimate_items_pkey PRIMARY KEY (id);
 
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: estimates estimates_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-
-BEGIN
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -8637,9 +6786,7 @@ BEGIN
       ADD CONSTRAINT estimates_pkey PRIMARY KEY (id);
 
   END IF;
-
 END
-
 $$;
 
 
@@ -8648,45 +6795,22 @@ $$;
 -- Name: invitations invitations_email_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.invitations
+  DROP CONSTRAINT IF EXISTS invitations_email_key;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'invitations_email_key'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.invitations
-
       ADD CONSTRAINT invitations_email_key UNIQUE (email);
-
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: invitations invitations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-
-BEGIN
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -8708,21 +6832,7 @@ BEGIN
 
       ADD CONSTRAINT invitations_pkey PRIMARY KEY (id);
 
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: invoice_items invoice_items_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-
-BEGIN
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -8744,21 +6854,7 @@ BEGIN
 
       ADD CONSTRAINT invoice_items_pkey PRIMARY KEY (id);
 
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: invoices invoices_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-
-BEGIN
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -8780,21 +6876,7 @@ BEGIN
 
       ADD CONSTRAINT invoices_pkey PRIMARY KEY (id);
 
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: material_receipts material_receipts_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-
-BEGIN
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -8816,21 +6898,7 @@ BEGIN
 
       ADD CONSTRAINT material_receipts_pkey PRIMARY KEY (id);
 
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: payments payments_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-
-BEGIN
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -8852,21 +6920,7 @@ BEGIN
 
       ADD CONSTRAINT payments_pkey PRIMARY KEY (id);
 
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: project_budget_lines project_budget_lines_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-
-BEGIN
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -8889,9 +6943,7 @@ BEGIN
       ADD CONSTRAINT project_budget_lines_pkey PRIMARY KEY (id);
 
   END IF;
-
 END
-
 $$;
 
 
@@ -8900,45 +6952,22 @@ $$;
 -- Name: project_budget_lines project_budget_lines_project_cost_code_unique; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE public.project_budget_lines
+  DROP CONSTRAINT IF EXISTS project_budget_lines_project_cost_code_unique;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'project_budget_lines_project_cost_code_unique'
-
       AND n.nspname = 'public'
-
   ) THEN
-
-    ALTER TABLE ONLY public.project_budget_lines
-
+    ALTER TABLE public.project_budget_lines
       ADD CONSTRAINT project_budget_lines_project_cost_code_unique UNIQUE (project_id, cost_code_id);
-
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: project_budgets project_budgets_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-
-BEGIN
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -8961,9 +6990,7 @@ BEGIN
       ADD CONSTRAINT project_budgets_pkey PRIMARY KEY (id);
 
   END IF;
-
 END
-
 $$;
 
 
@@ -8972,45 +6999,22 @@ $$;
 -- Name: project_budgets project_budgets_project_id_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.project_budgets
+  DROP CONSTRAINT IF EXISTS project_budgets_project_id_key;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'project_budgets_project_id_key'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.project_budgets
-
       ADD CONSTRAINT project_budgets_project_id_key UNIQUE (project_id);
-
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: project_subcontracts project_subcontracts_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-
-BEGIN
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -9033,9 +7037,7 @@ BEGIN
       ADD CONSTRAINT project_subcontracts_pkey PRIMARY KEY (id);
 
   END IF;
-
 END
-
 $$;
 
 
@@ -9044,45 +7046,22 @@ $$;
 -- Name: project_subcontracts project_subcontracts_project_id_sub_id_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.project_subcontracts
+  DROP CONSTRAINT IF EXISTS project_subcontracts_project_id_sub_id_key;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'project_subcontracts_project_id_sub_id_key'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.project_subcontracts
-
       ADD CONSTRAINT project_subcontracts_project_id_sub_id_key UNIQUE (project_id, sub_id);
-
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: project_todos project_todos_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-
-BEGIN
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -9104,21 +7083,7 @@ BEGIN
 
       ADD CONSTRAINT project_todos_pkey PRIMARY KEY (id);
 
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: projects projects_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-
-BEGIN
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -9140,21 +7105,7 @@ BEGIN
 
       ADD CONSTRAINT projects_pkey PRIMARY KEY (id);
 
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: proposal_line_groups proposal_line_groups_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-
-BEGIN
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -9176,21 +7127,7 @@ BEGIN
 
       ADD CONSTRAINT proposal_line_groups_pkey PRIMARY KEY (id);
 
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: proposal_line_overrides proposal_line_overrides_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-
-BEGIN
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -9212,21 +7149,7 @@ BEGIN
 
       ADD CONSTRAINT proposal_line_overrides_pkey PRIMARY KEY (id);
 
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: proposal_section_items proposal_section_items_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-
-BEGIN
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -9248,21 +7171,7 @@ BEGIN
 
       ADD CONSTRAINT proposal_section_items_pkey PRIMARY KEY (id);
 
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: proposal_sections proposal_sections_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-
-BEGIN
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -9284,21 +7193,7 @@ BEGIN
 
       ADD CONSTRAINT proposal_sections_pkey PRIMARY KEY (id);
 
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: proposals proposals_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-
-BEGIN
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -9320,21 +7215,7 @@ BEGIN
 
       ADD CONSTRAINT proposals_pkey PRIMARY KEY (id);
 
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: schedule_modifications schedule_modifications_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-
-BEGIN
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -9356,21 +7237,7 @@ BEGIN
 
       ADD CONSTRAINT schedule_modifications_pkey PRIMARY KEY (id);
 
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: scheduled_shifts scheduled_shifts_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-
-BEGIN
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -9393,9 +7260,7 @@ BEGIN
       ADD CONSTRAINT scheduled_shifts_pkey PRIMARY KEY (id);
 
   END IF;
-
 END
-
 $$;
 
 
@@ -9404,45 +7269,22 @@ $$;
 -- Name: sub_bids sub_bids_bid_package_id_sub_id_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.sub_bids
+  DROP CONSTRAINT IF EXISTS sub_bids_bid_package_id_sub_id_key;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'sub_bids_bid_package_id_sub_id_key'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.sub_bids
-
       ADD CONSTRAINT sub_bids_bid_package_id_sub_id_key UNIQUE (bid_package_id, sub_id);
-
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: sub_bids sub_bids_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-
-BEGIN
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -9464,21 +7306,7 @@ BEGIN
 
       ADD CONSTRAINT sub_bids_pkey PRIMARY KEY (id);
 
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: sub_compliance_documents sub_compliance_documents_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-
-BEGIN
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -9500,21 +7328,7 @@ BEGIN
 
       ADD CONSTRAINT sub_compliance_documents_pkey PRIMARY KEY (id);
 
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: sub_contracts sub_contracts_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-
-BEGIN
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -9536,21 +7350,7 @@ BEGIN
 
       ADD CONSTRAINT sub_contracts_pkey PRIMARY KEY (id);
 
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: sub_invoices sub_invoices_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-
-BEGIN
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -9572,21 +7372,7 @@ BEGIN
 
       ADD CONSTRAINT sub_invoices_pkey PRIMARY KEY (id);
 
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: sub_logs sub_logs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-
-BEGIN
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -9608,21 +7394,7 @@ BEGIN
 
       ADD CONSTRAINT sub_logs_pkey PRIMARY KEY (id);
 
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: sub_payments sub_payments_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-
-BEGIN
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -9644,21 +7416,7 @@ BEGIN
 
       ADD CONSTRAINT sub_payments_pkey PRIMARY KEY (id);
 
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: sub_scheduled_shifts sub_scheduled_shifts_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-
-BEGIN
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -9680,21 +7438,7 @@ BEGIN
 
       ADD CONSTRAINT sub_scheduled_shifts_pkey PRIMARY KEY (id);
 
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: subs subs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-
-BEGIN
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -9716,21 +7460,7 @@ BEGIN
 
       ADD CONSTRAINT subs_pkey PRIMARY KEY (id);
 
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: time_log_allocations time_log_allocations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-
-BEGIN
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -9753,9 +7483,7 @@ BEGIN
       ADD CONSTRAINT time_log_allocations_pkey PRIMARY KEY (id);
 
   END IF;
-
 END
-
 $$;
 
 
@@ -9764,45 +7492,22 @@ $$;
 -- Name: trades trades_name_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.trades
+  DROP CONSTRAINT IF EXISTS trades_name_key;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'trades_name_key'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.trades
-
       ADD CONSTRAINT trades_name_key UNIQUE (name);
-
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: trades trades_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-
-BEGIN
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -9824,21 +7529,7 @@ BEGIN
 
       ADD CONSTRAINT trades_pkey PRIMARY KEY (id);
 
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: user_roles user_roles_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-
-BEGIN
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -9861,9 +7552,7 @@ BEGIN
       ADD CONSTRAINT user_roles_pkey PRIMARY KEY (id);
 
   END IF;
-
 END
-
 $$;
 
 
@@ -9872,45 +7561,22 @@ $$;
 -- Name: user_roles user_roles_user_id_role_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.user_roles
+  DROP CONSTRAINT IF EXISTS user_roles_user_id_role_key;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'user_roles_user_id_role_key'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.user_roles
-
       ADD CONSTRAINT user_roles_user_id_role_key UNIQUE (user_id, role);
-
-  END IF;
-
-END
-
-$$;
-
-
-
---
--- Name: workers workers_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-DO $$
-
-BEGIN
+  EBEGIN
 
   IF NOT EXISTS (
 
@@ -9933,9 +7599,7 @@ BEGIN
       ADD CONSTRAINT workers_pkey PRIMARY KEY (id);
 
   END IF;
-
 END
-
 $$;
 
 --
@@ -9980,35 +7644,25 @@ WHERE t.id = r.id AND r.rn > 1;
 -- Name: activity_log activity_log_actor_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.activity_log
+  DROP CONSTRAINT IF EXISTS activity_log_actor_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'activity_log_actor_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.activity_log
-
       ADD CONSTRAINT activity_log_actor_id_fkey FOREIGN KEY (actor_id) REFERENCES auth.users(id);
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -10016,35 +7670,25 @@ $$;
 -- Name: bid_invitations bid_invitations_bid_package_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.bid_invitations
+  DROP CONSTRAINT IF EXISTS bid_invitations_bid_package_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'bid_invitations_bid_package_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.bid_invitations
-
       ADD CONSTRAINT bid_invitations_bid_package_id_fkey FOREIGN KEY (bid_package_id) REFERENCES public.bid_packages(id) ON DELETE CASCADE;
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -10052,35 +7696,25 @@ $$;
 -- Name: bid_invitations bid_invitations_sub_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.bid_invitations
+  DROP CONSTRAINT IF EXISTS bid_invitations_sub_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'bid_invitations_sub_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.bid_invitations
-
       ADD CONSTRAINT bid_invitations_sub_id_fkey FOREIGN KEY (sub_id) REFERENCES public.subs(id) ON DELETE CASCADE;
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -10088,35 +7722,25 @@ $$;
 -- Name: bid_packages bid_packages_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.bid_packages
+  DROP CONSTRAINT IF EXISTS bid_packages_project_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'bid_packages_project_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.bid_packages
-
       ADD CONSTRAINT bid_packages_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -10124,35 +7748,25 @@ $$;
 -- Name: cost_codes cost_codes_default_trade_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.cost_codes
+  DROP CONSTRAINT IF EXISTS cost_codes_default_trade_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'cost_codes_default_trade_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.cost_codes
-
       ADD CONSTRAINT cost_codes_default_trade_id_fkey FOREIGN KEY (default_trade_id) REFERENCES public.trades(id) ON DELETE SET NULL;
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -10160,35 +7774,25 @@ $$;
 -- Name: cost_codes cost_codes_trade_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.cost_codes
+  DROP CONSTRAINT IF EXISTS cost_codes_trade_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'cost_codes_trade_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.cost_codes
-
       ADD CONSTRAINT cost_codes_trade_id_fkey FOREIGN KEY (trade_id) REFERENCES public.trades(id) ON DELETE CASCADE;
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -10196,35 +7800,25 @@ $$;
 -- Name: daily_logs daily_logs_cost_code_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.daily_logs
+  DROP CONSTRAINT IF EXISTS daily_logs_cost_code_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'daily_logs_cost_code_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.daily_logs
-
       ADD CONSTRAINT daily_logs_cost_code_id_fkey FOREIGN KEY (cost_code_id) REFERENCES public.cost_codes(id) ON DELETE SET NULL;
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -10232,35 +7826,25 @@ $$;
 -- Name: daily_logs daily_logs_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.daily_logs
+  DROP CONSTRAINT IF EXISTS daily_logs_created_by_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'daily_logs_created_by_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.daily_logs
-
       ADD CONSTRAINT daily_logs_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE SET NULL;
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -10268,35 +7852,25 @@ $$;
 -- Name: daily_logs daily_logs_payment_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.daily_logs
+  DROP CONSTRAINT IF EXISTS daily_logs_payment_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'daily_logs_payment_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.daily_logs
-
       ADD CONSTRAINT daily_logs_payment_id_fkey FOREIGN KEY (payment_id) REFERENCES public.payments(id) ON DELETE SET NULL;
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -10304,35 +7878,25 @@ $$;
 -- Name: daily_logs daily_logs_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.daily_logs
+  DROP CONSTRAINT IF EXISTS daily_logs_project_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'daily_logs_project_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.daily_logs
-
       ADD CONSTRAINT daily_logs_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -10340,35 +7904,25 @@ $$;
 -- Name: daily_logs daily_logs_schedule_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.daily_logs
+  DROP CONSTRAINT IF EXISTS daily_logs_schedule_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'daily_logs_schedule_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.daily_logs
-
       ADD CONSTRAINT daily_logs_schedule_id_fkey FOREIGN KEY (schedule_id) REFERENCES public.scheduled_shifts(id) ON DELETE SET NULL;
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -10376,35 +7930,25 @@ $$;
 -- Name: daily_logs daily_logs_trade_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.daily_logs
+  DROP CONSTRAINT IF EXISTS daily_logs_trade_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'daily_logs_trade_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.daily_logs
-
       ADD CONSTRAINT daily_logs_trade_id_fkey FOREIGN KEY (trade_id) REFERENCES public.trades(id);
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -10412,35 +7956,25 @@ $$;
 -- Name: daily_logs daily_logs_worker_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.daily_logs
+  DROP CONSTRAINT IF EXISTS daily_logs_worker_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'daily_logs_worker_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.daily_logs
-
       ADD CONSTRAINT daily_logs_worker_id_fkey FOREIGN KEY (worker_id) REFERENCES public.workers(id) ON DELETE CASCADE;
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -10448,35 +7982,25 @@ $$;
 -- Name: day_card_jobs day_card_jobs_cost_code_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.day_card_jobs
+  DROP CONSTRAINT IF EXISTS day_card_jobs_cost_code_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'day_card_jobs_cost_code_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.day_card_jobs
-
       ADD CONSTRAINT day_card_jobs_cost_code_id_fkey FOREIGN KEY (cost_code_id) REFERENCES public.cost_codes(id);
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -10484,35 +8008,25 @@ $$;
 -- Name: day_card_jobs day_card_jobs_day_card_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.day_card_jobs
+  DROP CONSTRAINT IF EXISTS day_card_jobs_day_card_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'day_card_jobs_day_card_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.day_card_jobs
-
       ADD CONSTRAINT day_card_jobs_day_card_id_fkey FOREIGN KEY (day_card_id) REFERENCES public.day_cards(id) ON DELETE CASCADE;
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -10520,35 +8034,25 @@ $$;
 -- Name: day_card_jobs day_card_jobs_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.day_card_jobs
+  DROP CONSTRAINT IF EXISTS day_card_jobs_project_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'day_card_jobs_project_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.day_card_jobs
-
       ADD CONSTRAINT day_card_jobs_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id);
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -10556,35 +8060,25 @@ $$;
 -- Name: day_card_jobs day_card_jobs_trade_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.day_card_jobs
+  DROP CONSTRAINT IF EXISTS day_card_jobs_trade_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'day_card_jobs_trade_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.day_card_jobs
-
       ADD CONSTRAINT day_card_jobs_trade_id_fkey FOREIGN KEY (trade_id) REFERENCES public.trades(id);
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -10592,35 +8086,25 @@ $$;
 -- Name: day_cards day_cards_approved_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.day_cards
+  DROP CONSTRAINT IF EXISTS day_cards_approved_by_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'day_cards_approved_by_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.day_cards
-
       ADD CONSTRAINT day_cards_approved_by_fkey FOREIGN KEY (approved_by) REFERENCES auth.users(id);
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -10628,35 +8112,25 @@ $$;
 -- Name: day_cards day_cards_company_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.day_cards
+  DROP CONSTRAINT IF EXISTS day_cards_company_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'day_cards_company_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.day_cards
-
       ADD CONSTRAINT day_cards_company_id_fkey FOREIGN KEY (company_id) REFERENCES public.companies(id);
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -10664,35 +8138,25 @@ $$;
 -- Name: day_cards day_cards_worker_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.day_cards
+  DROP CONSTRAINT IF EXISTS day_cards_worker_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'day_cards_worker_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.day_cards
-
       ADD CONSTRAINT day_cards_worker_id_fkey FOREIGN KEY (worker_id) REFERENCES public.workers(id) ON DELETE CASCADE;
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -10700,35 +8164,25 @@ $$;
 -- Name: documents documents_cost_code_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.documents
+  DROP CONSTRAINT IF EXISTS documents_cost_code_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'documents_cost_code_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.documents
-
       ADD CONSTRAINT documents_cost_code_id_fkey FOREIGN KEY (cost_code_id) REFERENCES public.cost_codes(id) ON DELETE SET NULL;
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -10736,35 +8190,25 @@ $$;
 -- Name: documents documents_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.documents
+  DROP CONSTRAINT IF EXISTS documents_project_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'documents_project_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.documents
-
       ADD CONSTRAINT documents_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -10772,35 +8216,25 @@ $$;
 -- Name: estimate_items estimate_items_cost_code_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.estimate_items
+  DROP CONSTRAINT IF EXISTS estimate_items_cost_code_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'estimate_items_cost_code_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.estimate_items
-
       ADD CONSTRAINT estimate_items_cost_code_id_fkey FOREIGN KEY (cost_code_id) REFERENCES public.cost_codes(id) ON DELETE SET NULL;
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -10808,35 +8242,25 @@ $$;
 -- Name: estimate_items estimate_items_estimate_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.estimate_items
+  DROP CONSTRAINT IF EXISTS estimate_items_estimate_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'estimate_items_estimate_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.estimate_items
-
       ADD CONSTRAINT estimate_items_estimate_id_fkey FOREIGN KEY (estimate_id) REFERENCES public.estimates(id) ON DELETE CASCADE;
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -10844,35 +8268,25 @@ $$;
 -- Name: estimate_items estimate_items_trade_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.estimate_items
+  DROP CONSTRAINT IF EXISTS estimate_items_trade_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'estimate_items_trade_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.estimate_items
-
       ADD CONSTRAINT estimate_items_trade_id_fkey FOREIGN KEY (trade_id) REFERENCES public.trades(id) ON DELETE SET NULL;
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -10880,35 +8294,25 @@ $$;
 -- Name: estimates estimates_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.estimates
+  DROP CONSTRAINT IF EXISTS estimates_project_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'estimates_project_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.estimates
-
       ADD CONSTRAINT estimates_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -10916,35 +8320,25 @@ $$;
 -- Name: invitations invitations_invited_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.invitations
+  DROP CONSTRAINT IF EXISTS invitations_invited_by_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'invitations_invited_by_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.invitations
-
       ADD CONSTRAINT invitations_invited_by_fkey FOREIGN KEY (invited_by) REFERENCES auth.users(id);
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -10952,35 +8346,25 @@ $$;
 -- Name: invoice_items invoice_items_invoice_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.invoice_items
+  DROP CONSTRAINT IF EXISTS invoice_items_invoice_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'invoice_items_invoice_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.invoice_items
-
       ADD CONSTRAINT invoice_items_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES public.invoices(id) ON DELETE CASCADE;
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -10988,35 +8372,25 @@ $$;
 -- Name: invoices invoices_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.invoices
+  DROP CONSTRAINT IF EXISTS invoices_project_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'invoices_project_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.invoices
-
       ADD CONSTRAINT invoices_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -11024,35 +8398,25 @@ $$;
 -- Name: material_receipts material_receipts_cost_code_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.material_receipts
+  DROP CONSTRAINT IF EXISTS material_receipts_cost_code_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'material_receipts_cost_code_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.material_receipts
-
       ADD CONSTRAINT material_receipts_cost_code_id_fkey FOREIGN KEY (cost_code_id) REFERENCES public.cost_codes(id) ON DELETE SET NULL;
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -11060,35 +8424,25 @@ $$;
 -- Name: material_receipts material_receipts_linked_document_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.material_receipts
+  DROP CONSTRAINT IF EXISTS material_receipts_linked_document_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'material_receipts_linked_document_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.material_receipts
-
       ADD CONSTRAINT material_receipts_linked_document_id_fkey FOREIGN KEY (linked_document_id) REFERENCES public.documents(id) ON DELETE SET NULL;
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -11096,35 +8450,25 @@ $$;
 -- Name: material_receipts material_receipts_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.material_receipts
+  DROP CONSTRAINT IF EXISTS material_receipts_project_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'material_receipts_project_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.material_receipts
-
       ADD CONSTRAINT material_receipts_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -11132,35 +8476,25 @@ $$;
 -- Name: payments payments_company_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.payments
+  DROP CONSTRAINT IF EXISTS payments_company_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'payments_company_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.payments
-
       ADD CONSTRAINT payments_company_id_fkey FOREIGN KEY (company_id) REFERENCES public.companies(id);
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -11168,35 +8502,25 @@ $$;
 -- Name: project_budget_lines project_budget_lines_cost_code_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.project_budget_lines
+  DROP CONSTRAINT IF EXISTS project_budget_lines_cost_code_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'project_budget_lines_cost_code_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.project_budget_lines
-
       ADD CONSTRAINT project_budget_lines_cost_code_id_fkey FOREIGN KEY (cost_code_id) REFERENCES public.cost_codes(id) ON DELETE SET NULL;
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -11204,35 +8528,25 @@ $$;
 -- Name: project_budget_lines project_budget_lines_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.project_budget_lines
+  DROP CONSTRAINT IF EXISTS project_budget_lines_project_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'project_budget_lines_project_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.project_budget_lines
-
       ADD CONSTRAINT project_budget_lines_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -11240,35 +8554,25 @@ $$;
 -- Name: project_budget_lines project_budget_lines_source_estimate_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.project_budget_lines
+  DROP CONSTRAINT IF EXISTS project_budget_lines_source_estimate_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'project_budget_lines_source_estimate_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.project_budget_lines
-
       ADD CONSTRAINT project_budget_lines_source_estimate_id_fkey FOREIGN KEY (source_estimate_id) REFERENCES public.estimates(id) ON DELETE SET NULL;
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -11276,35 +8580,25 @@ $$;
 -- Name: project_budgets project_budgets_baseline_estimate_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.project_budgets
+  DROP CONSTRAINT IF EXISTS project_budgets_baseline_estimate_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'project_budgets_baseline_estimate_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.project_budgets
-
       ADD CONSTRAINT project_budgets_baseline_estimate_id_fkey FOREIGN KEY (baseline_estimate_id) REFERENCES public.estimates(id) ON DELETE SET NULL;
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -11312,35 +8606,25 @@ $$;
 -- Name: project_budgets project_budgets_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.project_budgets
+  DROP CONSTRAINT IF EXISTS project_budgets_project_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'project_budgets_project_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.project_budgets
-
       ADD CONSTRAINT project_budgets_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -11348,35 +8632,25 @@ $$;
 -- Name: project_subcontracts project_subcontracts_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.project_subcontracts
+  DROP CONSTRAINT IF EXISTS project_subcontracts_project_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'project_subcontracts_project_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.project_subcontracts
-
       ADD CONSTRAINT project_subcontracts_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -11384,35 +8658,25 @@ $$;
 -- Name: project_subcontracts project_subcontracts_sub_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.project_subcontracts
+  DROP CONSTRAINT IF EXISTS project_subcontracts_sub_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'project_subcontracts_sub_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.project_subcontracts
-
       ADD CONSTRAINT project_subcontracts_sub_id_fkey FOREIGN KEY (sub_id) REFERENCES public.subs(id) ON DELETE CASCADE;
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -11420,35 +8684,25 @@ $$;
 -- Name: project_todos project_todos_assigned_worker_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.project_todos
+  DROP CONSTRAINT IF EXISTS project_todos_assigned_worker_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'project_todos_assigned_worker_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.project_todos
-
       ADD CONSTRAINT project_todos_assigned_worker_id_fkey FOREIGN KEY (assigned_worker_id) REFERENCES public.workers(id);
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -11456,35 +8710,25 @@ $$;
 -- Name: project_todos project_todos_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.project_todos
+  DROP CONSTRAINT IF EXISTS project_todos_project_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'project_todos_project_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.project_todos
-
       ADD CONSTRAINT project_todos_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -11492,35 +8736,25 @@ $$;
 -- Name: projects projects_company_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.projects
+  DROP CONSTRAINT IF EXISTS projects_company_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'projects_company_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.projects
-
       ADD CONSTRAINT projects_company_id_fkey FOREIGN KEY (company_id) REFERENCES public.companies(id);
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -11528,35 +8762,25 @@ $$;
 -- Name: proposal_line_groups proposal_line_groups_estimate_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.proposal_line_groups
+  DROP CONSTRAINT IF EXISTS proposal_line_groups_estimate_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'proposal_line_groups_estimate_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.proposal_line_groups
-
       ADD CONSTRAINT proposal_line_groups_estimate_id_fkey FOREIGN KEY (estimate_id) REFERENCES public.estimates(id) ON DELETE SET NULL;
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -11564,35 +8788,25 @@ $$;
 -- Name: proposal_line_groups proposal_line_groups_proposal_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.proposal_line_groups
+  DROP CONSTRAINT IF EXISTS proposal_line_groups_proposal_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'proposal_line_groups_proposal_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.proposal_line_groups
-
       ADD CONSTRAINT proposal_line_groups_proposal_id_fkey FOREIGN KEY (proposal_id) REFERENCES public.proposals(id) ON DELETE CASCADE;
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -11600,35 +8814,25 @@ $$;
 -- Name: proposal_line_overrides proposal_line_overrides_estimate_line_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.proposal_line_overrides
+  DROP CONSTRAINT IF EXISTS proposal_line_overrides_estimate_line_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'proposal_line_overrides_estimate_line_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.proposal_line_overrides
-
       ADD CONSTRAINT proposal_line_overrides_estimate_line_id_fkey FOREIGN KEY (estimate_line_id) REFERENCES public.estimate_items(id) ON DELETE CASCADE;
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -11636,35 +8840,25 @@ $$;
 -- Name: proposal_line_overrides proposal_line_overrides_proposal_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.proposal_line_overrides
+  DROP CONSTRAINT IF EXISTS proposal_line_overrides_proposal_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'proposal_line_overrides_proposal_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.proposal_line_overrides
-
       ADD CONSTRAINT proposal_line_overrides_proposal_id_fkey FOREIGN KEY (proposal_id) REFERENCES public.proposals(id) ON DELETE CASCADE;
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -11672,35 +8866,25 @@ $$;
 -- Name: proposal_section_items proposal_section_items_estimate_item_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.proposal_section_items
+  DROP CONSTRAINT IF EXISTS proposal_section_items_estimate_item_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'proposal_section_items_estimate_item_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.proposal_section_items
-
       ADD CONSTRAINT proposal_section_items_estimate_item_id_fkey FOREIGN KEY (estimate_item_id) REFERENCES public.estimate_items(id) ON DELETE CASCADE;
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -11708,35 +8892,25 @@ $$;
 -- Name: proposal_section_items proposal_section_items_proposal_section_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.proposal_section_items
+  DROP CONSTRAINT IF EXISTS proposal_section_items_proposal_section_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'proposal_section_items_proposal_section_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.proposal_section_items
-
       ADD CONSTRAINT proposal_section_items_proposal_section_id_fkey FOREIGN KEY (proposal_section_id) REFERENCES public.proposal_sections(id) ON DELETE CASCADE;
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -11744,35 +8918,25 @@ $$;
 -- Name: proposal_sections proposal_sections_proposal_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.proposal_sections
+  DROP CONSTRAINT IF EXISTS proposal_sections_proposal_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'proposal_sections_proposal_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.proposal_sections
-
       ADD CONSTRAINT proposal_sections_proposal_id_fkey FOREIGN KEY (proposal_id) REFERENCES public.proposals(id) ON DELETE CASCADE;
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -11780,35 +8944,25 @@ $$;
 -- Name: proposals proposals_primary_estimate_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.proposals
+  DROP CONSTRAINT IF EXISTS proposals_primary_estimate_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'proposals_primary_estimate_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.proposals
-
       ADD CONSTRAINT proposals_primary_estimate_id_fkey FOREIGN KEY (primary_estimate_id) REFERENCES public.estimates(id) ON DELETE SET NULL;
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -11816,35 +8970,25 @@ $$;
 -- Name: proposals proposals_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.proposals
+  DROP CONSTRAINT IF EXISTS proposals_project_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'proposals_project_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.proposals
-
       ADD CONSTRAINT proposals_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -11852,35 +8996,25 @@ $$;
 -- Name: scheduled_shifts scheduled_shifts_cost_code_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.scheduled_shifts
+  DROP CONSTRAINT IF EXISTS scheduled_shifts_cost_code_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'scheduled_shifts_cost_code_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.scheduled_shifts
-
       ADD CONSTRAINT scheduled_shifts_cost_code_id_fkey FOREIGN KEY (cost_code_id) REFERENCES public.cost_codes(id) ON DELETE SET NULL;
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -11888,35 +9022,25 @@ $$;
 -- Name: scheduled_shifts scheduled_shifts_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.scheduled_shifts
+  DROP CONSTRAINT IF EXISTS scheduled_shifts_created_by_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'scheduled_shifts_created_by_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.scheduled_shifts
-
       ADD CONSTRAINT scheduled_shifts_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE SET NULL;
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -11924,35 +9048,25 @@ $$;
 -- Name: scheduled_shifts scheduled_shifts_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.scheduled_shifts
+  DROP CONSTRAINT IF EXISTS scheduled_shifts_project_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'scheduled_shifts_project_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.scheduled_shifts
-
       ADD CONSTRAINT scheduled_shifts_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -11960,35 +9074,25 @@ $$;
 -- Name: scheduled_shifts scheduled_shifts_trade_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.scheduled_shifts
+  DROP CONSTRAINT IF EXISTS scheduled_shifts_trade_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'scheduled_shifts_trade_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.scheduled_shifts
-
       ADD CONSTRAINT scheduled_shifts_trade_id_fkey FOREIGN KEY (trade_id) REFERENCES public.trades(id) ON DELETE SET NULL;
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -11996,35 +9100,25 @@ $$;
 -- Name: scheduled_shifts scheduled_shifts_worker_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.scheduled_shifts
+  DROP CONSTRAINT IF EXISTS scheduled_shifts_worker_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'scheduled_shifts_worker_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.scheduled_shifts
-
       ADD CONSTRAINT scheduled_shifts_worker_id_fkey FOREIGN KEY (worker_id) REFERENCES public.workers(id) ON DELETE CASCADE;
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -12032,35 +9126,25 @@ $$;
 -- Name: sub_bids sub_bids_bid_package_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.sub_bids
+  DROP CONSTRAINT IF EXISTS sub_bids_bid_package_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'sub_bids_bid_package_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.sub_bids
-
       ADD CONSTRAINT sub_bids_bid_package_id_fkey FOREIGN KEY (bid_package_id) REFERENCES public.bid_packages(id) ON DELETE CASCADE;
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -12068,35 +9152,25 @@ $$;
 -- Name: sub_bids sub_bids_sub_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.sub_bids
+  DROP CONSTRAINT IF EXISTS sub_bids_sub_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'sub_bids_sub_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.sub_bids
-
       ADD CONSTRAINT sub_bids_sub_id_fkey FOREIGN KEY (sub_id) REFERENCES public.subs(id) ON DELETE CASCADE;
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -12104,35 +9178,25 @@ $$;
 -- Name: sub_compliance_documents sub_compliance_documents_document_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.sub_compliance_documents
+  DROP CONSTRAINT IF EXISTS sub_compliance_documents_document_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'sub_compliance_documents_document_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.sub_compliance_documents
-
       ADD CONSTRAINT sub_compliance_documents_document_id_fkey FOREIGN KEY (document_id) REFERENCES public.documents(id) ON DELETE SET NULL;
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -12140,35 +9204,25 @@ $$;
 -- Name: sub_compliance_documents sub_compliance_documents_sub_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.sub_compliance_documents
+  DROP CONSTRAINT IF EXISTS sub_compliance_documents_sub_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'sub_compliance_documents_sub_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.sub_compliance_documents
-
       ADD CONSTRAINT sub_compliance_documents_sub_id_fkey FOREIGN KEY (sub_id) REFERENCES public.subs(id) ON DELETE CASCADE;
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -12176,35 +9230,25 @@ $$;
 -- Name: sub_contracts sub_contracts_linked_document_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.sub_contracts
+  DROP CONSTRAINT IF EXISTS sub_contracts_linked_document_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'sub_contracts_linked_document_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.sub_contracts
-
       ADD CONSTRAINT sub_contracts_linked_document_id_fkey FOREIGN KEY (linked_document_id) REFERENCES public.documents(id) ON DELETE SET NULL;
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -12212,35 +9256,25 @@ $$;
 -- Name: sub_contracts sub_contracts_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.sub_contracts
+  DROP CONSTRAINT IF EXISTS sub_contracts_project_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'sub_contracts_project_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.sub_contracts
-
       ADD CONSTRAINT sub_contracts_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -12248,35 +9282,25 @@ $$;
 -- Name: sub_contracts sub_contracts_sub_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.sub_contracts
+  DROP CONSTRAINT IF EXISTS sub_contracts_sub_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'sub_contracts_sub_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.sub_contracts
-
       ADD CONSTRAINT sub_contracts_sub_id_fkey FOREIGN KEY (sub_id) REFERENCES public.subs(id) ON DELETE CASCADE;
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -12284,35 +9308,25 @@ $$;
 -- Name: sub_invoices sub_invoices_contract_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.sub_invoices
+  DROP CONSTRAINT IF EXISTS sub_invoices_contract_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'sub_invoices_contract_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.sub_invoices
-
       ADD CONSTRAINT sub_invoices_contract_id_fkey FOREIGN KEY (contract_id) REFERENCES public.sub_contracts(id) ON DELETE SET NULL;
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -12320,35 +9334,25 @@ $$;
 -- Name: sub_invoices sub_invoices_linked_document_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.sub_invoices
+  DROP CONSTRAINT IF EXISTS sub_invoices_linked_document_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'sub_invoices_linked_document_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.sub_invoices
-
       ADD CONSTRAINT sub_invoices_linked_document_id_fkey FOREIGN KEY (linked_document_id) REFERENCES public.documents(id) ON DELETE SET NULL;
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -12356,35 +9360,25 @@ $$;
 -- Name: sub_invoices sub_invoices_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.sub_invoices
+  DROP CONSTRAINT IF EXISTS sub_invoices_project_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'sub_invoices_project_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.sub_invoices
-
       ADD CONSTRAINT sub_invoices_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -12392,35 +9386,25 @@ $$;
 -- Name: sub_invoices sub_invoices_sub_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.sub_invoices
+  DROP CONSTRAINT IF EXISTS sub_invoices_sub_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'sub_invoices_sub_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.sub_invoices
-
       ADD CONSTRAINT sub_invoices_sub_id_fkey FOREIGN KEY (sub_id) REFERENCES public.subs(id) ON DELETE CASCADE;
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -12428,35 +9412,25 @@ $$;
 -- Name: sub_logs sub_logs_cost_code_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.sub_logs
+  DROP CONSTRAINT IF EXISTS sub_logs_cost_code_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'sub_logs_cost_code_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.sub_logs
-
       ADD CONSTRAINT sub_logs_cost_code_id_fkey FOREIGN KEY (cost_code_id) REFERENCES public.cost_codes(id) ON DELETE SET NULL;
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -12464,35 +9438,25 @@ $$;
 -- Name: sub_logs sub_logs_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.sub_logs
+  DROP CONSTRAINT IF EXISTS sub_logs_project_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'sub_logs_project_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.sub_logs
-
       ADD CONSTRAINT sub_logs_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -12500,35 +9464,25 @@ $$;
 -- Name: sub_logs sub_logs_sub_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.sub_logs
+  DROP CONSTRAINT IF EXISTS sub_logs_sub_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'sub_logs_sub_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.sub_logs
-
       ADD CONSTRAINT sub_logs_sub_id_fkey FOREIGN KEY (sub_id) REFERENCES public.subs(id) ON DELETE CASCADE;
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -12536,35 +9490,25 @@ $$;
 -- Name: sub_payments sub_payments_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.sub_payments
+  DROP CONSTRAINT IF EXISTS sub_payments_created_by_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'sub_payments_created_by_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.sub_payments
-
       ADD CONSTRAINT sub_payments_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id);
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -12572,35 +9516,25 @@ $$;
 -- Name: sub_payments sub_payments_payment_batch_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.sub_payments
+  DROP CONSTRAINT IF EXISTS sub_payments_payment_batch_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'sub_payments_payment_batch_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.sub_payments
-
       ADD CONSTRAINT sub_payments_payment_batch_id_fkey FOREIGN KEY (payment_batch_id) REFERENCES public.payments(id) ON DELETE SET NULL;
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -12608,35 +9542,25 @@ $$;
 -- Name: sub_payments sub_payments_project_subcontract_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.sub_payments
+  DROP CONSTRAINT IF EXISTS sub_payments_project_subcontract_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'sub_payments_project_subcontract_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.sub_payments
-
       ADD CONSTRAINT sub_payments_project_subcontract_id_fkey FOREIGN KEY (project_subcontract_id) REFERENCES public.sub_contracts(id) ON DELETE CASCADE;
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -12644,35 +9568,25 @@ $$;
 -- Name: sub_payments sub_payments_sub_invoice_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.sub_payments
+  DROP CONSTRAINT IF EXISTS sub_payments_sub_invoice_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'sub_payments_sub_invoice_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.sub_payments
-
       ADD CONSTRAINT sub_payments_sub_invoice_id_fkey FOREIGN KEY (sub_invoice_id) REFERENCES public.sub_invoices(id) ON DELETE SET NULL;
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -12680,35 +9594,25 @@ $$;
 -- Name: sub_scheduled_shifts sub_scheduled_shifts_cost_code_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.sub_scheduled_shifts
+  DROP CONSTRAINT IF EXISTS sub_scheduled_shifts_cost_code_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'sub_scheduled_shifts_cost_code_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.sub_scheduled_shifts
-
       ADD CONSTRAINT sub_scheduled_shifts_cost_code_id_fkey FOREIGN KEY (cost_code_id) REFERENCES public.cost_codes(id) ON DELETE SET NULL;
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -12716,35 +9620,25 @@ $$;
 -- Name: sub_scheduled_shifts sub_scheduled_shifts_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.sub_scheduled_shifts
+  DROP CONSTRAINT IF EXISTS sub_scheduled_shifts_project_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'sub_scheduled_shifts_project_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.sub_scheduled_shifts
-
       ADD CONSTRAINT sub_scheduled_shifts_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -12752,35 +9646,25 @@ $$;
 -- Name: sub_scheduled_shifts sub_scheduled_shifts_sub_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.sub_scheduled_shifts
+  DROP CONSTRAINT IF EXISTS sub_scheduled_shifts_sub_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'sub_scheduled_shifts_sub_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.sub_scheduled_shifts
-
       ADD CONSTRAINT sub_scheduled_shifts_sub_id_fkey FOREIGN KEY (sub_id) REFERENCES public.subs(id) ON DELETE CASCADE;
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -12788,35 +9672,25 @@ $$;
 -- Name: subs subs_trade_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.subs
+  DROP CONSTRAINT IF EXISTS subs_trade_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'subs_trade_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.subs
-
       ADD CONSTRAINT subs_trade_id_fkey FOREIGN KEY (trade_id) REFERENCES public.trades(id);
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -12824,35 +9698,25 @@ $$;
 -- Name: time_log_allocations time_log_allocations_cost_code_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.time_log_allocations
+  DROP CONSTRAINT IF EXISTS time_log_allocations_cost_code_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'time_log_allocations_cost_code_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.time_log_allocations
-
       ADD CONSTRAINT time_log_allocations_cost_code_id_fkey FOREIGN KEY (cost_code_id) REFERENCES public.cost_codes(id) ON DELETE SET NULL;
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -12860,35 +9724,25 @@ $$;
 -- Name: time_log_allocations time_log_allocations_day_card_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.time_log_allocations
+  DROP CONSTRAINT IF EXISTS time_log_allocations_day_card_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'time_log_allocations_day_card_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.time_log_allocations
-
       ADD CONSTRAINT time_log_allocations_day_card_id_fkey FOREIGN KEY (day_card_id) REFERENCES public.day_cards(id) ON DELETE CASCADE;
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -12896,35 +9750,25 @@ $$;
 -- Name: time_log_allocations time_log_allocations_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.time_log_allocations
+  DROP CONSTRAINT IF EXISTS time_log_allocations_project_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'time_log_allocations_project_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.time_log_allocations
-
       ADD CONSTRAINT time_log_allocations_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -12932,35 +9776,25 @@ $$;
 -- Name: time_log_allocations time_log_allocations_trade_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.time_log_allocations
+  DROP CONSTRAINT IF EXISTS time_log_allocations_trade_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'time_log_allocations_trade_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.time_log_allocations
-
       ADD CONSTRAINT time_log_allocations_trade_id_fkey FOREIGN KEY (trade_id) REFERENCES public.trades(id) ON DELETE SET NULL;
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -12968,35 +9802,25 @@ $$;
 -- Name: trades trades_default_labor_cost_code_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.trades
+  DROP CONSTRAINT IF EXISTS trades_default_labor_cost_code_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'trades_default_labor_cost_code_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.trades
-
       ADD CONSTRAINT trades_default_labor_cost_code_id_fkey FOREIGN KEY (default_labor_cost_code_id) REFERENCES public.cost_codes(id);
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -13004,35 +9828,25 @@ $$;
 -- Name: trades trades_default_material_cost_code_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.trades
+  DROP CONSTRAINT IF EXISTS trades_default_material_cost_code_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'trades_default_material_cost_code_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.trades
-
       ADD CONSTRAINT trades_default_material_cost_code_id_fkey FOREIGN KEY (default_material_cost_code_id) REFERENCES public.cost_codes(id);
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -13040,35 +9854,25 @@ $$;
 -- Name: trades trades_default_sub_cost_code_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.trades
+  DROP CONSTRAINT IF EXISTS trades_default_sub_cost_code_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'trades_default_sub_cost_code_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.trades
-
       ADD CONSTRAINT trades_default_sub_cost_code_id_fkey FOREIGN KEY (default_sub_cost_code_id) REFERENCES public.cost_codes(id);
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -13076,35 +9880,25 @@ $$;
 -- Name: user_roles user_roles_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.user_roles
+  DROP CONSTRAINT IF EXISTS user_roles_user_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'user_roles_user_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.user_roles
-
       ADD CONSTRAINT user_roles_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
-
   END IF;
-
 END
-
 $$;
+  
 
 
 
@@ -13112,35 +9906,25 @@ $$;
 -- Name: workers workers_trade_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.workers
+  DROP CONSTRAINT IF EXISTS workers_trade_id_fkey;
+
 DO $$
-
 BEGIN
-
   IF NOT EXISTS (
-
     SELECT 1
-
     FROM pg_constraint c
-
     JOIN pg_class t ON t.oid = c.conrelid
-
     JOIN pg_namespace n ON n.oid = t.relnamespace
-
     WHERE c.conname = 'workers_trade_id_fkey'
-
       AND n.nspname = 'public'
-
   ) THEN
-
     ALTER TABLE ONLY public.workers
-
       ADD CONSTRAINT workers_trade_id_fkey FOREIGN KEY (trade_id) REFERENCES public.trades(id) ON DELETE SET NULL;
-
   END IF;
-
 END
-
 $$;
+  
 
 -- ============================================================================
 -- MOVED FROM PG_DUMP MIGRATIONS: 20251122185806_10ede57c-86cd-4c6b-8d01-6fa38f2e5bbb.sql — indexes

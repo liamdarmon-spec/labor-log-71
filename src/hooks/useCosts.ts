@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient, QueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useCompany } from '@/company/CompanyProvider';
 
 export interface Cost {
   id: string;
@@ -144,12 +145,14 @@ export function useCosts(filters?: CostFilters) {
 
 export function useCreateCost() {
   const queryClient = useQueryClient();
+  const { activeCompanyId } = useCompany();
 
   return useMutation({
     mutationFn: async (cost: Omit<Cost, 'id' | 'created_at' | 'updated_at'>) => {
+      if (!activeCompanyId) throw new Error('No active company selected');
       const { data, error } = await supabase
         .from('costs')
-        .insert(cost)
+        .insert({ ...cost, company_id: activeCompanyId })
         .select()
         .single();
 

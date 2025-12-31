@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useCompany } from '@/company/CompanyProvider';
 
 export interface ScopeBlockCostItem {
   id: string;
@@ -62,12 +63,14 @@ export function useScopeBlocks(entityType: 'estimate' | 'proposal', entityId: st
 
 export function useCreateScopeBlock() {
   const queryClient = useQueryClient();
+  const { activeCompanyId } = useCompany();
 
   return useMutation({
     mutationFn: async (block: Partial<ScopeBlock> & { entity_type: 'estimate' | 'proposal'; entity_id: string; block_type: string }) => {
+      if (!activeCompanyId) throw new Error('No active company selected');
       const { data, error } = await supabase
         .from('scope_blocks')
-        .insert([block as any])
+        .insert([{ ...(block as any), company_id: activeCompanyId }])
         .select()
         .single();
       if (error) throw error;
@@ -172,6 +175,7 @@ export function useReorderScopeBlocks() {
 
 export function useCreateCostItem() {
   const queryClient = useQueryClient();
+  const { activeCompanyId } = useCompany();
 
   return useMutation({
     mutationFn: async ({ scopeBlockId, item, entityType, entityId }: { 
@@ -180,6 +184,7 @@ export function useCreateCostItem() {
       entityType?: string;
       entityId?: string;
     }) => {
+      if (!activeCompanyId) throw new Error('No active company selected');
       let costCodeId = item.cost_code_id;
       
       // If no cost_code_id provided, fetch UNASSIGNED as fallback
@@ -200,7 +205,7 @@ export function useCreateCostItem() {
       
       const { data, error } = await supabase
         .from('scope_block_cost_items')
-        .insert([{ ...item, scope_block_id: scopeBlockId, cost_code_id: costCodeId } as any])
+        .insert([{ ...item, scope_block_id: scopeBlockId, cost_code_id: costCodeId, company_id: activeCompanyId } as any])
         .select()
         .single();
       if (error) throw error;

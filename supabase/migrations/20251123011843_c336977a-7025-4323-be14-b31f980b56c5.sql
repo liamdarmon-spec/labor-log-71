@@ -157,22 +157,22 @@ CREATE TRIGGER trigger_delete_material_receipt_cost
 -- 5. Add RLS policies for material_vendors
 ALTER TABLE public.material_vendors ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Anyone can view material vendors" ON public.material_vendors;
 CREATE POLICY "Anyone can view material vendors"
   ON public.material_vendors FOR SELECT
   USING (true);
-
+DROP POLICY IF EXISTS "Anyone can insert material vendors" ON public.material_vendors;
 CREATE POLICY "Anyone can insert material vendors"
   ON public.material_vendors FOR INSERT
   WITH CHECK (true);
-
+DROP POLICY IF EXISTS "Anyone can update material vendors" ON public.material_vendors;
 CREATE POLICY "Anyone can update material vendors"
   ON public.material_vendors FOR UPDATE
   USING (true);
-
+DROP POLICY IF EXISTS "Anyone can delete material vendors" ON public.material_vendors;
 CREATE POLICY "Anyone can delete material vendors"
   ON public.material_vendors FOR DELETE
   USING (true);
-
 -- 6. Add indexes for performance
 CREATE INDEX IF NOT EXISTS idx_material_receipts_vendor_id ON public.material_receipts(vendor_id);
 CREATE INDEX IF NOT EXISTS idx_material_receipts_receipt_date ON public.material_receipts(receipt_date);

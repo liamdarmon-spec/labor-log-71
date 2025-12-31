@@ -38,8 +38,14 @@ export async function createTasksFromChecklistItems(input: {
   }
   
   try {
+    const activeCompanyId = localStorage.getItem('active_company_id');
+    if (!activeCompanyId) {
+      return { success: false, taskIds: [], error: 'No active company selected' };
+    }
+
     // Build task records
     const taskRecords = items.map(item => ({
+      company_id: activeCompanyId,
       project_id: projectId,
       title: item.title,
       description: buildTaskDescription(item),

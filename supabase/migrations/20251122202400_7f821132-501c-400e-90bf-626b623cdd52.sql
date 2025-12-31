@@ -141,19 +141,30 @@ ALTER TABLE scope_block_cost_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE proposal_estimate_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE entity_change_log ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Anyone can view scope blocks" ON scope_blocks;
 CREATE POLICY "Anyone can view scope blocks" ON scope_blocks FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Anyone can insert scope blocks" ON scope_blocks;
 CREATE POLICY "Anyone can insert scope blocks" ON scope_blocks FOR INSERT WITH CHECK (true);
+DROP POLICY IF EXISTS "Anyone can update scope blocks" ON scope_blocks;
 CREATE POLICY "Anyone can update scope blocks" ON scope_blocks FOR UPDATE USING (true);
+DROP POLICY IF EXISTS "Anyone can delete scope blocks" ON scope_blocks;
 CREATE POLICY "Anyone can delete scope blocks" ON scope_blocks FOR DELETE USING (true);
-
+DROP POLICY IF EXISTS "Anyone can view scope block cost items" ON scope_block_cost_items;
 CREATE POLICY "Anyone can view scope block cost items" ON scope_block_cost_items FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Anyone can insert scope block cost items" ON scope_block_cost_items;
 CREATE POLICY "Anyone can insert scope block cost items" ON scope_block_cost_items FOR INSERT WITH CHECK (true);
+DROP POLICY IF EXISTS "Anyone can update scope block cost items" ON scope_block_cost_items;
 CREATE POLICY "Anyone can update scope block cost items" ON scope_block_cost_items FOR UPDATE USING (true);
+DROP POLICY IF EXISTS "Anyone can delete scope block cost items" ON scope_block_cost_items;
 CREATE POLICY "Anyone can delete scope block cost items" ON scope_block_cost_items FOR DELETE USING (true);
-
+DROP POLICY IF EXISTS "Anyone can view settings" ON proposal_estimate_settings;
 CREATE POLICY "Anyone can view settings" ON proposal_estimate_settings FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Anyone can insert settings" ON proposal_estimate_settings;
 CREATE POLICY "Anyone can insert settings" ON proposal_estimate_settings FOR INSERT WITH CHECK (true);
+DROP POLICY IF EXISTS "Anyone can update settings" ON proposal_estimate_settings;
 CREATE POLICY "Anyone can update settings" ON proposal_estimate_settings FOR UPDATE USING (true);
 
+DROP POLICY IF EXISTS "Anyone can view change log" ON entity_change_log;
 CREATE POLICY "Anyone can view change log" ON entity_change_log FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Anyone can insert change log" ON entity_change_log;
 CREATE POLICY "Anyone can insert change log" ON entity_change_log FOR INSERT WITH CHECK (true);

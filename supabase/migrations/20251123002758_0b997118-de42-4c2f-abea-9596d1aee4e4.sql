@@ -35,11 +35,7 @@ BEGIN
         ADD CONSTRAINT proposals_public_token_unique UNIQUE (public_token);
     END IF;
   END IF;
-END $$;
 
--- 2. Add check constraint for event_type enum in proposal_events
-DO $$
-BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_constraint WHERE conname = 'proposal_events_event_type_check'
   ) THEN
