@@ -186,13 +186,17 @@ declare
   r record;
 begin
   for r in
-    select c.table_name
-    from information_schema.columns c
-    where c.table_schema = 'public'
+    select t.table_name
+    from information_schema.tables t
+    join information_schema.columns c
+      on c.table_schema = t.table_schema
+     and c.table_name   = t.table_name
+    where t.table_schema = 'public'
+      and t.table_type   = 'BASE TABLE' -- avoid views/materialized views
       and c.column_name in ('company_id', 'project_id')
-    group by c.table_name
+    group by t.table_name
     having count(distinct c.column_name) = 2
-       and c.table_name <> 'projects'
+       and t.table_name <> 'projects'
   loop
     execute format(
       'update public.%I t
@@ -242,7 +246,18 @@ $$;
 -- time_log_allocations -> time_logs
 do $$
 begin
-  if to_regclass('public.time_log_allocations') is not null and to_regclass('public.time_logs') is not null then
+  -- NOTE: In this repo, time_log_allocations is keyed by day_card_id/project_id and may NOT have time_log_id.
+  -- Only run this backfill when the schema actually has a time_log_id column.
+  if to_regclass('public.time_log_allocations') is not null
+     and to_regclass('public.time_logs') is not null
+     and exists (
+       select 1
+       from information_schema.columns
+       where table_schema = 'public'
+         and table_name = 'time_log_allocations'
+         and column_name = 'time_log_id'
+     )
+  then
     update public.time_log_allocations tla
     set company_id = tl.company_id
     from public.time_logs tl
@@ -318,7 +333,17 @@ $$;
 
 do $$
 begin
-  if to_regclass('public.time_log_allocations') is not null then
+  -- Only attach this trigger variant when the schema actually has time_log_id.
+  -- Otherwise, time_log_allocations will be covered by the generic (project_id -> projects.company_id) trigger.
+  if to_regclass('public.time_log_allocations') is not null
+     and exists (
+       select 1
+       from information_schema.columns
+       where table_schema = 'public'
+         and table_name = 'time_log_allocations'
+         and column_name = 'time_log_id'
+     )
+  then
     execute 'drop trigger if exists set_company_id_from_time_log on public.time_log_allocations;';
     execute 'create trigger set_company_id_from_time_log
              before insert or update of time_log_id, company_id
@@ -337,18 +362,22 @@ $$;
 do $$
 declare
   r record;
-  conname text;
+  v_conname text;
   nulls bigint;
 begin
   for r in
-    select c.table_name
-    from information_schema.columns c
-    where c.table_schema = 'public'
-      and c.column_name = 'company_id'
-      and c.table_name <> 'companies'
+    select t.table_name
+    from information_schema.tables t
+    join information_schema.columns c
+      on c.table_schema = t.table_schema
+     and c.table_name   = t.table_name
+    where t.table_schema = 'public'
+      and t.table_type   = 'BASE TABLE' -- avoid views/materialized views
+      and c.column_name  = 'company_id'
+      and t.table_name  <> 'companies'
   loop
     -- Only apply to tenant-ish tables that actually have company_id; skip obvious lookups if needed later.
-    conname := r.table_name || '_company_id_not_null';
+    v_conname := r.table_name || '_company_id_not_null';
 
     -- Ensure no remaining NULLs before validating
     execute format('select count(*) from public.%I where company_id is null;', r.table_name) into nulls;
@@ -359,19 +388,19 @@ begin
       from pg_constraint pc
       join pg_class t on t.oid = pc.conrelid
       join pg_namespace n on n.oid = t.relnamespace
-      where n.nspname='public' and t.relname=r.table_name and pc.conname=conname
+      where n.nspname='public' and t.relname=r.table_name and pc.conname=v_conname
     ) then
       execute format(
         'alter table public.%I add constraint %I check (company_id is not null) not valid;',
         r.table_name,
-        conname
+        v_conname
       );
     end if;
 
     -- Validate only if there are no nulls left
     if nulls = 0 then
       begin
-        execute format('alter table public.%I validate constraint %I;', r.table_name, conname);
+        execute format('alter table public.%I validate constraint %I;', r.table_name, v_conname);
       exception when others then
         -- If validate fails due to concurrent changes or table differences, leave it NOT VALID.
         null;
