@@ -147,7 +147,7 @@ export const Layout = ({ children, hideNav = false }: LayoutProps) => {
       <MobileBottomNav />
 
       {!import.meta.env.PROD && (
-        <div className="fixed bottom-2 right-2 z-[9999] rounded-md border border-border bg-black/80 text-white px-3 py-2 text-[11px] font-mono space-y-1">
+        <div className="fixed bottom-2 left-2 z-[9999] rounded-md border border-border bg-black/80 text-white px-3 py-2 text-[11px] font-mono space-y-1">
           <div>user: {user?.id ?? 'none'}</div>
           <div>active_company_id: {activeCompanyId ?? 'none'}</div>
           <div>memberships: {companies.length}</div>
