@@ -3,7 +3,8 @@
 -- ---------------------------------
 -- One row per project with total billed amount
 -- (matches what useJobCosting is currently doing in JS)
-CREATE OR REPLACE VIEW public.project_revenue_summary_view AS
+DROP VIEW IF EXISTS public.project_revenue_summary_view CASCADE;
+CREATE VIEW public.project_revenue_summary_view AS
 SELECT
   i.project_id,
   COALESCE(

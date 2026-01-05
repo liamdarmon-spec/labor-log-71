@@ -19,6 +19,8 @@ import { ProjectDocumentsTab } from '@/components/project/ProjectDocumentsTab';
 import { ProjectLaborTab } from '@/components/project/ProjectLaborTab';
 import { ProjectTasksTab } from '@/components/project/ProjectTasksTab';
 import { ProjectChecklistsTab } from '@/components/checklists/ProjectChecklistsTab';
+import { useCompany } from '@/company/CompanyProvider';
+import { toast } from 'sonner';
 
 const VALID_TABS = [
   'overview', 'estimates', 'proposals', 'budget', 'billing', 
@@ -43,6 +45,8 @@ const ProjectDetail = () => {
   const [searchParams] = useSearchParams();
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const { activeCompanyId, loading: companyLoading } = useCompany();
 
   // Get active tab from URL, default to 'overview'
   const tabParam = searchParams.get('tab');
@@ -51,26 +55,42 @@ const ProjectDetail = () => {
     : 'overview';
 
   useEffect(() => {
-    if (projectId) {
-      fetchProjectData(projectId);
+    if (projectId && activeCompanyId) {
+      fetchProjectData(projectId, activeCompanyId);
     }
-  }, [projectId]);
+    if (projectId && !companyLoading && !activeCompanyId) {
+      if (import.meta.env.DEV) {
+        console.log("[tenant] missing activeCompanyId for project detail", { projectId });
+      }
+      toast.error("Select or create a company first");
+      navigate("/onboarding/company", { replace: true });
+      setLoading(false);
+      setProject(null);
+      setLoadError('No active company selected');
+    }
+  }, [projectId, activeCompanyId, companyLoading]);
 
-  const fetchProjectData = async (projectId: string) => {
+  const fetchProjectData = async (projectId: string, companyId: string) => {
     try {
       setLoading(true);
+      setLoadError(null);
       const { data, error } = await supabase
         .from('projects')
         .select('id, project_name, client_name, status, address, project_manager, company_id')
         .eq('id', projectId)
-        .maybeSingle();
+        .eq('company_id', companyId)
+        .single();
 
       if (error) throw error;
-      if (data) {
-        setProject(data);
+      setProject(data);
+    } catch (error: any) {
+      if (import.meta.env.DEV) {
+        console.log("[tenant] projects fetch failed", { projectId, companyId, error: error?.message ?? error });
       }
-    } catch (error) {
-      console.error('Error fetching project data:', error);
+      const msg = error?.message ?? 'Failed to load project';
+      setProject(null);
+      setLoadError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -85,7 +105,7 @@ const ProjectDetail = () => {
             <Skeleton className="h-full" />
           </div>
           <div className="flex-1 p-6 space-y-6">
-            <Button variant="ghost" onClick={() => navigate('/projects')}>
+            <Button variant="ghost" onClick={() => navigate('/app/projects')}>
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to Projects
             </Button>
@@ -103,12 +123,17 @@ const ProjectDetail = () => {
     return (
       <Layout>
         <div className="space-y-6">
-          <Button variant="ghost" onClick={() => navigate('/projects')}>
+          <Button variant="ghost" onClick={() => navigate('/app/projects')}>
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Projects
           </Button>
           <div className="text-center py-12">
-            <p className="text-muted-foreground">Project not found</p>
+            <p className="text-muted-foreground">{loadError ? loadError : 'Project not found'}</p>
+            {!companyLoading && !activeCompanyId && (
+              <div className="mt-4">
+                <Button onClick={() => navigate('/onboarding/company')}>Select / Create a company</Button>
+              </div>
+            )}
           </div>
         </div>
       </Layout>

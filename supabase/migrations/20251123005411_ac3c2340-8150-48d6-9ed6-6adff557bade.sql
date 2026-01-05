@@ -22,16 +22,24 @@ ALTER TABLE public.invoices
   ADD COLUMN IF NOT EXISTS client_name TEXT;
 
 -- Update invoices status constraint to include new statuses
-ALTER TABLE public.invoices 
-  DROP CONSTRAINT IF EXISTS invoices_status_check;
-  
-ALTER TABLE public.invoices
-  ADD CONSTRAINT invoices_status_check 
-  CHECK (status IN ('draft', 'sent', 'partially_paid', 'paid', 'void'));
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'invoices_status_check'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE public.invoices ADD CONSTRAINT invoices_status_check CHECK (status IN ('draft', 'sent', 'partially_paid', 'paid', 'void'));
 
--- Extend existing invoice_items table
-ALTER TABLE public.invoice_items
-  ADD COLUMN IF NOT EXISTS cost_code_id UUID REFERENCES public.cost_codes(id) ON DELETE SET NULL;
+    -- Extend existing invoice_items table
+    ALTER TABLE public.invoice_items
+      ADD COLUMN IF NOT EXISTS cost_code_id UUID REFERENCES public.cost_codes(id) ON DELETE SET NULL;
+  END IF;
+END
+$$;
 
 ALTER TABLE public.invoice_items
   ADD COLUMN IF NOT EXISTS category TEXT CHECK (category IN ('labor', 'subs', 'materials', 'misc'));
@@ -50,23 +58,24 @@ CREATE INDEX IF NOT EXISTS idx_invoice_items_cost_code_id ON public.invoice_item
 -- Add RLS policies for costs
 ALTER TABLE public.costs ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Anyone can view costs" ON public.costs;
 CREATE POLICY "Anyone can view costs"
   ON public.costs FOR SELECT
   USING (true);
-
+DROP POLICY IF EXISTS "Anyone can insert costs" ON public.costs;
 CREATE POLICY "Anyone can insert costs"
   ON public.costs FOR INSERT
   WITH CHECK (true);
-
+DROP POLICY IF EXISTS "Anyone can update costs" ON public.costs;
 CREATE POLICY "Anyone can update costs"
   ON public.costs FOR UPDATE
   USING (true);
-
+DROP POLICY IF EXISTS "Anyone can delete costs" ON public.costs;
 CREATE POLICY "Anyone can delete costs"
   ON public.costs FOR DELETE
   USING (true);
-
 -- Add updated_at trigger for costs
+DROP TRIGGER IF EXISTS update_costs_updated_at ON public.costs;
 CREATE TRIGGER update_costs_updated_at
   BEFORE UPDATE ON public.costs
   FOR EACH ROW

@@ -9,5 +9,23 @@ ALTER TABLE activity_log DROP CONSTRAINT IF EXISTS activity_log_entity_type_chec
 
 -- Add a more permissive constraint or no constraint at all
 -- (allowing any entity type for flexibility)
-ALTER TABLE activity_log ADD CONSTRAINT activity_log_entity_type_check 
-CHECK (entity_type IS NOT NULL AND length(entity_type) > 0);
+DO $$
+BEGIN
+
+  ALTER TABLE activity_log
+      DROP CONSTRAINT IF EXISTS activity_log_entity_type_check;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'activity_log_entity_type_check'
+      AND n.nspname = 'public'
+  ) THEN
+      ALTER TABLE activity_log ADD CONSTRAINT activity_log_entity_type_check 
+      CHECK (entity_type IS NOT NULL AND length(entity_type) > 0);
+  END IF;
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;

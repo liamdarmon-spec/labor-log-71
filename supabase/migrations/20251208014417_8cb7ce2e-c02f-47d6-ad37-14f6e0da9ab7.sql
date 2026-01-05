@@ -24,6 +24,16 @@ ALTER TABLE proposals ADD COLUMN IF NOT EXISTS intro_text text;
 -- Add job address fields if not present on projects
 -- (projects already has address column based on schema check)
 
--- Create index for faster proposal lookups by project
-CREATE INDEX IF NOT EXISTS idx_proposals_project_id ON proposals(project_id);
-CREATE INDEX IF NOT EXISTS idx_proposals_primary_estimate_id ON proposals(primary_estimate_id);
+-- CREATE INDEX IF NOT EXISTS for faster proposal lookups by project
+DO $$
+BEGIN
+  IF to_regclass('public.proposals') IS NOT NULL AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='proposals' AND column_name='project_id') THEN
+    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_proposals_project_id ON proposals(project_id)';
+  END IF;
+END $$;
+DO $$
+BEGIN
+  IF to_regclass('public.proposals') IS NOT NULL AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='proposals' AND column_name='primary_estimate_id') THEN
+    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_proposals_primary_estimate_id ON proposals(primary_estimate_id)';
+  END IF;
+END $$;

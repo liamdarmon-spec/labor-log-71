@@ -180,7 +180,8 @@ $$;
 -- RULE: If orig has source_schedule_id, all splits share it
 --       If orig has NULL, all splits are NULL
 -- ---------------------------------------------------------
-CREATE OR REPLACE FUNCTION split_time_log_for_multi_project(
+DROP FUNCTION IF EXISTS public.split_time_log_for_multi_project(uuid, jsonb);
+CREATE FUNCTION split_time_log_for_multi_project(
   p_original_time_log_id UUID,
   p_entries JSONB
 )

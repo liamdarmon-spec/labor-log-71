@@ -1,7 +1,8 @@
 -- Create optimized read-only views for Workforce & Pay Center
 
 -- 1. work_schedule_grid_view – optimized for weekly worker × day grid
-CREATE OR REPLACE VIEW public.work_schedule_grid_view AS
+DROP VIEW IF EXISTS public.work_schedule_grid_view CASCADE;
+CREATE VIEW public.work_schedule_grid_view AS
 SELECT
   ws.id,
   ws.worker_id,
@@ -32,7 +33,8 @@ LEFT JOIN public.companies  c  ON c.id  = ws.company_id
 LEFT JOIN public.cost_codes cc ON cc.id = ws.cost_code_id;
 
 -- 2. time_logs_with_meta_view – optimized for time logs tab and pay center
-CREATE OR REPLACE VIEW public.time_logs_with_meta_view AS
+DROP VIEW IF EXISTS public.time_logs_with_meta_view CASCADE;
+CREATE VIEW public.time_logs_with_meta_view AS
 SELECT
   tl.id,
   tl.worker_id,

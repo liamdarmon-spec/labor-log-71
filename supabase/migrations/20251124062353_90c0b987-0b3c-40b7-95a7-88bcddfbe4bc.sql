@@ -114,22 +114,31 @@ END;
 $$;
 
 -- Recreate the trigger
+DROP TRIGGER IF EXISTS sync_schedule_to_timelog ON work_schedules;
 CREATE TRIGGER sync_schedule_to_timelog
   BEFORE INSERT OR UPDATE ON work_schedules
   FOR EACH ROW
   EXECUTE FUNCTION sync_work_schedule_to_time_log();
 
 -- Backfill: sync existing past schedules that don't have time logs yet
-UPDATE work_schedules ws
-SET 
-  status = 'synced',
-  last_synced_at = now(),
-  converted_to_timelog = true
-WHERE 
-  ws.scheduled_date < CURRENT_DATE
-  AND NOT EXISTS (
-    SELECT 1 FROM time_logs tl WHERE tl.source_schedule_id = ws.id
-  );
+DO $$
+BEGIN
+  -- Prevent recursion / self-update via triggers during backfill
+  EXECUTE 'ALTER TABLE public.work_schedules DISABLE TRIGGER USER';
+
+  UPDATE public.work_schedules ws
+  SET
+    status = 'synced',
+    last_synced_at = now(),
+    converted_to_timelog = true
+  WHERE
+    ws.scheduled_date < CURRENT_DATE
+    AND NOT EXISTS (
+      SELECT 1 FROM public.time_logs tl WHERE tl.source_schedule_id = ws.id
+    );
+
+  EXECUTE 'ALTER TABLE public.work_schedules ENABLE TRIGGER USER';
+END $$;
 
 -- Insert missing time logs for past schedules
 INSERT INTO time_logs (

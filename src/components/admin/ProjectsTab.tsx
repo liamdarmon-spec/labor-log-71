@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
 import { z } from 'zod';
+import { useCompany } from '@/company/CompanyProvider';
 
 const projectSchema = z.object({
   project_name: z.string().trim().nonempty({ message: 'Project name is required' }).max(200),
@@ -36,6 +37,7 @@ interface Company {
 }
 
 export const ProjectsTab = () => {
+  const { activeCompanyId } = useCompany();
   const [projects, setProjects] = useState<Project[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -127,7 +129,7 @@ export const ProjectsTab = () => {
             address: validatedData.address || null,
             status: validatedData.status,
             project_manager: validatedData.project_manager || null,
-            company_id: formData.company_id || null,
+            company_id: activeCompanyId || formData.company_id || null,
           },
         ]);
 

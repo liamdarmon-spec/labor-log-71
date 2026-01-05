@@ -6,6 +6,7 @@
 -- Drop existing view if present (safe / idempotent)
 DROP VIEW IF EXISTS public.project_budget_vs_actual_view;
 
+DROP VIEW IF EXISTS public.project_budget_vs_actual_view CASCADE;
 CREATE VIEW public.project_budget_vs_actual_view AS
 WITH budget AS (
     SELECT
@@ -134,7 +135,8 @@ LEFT JOIN revenue       r   ON r.project_id = p.id
 LEFT JOIN retention     ret ON ret.project_id = p.id;
 
 -- Helper: single-project RPC-style function
-CREATE OR REPLACE FUNCTION public.get_project_budget_overview(p_project_id uuid)
+DROP FUNCTION IF EXISTS public.get_project_budget_overview(uuid);
+CREATE FUNCTION public.get_project_budget_overview(p_project_id uuid)
 RETURNS SETOF public.project_budget_vs_actual_view
 LANGUAGE sql
 STABLE

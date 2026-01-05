@@ -114,7 +114,8 @@ CREATE TRIGGER trg_mark_costs_paid_on_vendor_payment
 -- 5) RECREATE ALL REPORTING VIEWS
 -- ============================================================================
 
-CREATE OR REPLACE VIEW project_costs_view AS
+DROP VIEW IF EXISTS project_costs_view CASCADE;
+CREATE VIEW project_costs_view AS
 SELECT 
   p.id AS project_id,
   p.project_name,
@@ -133,7 +134,8 @@ JOIN costs c ON c.project_id = p.id
 LEFT JOIN cost_codes cc ON cc.id = c.cost_code_id
 GROUP BY p.id, p.project_name, c.category, c.cost_code_id, cc.code, cc.name;
 
-CREATE OR REPLACE VIEW project_labor_costs_view AS
+DROP VIEW IF EXISTS project_labor_costs_view CASCADE;
+CREATE VIEW project_labor_costs_view AS
 SELECT
   t.project_id,
   t.cost_code_id,
@@ -150,7 +152,8 @@ FROM time_logs t
 LEFT JOIN cost_codes cc ON cc.id = t.cost_code_id
 GROUP BY t.project_id, t.cost_code_id, cc.code, cc.name;
 
-CREATE OR REPLACE VIEW project_budget_vs_actual_view AS
+DROP VIEW IF EXISTS project_budget_vs_actual_view CASCADE;
+CREATE VIEW project_budget_vs_actual_view AS
 SELECT
   p.id AS project_id,
   p.project_name,
@@ -186,7 +189,8 @@ LEFT JOIN (
     FROM costs WHERE category='other' GROUP BY project_id
 ) other ON other.project_id = p.id;
 
-CREATE OR REPLACE VIEW monthly_costs_view AS
+DROP VIEW IF EXISTS monthly_costs_view CASCADE;
+CREATE VIEW monthly_costs_view AS
 SELECT
   date_trunc('month', c.date_incurred)::date AS month,
   c.category,
@@ -197,7 +201,8 @@ SELECT
 FROM costs c
 GROUP BY date_trunc('month', c.date_incurred), c.category;
 
-CREATE OR REPLACE VIEW monthly_labor_costs_view AS
+DROP VIEW IF EXISTS monthly_labor_costs_view CASCADE;
+CREATE VIEW monthly_labor_costs_view AS
 SELECT
   date_trunc('month', t.date)::date AS month,
   SUM(t.labor_cost) AS total_labor_cost,

@@ -88,14 +88,54 @@ CREATE TABLE IF NOT EXISTS checklist_question_answers (
 );
 
 -- Create indexes for performance
-CREATE INDEX IF NOT EXISTS idx_checklist_templates_project_type ON checklist_templates(project_type);
-CREATE INDEX IF NOT EXISTS idx_checklist_templates_phase ON checklist_templates(phase);
-CREATE INDEX IF NOT EXISTS idx_checklist_template_items_template ON checklist_template_items(checklist_template_id);
-CREATE INDEX IF NOT EXISTS idx_project_checklists_project ON project_checklists(project_id);
-CREATE INDEX IF NOT EXISTS idx_project_checklists_estimate ON project_checklists(estimate_id);
-CREATE INDEX IF NOT EXISTS idx_project_checklist_items_checklist ON project_checklist_items(project_checklist_id);
-CREATE INDEX IF NOT EXISTS idx_checklist_questions_project_type ON checklist_questions(project_type);
-CREATE INDEX IF NOT EXISTS idx_checklist_question_answers_estimate ON checklist_question_answers(estimate_id);
+DO $$
+BEGIN
+  IF to_regclass('public.checklist_templates') IS NOT NULL AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='checklist_templates' AND column_name='project_type') THEN
+    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_checklist_templates_project_type ON checklist_templates(project_type)';
+  END IF;
+END $$;
+DO $$
+BEGIN
+  IF to_regclass('public.checklist_templates') IS NOT NULL AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='checklist_templates' AND column_name='phase') THEN
+    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_checklist_templates_phase ON checklist_templates(phase)';
+  END IF;
+END $$;
+DO $$
+BEGIN
+  IF to_regclass('public.checklist_template_items') IS NOT NULL AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='checklist_template_items' AND column_name='checklist_template_id') THEN
+    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_checklist_template_items_template ON checklist_template_items(checklist_template_id)';
+  END IF;
+END $$;
+DO $$
+BEGIN
+  IF to_regclass('public.project_checklists') IS NOT NULL AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='project_checklists' AND column_name='project_id') THEN
+    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_project_checklists_project ON project_checklists(project_id)';
+  END IF;
+END $$;
+DO $$
+BEGIN
+  IF to_regclass('public.project_checklists') IS NOT NULL AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='project_checklists' AND column_name='estimate_id') THEN
+    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_project_checklists_estimate ON project_checklists(estimate_id)';
+  END IF;
+END $$;
+DO $$
+BEGIN
+  IF to_regclass('public.project_checklist_items') IS NOT NULL AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='project_checklist_items' AND column_name='project_checklist_id') THEN
+    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_project_checklist_items_checklist ON project_checklist_items(project_checklist_id)';
+  END IF;
+END $$;
+DO $$
+BEGIN
+  IF to_regclass('public.checklist_questions') IS NOT NULL AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='checklist_questions' AND column_name='project_type') THEN
+    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_checklist_questions_project_type ON checklist_questions(project_type)';
+  END IF;
+END $$;
+DO $$
+BEGIN
+  IF to_regclass('public.checklist_question_answers') IS NOT NULL AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='checklist_question_answers' AND column_name='estimate_id') THEN
+    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_checklist_question_answers_estimate ON checklist_question_answers(estimate_id)';
+  END IF;
+END $$;
 
 -- Enable RLS
 ALTER TABLE checklist_templates ENABLE ROW LEVEL SECURITY;
@@ -106,36 +146,77 @@ ALTER TABLE checklist_questions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE checklist_question_answers ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies - Allow all operations for now (matches existing app pattern)
+DROP POLICY IF EXISTS "Anyone can view checklist_templates" ON checklist_templates;
 CREATE POLICY "Anyone can view checklist_templates" ON checklist_templates FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Anyone can insert checklist_templates" ON checklist_templates;
+DROP POLICY IF EXISTS "Anyone can insert checklist_templates" ON checklist_templates;
 CREATE POLICY "Anyone can insert checklist_templates" ON checklist_templates FOR INSERT WITH CHECK (true);
+DROP POLICY IF EXISTS "Anyone can update checklist_templates" ON checklist_templates;
+DROP POLICY IF EXISTS "Anyone can update checklist_templates" ON checklist_templates;
 CREATE POLICY "Anyone can update checklist_templates" ON checklist_templates FOR UPDATE USING (true);
+DROP POLICY IF EXISTS "Anyone can delete checklist_templates" ON checklist_templates;
+DROP POLICY IF EXISTS "Anyone can delete checklist_templates" ON checklist_templates;
 CREATE POLICY "Anyone can delete checklist_templates" ON checklist_templates FOR DELETE USING (true);
-
+DROP POLICY IF EXISTS "Anyone can view checklist_template_items" ON checklist_template_items;
+DROP POLICY IF EXISTS "Anyone can view checklist_template_items" ON checklist_template_items;
 CREATE POLICY "Anyone can view checklist_template_items" ON checklist_template_items FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Anyone can insert checklist_template_items" ON checklist_template_items;
+DROP POLICY IF EXISTS "Anyone can insert checklist_template_items" ON checklist_template_items;
 CREATE POLICY "Anyone can insert checklist_template_items" ON checklist_template_items FOR INSERT WITH CHECK (true);
+DROP POLICY IF EXISTS "Anyone can update checklist_template_items" ON checklist_template_items;
+DROP POLICY IF EXISTS "Anyone can update checklist_template_items" ON checklist_template_items;
 CREATE POLICY "Anyone can update checklist_template_items" ON checklist_template_items FOR UPDATE USING (true);
+DROP POLICY IF EXISTS "Anyone can delete checklist_template_items" ON checklist_template_items;
+DROP POLICY IF EXISTS "Anyone can delete checklist_template_items" ON checklist_template_items;
 CREATE POLICY "Anyone can delete checklist_template_items" ON checklist_template_items FOR DELETE USING (true);
-
+DROP POLICY IF EXISTS "Anyone can view project_checklists" ON project_checklists;
+DROP POLICY IF EXISTS "Anyone can view project_checklists" ON project_checklists;
 CREATE POLICY "Anyone can view project_checklists" ON project_checklists FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Anyone can insert project_checklists" ON project_checklists;
+DROP POLICY IF EXISTS "Anyone can insert project_checklists" ON project_checklists;
 CREATE POLICY "Anyone can insert project_checklists" ON project_checklists FOR INSERT WITH CHECK (true);
+DROP POLICY IF EXISTS "Anyone can update project_checklists" ON project_checklists;
+DROP POLICY IF EXISTS "Anyone can update project_checklists" ON project_checklists;
 CREATE POLICY "Anyone can update project_checklists" ON project_checklists FOR UPDATE USING (true);
+DROP POLICY IF EXISTS "Anyone can delete project_checklists" ON project_checklists;
+DROP POLICY IF EXISTS "Anyone can delete project_checklists" ON project_checklists;
 CREATE POLICY "Anyone can delete project_checklists" ON project_checklists FOR DELETE USING (true);
-
+DROP POLICY IF EXISTS "Anyone can view project_checklist_items" ON project_checklist_items;
+DROP POLICY IF EXISTS "Anyone can view project_checklist_items" ON project_checklist_items;
 CREATE POLICY "Anyone can view project_checklist_items" ON project_checklist_items FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Anyone can insert project_checklist_items" ON project_checklist_items;
+DROP POLICY IF EXISTS "Anyone can insert project_checklist_items" ON project_checklist_items;
 CREATE POLICY "Anyone can insert project_checklist_items" ON project_checklist_items FOR INSERT WITH CHECK (true);
+DROP POLICY IF EXISTS "Anyone can update project_checklist_items" ON project_checklist_items;
+DROP POLICY IF EXISTS "Anyone can update project_checklist_items" ON project_checklist_items;
 CREATE POLICY "Anyone can update project_checklist_items" ON project_checklist_items FOR UPDATE USING (true);
+DROP POLICY IF EXISTS "Anyone can delete project_checklist_items" ON project_checklist_items;
+DROP POLICY IF EXISTS "Anyone can delete project_checklist_items" ON project_checklist_items;
 CREATE POLICY "Anyone can delete project_checklist_items" ON project_checklist_items FOR DELETE USING (true);
-
+DROP POLICY IF EXISTS "Anyone can view checklist_questions" ON checklist_questions;
+DROP POLICY IF EXISTS "Anyone can view checklist_questions" ON checklist_questions;
 CREATE POLICY "Anyone can view checklist_questions" ON checklist_questions FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Anyone can insert checklist_questions" ON checklist_questions;
+DROP POLICY IF EXISTS "Anyone can insert checklist_questions" ON checklist_questions;
 CREATE POLICY "Anyone can insert checklist_questions" ON checklist_questions FOR INSERT WITH CHECK (true);
+DROP POLICY IF EXISTS "Anyone can update checklist_questions" ON checklist_questions;
+DROP POLICY IF EXISTS "Anyone can update checklist_questions" ON checklist_questions;
 CREATE POLICY "Anyone can update checklist_questions" ON checklist_questions FOR UPDATE USING (true);
+DROP POLICY IF EXISTS "Anyone can delete checklist_questions" ON checklist_questions;
+DROP POLICY IF EXISTS "Anyone can delete checklist_questions" ON checklist_questions;
 CREATE POLICY "Anyone can delete checklist_questions" ON checklist_questions FOR DELETE USING (true);
-
+DROP POLICY IF EXISTS "Anyone can view checklist_question_answers" ON checklist_question_answers;
+DROP POLICY IF EXISTS "Anyone can view checklist_question_answers" ON checklist_question_answers;
 CREATE POLICY "Anyone can view checklist_question_answers" ON checklist_question_answers FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Anyone can insert checklist_question_answers" ON checklist_question_answers;
+DROP POLICY IF EXISTS "Anyone can insert checklist_question_answers" ON checklist_question_answers;
 CREATE POLICY "Anyone can insert checklist_question_answers" ON checklist_question_answers FOR INSERT WITH CHECK (true);
+DROP POLICY IF EXISTS "Anyone can update checklist_question_answers" ON checklist_question_answers;
+DROP POLICY IF EXISTS "Anyone can update checklist_question_answers" ON checklist_question_answers;
 CREATE POLICY "Anyone can update checklist_question_answers" ON checklist_question_answers FOR UPDATE USING (true);
+DROP POLICY IF EXISTS "Anyone can delete checklist_question_answers" ON checklist_question_answers;
+DROP POLICY IF EXISTS "Anyone can delete checklist_question_answers" ON checklist_question_answers;
 CREATE POLICY "Anyone can delete checklist_question_answers" ON checklist_question_answers FOR DELETE USING (true);
-
 -- Seed initial checklist questions
 INSERT INTO checklist_questions (project_type, code, label, help_text, input_type, options, sort_order) VALUES
 -- Kitchen questions

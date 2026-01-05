@@ -2,6 +2,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { startOfWeek, endOfWeek, startOfDay, endOfDay, isAfter, isBefore, parseISO } from 'date-fns';
+import { useCompany } from '@/company/CompanyProvider';
+import { tenantInsert } from '@/lib/supabase';
+import { useNavigate } from 'react-router-dom';
 
 export interface Task {
   id: string;
@@ -133,6 +136,8 @@ export function useTaskSummary(filters: TaskFilters = {}) {
 // Create task mutation
 export function useCreateTask() {
   const queryClient = useQueryClient();
+  const { activeCompanyId } = useCompany();
+  const navigate = useNavigate();
 
   return useMutation({
     mutationFn: async (task: {
@@ -145,23 +150,30 @@ export function useCreateTask() {
       due_date?: string;
       assigned_worker_id?: string | null;
     }) => {
-      const { data, error } = await supabase
-        .from('project_todos')
-        .insert({
-          project_id: task.project_id,
-          title: task.title,
-          description: task.description || null,
-          status: task.status || 'open',
-          priority: task.priority || 'medium',
-          task_type: task.task_type || 'todo',
-          due_date: task.due_date || null,
-          assigned_worker_id: task.assigned_worker_id || null,
-        })
-        .select()
-        .single();
+      try {
+        const { data, error } = await tenantInsert(
+          'project_todos',
+          {
+            project_id: task.project_id,
+            title: task.title,
+            description: task.description || null,
+            status: task.status || 'open',
+            priority: task.priority || 'medium',
+            task_type: task.task_type || 'todo',
+            due_date: task.due_date || null,
+            assigned_worker_id: task.assigned_worker_id || null,
+          },
+          activeCompanyId,
+          { select: '*', single: true }
+        );
 
-      if (error) throw error;
-      return data;
+        if (error) throw error;
+        return data;
+      } catch (e: any) {
+        toast.error('Select or create a company first');
+        navigate('/onboarding/company');
+        throw e;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });

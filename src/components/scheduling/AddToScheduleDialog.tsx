@@ -28,6 +28,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useCompany } from "@/company/CompanyProvider";
+import { tenantInsert } from "@/lib/supabase";
 import { CostCodeSelect } from "@/components/cost-codes/CostCodeSelect";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -83,6 +85,7 @@ export function AddToScheduleDialog({
   defaultProjectName
 }: AddToScheduleDialogProps) {
   const { toast } = useToast();
+  const { activeCompanyId } = useCompany();
   const queryClient = useQueryClient();
   const [mode, setMode] = useState<ScheduleMode>('workers');
   const [workers, setWorkers] = useState<Worker[]>([]);
@@ -286,7 +289,13 @@ export function AddToScheduleDialog({
 
     const { data: userData } = await supabase.auth.getUser();
 
-    const { error } = await supabase.from("work_schedules").insert({
+    if (!activeCompanyId) {
+      setLoading(false);
+      toast({ title: "No company selected", description: "Select a company to create schedules.", variant: "destructive" });
+      return;
+    }
+
+    const { error } = await tenantInsert("work_schedules", {
       worker_id: selectedWorker,
       project_id: selectedProject,
       trade_id: selectedTrade || null,
@@ -295,7 +304,7 @@ export function AddToScheduleDialog({
       scheduled_hours: parseFloat(hours),
       notes: notes || null,
       created_by: userData.user?.id
-    });
+    }, activeCompanyId);
 
     setLoading(false);
 
@@ -372,7 +381,14 @@ export function AddToScheduleDialog({
 
     const { data: userData } = await supabase.auth.getUser();
 
+    if (!activeCompanyId) {
+      setLoading(false);
+      toast({ title: "No company selected", description: "Select a company to create schedules.", variant: "destructive" });
+      return;
+    }
+
     const schedules = allSchedules.map(schedule => ({
+      company_id: activeCompanyId,
       worker_id: schedule.worker_id,
       project_id: schedule.project_id,
       trade_id: schedule.trade_id,
@@ -381,7 +397,7 @@ export function AddToScheduleDialog({
       created_by: userData.user?.id
     }));
 
-    const { error } = await supabase.from("work_schedules").insert(schedules);
+    const { error } = await tenantInsert("work_schedules", schedules as any, activeCompanyId);
 
     setLoading(false);
 
@@ -421,13 +437,19 @@ export function AddToScheduleDialog({
 
     setLoading(true);
 
-    const { error } = await supabase.from("sub_scheduled_shifts").insert({
+    if (!activeCompanyId) {
+      setLoading(false);
+      toast({ title: "No company selected", description: "Select a company to create schedules.", variant: "destructive" });
+      return;
+    }
+
+    const { error } = await tenantInsert("sub_scheduled_shifts", {
       sub_id: selectedSub,
       project_id: subProject,
       scheduled_date: format(subDate, "yyyy-MM-dd"),
       scheduled_hours: parseFloat(subHours),
       notes: subNotes || null,
-    });
+    }, activeCompanyId);
 
     setLoading(false);
 
@@ -495,7 +517,13 @@ export function AddToScheduleDialog({
       ? `${format(meetingDate, "yyyy-MM-dd")}T${meetingTime}:00`
       : format(meetingDate, "yyyy-MM-dd");
 
-    const { error } = await supabase.from("project_todos").insert({
+    if (!activeCompanyId) {
+      setLoading(false);
+      toast({ title: "No company selected", description: "Select a company to create tasks.", variant: "destructive" });
+      return;
+    }
+
+    const { error } = await tenantInsert("project_todos", {
       title: meetingTitle,
       description: meetingNotes || null,
       status: "pending",
@@ -503,7 +531,7 @@ export function AddToScheduleDialog({
       assigned_worker_id: meetingAssignee || null,
       task_type: meetingType,
       project_id: meetingProject
-    });
+    }, activeCompanyId);
 
     setLoading(false);
 

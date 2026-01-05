@@ -6,6 +6,7 @@
 -- Drop existing view if present (safe / idempotent)
 DROP VIEW IF EXISTS public.project_budget_ledger_view;
 
+DROP VIEW IF EXISTS public.project_budget_ledger_view CASCADE;
 CREATE VIEW public.project_budget_ledger_view AS
 WITH budget AS (
     SELECT

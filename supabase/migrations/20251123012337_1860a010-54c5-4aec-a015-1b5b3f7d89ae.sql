@@ -118,9 +118,22 @@ $$;
 ALTER TABLE public.material_receipts
   DROP CONSTRAINT IF EXISTS material_receipts_cost_code_check;
 
-ALTER TABLE public.material_receipts
-  ADD CONSTRAINT material_receipts_cost_code_check
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'material_receipts_cost_code_check'
+      AND n.nspname = 'public'
+  ) THEN
+    ALTER TABLE public.material_receipts
+    ADD CONSTRAINT material_receipts_cost_code_check
   CHECK (cost_code_id IS NOT NULL);
+  END IF;
+END
+$$;
 
 -- 3. Add additional performance indexes
 CREATE INDEX IF NOT EXISTS idx_material_receipts_project_id ON public.material_receipts(project_id);
@@ -160,7 +173,8 @@ AS $$
 $$;
 
 -- 6. Create view for material actuals summary (for reporting consistency)
-CREATE OR REPLACE VIEW public.material_actuals_by_project AS
+DROP VIEW IF EXISTS public.material_actuals_by_project CASCADE;
+CREATE VIEW public.material_actuals_by_project AS
 SELECT
   p.id as project_id,
   p.project_name,

@@ -1,5 +1,6 @@
 DROP VIEW IF EXISTS public.global_financial_summary_view;
 
+DROP VIEW IF EXISTS public.global_financial_summary_view CASCADE;
 CREATE VIEW public.global_financial_summary_view AS
 WITH labor_summary AS (
     SELECT 

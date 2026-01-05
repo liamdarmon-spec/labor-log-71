@@ -28,18 +28,13 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='project_budgets' AND column_name='notes') THEN
     ALTER TABLE public.project_budgets ADD COLUMN notes text;
   END IF;
-END;
-$$;
 
--- Add status check constraint
-DO $$
-BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_constraint 
     WHERE conname = 'project_budgets_status_check'
   ) THEN
     ALTER TABLE public.project_budgets
-      ADD CONSTRAINT project_budgets_status_check
+    ADD CONSTRAINT project_budgets_status_check
       CHECK (status IN ('draft','active','archived'));
   END IF;
 END;
@@ -78,11 +73,15 @@ CREATE TABLE IF NOT EXISTS public.project_budget_groups (
 DO $$
 BEGIN
   IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint 
-    WHERE conname = 'project_budget_groups_project_budget_id_fkey'
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'project_budget_groups_project_budget_id_fkey'
+      AND n.nspname = 'public'
   ) THEN
     ALTER TABLE public.project_budget_groups
-      ADD CONSTRAINT project_budget_groups_project_budget_id_fkey
+    ADD CONSTRAINT project_budget_groups_project_budget_id_fkey
       FOREIGN KEY (project_budget_id) REFERENCES public.project_budgets(id) ON DELETE CASCADE;
   END IF;
 END;
@@ -168,58 +167,48 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='project_budget_lines' AND column_name='change_order_id') THEN
     ALTER TABLE public.project_budget_lines ADD COLUMN change_order_id uuid;
   END IF;
-END;
-$$;
 
--- Add FKs for new columns
-DO $$
-BEGIN
   IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint 
-    WHERE conname = 'project_budget_lines_project_budget_id_fkey'
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'project_budget_lines_project_budget_id_fkey'
+      AND n.nspname = 'public'
   ) THEN
     ALTER TABLE public.project_budget_lines
-      ADD CONSTRAINT project_budget_lines_project_budget_id_fkey
+    ADD CONSTRAINT project_budget_lines_project_budget_id_fkey
       FOREIGN KEY (project_budget_id) REFERENCES public.project_budgets(id) ON DELETE CASCADE;
   END IF;
-END;
-$$;
 
-DO $$
-BEGIN
   IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint 
-    WHERE conname = 'project_budget_lines_group_id_fkey'
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.conname = 'project_budget_lines_group_id_fkey'
+      AND n.nspname = 'public'
   ) THEN
     ALTER TABLE public.project_budget_lines
-      ADD CONSTRAINT project_budget_lines_group_id_fkey
+    ADD CONSTRAINT project_budget_lines_group_id_fkey
       FOREIGN KEY (group_id) REFERENCES public.project_budget_groups(id) ON DELETE SET NULL;
   END IF;
-END;
-$$;
 
--- scope_type + line_type checks
-DO $$
-BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_constraint 
     WHERE conname = 'project_budget_lines_scope_type_check'
   ) THEN
     ALTER TABLE public.project_budget_lines
-      ADD CONSTRAINT project_budget_lines_scope_type_check
+    ADD CONSTRAINT project_budget_lines_scope_type_check
       CHECK (scope_type IN ('base','change_order','allowance','option'));
   END IF;
-END;
-$$;
 
-DO $$
-BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_constraint 
     WHERE conname = 'project_budget_lines_line_type_check'
   ) THEN
     ALTER TABLE public.project_budget_lines
-      ADD CONSTRAINT project_budget_lines_line_type_check
+    ADD CONSTRAINT project_budget_lines_line_type_check
       CHECK (line_type IS NULL OR line_type IN ('labor','subs','materials','other'));
   END IF;
 END;

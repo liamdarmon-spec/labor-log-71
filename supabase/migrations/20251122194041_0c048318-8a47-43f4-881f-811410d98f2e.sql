@@ -28,7 +28,8 @@ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_trigger WHERE tgname = 'update_proposal_sections_updated_at'
   ) THEN
-    CREATE TRIGGER update_proposal_sections_updated_at
+    DROP TRIGGER IF EXISTS update_proposal_sections_updated_at ON public.proposal_sections;
+CREATE TRIGGER update_proposal_sections_updated_at
       BEFORE UPDATE ON public.proposal_sections
       FOR EACH ROW
       EXECUTE FUNCTION public.update_updated_at_column();
@@ -37,7 +38,8 @@ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_trigger WHERE tgname = 'update_proposal_section_items_updated_at'
   ) THEN
-    CREATE TRIGGER update_proposal_section_items_updated_at
+    DROP TRIGGER IF EXISTS update_proposal_section_items_updated_at ON public.proposal_section_items;
+CREATE TRIGGER update_proposal_section_items_updated_at
       BEFORE UPDATE ON public.proposal_section_items
       FOR EACH ROW
       EXECUTE FUNCTION public.update_updated_at_column();

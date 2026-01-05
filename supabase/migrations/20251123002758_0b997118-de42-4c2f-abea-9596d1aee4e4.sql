@@ -1,18 +1,41 @@
 -- PHASE 1: DATA MODEL & INTEGRITY HARDENING (REVISED)
 
 -- 1. Add unique constraint to public_token to prevent duplicates
+
+-- Pre-clean: Remove duplicates from proposals on (public_token) keep smallest id
+WITH ranked AS (
+  SELECT
+    id,
+    ROW_NUMBER() OVER (
+      PARTITION BY public_token
+      ORDER BY id ASC
+    ) AS rn
+  FROM public.proposals
+  WHERE public_token IS NOT NULL
+)
+DELETE FROM public.proposals t
+USING ranked r
+WHERE t.id = r.id AND r.rn > 1;
+
 DO $$
 BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_constraint WHERE conname = 'proposals_public_token_unique'
   ) THEN
-    ALTER TABLE proposals ADD CONSTRAINT proposals_public_token_unique UNIQUE (public_token);
-  END IF;
-END $$;
 
--- 2. Add check constraint for event_type enum in proposal_events
-DO $$
-BEGIN
+    IF NOT EXISTS (
+      SELECT 1
+      FROM pg_constraint c
+      JOIN pg_class t ON t.oid = c.conrelid
+      JOIN pg_namespace n ON n.oid = t.relnamespace
+      WHERE c.conname = 'proposals_public_token_unique'
+        AND n.nspname = 'public'
+    ) THEN
+      ALTER TABLE proposals
+        ADD CONSTRAINT proposals_public_token_unique UNIQUE (public_token);
+    END IF;
+  END IF;
+
   IF NOT EXISTS (
     SELECT 1 FROM pg_constraint WHERE conname = 'proposal_events_event_type_check'
   ) THEN
@@ -68,7 +91,7 @@ END;
 $$;
 
 -- PHASE 3: ACCEPTANCE FLOW HARDENING
--- Create function to safely update acceptance status (prevents double submission)
+-- CREATE OR REPLACE FUNCTION to safely update acceptance status (prevents double submission)
 CREATE OR REPLACE FUNCTION update_proposal_acceptance(
   p_proposal_id uuid,
   p_new_status text,
@@ -128,7 +151,7 @@ BEGIN
 END;
 $$;
 
--- Create function to log proposal event (with deduplication for 'viewed')
+-- CREATE OR REPLACE FUNCTION to log proposal event (with deduplication for 'viewed')
 CREATE OR REPLACE FUNCTION log_proposal_event(
   p_proposal_id uuid,
   p_event_type text,

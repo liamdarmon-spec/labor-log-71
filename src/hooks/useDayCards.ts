@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import type { DayCard, DayCardWithDetails, CreateDayCardInput, UpdateDayCardInput, DayCardJob } from '@/types/dayCard';
+import { useCompany } from '@/company/CompanyProvider';
 
 /**
  * Fetch day cards for a date range
@@ -60,9 +61,11 @@ export function useDayCard(workerId: string, date: string) {
  */
 export function useCreateOrGetDayCard() {
   const queryClient = useQueryClient();
+  const { activeCompanyId } = useCompany();
 
   return useMutation({
     mutationFn: async ({ workerId, date }: { workerId: string; date: string }) => {
+      if (!activeCompanyId) throw new Error('No active company selected');
       // Try to fetch existing
       const { data: existing, error: fetchError } = await supabase
         .from('day_cards')
@@ -86,6 +89,7 @@ export function useCreateOrGetDayCard() {
       const { data: newCard, error: createError } = await supabase
         .from('day_cards')
         .insert({
+          company_id: activeCompanyId,
           worker_id: workerId,
           date,
           pay_rate: worker.hourly_rate,
@@ -109,15 +113,17 @@ export function useCreateOrGetDayCard() {
  */
 export function useCreateDayCard() {
   const queryClient = useQueryClient();
+  const { activeCompanyId } = useCompany();
 
   return useMutation({
     mutationFn: async (input: CreateDayCardInput) => {
+      if (!activeCompanyId) throw new Error('No active company selected');
       const { jobs, ...dayCardData } = input;
 
       // Create day card
       const { data: dayCard, error: cardError } = await supabase
         .from('day_cards')
-        .insert(dayCardData)
+        .insert({ ...(dayCardData as any), company_id: activeCompanyId })
         .select()
         .single();
 
@@ -128,6 +134,7 @@ export function useCreateDayCard() {
         const jobsToInsert = jobs.map((job) => ({
           ...job,
           day_card_id: dayCard.id,
+          company_id: activeCompanyId,
         }));
 
         const { error: jobsError } = await supabase
@@ -156,10 +163,12 @@ export function useCreateDayCard() {
  */
 export function useUpdateDayCard() {
   const queryClient = useQueryClient();
+  const { activeCompanyId } = useCompany();
 
   return useMutation({
     mutationFn: async ({ id, data }: { id: string; data: UpdateDayCardInput }) => {
       const { jobs, ...dayCardData } = data;
+      if (!activeCompanyId) throw new Error('No active company selected');
 
       // Update day card
       const { error: updateError } = await supabase
@@ -179,6 +188,7 @@ export function useUpdateDayCard() {
           const jobsToInsert = jobs.map((job) => ({
             ...job,
             day_card_id: id,
+            company_id: activeCompanyId,
           }));
 
           const { error: jobsError } = await supabase

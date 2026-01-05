@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { Plus, Calendar, User, Trash2, CheckSquare, Users, Package } from 'lucide-react';
 import { format } from 'date-fns';
+import { useCompany } from '@/company/CompanyProvider';
 
 interface Todo {
   id: string;
@@ -31,6 +32,7 @@ interface Worker {
 }
 
 export const ProjectTodos = ({ projectId, onUpdate }: { projectId: string; onUpdate?: () => void }) => {
+  const { activeCompanyId } = useCompany();
   const [todos, setTodos] = useState<Todo[]>([]);
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -87,7 +89,9 @@ export const ProjectTodos = ({ projectId, onUpdate }: { projectId: string; onUpd
     e.preventDefault();
     
     try {
+      if (!activeCompanyId) throw new Error('No active company selected');
       const { error } = await supabase.from('project_todos').insert({
+        company_id: activeCompanyId,
         project_id: projectId,
         title: formData.title,
         description: formData.description || null,

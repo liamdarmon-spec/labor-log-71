@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { Plus, Calendar, User, CheckSquare, Users, Package, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
 import { ProjectTasksCalendar } from './ProjectTasksCalendar';
+import { useCompany } from '@/company/CompanyProvider';
 
 interface Todo {
   id: string;
@@ -32,6 +33,7 @@ interface Worker {
 }
 
 export const ProjectTasks = ({ projectId, onUpdate }: { projectId: string; onUpdate?: () => void }) => {
+  const { activeCompanyId } = useCompany();
   const [todos, setTodos] = useState<Todo[]>([]);
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -88,7 +90,9 @@ export const ProjectTasks = ({ projectId, onUpdate }: { projectId: string; onUpd
     e.preventDefault();
     
     try {
+      if (!activeCompanyId) throw new Error('No active company selected');
       const { error } = await supabase.from('project_todos').insert({
+        company_id: activeCompanyId,
         project_id: projectId,
         title: formData.title,
         description: formData.description || null,

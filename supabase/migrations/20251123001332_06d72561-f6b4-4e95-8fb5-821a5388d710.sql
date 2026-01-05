@@ -32,11 +32,14 @@ CREATE INDEX IF NOT EXISTS idx_proposal_events_created_at ON public.proposal_eve
 ALTER TABLE public.proposal_events ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies for proposal_events
+DROP POLICY IF EXISTS "Anyone can view proposal events" ON public.proposal_events;
 CREATE POLICY "Anyone can view proposal events" ON public.proposal_events FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Anyone can insert proposal events" ON public.proposal_events;
 CREATE POLICY "Anyone can insert proposal events" ON public.proposal_events FOR INSERT WITH CHECK (true);
+DROP POLICY IF EXISTS "Anyone can update proposal events" ON public.proposal_events;
 CREATE POLICY "Anyone can update proposal events" ON public.proposal_events FOR UPDATE USING (true);
+DROP POLICY IF EXISTS "Anyone can delete proposal events" ON public.proposal_events;
 CREATE POLICY "Anyone can delete proposal events" ON public.proposal_events FOR DELETE USING (true);
-
 -- Function to generate secure public tokens
 CREATE OR REPLACE FUNCTION generate_proposal_public_token()
 RETURNS TEXT
@@ -78,6 +81,7 @@ END;
 $$;
 
 -- Trigger for proposal creation
+DROP TRIGGER IF EXISTS trigger_log_proposal_created ON public.proposals;
 CREATE TRIGGER trigger_log_proposal_created
   AFTER INSERT ON public.proposals
   FOR EACH ROW
