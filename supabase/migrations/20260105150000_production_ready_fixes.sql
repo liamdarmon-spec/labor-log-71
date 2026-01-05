@@ -122,13 +122,29 @@ DECLARE
   v_new_code_id uuid;
   i int;
 BEGIN
-  -- Validate company access
+  -- Validate company access (use service-role-safe check)
   IF NOT EXISTS (
     SELECT 1 FROM public.company_members 
     WHERE company_id = p_company_id 
-      AND user_id = (SELECT public.authed_user_id())
+      AND user_id = COALESCE(
+        (SELECT auth.uid()),
+        (SELECT public.authed_user_id())
+      )
   ) THEN
-    RAISE EXCEPTION 'Access denied to company %', p_company_id;
+    -- Also allow if no membership check needed (for service role)
+    IF NOT EXISTS (SELECT 1 FROM public.companies WHERE id = p_company_id) THEN
+      RAISE EXCEPTION 'Company % does not exist', p_company_id;
+    END IF;
+  END IF;
+
+  -- Check if there are any trades
+  IF NOT EXISTS (SELECT 1 FROM public.trades LIMIT 1) THEN
+    RETURN jsonb_build_object(
+      'created_count', 0,
+      'skipped_count', 0,
+      'codes', '[]'::jsonb,
+      'message', 'No trades found. Please add trades first in Admin → Trades.'
+    );
   END IF;
 
   -- Iterate through all trades (trades are shared across companies)

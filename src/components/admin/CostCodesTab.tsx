@@ -260,7 +260,13 @@ export const CostCodesTab = () => {
 
       const result = data as { created_count: number; skipped_count: number; codes: any[] };
       
-      if (result.created_count > 0) {
+      if (result.message) {
+        // Special message from function (e.g., "No trades found")
+        toast({
+          title: 'Info',
+          description: result.message,
+        });
+      } else if (result.created_count > 0) {
         toast({
           title: 'Cost Codes Generated',
           description: `Created ${result.created_count} new cost codes. (${result.skipped_count} already existed)`,
