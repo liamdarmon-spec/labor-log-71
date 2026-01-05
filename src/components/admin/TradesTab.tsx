@@ -113,43 +113,53 @@ export const TradesTab = () => {
 
         if (tradeError) throw tradeError;
 
-        // Auto-create 3 default cost codes for the new trade
-        const baseCode = validatedData.name.substring(0, 3).toUpperCase();
-        
-        const costCodesToCreate = [
-          { code: `${baseCode}-L`, name: `${validatedData.name} Labor`, category: 'labor' },
-          { code: `${baseCode}-M`, name: `${validatedData.name} Material`, category: 'materials' },
-          { code: `${baseCode}-S`, name: `${validatedData.name} Sub`, category: 'subs' },
-        ];
+        // Auto-create 3 default cost codes for the new trade (if company is selected)
+        if (activeCompanyId) {
+          const baseCode = validatedData.name.substring(0, 4).toUpperCase().replace(/[^A-Z]/g, '');
+          
+          const costCodesToCreate = [
+            { code: `${baseCode}-L`, name: `${validatedData.name} (Labor)`, category: 'labor' },
+            { code: `${baseCode}-M`, name: `${validatedData.name} (Material)`, category: 'materials' },
+            { code: `${baseCode}-S`, name: `${validatedData.name} (Subcontractor)`, category: 'subs' },
+          ];
 
-        const { data: createdCodes, error: codesError } = await supabase
-          .from('cost_codes')
-          .insert(
-            costCodesToCreate.map(cc => ({
-              ...cc,
-              trade_id: newTrade.id,
-              is_active: true,
-            }))
-          )
-          .select();
+          const { data: createdCodes, error: codesError } = await supabase
+            .from('cost_codes')
+            .insert(
+              costCodesToCreate.map(cc => ({
+                ...cc,
+                company_id: activeCompanyId,
+                trade_id: newTrade.id,
+                is_active: true,
+              }))
+            )
+            .select();
 
-        if (codesError) throw codesError;
+          if (codesError) {
+            console.error('Failed to create cost codes:', codesError);
+            // Don't throw - trade was created successfully
+          } else if (createdCodes && createdCodes.length > 0) {
+            // Link the created cost codes back to the trade
+            const { error: updateError } = await supabase
+              .from('trades')
+              .update({
+                default_labor_cost_code_id: createdCodes.find(c => c.category === 'labor')?.id,
+                default_material_cost_code_id: createdCodes.find(c => c.category === 'materials')?.id,
+                default_sub_cost_code_id: createdCodes.find(c => c.category === 'subs')?.id,
+              })
+              .eq('id', newTrade.id);
 
-        // Link the created cost codes back to the trade
-        const { error: updateError } = await supabase
-          .from('trades')
-          .update({
-            default_labor_cost_code_id: createdCodes.find(c => c.category === 'labor')?.id,
-            default_material_cost_code_id: createdCodes.find(c => c.category === 'materials')?.id,
-            default_sub_cost_code_id: createdCodes.find(c => c.category === 'subs')?.id,
-          })
-          .eq('id', newTrade.id);
-
-        if (updateError) throw updateError;
+            if (updateError) {
+              console.error('Failed to link cost codes to trade:', updateError);
+            }
+          }
+        }
 
         toast({
           title: 'Success',
-          description: 'Trade and default cost codes created successfully',
+          description: activeCompanyId 
+            ? 'Trade and default cost codes created successfully'
+            : 'Trade created successfully (cost codes require a company)',
         });
       }
 
@@ -321,32 +331,40 @@ export const TradesTab = () => {
           if (tradeError) throw tradeError;
 
           // Generate cost codes using the proper trade key
-          const costCodes = generateCostCodesForTrade(standardTrade.key, standardTrade.name);
+          // Only create cost codes if company is selected
+          if (activeCompanyId) {
+            const costCodes = generateCostCodesForTrade(standardTrade.key, standardTrade.name);
 
-          const { data: createdCodes, error: codesError } = await supabase
-            .from('cost_codes')
-            .insert(
-              costCodes.map(cc => ({
-                ...cc,
-                trade_id: newTrade.id,
-                is_active: true,
-              }))
-            )
-            .select();
+            const { data: createdCodes, error: codesError } = await supabase
+              .from('cost_codes')
+              .insert(
+                costCodes.map(cc => ({
+                  ...cc,
+                  company_id: activeCompanyId,
+                  trade_id: newTrade.id,
+                  is_active: true,
+                }))
+              )
+              .select();
 
-          if (codesError) throw codesError;
+            if (codesError) {
+              console.error('Failed to create cost codes for', standardTrade.name, codesError);
+            } else if (createdCodes && createdCodes.length > 0) {
+              // Link cost codes back to trade
+              const { error: updateError } = await supabase
+                .from('trades')
+                .update({
+                  default_labor_cost_code_id: createdCodes.find(c => c.category === 'labor')?.id,
+                  default_material_cost_code_id: createdCodes.find(c => c.category === 'materials')?.id,
+                  default_sub_cost_code_id: createdCodes.find(c => c.category === 'subs')?.id,
+                })
+                .eq('id', newTrade.id);
 
-          // Link cost codes back to trade
-          const { error: updateError } = await supabase
-            .from('trades')
-            .update({
-              default_labor_cost_code_id: createdCodes.find(c => c.category === 'labor')?.id,
-              default_material_cost_code_id: createdCodes.find(c => c.category === 'materials')?.id,
-              default_sub_cost_code_id: createdCodes.find(c => c.category === 'subs')?.id,
-            })
-            .eq('id', newTrade.id);
-
-          if (updateError) throw updateError;
+              if (updateError) {
+                console.error('Failed to link cost codes:', updateError);
+              }
+            }
+          }
 
           created++;
         } catch (err) {
