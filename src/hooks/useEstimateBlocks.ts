@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { getUnassignedCostCodeId } from "@/lib/costCodes";
+import { useCompany } from "@/company/CompanyProvider";
 
 export type BudgetCategory = "labor" | "subs" | "materials" | "other";
 
@@ -115,6 +116,7 @@ export interface ReorderSectionPayload {
 
 export function useEstimateBlocks(estimateId: string | undefined) {
   const queryClient = useQueryClient();
+  const { activeCompanyId } = useCompany();
 
   // Fetch scope blocks with cost items
   const {
@@ -175,6 +177,7 @@ export function useEstimateBlocks(estimateId: string | undefined) {
       const { data, error } = await supabase
         .from("scope_block_cost_items")
         .insert({
+          company_id: activeCompanyId || undefined, // Let trigger fill if missing
           scope_block_id: blockId,
           category: "labor",
           cost_code_id: unassignedId,

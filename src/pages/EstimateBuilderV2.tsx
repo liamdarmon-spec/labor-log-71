@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { ArrowLeft, Plus, FileText, Check, Download, FileSpreadsheet } from "lucide-react";
+import { useCompany } from "@/company/CompanyProvider";
 import { getUnassignedCostCodeId } from "@/lib/costCodes";
 import { checkEstimateNeedsMigration, migrateEstimateToScopeBlocks } from "@/lib/estimateMigration";
 import { downloadCSV, downloadPDF, type EstimateExportData } from "@/lib/estimateExport";
@@ -124,6 +125,7 @@ export default function EstimateBuilderV2() {
   const { estimateId } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { activeCompanyId } = useCompany();
 
   // Local state for immediate UI updates
   const [localBlocks, setLocalBlocks] = useState<EstimateEditorBlock[]>([]);
@@ -268,9 +270,13 @@ export default function EstimateBuilderV2() {
   // Auto-create first scope block if none exist
   const createFirstBlock = useMutation({
     mutationFn: async () => {
+      if (!activeCompanyId) {
+        throw new Error("No active company selected");
+      }
       const { data, error } = await supabase
         .from("scope_blocks")
         .insert({
+          company_id: activeCompanyId,
           entity_type: "estimate",
           entity_id: estimateId!,
           block_type: "cost_items",
@@ -281,6 +287,10 @@ export default function EstimateBuilderV2() {
         .single();
       if (error) throw error;
       return data;
+    },
+    onError: (err: Error) => {
+      console.error("Failed to create section", err);
+      toast.error(err.message || "Failed to create section");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["scope-blocks", "estimate", estimateId] });
@@ -341,10 +351,14 @@ export default function EstimateBuilderV2() {
   // Add section mutation
   const addSection = useMutation({
     mutationFn: async () => {
+      if (!activeCompanyId) {
+        throw new Error("No active company selected");
+      }
       const maxOrder = Math.max(...localBlocks.map((b) => b.block.sort_order || 0), -1);
       const { data, error } = await supabase
         .from("scope_blocks")
         .insert({
+          company_id: activeCompanyId,
           entity_type: "estimate",
           entity_id: estimateId!,
           block_type: "cost_items",
@@ -359,6 +373,10 @@ export default function EstimateBuilderV2() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["scope-blocks", "estimate", estimateId] });
       toast.success("Section added");
+    },
+    onError: (err: Error) => {
+      console.error("Failed to add section", err);
+      toast.error(err.message || "Failed to add section");
     },
   });
 
@@ -429,6 +447,7 @@ export default function EstimateBuilderV2() {
       if (toCreate.length > 0) {
         const unassignedId = await getUnassignedCostCodeId();
         const insertData = toCreate.map((item, idx) => ({
+          company_id: activeCompanyId || undefined, // Let trigger fill if missing
           scope_block_id: item.scope_block_id,
           category: item.category,
           cost_code_id: item.cost_code_id || unassignedId,

@@ -14,6 +14,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
+import { useCompany } from '@/company/CompanyProvider';
 
 interface CreateProposalDialogProps {
   open: boolean;
@@ -56,6 +57,7 @@ export function CreateProposalDialog({
   const [estimateId, setEstimateId] = useState('');
   const [presentationMode, setPresentationMode] = useState<PresentationMode>('detailed');
   const [loading, setLoading] = useState(false);
+  const { activeCompanyId } = useCompany();
 
   // Fetch estimates for this project
   const { data: estimates } = useQuery({
@@ -125,6 +127,11 @@ export function CreateProposalDialog({
       return;
     }
 
+    if (!activeCompanyId) {
+      toast.error('No active company selected');
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -161,6 +168,7 @@ export function CreateProposalDialog({
       const { data: proposal, error: proposalError } = await supabase
         .from('proposals')
         .insert({
+          company_id: activeCompanyId,
           project_id: projectId,
           primary_estimate_id: estimateId,
           title,
@@ -184,9 +192,9 @@ export function CreateProposalDialog({
       setPresentationMode('detailed');
       onOpenChange(false);
       onSuccess(proposal.id);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating proposal:', error);
-      toast.error('Failed to create proposal');
+      toast.error('Failed to create proposal: ' + (error?.message || 'Unknown error'));
     } finally {
       setLoading(false);
     }
