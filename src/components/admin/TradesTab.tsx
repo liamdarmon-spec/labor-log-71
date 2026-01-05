@@ -8,13 +8,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Plus, Pencil, Trash2, Wrench, AlertTriangle, Sparkles } from 'lucide-react';
+import { Plus, Pencil, Trash2, Wrench, AlertTriangle, Sparkles, Loader2 } from 'lucide-react';
 import { z } from 'zod';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { useCostCodes } from '@/hooks/useCostCodes';
 import { STANDARD_REMODELING_TRADES, generateCostCodesForTrade } from '@/utils/tradesSeeding';
 import { useQueryClient } from '@tanstack/react-query';
+import { useCompany } from '@/company/CompanyProvider';
 
 const tradeSchema = z.object({
   name: z.string().trim().nonempty({ message: 'Trade name is required' }).max(100),
@@ -45,6 +46,7 @@ export const TradesTab = () => {
   });
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { activeCompanyId } = useCompany();
   
   const { data: laborCostCodes = [] } = useCostCodes('labor');
   const { data: materialCostCodes = [] } = useCostCodes('materials');
@@ -219,105 +221,60 @@ export const TradesTab = () => {
   );
 
   const handleGenerateMissingCodes = async () => {
+    if (!activeCompanyId) {
+      toast({
+        title: 'Error',
+        description: 'No company selected. Please select or create a company first.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     if (!confirm(
-      `This will auto-generate missing cost codes for ${tradesWithMissingCodes.length} trade(s).\n\n` +
+      `This will auto-generate missing cost codes for all trades.\n\n` +
       `Each trade will get Labor (-L), Material (-M), and Sub (-S) codes.\n\n` +
       `Continue?`
     )) return;
 
     setIsSeeding(true);
-    let generated = 0;
-    const errors: string[] = [];
 
     try {
-      for (const trade of tradesWithMissingCodes) {
-        try {
-          const baseCode = trade.name.substring(0, 4).toUpperCase().replace(/[^A-Z]/g, '');
-          const codes = generateCostCodesForTrade(baseCode, trade.name);
-          const updates: any = {};
-
-          // Generate missing codes
-          if (!trade.default_labor_cost_code_id) {
-            const { data: laborCode } = await supabase
-              .from('cost_codes')
-              .insert({
-                code: codes[0].code,
-                name: codes[0].name,
-                category: codes[0].category,
-                trade_id: trade.id,
-                is_active: true,
-              })
-              .select()
-              .single();
-            
-            if (laborCode) updates.default_labor_cost_code_id = laborCode.id;
-          }
-
-          if (!trade.default_material_cost_code_id) {
-            const { data: materialCode } = await supabase
-              .from('cost_codes')
-              .insert({
-                code: codes[1].code,
-                name: codes[1].name,
-                category: codes[1].category,
-                trade_id: trade.id,
-                is_active: true,
-              })
-              .select()
-              .single();
-            
-            if (materialCode) updates.default_material_cost_code_id = materialCode.id;
-          }
-
-          if (!trade.default_sub_cost_code_id) {
-            const { data: subCode } = await supabase
-              .from('cost_codes')
-              .insert({
-                code: codes[2].code,
-                name: codes[2].name,
-                category: codes[2].category,
-                trade_id: trade.id,
-                is_active: true,
-              })
-              .select()
-              .single();
-            
-            if (subCode) updates.default_sub_cost_code_id = subCode.id;
-          }
-
-          // Update trade with new code IDs
-          if (Object.keys(updates).length > 0) {
-            await supabase
-              .from('trades')
-              .update(updates)
-              .eq('id', trade.id);
-            
-            generated++;
-          }
-        } catch (err) {
-          errors.push(`${trade.name}: ${err instanceof Error ? err.message : 'Unknown error'}`);
-        }
-      }
-
-      toast({
-        title: 'Cost Codes Generated',
-        description: `Generated cost codes for ${generated} trade(s).${errors.length > 0 ? ` ${errors.length} errors occurred.` : ''}`,
+      // Use the canonical RPC instead of manual inserts
+      const { data, error } = await supabase.rpc('auto_generate_trade_cost_codes', {
+        p_company_id: activeCompanyId,
       });
 
-      if (errors.length > 0) {
-        console.error('Generation errors:', errors);
-      }
+      if (error) throw error;
 
-      // Invalidate cost codes cache to refetch them
-      queryClient.invalidateQueries({ queryKey: ['cost_codes'] });
-      fetchTrades();
-    } catch (error) {
+      const result = data as { created_count: number; skipped_count: number; trade_count: number; message?: string };
+      
+      if (result.message) {
+        // Special message from function (e.g., "No trades found")
+        toast({
+          title: 'Info',
+          description: result.message,
+        });
+      } else if (result.created_count > 0) {
+        toast({
+          title: 'Cost Codes Generated',
+          description: `Created ${result.created_count} cost codes for ${result.trade_count} trades.`,
+        });
+        // Refresh both trades and cost codes
+        fetchTrades();
+        queryClient.invalidateQueries({ queryKey: ['costCodes'] });
+      } else {
+        toast({
+          title: 'No New Codes',
+          description: `All ${result.trade_count} trades already have cost codes.`,
+        });
+      }
+    } catch (error: any) {
+      console.error('Generation error:', error);
       toast({
         title: 'Generation Failed',
-        description: 'Failed to generate cost codes. Check console for details.',
+        description: error.message || 'Failed to generate cost codes. Check console for details.',
         variant: 'destructive',
       });
-      console.error('Generation error:', error);
     } finally {
       setIsSeeding(false);
     }
