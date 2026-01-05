@@ -3,6 +3,17 @@
 -- Trades are SHARED across all companies (no company_id column)
 -- ============================================================================
 
+-- Ensure trades.name is unique (needed for ON CONFLICT)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint 
+    WHERE conname = 'trades_name_key' AND conrelid = 'public.trades'::regclass
+  ) THEN
+    ALTER TABLE public.trades ADD CONSTRAINT trades_name_key UNIQUE (name);
+  END IF;
+END $$;
+
 -- Insert trades idempotently (skip if name already exists)
 INSERT INTO public.trades (name, description) VALUES
   ('Demolition', 'Selective and structural demolition, haul-off'),
