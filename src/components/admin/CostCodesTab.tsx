@@ -5,7 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Plus, Edit2, Trash2, Filter } from 'lucide-react';
+import { Plus, Edit2, Trash2, Filter, Sparkles, Loader2 } from 'lucide-react';
+import { useCompany } from '@/company/CompanyProvider';
 import {
   Dialog,
   DialogContent,
@@ -59,6 +60,7 @@ export const CostCodesTab = () => {
   const [editingCode, setEditingCode] = useState<CostCode | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [activeFilter, setActiveFilter] = useState<string>('active');
+  const [isAutoGenerating, setIsAutoGenerating] = useState(false);
   const [formData, setFormData] = useState({
     code: '',
     name: '',
@@ -67,6 +69,7 @@ export const CostCodesTab = () => {
     is_active: true,
   });
   const { toast } = useToast();
+  const { activeCompanyId } = useCompany();
 
   useEffect(() => {
     fetchCostCodes();
@@ -140,7 +143,17 @@ export const CostCodesTab = () => {
         description: 'Cost code updated successfully',
       });
     } else {
+      if (!activeCompanyId) {
+        toast({
+          title: 'Error',
+          description: 'No company selected',
+          variant: 'destructive',
+        });
+        return;
+      }
+      
       const { error } = await supabase.from('cost_codes').insert({
+        company_id: activeCompanyId,
         code: formData.code,
         name: formData.name,
         category: formData.category,
@@ -151,7 +164,7 @@ export const CostCodesTab = () => {
       if (error) {
         toast({
           title: 'Error',
-          description: 'Failed to create cost code',
+          description: 'Failed to create cost code: ' + error.message,
           variant: 'destructive',
         });
         return;
@@ -226,21 +239,79 @@ export const CostCodesTab = () => {
     return colors[category] || 'bg-gray-500';
   };
 
+  // Auto-generate cost codes from trades
+  const handleAutoGenerate = async () => {
+    if (!activeCompanyId) {
+      toast({
+        title: 'Error',
+        description: 'No company selected',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsAutoGenerating(true);
+    try {
+      const { data, error } = await supabase.rpc('auto_generate_trade_cost_codes', {
+        p_company_id: activeCompanyId,
+      });
+
+      if (error) throw error;
+
+      const result = data as { created_count: number; skipped_count: number; codes: any[] };
+      
+      if (result.created_count > 0) {
+        toast({
+          title: 'Cost Codes Generated',
+          description: `Created ${result.created_count} new cost codes. (${result.skipped_count} already existed)`,
+        });
+        fetchCostCodes();
+      } else {
+        toast({
+          title: 'No New Codes',
+          description: `All trades already have cost codes (${result.skipped_count} existing).`,
+        });
+      }
+    } catch (err: any) {
+      console.error('Auto-generate error:', err);
+      toast({
+        title: 'Error',
+        description: err.message || 'Failed to auto-generate cost codes',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsAutoGenerating(false);
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle>Cost Codes</CardTitle>
-          <Dialog open={isDialogOpen} onOpenChange={(open) => {
-            setIsDialogOpen(open);
-            if (!open) resetForm();
-          }}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="w-4 h-4 mr-2" />
-                Add Cost Code
-              </Button>
-            </DialogTrigger>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={handleAutoGenerate}
+              disabled={isAutoGenerating}
+            >
+              {isAutoGenerating ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Sparkles className="w-4 h-4 mr-2" />
+              )}
+              Auto-Generate from Trades
+            </Button>
+            <Dialog open={isDialogOpen} onOpenChange={(open) => {
+              setIsDialogOpen(open);
+              if (!open) resetForm();
+            }}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Cost Code
+                </Button>
+              </DialogTrigger>
             <DialogContent className="max-w-md">
               <DialogHeader>
                 <DialogTitle>

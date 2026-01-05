@@ -156,9 +156,9 @@ export const WorkersTab = () => {
     setFormData({
       name: worker.name,
       trade_id: worker.trade_id || '',
-      hourly_rate: worker.hourly_rate.toString(),
+      hourly_rate: (worker.hourly_rate ?? 0).toString(),
       phone: worker.phone || '',
-      active: worker.active,
+      active: worker.active ?? true,
     });
     setIsDialogOpen(true);
   };
@@ -296,7 +296,7 @@ export const WorkersTab = () => {
                       {worker.trades?.name || 'No Trade'}
                     </span>
                   </TableCell>
-                  <TableCell>${worker.hourly_rate.toFixed(2)}</TableCell>
+                  <TableCell>${(worker.hourly_rate ?? 0).toFixed(2)}</TableCell>
                   <TableCell>{worker.phone || '-'}</TableCell>
                   <TableCell>
                     <button

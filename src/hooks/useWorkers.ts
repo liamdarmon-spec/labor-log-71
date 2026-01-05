@@ -6,9 +6,9 @@ export interface Worker {
   name: string;
   trade_id: string | null;
   trades?: { name: string } | null;
-  hourly_rate: number;
+  hourly_rate: number | null;
   phone: string | null;
-  active: boolean;
+  active: boolean | null;
   created_at?: string;
 }
 
