@@ -21,39 +21,43 @@ function emptyToNull(val: string | undefined | null): string | null {
 // ============================================================
 
 export interface BillingSummary {
-  // Contract
-  base_contract_value: number;
-  approved_change_orders: number;
-  contract_value: number;
-  has_base_proposal: boolean;
-  change_order_count: number;
+  // Contract baseline info
+  has_contract_baseline: boolean;
+  contract_baseline_id: string | null;
+  billing_basis: 'payment_schedule' | 'sov' | null;
   
-  // SOV
-  sov_schedule_id: string | null;
-  sov_schedule_status: string | null;
-  sov_total: number;
-  sov_item_count: number;
-  sov_variance: number;
+  // Contract totals
+  base_contract_total: number;
+  approved_change_order_total: number;
+  current_contract_total: number;
   
-  // Billing
-  invoiced_total: number;
-  paid_total: number;
-  outstanding_balance: number;
-  balance_to_finish: number;
+  // Change order counts
+  pending_change_order_count: number;
+  approved_change_order_count: number;
+  pending_change_order_value: number;
+  
+  // Billing progress
+  billed_to_date: number;
+  paid_to_date: number;
+  open_ar: number;
+  remaining_to_bill: number;
   retention_held: number;
   
-  // Counts & Dates
+  // Counts
   invoice_count: number;
   payment_count: number;
-  last_invoice_date: string | null;
-  last_payment_date: string | null;
+  
+  // Proposal info
+  has_base_proposal: boolean;
+  base_proposal_id: string | null;
+  base_proposal_total: number;
 }
 
 export function useBillingSummary(projectId: string) {
   return useQuery({
     queryKey: ['billing-summary', projectId],
     enabled: !!projectId,
-    staleTime: 30_000, // Cache for 30 seconds
+    staleTime: 30_000,
     queryFn: async (): Promise<BillingSummary | null> => {
       const { data, error } = await supabase
         .rpc('get_project_billing_summary', { p_project_id: projectId })
@@ -70,25 +74,121 @@ export function useBillingSummary(projectId: string) {
 }
 
 // ============================================================
-// CHANGE ORDERS (proposals with parent_proposal_id)
+// BILLING LINES (Milestones or SOV)
+// ============================================================
+
+export interface BillingLine {
+  billing_basis: 'payment_schedule' | 'sov';
+  line_id: string;
+  line_name: string;
+  scheduled_amount: number;
+  invoiced_amount: number;
+  paid_amount: number;
+  remaining_amount: number;
+  percent_complete: number;
+  sort_order: number;
+}
+
+export function useBillingLines(projectId: string) {
+  return useQuery({
+    queryKey: ['billing-lines', projectId],
+    enabled: !!projectId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .rpc('get_contract_billing_lines', { p_project_id: projectId });
+
+      if (error) throw error;
+      return (data || []) as BillingLine[];
+    },
+  });
+}
+
+// ============================================================
+// CONTRACT BASELINE
+// ============================================================
+
+export interface ContractBaseline {
+  id: string;
+  company_id: string;
+  project_id: string;
+  accepted_proposal_id: string;
+  billing_basis: 'payment_schedule' | 'sov';
+  base_contract_total: number;
+  approved_change_order_total: number;
+  current_contract_total: number;
+  created_at: string;
+}
+
+export function useContractBaseline(projectId: string) {
+  return useQuery({
+    queryKey: ['contract-baseline', projectId],
+    enabled: !!projectId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('contract_baselines')
+        .select('*')
+        .eq('project_id', projectId)
+        .maybeSingle();
+
+      if (error) throw error;
+      return data as ContractBaseline | null;
+    },
+  });
+}
+
+export function useAcceptProposalCreateBaseline() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (params: {
+      proposalId: string;
+      projectId: string;
+      acceptedByName?: string;
+      acceptedByEmail?: string;
+    }) => {
+      const { data, error } = await supabase.rpc('accept_proposal_create_baseline', {
+        p_proposal_id: params.proposalId,
+        p_accepted_by_name: params.acceptedByName ?? null,
+        p_accepted_by_email: params.acceptedByEmail ?? null,
+      });
+
+      if (error) throw error;
+      return { ...data, projectId: params.projectId };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['contract-baseline', data.projectId] });
+      queryClient.invalidateQueries({ queryKey: ['billing-summary', data.projectId] });
+      queryClient.invalidateQueries({ queryKey: ['billing-lines', data.projectId] });
+      toast.success(`Contract baseline created (${data.billing_basis})`);
+    },
+    onError: (error) => {
+      console.error('Create baseline error:', error);
+      toast.error(`Failed to create baseline: ${error.message}`);
+    },
+  });
+}
+
+// ============================================================
+// CHANGE ORDERS
 // ============================================================
 
 export interface ChangeOrder {
   id: string;
   project_id: string;
   company_id: string;
-  parent_proposal_id: string;
-  proposal_number: string | null;
+  contract_baseline_id: string | null;
+  change_order_number: string | null;
   title: string;
-  status: string;
-  acceptance_status: 'pending' | 'accepted' | 'rejected';
+  description: string | null;
+  status: 'draft' | 'sent' | 'approved' | 'rejected' | 'void';
   subtotal_amount: number;
   tax_amount: number;
   total_amount: number;
+  sent_at: string | null;
+  approved_at: string | null;
+  pdf_document_id: string | null;
   created_at: string;
   updated_at: string;
-  accepted_by_name: string | null;
-  acceptance_date: string | null;
 }
 
 export function useChangeOrders(projectId: string) {
@@ -96,12 +196,10 @@ export function useChangeOrders(projectId: string) {
     queryKey: ['change-orders', projectId],
     enabled: !!projectId,
     queryFn: async () => {
-      // COs are proposals where parent_proposal_id IS NOT NULL
       const { data, error } = await supabase
-        .from('proposals')
+        .from('change_orders')
         .select('*')
         .eq('project_id', projectId)
-        .not('parent_proposal_id', 'is', null)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -117,7 +215,6 @@ export function useCreateChangeOrder() {
   return useMutation({
     mutationFn: async (co: {
       project_id: string;
-      parent_proposal_id: string;
       title: string;
       description?: string;
       subtotal_amount?: number;
@@ -127,15 +224,13 @@ export function useCreateChangeOrder() {
       if (!activeCompanyId) throw new Error('No active company selected');
 
       const { data, error } = await supabase
-        .from('proposals')
+        .from('change_orders')
         .insert({
           project_id: co.project_id,
-          parent_proposal_id: co.parent_proposal_id,
           title: co.title,
-          proposal_kind: 'change_order',
-          status: 'draft',
-          acceptance_status: 'pending',
+          description: co.description ?? null,
           company_id: activeCompanyId,
+          status: 'draft',
           subtotal_amount: co.subtotal_amount ?? 0,
           tax_amount: co.tax_amount ?? 0,
           total_amount: co.total_amount ?? 0,
@@ -158,22 +253,18 @@ export function useCreateChangeOrder() {
   });
 }
 
-export function useAcceptChangeOrder() {
+export function useApproveChangeOrder() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (params: {
-      proposalId: string;
+      changeOrderId: string;
       projectId: string;
-      acceptedByName?: string;
-      acceptedByEmail?: string;
-      notes?: string;
+      approvedByName?: string;
     }) => {
-      const { data, error } = await supabase.rpc('accept_change_order', {
-        p_proposal_id: params.proposalId,
-        p_accepted_by_name: params.acceptedByName ?? null,
-        p_accepted_by_email: params.acceptedByEmail ?? null,
-        p_notes: params.notes ?? null,
+      const { data, error } = await supabase.rpc('approve_change_order', {
+        p_change_order_id: params.changeOrderId,
+        p_approved_by_name: params.approvedByName ?? null,
       });
 
       if (error) throw error;
@@ -182,11 +273,38 @@ export function useAcceptChangeOrder() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['change-orders', data.projectId] });
       queryClient.invalidateQueries({ queryKey: ['billing-summary', data.projectId] });
-      toast.success('Change order accepted - contract value updated');
+      queryClient.invalidateQueries({ queryKey: ['contract-baseline', data.projectId] });
+      toast.success('Change order approved - contract value updated');
     },
     onError: (error) => {
-      console.error('CO accept error:', error);
-      toast.error(`Failed to accept change order: ${error.message}`);
+      console.error('CO approve error:', error);
+      toast.error(`Failed to approve change order: ${error.message}`);
+    },
+  });
+}
+
+export function useSendChangeOrder() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (params: { changeOrderId: string; projectId: string }) => {
+      const { data, error } = await supabase
+        .from('change_orders')
+        .update({ status: 'sent', sent_at: new Date().toISOString() })
+        .eq('id', params.changeOrderId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return { ...data, projectId: params.projectId };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['change-orders', data.projectId] });
+      toast.success('Change order sent');
+    },
+    onError: (error) => {
+      console.error('CO send error:', error);
+      toast.error(`Failed to send change order: ${error.message}`);
     },
   });
 }
@@ -195,15 +313,13 @@ export function useRejectChangeOrder() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (params: {
-      proposalId: string;
-      projectId: string;
-      notes?: string;
-    }) => {
-      const { data, error } = await supabase.rpc('reject_change_order', {
-        p_proposal_id: params.proposalId,
-        p_rejection_notes: params.notes ?? null,
-      });
+    mutationFn: async (params: { changeOrderId: string; projectId: string }) => {
+      const { data, error } = await supabase
+        .from('change_orders')
+        .update({ status: 'rejected' })
+        .eq('id', params.changeOrderId)
+        .select()
+        .single();
 
       if (error) throw error;
       return { ...data, projectId: params.projectId };
@@ -216,204 +332,6 @@ export function useRejectChangeOrder() {
     onError: (error) => {
       console.error('CO reject error:', error);
       toast.error(`Failed to reject change order: ${error.message}`);
-    },
-  });
-}
-
-// ============================================================
-// SOV SCHEDULES
-// ============================================================
-
-export interface SOVSchedule {
-  id: string;
-  project_id: string;
-  company_id: string;
-  base_proposal_id: string | null;
-  name: string;
-  status: 'draft' | 'active' | 'locked' | 'archived';
-  total_scheduled_value: number;
-  notes: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-export function useSOVSchedule(projectId: string) {
-  return useQuery({
-    queryKey: ['sov-schedule', projectId],
-    enabled: !!projectId,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('sov_schedules')
-        .select('*')
-        .eq('project_id', projectId)
-        .in('status', ['active', 'draft'])
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (error) throw error;
-      return data as SOVSchedule | null;
-    },
-  });
-}
-
-export function useCreateSOVSchedule() {
-  const queryClient = useQueryClient();
-  const { activeCompanyId } = useCompany();
-
-  return useMutation({
-    mutationFn: async (schedule: {
-      project_id: string;
-      name?: string;
-      base_proposal_id?: string;
-    }) => {
-      if (!activeCompanyId) throw new Error('No active company selected');
-
-      const { data, error } = await supabase
-        .from('sov_schedules')
-        .insert({
-          project_id: schedule.project_id,
-          name: schedule.name ?? 'Schedule of Values',
-          base_proposal_id: emptyToNull(schedule.base_proposal_id),
-          company_id: activeCompanyId,
-          status: 'active',
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['sov-schedule', data.project_id] });
-      queryClient.invalidateQueries({ queryKey: ['billing-summary', data.project_id] });
-      toast.success('SOV schedule created');
-    },
-    onError: (error) => {
-      console.error('SOV schedule create error:', error);
-      toast.error(`Failed to create SOV schedule: ${error.message}`);
-    },
-  });
-}
-
-// ============================================================
-// SOV ITEMS
-// ============================================================
-
-export interface SOVItem {
-  id: string;
-  project_id: string;
-  company_id: string;
-  sov_schedule_id: string | null;
-  proposal_id: string | null;
-  change_order_id: string | null;
-  cost_code_id: string | null;
-  area_label: string | null;
-  trade: string | null;
-  description: string;
-  scheduled_value: number;
-  sort_order: number;
-  is_archived: boolean;
-  created_at: string;
-  updated_at: string;
-  cost_codes?: { code: string; name: string } | null;
-}
-
-export function useSOVItems(projectId: string) {
-  return useQuery({
-    queryKey: ['sov-items', projectId],
-    enabled: !!projectId,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('sov_items')
-        .select(`
-          *,
-          cost_codes(code, name)
-        `)
-        .eq('project_id', projectId)
-        .eq('is_archived', false)
-        .order('sort_order', { ascending: true });
-
-      if (error) throw error;
-      return data as SOVItem[];
-    },
-  });
-}
-
-export function useCreateSOVItem() {
-  const queryClient = useQueryClient();
-  const { activeCompanyId } = useCompany();
-
-  return useMutation({
-    mutationFn: async (item: {
-      project_id: string;
-      description: string;
-      scheduled_value?: number;
-      sov_schedule_id?: string;
-      cost_code_id?: string;
-      trade?: string;
-      area_label?: string;
-      sort_order?: number;
-    }) => {
-      if (!activeCompanyId) throw new Error('No active company selected');
-
-      const { data, error } = await supabase
-        .from('sov_items')
-        .insert({
-          ...item,
-          sov_schedule_id: emptyToNull(item.sov_schedule_id),
-          cost_code_id: emptyToNull(item.cost_code_id),
-          scheduled_value: item.scheduled_value ?? 0,
-          company_id: activeCompanyId,
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['sov-items', data.project_id] });
-      queryClient.invalidateQueries({ queryKey: ['sov-schedule', data.project_id] });
-      queryClient.invalidateQueries({ queryKey: ['billing-summary', data.project_id] });
-      toast.success('SOV item created');
-    },
-    onError: (error) => {
-      console.error('SOV create error:', error);
-      toast.error(`Failed to create SOV item: ${error.message}`);
-    },
-  });
-}
-
-export function useUpdateSOVItem() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({ id, ...updates }: Partial<SOVItem> & { id: string }) => {
-      const cleanedUpdates = {
-        ...updates,
-        sov_schedule_id: emptyToNull(updates.sov_schedule_id),
-        cost_code_id: emptyToNull(updates.cost_code_id),
-      };
-
-      const { data, error } = await supabase
-        .from('sov_items')
-        .update(cleanedUpdates)
-        .eq('id', id)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['sov-items', data.project_id] });
-      queryClient.invalidateQueries({ queryKey: ['sov-schedule', data.project_id] });
-      queryClient.invalidateQueries({ queryKey: ['billing-summary', data.project_id] });
-    },
-    onError: (error) => {
-      console.error('SOV update error:', error);
-      toast.error(`Failed to update SOV item: ${error.message}`);
     },
   });
 }
@@ -435,6 +353,8 @@ export interface Invoice {
   total_amount: number;
   retention_percent: number;
   retention_amount: number;
+  source_type: 'proposal' | 'payment_schedule' | 'manual' | null;
+  sov_based: boolean;
   notes: string | null;
   created_at: string;
   updated_at: string;
@@ -457,33 +377,60 @@ export function useInvoices(projectId: string) {
   });
 }
 
-// ============================================================
-// PAYMENT SCHEDULES / MILESTONES
-// ============================================================
+export function useCreateInvoiceFromMilestones() {
+  const queryClient = useQueryClient();
 
-export interface PaymentMilestone {
-  id: string;
-  project_id: string;
-  proposal_id: string | null;
-  name: string;
-  status: string;
-  created_at: string;
-  total_amount: number;
-  item_count: number;
-}
-
-export function usePaymentMilestones(projectId: string) {
-  return useQuery({
-    queryKey: ['payment-milestones', projectId],
-    enabled: !!projectId,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('project_billing_milestones')
-        .select('*')
-        .eq('project_id', projectId);
+  return useMutation({
+    mutationFn: async (params: {
+      projectId: string;
+      milestoneAllocations: Array<{ milestone_id: string; amount: number }>;
+    }) => {
+      const { data, error } = await supabase.rpc('create_invoice_from_milestones', {
+        p_project_id: params.projectId,
+        p_milestone_allocations: params.milestoneAllocations,
+      });
 
       if (error) throw error;
-      return data as PaymentMilestone[];
+      return { ...data, projectId: params.projectId };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['invoices', data.projectId] });
+      queryClient.invalidateQueries({ queryKey: ['billing-summary', data.projectId] });
+      queryClient.invalidateQueries({ queryKey: ['billing-lines', data.projectId] });
+      toast.success('Invoice created from milestones');
+    },
+    onError: (error) => {
+      console.error('Create invoice error:', error);
+      toast.error(`Failed to create invoice: ${error.message}`);
+    },
+  });
+}
+
+export function useCreateInvoiceFromSOV() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (params: {
+      projectId: string;
+      sovLines: Array<{ sov_line_id: string; this_period_amount: number }>;
+    }) => {
+      const { data, error } = await supabase.rpc('create_invoice_from_sov', {
+        p_project_id: params.projectId,
+        p_sov_lines: params.sovLines,
+      });
+
+      if (error) throw error;
+      return { ...data, projectId: params.projectId };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['invoices', data.projectId] });
+      queryClient.invalidateQueries({ queryKey: ['billing-summary', data.projectId] });
+      queryClient.invalidateQueries({ queryKey: ['billing-lines', data.projectId] });
+      toast.success('Pay application invoice created');
+    },
+    onError: (error) => {
+      console.error('Create SOV invoice error:', error);
+      toast.error(`Failed to create invoice: ${error.message}`);
     },
   });
 }
@@ -542,26 +489,65 @@ export function useCreateCustomerPayment() {
 }
 
 // ============================================================
-// BASE PROPOSAL (for linking COs)
+// PROPOSALS (for baseline creation)
 // ============================================================
 
-export function useBaseProposal(projectId: string) {
+export interface Proposal {
+  id: string;
+  project_id: string;
+  company_id: string;
+  title: string;
+  status: string;
+  acceptance_status: 'pending' | 'accepted' | 'rejected';
+  billing_basis: 'payment_schedule' | 'sov' | null;
+  total_amount: number;
+  created_at: string;
+}
+
+export function useProposals(projectId: string) {
   return useQuery({
-    queryKey: ['base-proposal', projectId],
+    queryKey: ['proposals', projectId],
     enabled: !!projectId,
     queryFn: async () => {
-      // Base proposal = accepted proposal with no parent
       const { data, error } = await supabase
         .from('proposals')
-        .select('id, title, total_amount, acceptance_status')
+        .select('id, project_id, company_id, title, status, acceptance_status, billing_basis, total_amount, created_at')
         .eq('project_id', projectId)
-        .is('parent_proposal_id', null)
-        .eq('acceptance_status', 'accepted')
-        .limit(1)
-        .maybeSingle();
+        .is('parent_proposal_id', null)  // Only base proposals
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return data;
+      return data as Proposal[];
+    },
+  });
+}
+
+export function useUpdateProposalBillingBasis() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (params: {
+      proposalId: string;
+      projectId: string;
+      billingBasis: 'payment_schedule' | 'sov';
+    }) => {
+      const { data, error } = await supabase
+        .from('proposals')
+        .update({ billing_basis: params.billingBasis })
+        .eq('id', params.proposalId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return { ...data, projectId: params.projectId };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['proposals', data.projectId] });
+      toast.success('Billing basis updated');
+    },
+    onError: (error) => {
+      console.error('Update billing basis error:', error);
+      toast.error(`Failed to update billing basis: ${error.message}`);
     },
   });
 }

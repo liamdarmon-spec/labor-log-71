@@ -1,4 +1,4 @@
-// Project Billing Hub - Canonical Data Layer
+// Project Billing Hub - Canonical, Auditable, Production-Ready
 // Big 3 Aligned:
 // 1. CANONICAL: All totals from get_project_billing_summary - NO frontend math
 // 2. SECURITY: All data via RLS-protected queries
@@ -55,21 +55,25 @@ import {
   CheckCircle,
   XCircle,
   AlertTriangle,
+  Lock,
+  Send,
   Calendar,
 } from 'lucide-react';
 import {
   useBillingSummary,
-  useSOVItems,
-  useCreateSOVItem,
+  useBillingLines,
+  useContractBaseline,
   useChangeOrders,
   useCreateChangeOrder,
-  useAcceptChangeOrder,
+  useApproveChangeOrder,
+  useSendChangeOrder,
   useRejectChangeOrder,
   useInvoices,
-  usePaymentMilestones,
   useCustomerPayments,
   useCreateCustomerPayment,
-  useBaseProposal,
+  useProposals,
+  useAcceptProposalCreateBaseline,
+  useUpdateProposalBillingBasis,
 } from '@/hooks/useBillingHub';
 
 interface ProjectBillingTabProps {
@@ -79,33 +83,36 @@ interface ProjectBillingTabProps {
 export function ProjectBillingTab({ projectId }: ProjectBillingTabProps) {
   // CANONICAL: Single source of truth for all billing metrics
   const { data: summary, isLoading: summaryLoading } = useBillingSummary(projectId);
+  const { data: billingLines = [] } = useBillingLines(projectId);
+  const { data: baseline } = useContractBaseline(projectId);
   
-  // Additional data for lists (minimal queries)
-  const { data: sovItems = [] } = useSOVItems(projectId);
+  // Additional data
   const { data: changeOrders = [] } = useChangeOrders(projectId);
   const { data: invoices = [] } = useInvoices(projectId);
-  const { data: milestones = [] } = usePaymentMilestones(projectId);
   const { data: payments = [] } = useCustomerPayments(projectId);
-  const { data: baseProposal } = useBaseProposal(projectId);
+  const { data: proposals = [] } = useProposals(projectId);
 
   // Mutations
-  const createSOVItem = useCreateSOVItem();
   const createChangeOrder = useCreateChangeOrder();
-  const acceptChangeOrder = useAcceptChangeOrder();
+  const approveChangeOrder = useApproveChangeOrder();
+  const sendChangeOrder = useSendChangeOrder();
   const rejectChangeOrder = useRejectChangeOrder();
   const createPayment = useCreateCustomerPayment();
+  const acceptProposal = useAcceptProposalCreateBaseline();
+  const updateBillingBasis = useUpdateProposalBillingBasis();
 
   const [activeTab, setActiveTab] = useState('summary');
 
   // Dialog states
-  const [sovDialogOpen, setSOVDialogOpen] = useState(false);
   const [coDialogOpen, setCODialogOpen] = useState(false);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
-  const [acceptDialogCO, setAcceptDialogCO] = useState<string | null>(null);
+  const [approveDialogCO, setApproveDialogCO] = useState<string | null>(null);
   const [rejectDialogCO, setRejectDialogCO] = useState<string | null>(null);
+  const [baselineDialogOpen, setBaselineDialogOpen] = useState(false);
+  const [selectedProposalId, setSelectedProposalId] = useState<string>('');
+  const [selectedBillingBasis, setSelectedBillingBasis] = useState<'payment_schedule' | 'sov'>('payment_schedule');
 
   // Form states
-  const [newSOV, setNewSOV] = useState({ description: '', scheduled_value: 0 });
   const [newCO, setNewCO] = useState({ title: '', description: '', total_amount: 0 });
   const [newPayment, setNewPayment] = useState({ amount: 0, payment_method: 'check', reference_number: '', notes: '' });
 
@@ -113,37 +120,31 @@ export function ProjectBillingTab({ projectId }: ProjectBillingTabProps) {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value ?? 0);
   };
 
-  const handleCreateSOV = () => {
-    if (!newSOV.description.trim()) return;
-    createSOVItem.mutate({ project_id: projectId, ...newSOV });
-    setSOVDialogOpen(false);
-    setNewSOV({ description: '', scheduled_value: 0 });
+  const formatPercent = (value: number | null | undefined) => {
+    return `${(value ?? 0).toFixed(1)}%`;
   };
 
   const handleCreateCO = () => {
     if (!newCO.title.trim()) return;
-    if (!baseProposal?.id) {
-      return; // Need base proposal to create CO
-    }
-    createChangeOrder.mutate({ 
-      project_id: projectId, 
-      parent_proposal_id: baseProposal.id,
-      ...newCO 
-    });
+    createChangeOrder.mutate({ project_id: projectId, ...newCO });
     setCODialogOpen(false);
     setNewCO({ title: '', description: '', total_amount: 0 });
   };
 
-  const handleAcceptCO = () => {
-    if (!acceptDialogCO) return;
-    acceptChangeOrder.mutate({ proposalId: acceptDialogCO, projectId });
-    setAcceptDialogCO(null);
+  const handleApproveCO = () => {
+    if (!approveDialogCO) return;
+    approveChangeOrder.mutate({ changeOrderId: approveDialogCO, projectId });
+    setApproveDialogCO(null);
   };
 
   const handleRejectCO = () => {
     if (!rejectDialogCO) return;
-    rejectChangeOrder.mutate({ proposalId: rejectDialogCO, projectId });
+    rejectChangeOrder.mutate({ changeOrderId: rejectDialogCO, projectId });
     setRejectDialogCO(null);
+  };
+
+  const handleSendCO = (coId: string) => {
+    sendChangeOrder.mutate({ changeOrderId: coId, projectId });
   };
 
   const handleCreatePayment = () => {
@@ -158,38 +159,110 @@ export function ProjectBillingTab({ projectId }: ProjectBillingTabProps) {
     setNewPayment({ amount: 0, payment_method: 'check', reference_number: '', notes: '' });
   };
 
-  // Banner state based on canonical data
-  const showNoBannerProposal = !summary?.has_base_proposal;
-  const sovVarianceWarning = summary?.sov_variance !== 0 && (summary?.sov_item_count ?? 0) > 0;
+  const handleCreateBaseline = () => {
+    if (!selectedProposalId) return;
+    
+    // First update billing basis if needed
+    const proposal = proposals.find(p => p.id === selectedProposalId);
+    if (proposal && proposal.billing_basis !== selectedBillingBasis) {
+      updateBillingBasis.mutate({
+        proposalId: selectedProposalId,
+        projectId,
+        billingBasis: selectedBillingBasis,
+      }, {
+        onSuccess: () => {
+          acceptProposal.mutate({ proposalId: selectedProposalId, projectId });
+        },
+      });
+    } else {
+      acceptProposal.mutate({ proposalId: selectedProposalId, projectId });
+    }
+    setBaselineDialogOpen(false);
+  };
+
+  // Derived states
+  const hasBaseline = summary?.has_contract_baseline ?? false;
+  const billingBasis = summary?.billing_basis;
+  const pendingProposals = proposals.filter(p => p.acceptance_status === 'pending');
 
   return (
     <div className="space-y-6">
-      {/* Warning Banners */}
-      {showNoBannerProposal && (
+      {/* No Baseline Warning */}
+      {!hasBaseline && !summaryLoading && (
         <div className="rounded-lg border border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-950/20 p-4">
-          <div className="flex items-center gap-3">
-            <AlertTriangle className="w-5 h-5 text-orange-600" />
-            <div>
-              <p className="font-medium text-orange-800 dark:text-orange-200">No Base Contract</p>
-              <p className="text-sm text-orange-700 dark:text-orange-300">
-                Accept a proposal to establish the base contract value.
-              </p>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <AlertTriangle className="w-5 h-5 text-orange-600" />
+              <div>
+                <p className="font-medium text-orange-800 dark:text-orange-200">No Contract Baseline</p>
+                <p className="text-sm text-orange-700 dark:text-orange-300">
+                  Accept a proposal to establish the contract baseline and lock the billing method.
+                </p>
+              </div>
             </div>
+            {pendingProposals.length > 0 && (
+              <Dialog open={baselineDialogOpen} onOpenChange={setBaselineDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button>Create Baseline</Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Create Contract Baseline</DialogTitle>
+                    <DialogDescription>
+                      Select a proposal and billing method. Once created, the billing method is LOCKED.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label>Proposal</Label>
+                      <Select value={selectedProposalId} onValueChange={setSelectedProposalId}>
+                        <SelectTrigger><SelectValue placeholder="Select proposal" /></SelectTrigger>
+                        <SelectContent>
+                          {pendingProposals.map(p => (
+                            <SelectItem key={p.id} value={p.id}>
+                              {p.title} - {formatCurrency(p.total_amount)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Billing Method (LOCKED after creation)</Label>
+                      <Select value={selectedBillingBasis} onValueChange={(v) => setSelectedBillingBasis(v as 'payment_schedule' | 'sov')}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="payment_schedule">Payment Schedule (Milestones)</SelectItem>
+                          <SelectItem value="sov">Schedule of Values (AIA Style)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="p-3 bg-muted rounded-lg text-sm">
+                      <Lock className="w-4 h-4 inline mr-2" />
+                      The billing method cannot be changed after the baseline is created. 
+                      To change it, you would need a formal contract amendment.
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button onClick={handleCreateBaseline} disabled={!selectedProposalId || acceptProposal.isPending}>
+                      {acceptProposal.isPending ? 'Creating...' : 'Create Baseline'}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            )}
           </div>
         </div>
       )}
 
-      {sovVarianceWarning && (
-        <div className="rounded-lg border border-yellow-200 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-950/20 p-4">
-          <div className="flex items-center gap-3">
-            <AlertTriangle className="w-5 h-5 text-yellow-600" />
-            <div>
-              <p className="font-medium text-yellow-800 dark:text-yellow-200">SOV Variance</p>
-              <p className="text-sm text-yellow-700 dark:text-yellow-300">
-                SOV total ({formatCurrency(summary?.sov_total)}) differs from contract value by {formatCurrency(summary?.sov_variance)}.
-              </p>
-            </div>
-          </div>
+      {/* Locked Billing Basis Badge */}
+      {hasBaseline && billingBasis && (
+        <div className="flex items-center gap-2 px-4 py-2 bg-muted rounded-lg">
+          <Lock className="w-4 h-4 text-muted-foreground" />
+          <span className="text-sm font-medium">Billing Method:</span>
+          <Badge variant="outline">
+            {billingBasis === 'payment_schedule' ? 'Payment Schedule (Milestones)' : 'Schedule of Values (SOV)'}
+          </Badge>
+          <span className="text-xs text-muted-foreground">(Locked at contract baseline)</span>
         </div>
       )}
 
@@ -199,49 +272,49 @@ export function ProjectBillingTab({ projectId }: ProjectBillingTabProps) {
           <CardHeader className="pb-2">
             <CardDescription>Contract Value</CardDescription>
             <CardTitle className="text-2xl">
-              {summaryLoading ? '...' : formatCurrency(summary?.contract_value)}
+              {summaryLoading ? '...' : formatCurrency(summary?.current_contract_total)}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-xs text-muted-foreground">
-              Base: {formatCurrency(summary?.base_contract_value)} + COs: {formatCurrency(summary?.approved_change_orders)}
+              Base: {formatCurrency(summary?.base_contract_total)} + COs: {formatCurrency(summary?.approved_change_order_total)}
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>SOV Total</CardDescription>
-            <CardTitle className="text-2xl">
-              {summaryLoading ? '...' : formatCurrency(summary?.sov_total)}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-xs text-muted-foreground">
-              {summary?.sov_item_count ?? 0} items
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Outstanding</CardDescription>
-            <CardTitle className="text-2xl text-orange-600">
-              {summaryLoading ? '...' : formatCurrency(summary?.outstanding_balance)}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-xs text-muted-foreground">
-              Invoiced: {formatCurrency(summary?.invoiced_total)} - Paid: {formatCurrency(summary?.paid_total)}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Balance to Finish</CardDescription>
+            <CardDescription>Billed to Date</CardDescription>
             <CardTitle className="text-2xl text-blue-600">
-              {summaryLoading ? '...' : formatCurrency(summary?.balance_to_finish)}
+              {summaryLoading ? '...' : formatCurrency(summary?.billed_to_date)}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-xs text-muted-foreground">
+              {summary?.invoice_count ?? 0} invoices sent
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Open A/R</CardDescription>
+            <CardTitle className="text-2xl text-orange-600">
+              {summaryLoading ? '...' : formatCurrency(summary?.open_ar)}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-xs text-muted-foreground">
+              Paid: {formatCurrency(summary?.paid_to_date)}
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Remaining to Bill</CardDescription>
+            <CardTitle className="text-2xl text-green-600">
+              {summaryLoading ? '...' : formatCurrency(summary?.remaining_to_bill)}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -254,22 +327,18 @@ export function ProjectBillingTab({ projectId }: ProjectBillingTabProps) {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid grid-cols-5 w-full">
+        <TabsList className="grid grid-cols-4 w-full">
           <TabsTrigger value="summary" className="gap-2">
             <TrendingUp className="w-4 h-4" />
             Summary
           </TabsTrigger>
-          <TabsTrigger value="milestones" className="gap-2">
-            <Calendar className="w-4 h-4" />
-            Payment Schedule
+          <TabsTrigger value="billing-lines" className="gap-2">
+            <ClipboardList className="w-4 h-4" />
+            {billingBasis === 'sov' ? 'SOV' : 'Milestones'}
           </TabsTrigger>
           <TabsTrigger value="change-orders" className="gap-2">
             <FileText className="w-4 h-4" />
-            COs ({summary?.change_order_count ?? 0})
-          </TabsTrigger>
-          <TabsTrigger value="sov" className="gap-2">
-            <ClipboardList className="w-4 h-4" />
-            SOV ({summary?.sov_item_count ?? 0})
+            COs ({summary?.pending_change_order_count ?? 0}/{summary?.approved_change_order_count ?? 0})
           </TabsTrigger>
           <TabsTrigger value="invoices" className="gap-2">
             <Receipt className="w-4 h-4" />
@@ -281,51 +350,55 @@ export function ProjectBillingTab({ projectId }: ProjectBillingTabProps) {
         <TabsContent value="summary" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Billing Overview</CardTitle>
-              <CardDescription>Contract vs Billed vs Collected</CardDescription>
+              <CardTitle>Contract Summary</CardTitle>
+              <CardDescription>Canonical billing overview - all values from database</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <div className="flex justify-between items-center py-2 border-b">
-                  <span>Base Contract</span>
-                  <span className="font-semibold">{formatCurrency(summary?.base_contract_value)}</span>
+                  <span>Base Contract (Accepted Proposal)</span>
+                  <span className="font-semibold">{formatCurrency(summary?.base_contract_total)}</span>
                 </div>
                 <div className="flex justify-between items-center py-2 border-b">
-                  <span>Approved Change Orders ({summary?.change_order_count ?? 0})</span>
-                  <span className="font-semibold">{formatCurrency(summary?.approved_change_orders)}</span>
+                  <span>Approved Change Orders ({summary?.approved_change_order_count ?? 0})</span>
+                  <span className="font-semibold">{formatCurrency(summary?.approved_change_order_total)}</span>
                 </div>
-                <div className="flex justify-between items-center py-2 border-b bg-muted/50 px-2 -mx-2 rounded">
-                  <span className="font-medium">Total Contract Value</span>
-                  <span className="font-bold text-lg">{formatCurrency(summary?.contract_value)}</span>
+                {(summary?.pending_change_order_count ?? 0) > 0 && (
+                  <div className="flex justify-between items-center py-2 border-b text-muted-foreground">
+                    <span>Pending Change Orders ({summary?.pending_change_order_count})</span>
+                    <span className="font-semibold">{formatCurrency(summary?.pending_change_order_value)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between items-center py-2 bg-muted/50 px-2 -mx-2 rounded font-medium">
+                  <span>Current Contract Value</span>
+                  <span className="text-lg">{formatCurrency(summary?.current_contract_total)}</span>
                 </div>
+                <div className="h-4" />
                 <div className="flex justify-between items-center py-2 border-b">
-                  <span>Schedule of Values Total</span>
-                  <span className={`font-semibold ${sovVarianceWarning ? 'text-yellow-600' : ''}`}>
-                    {formatCurrency(summary?.sov_total)}
-                    {sovVarianceWarning && <span className="text-xs ml-2">(variance: {formatCurrency(summary?.sov_variance)})</span>}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center py-2 border-b">
-                  <span>Invoiced to Date</span>
-                  <span className="font-semibold text-blue-600">{formatCurrency(summary?.invoiced_total)}</span>
-                </div>
-                <div className="flex justify-between items-center py-2 border-b">
-                  <span>Retention Held</span>
-                  <span className="font-semibold text-orange-600">{formatCurrency(summary?.retention_held)}</span>
+                  <span>Billed to Date</span>
+                  <span className="font-semibold text-blue-600">{formatCurrency(summary?.billed_to_date)}</span>
                 </div>
                 <div className="flex justify-between items-center py-2 border-b">
                   <span>Collected</span>
-                  <span className="font-semibold text-green-600">{formatCurrency(summary?.paid_total)}</span>
+                  <span className="font-semibold text-green-600">{formatCurrency(summary?.paid_to_date)}</span>
                 </div>
-                <div className="flex justify-between items-center py-2 bg-muted/50 px-2 -mx-2 rounded">
-                  <span className="font-medium">Balance to Finish</span>
-                  <span className="font-bold text-lg">{formatCurrency(summary?.balance_to_finish)}</span>
+                <div className="flex justify-between items-center py-2 border-b">
+                  <span>Open A/R (Invoiced - Paid)</span>
+                  <span className="font-semibold text-orange-600">{formatCurrency(summary?.open_ar)}</span>
+                </div>
+                <div className="flex justify-between items-center py-2 border-b">
+                  <span>Retention Held</span>
+                  <span className="font-semibold">{formatCurrency(summary?.retention_held)}</span>
+                </div>
+                <div className="flex justify-between items-center py-2 bg-muted/50 px-2 -mx-2 rounded font-medium">
+                  <span>Remaining to Bill</span>
+                  <span className="text-lg">{formatCurrency(summary?.remaining_to_bill)}</span>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Payment History */}
+          {/* Payments Section */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
@@ -334,7 +407,7 @@ export function ProjectBillingTab({ projectId }: ProjectBillingTabProps) {
               </div>
               <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button><Plus className="w-4 h-4 mr-2" /> Record Payment</Button>
+                  <Button size="sm"><Plus className="w-4 h-4 mr-2" /> Record Payment</Button>
                 </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
@@ -362,7 +435,6 @@ export function ProjectBillingTab({ projectId }: ProjectBillingTabProps) {
                           <SelectItem value="ach">ACH</SelectItem>
                           <SelectItem value="wire">Wire</SelectItem>
                           <SelectItem value="cash">Cash</SelectItem>
-                          <SelectItem value="credit_card">Credit Card</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -419,43 +491,71 @@ export function ProjectBillingTab({ projectId }: ProjectBillingTabProps) {
           </Card>
         </TabsContent>
 
-        {/* Payment Schedule / Milestones Tab */}
-        <TabsContent value="milestones" className="space-y-4">
+        {/* Billing Lines Tab (Milestones or SOV) */}
+        <TabsContent value="billing-lines" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Payment Schedule</CardTitle>
-              <CardDescription>Billing milestones for this project</CardDescription>
+              <CardTitle>
+                {billingBasis === 'sov' ? 'Schedule of Values' : 'Payment Schedule Milestones'}
+              </CardTitle>
+              <CardDescription>
+                {billingBasis === 'sov' 
+                  ? 'AIA-style progress billing by line item'
+                  : 'Milestone-based billing schedule'}
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              {milestones.length > 0 ? (
+              {!hasBaseline ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Lock className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                  <p>Create a contract baseline to see billing lines.</p>
+                </div>
+              ) : billingLines.length > 0 ? (
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Items</TableHead>
-                      <TableHead className="text-right">Total</TableHead>
+                      <TableHead>#</TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead className="text-right">Scheduled</TableHead>
+                      <TableHead className="text-right">Invoiced</TableHead>
+                      <TableHead className="text-right">Remaining</TableHead>
+                      <TableHead className="text-right">% Complete</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {milestones.map((m) => (
-                      <TableRow key={m.id}>
-                        <TableCell className="font-medium">{m.name}</TableCell>
-                        <TableCell>
-                          <Badge variant="secondary">{m.status}</Badge>
-                        </TableCell>
-                        <TableCell>{m.item_count}</TableCell>
-                        <TableCell className="text-right font-medium">
-                          {formatCurrency(Number(m.total_amount))}
+                    {billingLines.map((line, idx) => (
+                      <TableRow key={line.line_id}>
+                        <TableCell>{idx + 1}</TableCell>
+                        <TableCell>{line.line_name}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(line.scheduled_amount)}</TableCell>
+                        <TableCell className="text-right text-blue-600">{formatCurrency(line.invoiced_amount)}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(line.remaining_amount)}</TableCell>
+                        <TableCell className="text-right">
+                          <Badge variant={line.percent_complete >= 100 ? 'default' : 'secondary'}>
+                            {formatPercent(line.percent_complete)}
+                          </Badge>
                         </TableCell>
                       </TableRow>
                     ))}
+                    <TableRow className="bg-muted/50 font-bold">
+                      <TableCell colSpan={2}>Total</TableCell>
+                      <TableCell className="text-right">
+                        {formatCurrency(billingLines.reduce((sum, l) => sum + l.scheduled_amount, 0))}
+                      </TableCell>
+                      <TableCell className="text-right text-blue-600">
+                        {formatCurrency(billingLines.reduce((sum, l) => sum + l.invoiced_amount, 0))}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {formatCurrency(billingLines.reduce((sum, l) => sum + l.remaining_amount, 0))}
+                      </TableCell>
+                      <TableCell></TableCell>
+                    </TableRow>
                   </TableBody>
                 </Table>
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
-                  <Calendar className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  <p>No payment schedules yet.</p>
+                  <ClipboardList className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                  <p>No billing lines defined yet.</p>
                 </div>
               )}
             </CardContent>
@@ -468,20 +568,18 @@ export function ProjectBillingTab({ projectId }: ProjectBillingTabProps) {
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
                 <CardTitle>Change Orders</CardTitle>
-                <CardDescription>Contract modifications - accepted COs update contract value</CardDescription>
+                <CardDescription>Contract modifications - only approved COs affect contract value</CardDescription>
               </div>
               <Dialog open={coDialogOpen} onOpenChange={setCODialogOpen}>
                 <DialogTrigger asChild>
-                  <Button disabled={!baseProposal}>
+                  <Button disabled={!hasBaseline}>
                     <Plus className="w-4 h-4 mr-2" /> New CO
                   </Button>
                 </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
                     <DialogTitle>Create Change Order</DialogTitle>
-                    <DialogDescription>
-                      This CO will be linked to base proposal: {baseProposal?.title ?? 'N/A'}
-                    </DialogDescription>
+                    <DialogDescription>Add a contract modification</DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4 py-4">
                     <div className="space-y-2">
@@ -507,6 +605,7 @@ export function ProjectBillingTab({ projectId }: ProjectBillingTabProps) {
                         value={newCO.total_amount}
                         onChange={(e) => setNewCO({ ...newCO, total_amount: parseFloat(e.target.value) || 0 })}
                       />
+                      <p className="text-xs text-muted-foreground">Use negative for deductions</p>
                     </div>
                   </div>
                   <DialogFooter>
@@ -518,10 +617,10 @@ export function ProjectBillingTab({ projectId }: ProjectBillingTabProps) {
               </Dialog>
             </CardHeader>
             <CardContent>
-              {!baseProposal && (
+              {!hasBaseline && (
                 <div className="mb-4 p-3 bg-muted rounded-lg text-sm text-muted-foreground">
-                  <AlertTriangle className="w-4 h-4 inline mr-2" />
-                  Accept a base proposal first before creating change orders.
+                  <Lock className="w-4 h-4 inline mr-2" />
+                  Create a contract baseline before adding change orders.
                 </div>
               )}
               {changeOrders.length > 0 ? (
@@ -538,31 +637,42 @@ export function ProjectBillingTab({ projectId }: ProjectBillingTabProps) {
                   <TableBody>
                     {changeOrders.map((co, idx) => (
                       <TableRow key={co.id}>
-                        <TableCell>{co.proposal_number || `CO-${idx + 1}`}</TableCell>
+                        <TableCell>{co.change_order_number || `CO-${idx + 1}`}</TableCell>
                         <TableCell>{co.title}</TableCell>
                         <TableCell>
                           <Badge 
                             variant={
-                              co.acceptance_status === 'accepted' ? 'default' : 
-                              co.acceptance_status === 'rejected' ? 'destructive' : 
+                              co.status === 'approved' ? 'default' : 
+                              co.status === 'rejected' || co.status === 'void' ? 'destructive' : 
                               'secondary'
                             }
                           >
-                            {co.acceptance_status}
+                            {co.status}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-right font-medium">
+                        <TableCell className={`text-right font-medium ${co.total_amount < 0 ? 'text-red-600' : ''}`}>
                           {formatCurrency(Number(co.total_amount))}
                         </TableCell>
                         <TableCell className="text-right">
-                          {co.acceptance_status === 'pending' && (
+                          {co.status === 'draft' && (
                             <div className="flex gap-2 justify-end">
                               <Button 
                                 size="sm" 
                                 variant="outline"
-                                onClick={() => setAcceptDialogCO(co.id)}
+                                onClick={() => handleSendCO(co.id)}
                               >
-                                <CheckCircle className="w-4 h-4 mr-1" /> Accept
+                                <Send className="w-4 h-4 mr-1" /> Send
+                              </Button>
+                            </div>
+                          )}
+                          {co.status === 'sent' && (
+                            <div className="flex gap-2 justify-end">
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => setApproveDialogCO(co.id)}
+                              >
+                                <CheckCircle className="w-4 h-4 mr-1" /> Approve
                               </Button>
                               <Button 
                                 size="sm" 
@@ -573,10 +683,10 @@ export function ProjectBillingTab({ projectId }: ProjectBillingTabProps) {
                               </Button>
                             </div>
                           )}
-                          {co.acceptance_status === 'accepted' && (
+                          {co.status === 'approved' && (
                             <span className="text-green-600 text-sm">
                               <CheckCircle className="w-4 h-4 inline mr-1" />
-                              {co.acceptance_date ? new Date(co.acceptance_date).toLocaleDateString() : 'Accepted'}
+                              {co.approved_at ? new Date(co.approved_at).toLocaleDateString() : 'Approved'}
                             </span>
                           )}
                         </TableCell>
@@ -594,93 +704,12 @@ export function ProjectBillingTab({ projectId }: ProjectBillingTabProps) {
           </Card>
         </TabsContent>
 
-        {/* SOV Tab */}
-        <TabsContent value="sov" className="space-y-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle>Schedule of Values</CardTitle>
-                <CardDescription>Line items for progress billing</CardDescription>
-              </div>
-              <Dialog open={sovDialogOpen} onOpenChange={setSOVDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button><Plus className="w-4 h-4 mr-2" /> Add Item</Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Add SOV Item</DialogTitle>
-                    <DialogDescription>Create a new schedule of values line item</DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4 py-4">
-                    <div className="space-y-2">
-                      <Label>Description</Label>
-                      <Input
-                        value={newSOV.description}
-                        onChange={(e) => setNewSOV({ ...newSOV, description: e.target.value })}
-                        placeholder="e.g., Framing - Phase 1"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Scheduled Value ($)</Label>
-                      <Input
-                        type="number"
-                        value={newSOV.scheduled_value}
-                        onChange={(e) => setNewSOV({ ...newSOV, scheduled_value: parseFloat(e.target.value) || 0 })}
-                      />
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button onClick={handleCreateSOV} disabled={createSOVItem.isPending}>
-                      {createSOVItem.isPending ? 'Creating...' : 'Create Item'}
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            </CardHeader>
-            <CardContent>
-              {sovItems.length > 0 ? (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>#</TableHead>
-                      <TableHead>Description</TableHead>
-                      <TableHead className="text-right">Scheduled Value</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {sovItems.map((item, idx) => (
-                      <TableRow key={item.id}>
-                        <TableCell>{idx + 1}</TableCell>
-                        <TableCell>{item.description}</TableCell>
-                        <TableCell className="text-right font-medium">
-                          {formatCurrency(Number(item.scheduled_value))}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                    <TableRow className="bg-muted/50 font-bold">
-                      <TableCell colSpan={2}>Total (from canonical function)</TableCell>
-                      <TableCell className="text-right">
-                        {formatCurrency(summary?.sov_total)}
-                      </TableCell>
-                    </TableRow>
-                  </TableBody>
-                </Table>
-              ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  <ClipboardList className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  <p>No SOV items yet. Add items to enable progress billing.</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
         {/* Invoices Tab */}
         <TabsContent value="invoices" className="space-y-4">
           <Card>
             <CardHeader>
               <CardTitle>Invoices</CardTitle>
-              <CardDescription>Sent invoices for this project</CardDescription>
+              <CardDescription>Billing documents for this project</CardDescription>
             </CardHeader>
             <CardContent>
               {invoices.length > 0 ? (
@@ -690,6 +719,7 @@ export function ProjectBillingTab({ projectId }: ProjectBillingTabProps) {
                       <TableHead>Invoice #</TableHead>
                       <TableHead>Date</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead>Source</TableHead>
                       <TableHead className="text-right">Amount</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -701,6 +731,11 @@ export function ProjectBillingTab({ projectId }: ProjectBillingTabProps) {
                         <TableCell>
                           <Badge variant={inv.status === 'paid' ? 'default' : inv.status === 'void' ? 'destructive' : 'secondary'}>
                             {inv.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">
+                            {inv.sov_based ? 'SOV' : inv.source_type || 'Manual'}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right font-medium">
@@ -721,19 +756,19 @@ export function ProjectBillingTab({ projectId }: ProjectBillingTabProps) {
         </TabsContent>
       </Tabs>
 
-      {/* Accept CO Dialog */}
-      <AlertDialog open={!!acceptDialogCO} onOpenChange={(open) => !open && setAcceptDialogCO(null)}>
+      {/* Approve CO Dialog */}
+      <AlertDialog open={!!approveDialogCO} onOpenChange={(open) => !open && setApproveDialogCO(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Accept Change Order?</AlertDialogTitle>
+            <AlertDialogTitle>Approve Change Order?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will add the CO amount to the contract value. This action is recorded for audit purposes.
+              This will add the CO amount to the contract value. This action is permanent and audited.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleAcceptCO}>
-              Accept CO
+            <AlertDialogAction onClick={handleApproveCO}>
+              Approve CO
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
