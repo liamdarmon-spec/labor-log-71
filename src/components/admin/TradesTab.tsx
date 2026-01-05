@@ -404,48 +404,41 @@ export const TradesTab = () => {
             <Wrench className="w-5 h-5 text-primary" />
           </div>
           <div>
-            <CardTitle className="text-xl">Trades Management</CardTitle>
-            {tradesWithMissingCodes.length > 0 && (
+            <CardTitle className="text-xl">Trades</CardTitle>
+            <p className="text-sm text-muted-foreground mt-1">
+              Standard construction trades. Click "Auto-Generate" to create cost codes for your company.
+            </p>
+            {tradesWithMissingCodes.length > 0 && activeCompanyId && (
               <div className="flex items-center gap-2 mt-1 text-sm text-orange-600">
                 <AlertTriangle className="w-4 h-4" />
-                <span>{tradesWithMissingCodes.length} trade(s) missing default cost codes</span>
+                <span>{tradesWithMissingCodes.length} trade(s) missing cost codes for your company</span>
               </div>
             )}
           </div>
         </div>
         <div className="flex gap-2">
-          {trades.length === 0 && (
-            <Button 
-              onClick={handleSeedTrades}
-              disabled={isSeeding}
-              variant="outline"
-              className="gap-2"
-            >
-              <Sparkles className="w-4 h-4" />
-              {isSeeding ? 'Seeding...' : 'Seed Standard Trades'}
-            </Button>
-          )}
-          {tradesWithMissingCodes.length > 0 && (
+          {/* Auto-Generate button - always shown if trades exist but missing codes */}
+          {trades.length > 0 && (
             <Button 
               onClick={handleGenerateMissingCodes}
-              disabled={isSeeding}
+              disabled={isSeeding || !activeCompanyId}
               variant="outline"
               className="gap-2"
             >
-              <Sparkles className="w-4 h-4" />
+              {isSeeding ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Sparkles className="w-4 h-4" />
+              )}
               {isSeeding ? 'Generating...' : 'Auto-Generate Cost Codes'}
             </Button>
           )}
+          {/* Edit Trade dialog - only for editing existing trades, not adding new ones */}
+          {/* Trades are global presets - only service role can add new ones */}
           <Dialog open={isDialogOpen} onOpenChange={(open) => {
             setIsDialogOpen(open);
             if (!open) resetForm();
           }}>
-            <DialogTrigger asChild>
-              <Button className="gap-2">
-                <Plus className="w-4 h-4" />
-                Add Trade
-              </Button>
-            </DialogTrigger>
           <DialogContent className="bg-card">
             <DialogHeader>
               <DialogTitle>
