@@ -16,11 +16,11 @@
 -- Tables: subs, vendors (material_vendors), workers, trades, cost_codes, estimates
 DO $$
 DECLARE
+  -- Note: trades does NOT have company_id (shared across companies per remote schema)
   tables_to_fix text[] := ARRAY[
     'subs',
     'material_vendors', 
     'workers',
-    'trades',
     'cost_codes',
     'estimates',
     'estimate_items'
@@ -66,29 +66,29 @@ BEGIN
     EXECUTE format($sql$
       CREATE POLICY tenant_select ON public.%I
       FOR SELECT TO authenticated
-      USING (company_id = ANY ((SELECT public.authed_company_ids())));
+      USING (company_id = ANY (public.authed_company_ids()));
     $sql$, t);
 
     -- INSERT
     EXECUTE format($sql$
       CREATE POLICY tenant_insert ON public.%I
       FOR INSERT TO authenticated
-      WITH CHECK (company_id = ANY ((SELECT public.authed_company_ids())));
+      WITH CHECK (company_id = ANY (public.authed_company_ids()));
     $sql$, t);
 
     -- UPDATE
     EXECUTE format($sql$
       CREATE POLICY tenant_update ON public.%I
       FOR UPDATE TO authenticated
-      USING (company_id = ANY ((SELECT public.authed_company_ids())))
-      WITH CHECK (company_id = ANY ((SELECT public.authed_company_ids())));
+      USING (company_id = ANY (public.authed_company_ids()))
+      WITH CHECK (company_id = ANY (public.authed_company_ids()));
     $sql$, t);
 
     -- DELETE
     EXECUTE format($sql$
       CREATE POLICY tenant_delete ON public.%I
       FOR DELETE TO authenticated
-      USING (company_id = ANY ((SELECT public.authed_company_ids())));
+      USING (company_id = ANY (public.authed_company_ids()));
     $sql$, t);
 
     RAISE NOTICE 'Applied tenant policies to %', t;
@@ -131,21 +131,18 @@ BEGIN
     RAISE EXCEPTION 'Access denied to company %', p_company_id;
   END IF;
 
-  -- Iterate through all trades for this company
+  -- Iterate through all trades (trades are shared across companies)
+  -- and create cost codes for the specified company
   FOR v_trade IN 
-    SELECT id, name, code 
+    SELECT id, name
     FROM public.trades 
-    WHERE company_id = p_company_id
     ORDER BY name
   LOOP
-    -- Generate trade code from name if not set
-    v_trade_code := COALESCE(
-      v_trade.code,
-      UPPER(LEFT(REGEXP_REPLACE(v_trade.name, '[^a-zA-Z0-9]', '', 'g'), 4))
-    );
+    -- Generate trade code from name (first 4 alphanumeric chars, uppercase)
+    v_trade_code := UPPER(LEFT(REGEXP_REPLACE(v_trade.name, '[^a-zA-Z0-9]', '', 'g'), 4));
     
     -- If still empty, use first 4 chars of id
-    IF v_trade_code = '' THEN
+    IF v_trade_code = '' OR v_trade_code IS NULL THEN
       v_trade_code := UPPER(LEFT(v_trade.id::text, 4));
     END IF;
 
@@ -433,7 +430,7 @@ IS 'Returns billing basis lines (milestones OR SOV lines) for invoice creation.'
 CREATE INDEX IF NOT EXISTS idx_subs_company_id ON public.subs(company_id);
 CREATE INDEX IF NOT EXISTS idx_workers_company_id ON public.workers(company_id);
 CREATE INDEX IF NOT EXISTS idx_material_vendors_company_id ON public.material_vendors(company_id);
-CREATE INDEX IF NOT EXISTS idx_trades_company_id ON public.trades(company_id);
+-- Note: trades does NOT have company_id (shared table per remote schema)
 CREATE INDEX IF NOT EXISTS idx_cost_codes_company_id ON public.cost_codes(company_id);
 CREATE INDEX IF NOT EXISTS idx_estimates_company_id ON public.estimates(company_id);
 CREATE INDEX IF NOT EXISTS idx_estimates_project_id ON public.estimates(project_id);
