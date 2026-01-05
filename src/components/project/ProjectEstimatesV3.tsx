@@ -219,7 +219,7 @@ export function ProjectEstimatesV3({ projectId }: ProjectEstimatesV3Props) {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => navigate(`/estimates/${estimate.id}`)}
+                          onClick={() => navigate(`/app/estimates/${estimate.id}`)}
                         >
                           <Edit3 className="h-4 w-4 mr-2" />
                           Edit
@@ -253,7 +253,7 @@ export function ProjectEstimatesV3({ projectId }: ProjectEstimatesV3Props) {
         onSuccess={(estimateId) => {
           refetch();
           // Navigate directly to builder
-          navigate(`/estimates/${estimateId}`);
+          navigate(`/app/estimates/${estimateId}`);
         }}
       />
 

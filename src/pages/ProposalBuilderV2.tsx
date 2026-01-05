@@ -245,7 +245,7 @@ export default function ProposalBuilderV2() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => navigate(`/estimates/${proposal.primary_estimate_id}`)}
+                onClick={() => navigate(`/app/estimates/${proposal.primary_estimate_id}`)}
                 className="text-muted-foreground"
               >
                 <ExternalLink className="h-4 w-4 mr-1.5" />

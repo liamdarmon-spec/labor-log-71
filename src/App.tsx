@@ -131,7 +131,7 @@ const App = () => (
             <Route path="/schedule" element={<Navigate to="/app/schedule" replace />} />
             <Route path="/payments" element={<Navigate to="/app/payments" replace />} />
             <Route path="/projects/*" element={<Navigate to="/app/projects" replace />} />
-            <Route path="/estimates/*" element={<Navigate to="/app/dashboard" replace />} />
+            {/* Legacy /estimates routes - estimates are accessed via /app/estimates/:id */}
             <Route path="/tasks" element={<Navigate to="/app/tasks" replace />} />
             <Route path="/settings/proposals" element={<Navigate to="/app/settings/proposals" replace />} />
             <Route path="/workforce/*" element={<Navigate to="/app/workforce" replace />} />

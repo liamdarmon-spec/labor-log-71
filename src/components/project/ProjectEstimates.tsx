@@ -217,7 +217,7 @@ export function ProjectEstimates({ projectId }: ProjectEstimatesProps) {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => navigate(`/estimates/${estimate.id}`)}
+                          onClick={() => navigate(`/app/estimates/${estimate.id}`)}
                         >
                           <Eye className="h-4 w-4 mr-2" />
                           View

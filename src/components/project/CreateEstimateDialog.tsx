@@ -61,13 +61,15 @@ export function CreateEstimateDialog({
       });
       onOpenChange(false);
       onSuccess?.(newId);
-      navigate(`/estimates/${newId}`);
+      navigate(`/app/estimates/${newId}`);
     },
     onError: (err: any) => {
       console.error("Failed to create estimate", err);
+      // Surface the actual error message for debugging
+      const errorMessage = err?.message || err?.details || err?.hint || "Please try again.";
       toast({
         title: "Failed to create estimate",
-        description: "Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     },
