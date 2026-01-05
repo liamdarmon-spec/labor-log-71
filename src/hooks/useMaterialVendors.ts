@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useCompany } from '@/company/CompanyProvider';
 
 export interface MaterialVendor {
   id: string;
@@ -14,6 +15,7 @@ export interface MaterialVendor {
   notes: string | null;
   created_at: string;
   updated_at: string;
+  company_id: string;
   trades?: {
     id: string;
     name: string;
@@ -23,6 +25,11 @@ export interface MaterialVendor {
     code: string;
     name: string;
   };
+}
+
+/** Convert empty string to null for UUID fields */
+function emptyToNull(val: string | undefined | null): string | null {
+  return val && val.trim() !== '' ? val : null;
 }
 
 export function useMaterialVendors(activeOnly = false) {
@@ -52,12 +59,29 @@ export function useMaterialVendors(activeOnly = false) {
 export function useCreateMaterialVendor() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { activeCompanyId } = useCompany();
 
   return useMutation({
-    mutationFn: async (vendor: Omit<MaterialVendor, 'id' | 'created_at' | 'updated_at' | 'trades' | 'cost_codes'>) => {
+    mutationFn: async (vendor: Omit<MaterialVendor, 'id' | 'created_at' | 'updated_at' | 'trades' | 'cost_codes' | 'company_id'>) => {
+      if (!activeCompanyId) {
+        throw new Error('No company selected. Please select or create a company first.');
+      }
+
+      // Clean up empty strings to null for uuid columns
+      const cleanedVendor = {
+        ...vendor,
+        trade_id: emptyToNull(vendor.trade_id),
+        default_cost_code_id: emptyToNull(vendor.default_cost_code_id),
+        company_name: emptyToNull(vendor.company_name),
+        phone: emptyToNull(vendor.phone),
+        email: emptyToNull(vendor.email),
+        notes: emptyToNull(vendor.notes),
+        company_id: activeCompanyId,
+      };
+
       const { data, error } = await supabase
         .from('material_vendors')
-        .insert([vendor])
+        .insert([cleanedVendor])
         .select()
         .single();
 
@@ -87,9 +111,20 @@ export function useUpdateMaterialVendor() {
 
   return useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: Partial<MaterialVendor> }) => {
+      // Clean up empty strings to null for uuid columns
+      const cleanedUpdates = {
+        ...updates,
+        trade_id: emptyToNull(updates.trade_id),
+        default_cost_code_id: emptyToNull(updates.default_cost_code_id),
+        company_name: emptyToNull(updates.company_name),
+        phone: emptyToNull(updates.phone),
+        email: emptyToNull(updates.email),
+        notes: emptyToNull(updates.notes),
+      };
+
       const { data, error } = await supabase
         .from('material_vendors')
-        .update(updates)
+        .update(cleanedUpdates)
         .eq('id', id)
         .select()
         .single();

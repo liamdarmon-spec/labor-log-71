@@ -14,6 +14,7 @@ import { z } from 'zod';
 import { useWorkers, Worker } from '@/hooks/useWorkers';
 import { useTradesSimple } from '@/hooks/useTrades';
 import { useQueryClient } from '@tanstack/react-query';
+import { useCompany } from '@/company/CompanyProvider';
 
 const workerSchema = z.object({
   name: z.string().trim().nonempty({ message: 'Name is required' }).max(100),
@@ -21,6 +22,11 @@ const workerSchema = z.object({
   hourly_rate: z.number().positive({ message: 'Hourly rate must be positive' }),
   phone: z.string().max(20).optional(),
 });
+
+/** Convert empty string to null for UUID fields */
+function emptyToNull(val: string | undefined | null): string | null {
+  return val && val.trim() !== '' ? val : null;
+}
 
 export const WorkersTab = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -34,6 +40,7 @@ export const WorkersTab = () => {
   });
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { activeCompanyId } = useCompany();
 
   // Use centralized hooks with caching
   const { data: workers = [], isLoading: workersLoading } = useWorkers(true);
@@ -41,6 +48,15 @@ export const WorkersTab = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!activeCompanyId) {
+      toast({
+        title: 'Error',
+        description: 'No company selected. Please select or create a company first.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     try {
       const validatedData = workerSchema.parse({
@@ -59,9 +75,9 @@ export const WorkersTab = () => {
           .update({
             name: validatedData.name,
             trade: tradeName,
-            trade_id: validatedData.trade_id,
+            trade_id: emptyToNull(validatedData.trade_id),
             hourly_rate: validatedData.hourly_rate,
-            phone: validatedData.phone || null,
+            phone: emptyToNull(validatedData.phone),
             active: formData.active,
           })
           .eq('id', editingWorker.id);
@@ -77,10 +93,11 @@ export const WorkersTab = () => {
           {
             name: validatedData.name,
             trade: tradeName,
-            trade_id: validatedData.trade_id,
+            trade_id: emptyToNull(validatedData.trade_id),
             hourly_rate: validatedData.hourly_rate,
-            phone: validatedData.phone || null,
+            phone: emptyToNull(validatedData.phone),
             active: formData.active,
+            company_id: activeCompanyId,
           },
         ]);
 
@@ -104,9 +121,10 @@ export const WorkersTab = () => {
         });
       } else {
         console.error('Worker save error:', error);
+        const errMsg = error instanceof Error ? error.message : 'Failed to save worker';
         toast({
           title: 'Error',
-          description: error instanceof Error ? error.message : 'Failed to save worker',
+          description: errMsg,
           variant: 'destructive',
         });
       }
@@ -121,7 +139,7 @@ export const WorkersTab = () => {
     if (error) {
       toast({
         title: 'Error',
-        description: 'Failed to delete worker',
+        description: error.message || 'Failed to delete worker',
         variant: 'destructive',
       });
     } else {
@@ -165,7 +183,7 @@ export const WorkersTab = () => {
     if (error) {
       toast({
         title: 'Error',
-        description: 'Failed to update worker status',
+        description: error.message || 'Failed to update worker status',
         variant: 'destructive',
       });
     } else {

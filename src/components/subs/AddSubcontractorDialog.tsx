@@ -9,14 +9,21 @@ import { supabase } from '@/integrations/supabase/client';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { useTrades } from '@/hooks/useTrades';
+import { useCompany } from '@/company/CompanyProvider';
 
 interface AddSubcontractorDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
+/** Convert empty string to null for UUID fields */
+function emptyToNull(val: string | undefined | null): string | null {
+  return val && val.trim() !== '' ? val : null;
+}
+
 export function AddSubcontractorDialog({ open, onOpenChange }: AddSubcontractorDialogProps) {
   const queryClient = useQueryClient();
+  const { activeCompanyId } = useCompany();
   const [formData, setFormData] = useState({
     name: '',
     company_name: '',
@@ -31,15 +38,20 @@ export function AddSubcontractorDialog({ open, onOpenChange }: AddSubcontractorD
 
   const createSubMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
+      if (!activeCompanyId) {
+        throw new Error('No company selected. Please select or create a company first.');
+      }
+
       const { data: result, error } = await supabase
         .from('subs')
         .insert({
           name: data.name,
-          company_name: data.company_name,
-          trade_id: data.trade_id || null,
-          email: data.email || null,
-          phone: data.phone || null,
-          notes: data.notes || null,
+          company_name: emptyToNull(data.company_name),
+          trade_id: emptyToNull(data.trade_id),
+          email: emptyToNull(data.email),
+          phone: emptyToNull(data.phone),
+          notes: emptyToNull(data.notes),
+          company_id: activeCompanyId,
         })
         .select()
         .single();
@@ -105,13 +117,14 @@ export function AddSubcontractorDialog({ open, onOpenChange }: AddSubcontractorD
           <div>
             <Label htmlFor="trade">Trade</Label>
             <Select
-              value={formData.trade_id}
-              onValueChange={(value) => setFormData({ ...formData, trade_id: value })}
+              value={formData.trade_id || "none"}
+              onValueChange={(value) => setFormData({ ...formData, trade_id: value === "none" ? "" : value })}
             >
               <SelectTrigger id="trade">
                 <SelectValue placeholder="Select trade..." />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="none">None</SelectItem>
                 {trades?.map((trade) => (
                   <SelectItem key={trade.id} value={trade.id}>
                     {trade.name}
