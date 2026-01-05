@@ -101,66 +101,31 @@ export const TradesTab = () => {
           description: 'Trade updated successfully',
         });
       } else {
-        // Create new trade
-        const { data: newTrade, error: tradeError } = await supabase
-          .from('trades')
-          .insert([{
-            name: validatedData.name,
-            description: validatedData.description || null,
-          }])
-          .select()
-          .single();
-
-        if (tradeError) throw tradeError;
-
-        // Auto-create 3 default cost codes for the new trade (if company is selected)
-        if (activeCompanyId) {
-          const baseCode = validatedData.name.substring(0, 4).toUpperCase().replace(/[^A-Z]/g, '');
-          
-          const costCodesToCreate = [
-            { code: `${baseCode}-L`, name: `${validatedData.name} (Labor)`, category: 'labor' },
-            { code: `${baseCode}-M`, name: `${validatedData.name} (Material)`, category: 'materials' },
-            { code: `${baseCode}-S`, name: `${validatedData.name} (Subcontractor)`, category: 'subs' },
-          ];
-
-          const { data: createdCodes, error: codesError } = await supabase
-            .from('cost_codes')
-            .insert(
-              costCodesToCreate.map(cc => ({
-                ...cc,
-                company_id: activeCompanyId,
-                trade_id: newTrade.id,
-                is_active: true,
-              }))
-            )
-            .select();
-
-          if (codesError) {
-            console.error('Failed to create cost codes:', codesError);
-            // Don't throw - trade was created successfully
-          } else if (createdCodes && createdCodes.length > 0) {
-            // Link the created cost codes back to the trade
-            const { error: updateError } = await supabase
-              .from('trades')
-              .update({
-                default_labor_cost_code_id: createdCodes.find(c => c.category === 'labor')?.id,
-                default_material_cost_code_id: createdCodes.find(c => c.category === 'materials')?.id,
-                default_sub_cost_code_id: createdCodes.find(c => c.category === 'subs')?.id,
-              })
-              .eq('id', newTrade.id);
-
-            if (updateError) {
-              console.error('Failed to link cost codes to trade:', updateError);
-            }
-          }
+        // Create new trade using RPC (trades are global, created via service function)
+        if (!activeCompanyId) {
+          toast({
+            title: 'Error',
+            description: 'Please select a company first to create trades with cost codes.',
+            variant: 'destructive',
+          });
+          return;
         }
+
+        const { data: result, error: rpcError } = await supabase.rpc('create_trade_with_defaults', {
+          p_company_id: activeCompanyId,
+          p_name: validatedData.name,
+          p_description: validatedData.description || null,
+        });
+
+        if (rpcError) throw rpcError;
 
         toast({
           title: 'Success',
-          description: activeCompanyId 
-            ? 'Trade and default cost codes created successfully'
-            : 'Trade created successfully (cost codes require a company)',
+          description: 'Trade and default cost codes created successfully',
         });
+
+        // Invalidate cost codes cache
+        queryClient.invalidateQueries({ queryKey: ['costCodes'] });
       }
 
       setIsDialogOpen(false);
