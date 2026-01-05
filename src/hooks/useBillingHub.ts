@@ -551,3 +551,53 @@ export function useUpdateProposalBillingBasis() {
     },
   });
 }
+
+// ============================================================
+// CANONICAL INVOICE CREATION
+// Every invoice must have a source - no free-form billing
+// ============================================================
+
+export type InvoiceSourceType = 'milestone' | 'sov_period' | 'change_order' | 'deposit';
+
+export function useCreateInvoiceFromSource() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (params: {
+      projectId: string;
+      sourceType: InvoiceSourceType;
+      sourceId?: string;
+      amount?: number;
+      milestoneAllocations?: Array<{ milestone_id: string; amount: number }>;
+      sovLines?: Array<{ sov_line_id: string; this_period_amount: number }>;
+      billingPeriodFrom?: string;
+      billingPeriodTo?: string;
+      notes?: string;
+    }) => {
+      const { data, error } = await supabase.rpc('create_invoice_from_source', {
+        p_project_id: params.projectId,
+        p_source_type: params.sourceType,
+        p_source_id: params.sourceId ?? null,
+        p_amount: params.amount ?? null,
+        p_milestone_allocations: params.milestoneAllocations ?? null,
+        p_sov_lines: params.sovLines ?? null,
+        p_billing_period_from: params.billingPeriodFrom ?? null,
+        p_billing_period_to: params.billingPeriodTo ?? null,
+        p_notes: params.notes ?? null,
+      });
+
+      if (error) throw error;
+      return { ...data, projectId: params.projectId };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['invoices', data.projectId] });
+      queryClient.invalidateQueries({ queryKey: ['billing-summary', data.projectId] });
+      queryClient.invalidateQueries({ queryKey: ['billing-lines', data.projectId] });
+      toast.success(`Invoice created (${data.invoice_type})`);
+    },
+    onError: (error) => {
+      console.error('Create invoice error:', error);
+      toast.error(`Failed to create invoice: ${error.message}`);
+    },
+  });
+}
