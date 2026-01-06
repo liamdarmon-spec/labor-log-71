@@ -3,13 +3,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useCompany } from '@/company/CompanyProvider';
-import { Search } from 'lucide-react';
+import { Search, Info, ArrowRight } from 'lucide-react';
+
+// ============================================================================
+// TYPES
+// ============================================================================
 
 type CostCodeCategory = 'labor' | 'material' | 'sub';
 
@@ -36,11 +39,20 @@ type CostCodeRow = {
   created_at: string;
 };
 
+// ============================================================================
+// COST CODES TAB (READ-ONLY)
+// ============================================================================
+
 /**
- * Cost Codes page (READ-ONLY)
- * - No auto-generate button
- * - No writes
- * - Trades page owns generation via a single RPC call
+ * Cost Code Library (Read-Only)
+ *
+ * This page displays cost codes for visibility, filtering, and education.
+ * Cost codes are generated from Trades — this page cannot create or modify them.
+ *
+ * Mental model:
+ * - Trades define *what* work exists
+ * - Cost Codes define *how* costs are tracked
+ * - Default cost codes are a convenience (Labor, Material, Sub per trade)
  */
 export const CostCodesTab = () => {
   const { activeCompanyId } = useCompany();
@@ -49,11 +61,11 @@ export const CostCodesTab = () => {
   const [trades, setTrades] = useState<TradeRow[]>([]);
   const [costCodes, setCostCodes] = useState<CostCodeRow[]>([]);
 
+  // Filters
   const [search, setSearch] = useState('');
-  const [tradeFilter, setTradeFilter] = useState<string>('all'); // trade_id
-  const [typeFilter, setTypeFilter] = useState<string>('all'); // category
+  const [tradeFilter, setTradeFilter] = useState<string>('all');
+  const [typeFilter, setTypeFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<'active' | 'archived' | 'all'>('active');
-  const [onlyMissingDefaults, setOnlyMissingDefaults] = useState(false);
 
   const tradeById = useMemo(() => {
     const map = new Map<string, TradeRow>();
@@ -61,34 +73,29 @@ export const CostCodesTab = () => {
     return map;
   }, [trades]);
 
-  const missingDefaultsTradeIds = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const cc of costCodes) {
-      if (!cc.trade_id) continue;
-      counts.set(cc.trade_id, (counts.get(cc.trade_id) ?? 0) + 1);
-    }
-    return trades.filter((t) => (counts.get(t.id) ?? 0) !== 3).map((t) => t.id);
-  }, [trades, costCodes]);
-
   const filteredCodes = useMemo(() => {
     let rows = [...costCodes];
 
+    // Status filter
     if (statusFilter !== 'all') {
       rows = rows.filter((r) => (statusFilter === 'active' ? r.is_active : !r.is_active));
     }
 
+    // Type filter
     if (typeFilter !== 'all') {
       rows = rows.filter((r) => r.category === typeFilter);
     }
 
+    // Trade filter
     if (tradeFilter !== 'all') {
-      rows = rows.filter((r) => r.trade_id === tradeFilter);
+      if (tradeFilter === 'unassigned') {
+        rows = rows.filter((r) => !r.trade_id);
+      } else {
+        rows = rows.filter((r) => r.trade_id === tradeFilter);
+      }
     }
 
-    if (onlyMissingDefaults) {
-      rows = rows.filter((r) => r.trade_id && missingDefaultsTradeIds.includes(r.trade_id));
-    }
-
+    // Search
     const q = search.trim().toLowerCase();
     if (q) {
       rows = rows.filter((r) => {
@@ -99,7 +106,7 @@ export const CostCodesTab = () => {
     }
 
     return rows;
-  }, [costCodes, search, statusFilter, typeFilter, tradeFilter, onlyMissingDefaults, tradeById, missingDefaultsTradeIds]);
+  }, [costCodes, search, statusFilter, typeFilter, tradeFilter, tradeById]);
 
   useEffect(() => {
     const load = async () => {
@@ -131,41 +138,62 @@ export const CostCodesTab = () => {
     void load();
   }, [activeCompanyId]);
 
+  // ============================================================================
+  // EMPTY / LOADING STATES
+  // ============================================================================
+
   if (!activeCompanyId) {
     return (
-      <Card className="shadow-medium">
-        <CardContent className="py-12 text-center text-muted-foreground">
-          Select a company to view cost codes.
+      <Card>
+        <CardContent className="py-16 text-center">
+          <Info className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
+          <h3 className="text-lg font-medium">Select a Company</h3>
+          <p className="text-sm text-muted-foreground mt-1">
+            Cost codes are tenant-scoped. Select or create a company to continue.
+          </p>
         </CardContent>
       </Card>
     );
   }
 
+  // ============================================================================
+  // MAIN RENDER
+  // ============================================================================
+
   return (
-    <Card className="shadow-medium">
-      <CardHeader className="border-b border-border">
-        <CardTitle>Cost Code Library</CardTitle>
-        <CardDescription>Read-only summary. Cost codes are generated from Trades.</CardDescription>
+    <Card>
+      <CardHeader className="border-b">
+        <CardTitle className="text-xl">Cost Codes</CardTitle>
+        <CardDescription className="max-w-xl">
+          A read-only view of all cost codes in your company. Cost codes are generated from Trades.
+        </CardDescription>
       </CardHeader>
 
       <CardContent className="pt-6 space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-6 gap-3 items-end">
+        {/* Filters */}
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
           <div className="md:col-span-2 space-y-1">
-            <Label>Search</Label>
+            <Label className="text-xs text-muted-foreground">Search</Label>
             <div className="relative">
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search code, name, trade…" className="pl-9" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search code, name, trade…"
+                className="pl-9"
+              />
             </div>
           </div>
 
           <div className="space-y-1">
-            <Label>Trade</Label>
+            <Label className="text-xs text-muted-foreground">Trade</Label>
             <Select value={tradeFilter} onValueChange={setTradeFilter}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All trades</SelectItem>
+                <SelectItem value="unassigned">Unassigned</SelectItem>
                 {trades.map((t) => (
                   <SelectItem key={t.id} value={t.id}>
                     {t.name}
@@ -176,7 +204,7 @@ export const CostCodesTab = () => {
           </div>
 
           <div className="space-y-1">
-            <Label>Type</Label>
+            <Label className="text-xs text-muted-foreground">Category</Label>
             <Select value={typeFilter} onValueChange={setTypeFilter}>
               <SelectTrigger>
                 <SelectValue />
@@ -191,7 +219,7 @@ export const CostCodesTab = () => {
           </div>
 
           <div className="space-y-1">
-            <Label>Status</Label>
+            <Label className="text-xs text-muted-foreground">Status</Label>
             <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
               <SelectTrigger>
                 <SelectValue />
@@ -203,40 +231,55 @@ export const CostCodesTab = () => {
               </SelectContent>
             </Select>
           </div>
-
-          <div className="flex items-center gap-2 pt-6">
-            <Switch checked={onlyMissingDefaults} onCheckedChange={setOnlyMissingDefaults} />
-            <span className="text-sm text-muted-foreground">Only missing defaults</span>
-          </div>
         </div>
 
+        {/* Table */}
         <div className="border rounded-lg overflow-hidden">
           <Table>
             <TableHeader>
-              <TableRow className="bg-muted/30">
-                <TableHead>Code</TableHead>
+              <TableRow className="bg-muted/40">
+                <TableHead className="w-[120px]">Code</TableHead>
                 <TableHead>Name</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Trade</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead className="w-[120px]">Category</TableHead>
+                <TableHead className="w-[180px]">Trade</TableHead>
+                <TableHead className="w-[100px]">Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="py-10 text-center text-muted-foreground">
+                  <TableCell colSpan={5} className="py-16 text-center text-muted-foreground">
                     Loading…
                   </TableCell>
                 </TableRow>
               ) : filteredCodes.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="py-10 text-center text-muted-foreground">
-                    No cost codes found.
+                  <TableCell colSpan={5} className="py-16 text-center">
+                    <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-muted mb-4">
+                      <Info className="w-6 h-6 text-muted-foreground" />
+                    </div>
+                    <h3 className="text-lg font-medium mb-1">
+                      {costCodes.length === 0 ? 'No cost codes yet' : 'No results found'}
+                    </h3>
+                    {costCodes.length === 0 ? (
+                      <div className="text-sm text-muted-foreground max-w-sm mx-auto space-y-2">
+                        <p>Cost codes are generated from Trades.</p>
+                        <p className="flex items-center justify-center gap-2 text-muted-foreground">
+                          <span>Create or edit a Trade</span>
+                          <ArrowRight className="w-4 h-4" />
+                          <span>Generate default cost codes</span>
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        Try adjusting your filters or search term.
+                      </p>
+                    )}
                   </TableCell>
                 </TableRow>
               ) : (
                 filteredCodes.map((row) => {
-                  const t = row.trade_id ? tradeById.get(row.trade_id) : null;
+                  const trade = row.trade_id ? tradeById.get(row.trade_id) : null;
                   return (
                     <TableRow key={row.id}>
                       <TableCell className="font-mono font-medium">{row.code}</TableCell>
@@ -244,9 +287,17 @@ export const CostCodesTab = () => {
                       <TableCell>
                         <Badge variant="outline">{CATEGORY_LABEL[row.category]}</Badge>
                       </TableCell>
-                      <TableCell className="text-muted-foreground">{t?.name ?? '—'}</TableCell>
                       <TableCell>
-                        <Badge variant={row.is_active ? 'default' : 'secondary'}>{row.is_active ? 'Active' : 'Archived'}</Badge>
+                        {trade ? (
+                          <span className="text-muted-foreground">{trade.name}</span>
+                        ) : (
+                          <span className="text-muted-foreground/50">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={row.is_active ? 'default' : 'secondary'}>
+                          {row.is_active ? 'Active' : 'Archived'}
+                        </Badge>
                       </TableCell>
                     </TableRow>
                   );
@@ -255,9 +306,15 @@ export const CostCodesTab = () => {
             </TableBody>
           </Table>
         </div>
+
+        {/* Lineage education footer */}
+        {!loading && costCodes.length > 0 && (
+          <div className="text-xs text-muted-foreground text-center pt-2">
+            Cost codes are derived from Trades. Edit trades in the <span className="font-medium">Trades</span> tab to
+            modify defaults.
+          </div>
+        )}
       </CardContent>
     </Card>
   );
 };
-
-

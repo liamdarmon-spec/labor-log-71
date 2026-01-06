@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,12 +7,41 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useCompany } from '@/company/CompanyProvider';
-import { Loader2, Plus } from 'lucide-react';
+import { Loader2, Plus, MoreHorizontal, Pencil, RefreshCw, Check, X, AlertTriangle, Info } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+
+// ============================================================================
+// TYPES
+// ============================================================================
 
 type TradeRow = {
   id: string;
@@ -32,38 +61,86 @@ type CostCodeRow = {
   is_active: boolean;
 };
 
+// ============================================================================
+// STATUS HELPERS
+// ============================================================================
+
+type TradeStatus = 'complete' | 'incomplete' | 'invalid';
+
+function getTradeStatus(codes: CostCodeRow[]): TradeStatus {
+  if (codes.length === 3) return 'complete';
+  if (codes.length === 0) return 'incomplete';
+  return 'invalid'; // 1-2 codes = configuration error
+}
+
+function getCodeForCategory(codes: CostCodeRow[], category: 'labor' | 'material' | 'sub'): CostCodeRow | null {
+  return codes.find((c) => c.category === category) ?? null;
+}
+
+// ============================================================================
+// TRADES TAB COMPONENT
+// ============================================================================
+
 export const TradesTab = () => {
   const { activeCompanyId } = useCompany();
   const queryClient = useQueryClient();
-
+  
+  // Modal states
   const [isAddTradeOpen, setIsAddTradeOpen] = useState(false);
-  const [newTradeName, setNewTradeName] = useState('');
-  const [newTradeDescription, setNewTradeDescription] = useState('');
-  const [newTradePrefix, setNewTradePrefix] = useState('');
-  const [autoGenerate, setAutoGenerate] = useState(true);
+  const [editingTrade, setEditingTrade] = useState<TradeRow | null>(null);
+  const [regenerateTrade, setRegenerateTrade] = useState<TradeRow | null>(null);
 
-  const resetAddForm = () => {
-    setNewTradeName('');
-    setNewTradeDescription('');
-    setNewTradePrefix('');
-    setAutoGenerate(true);
+  // Form state
+  const [formName, setFormName] = useState('');
+  const [formDescription, setFormDescription] = useState('');
+  const [formPrefix, setFormPrefix] = useState('');
+  const [formAutoGenerate, setFormAutoGenerate] = useState(true);
+
+  const resetForm = () => {
+    setFormName('');
+    setFormDescription('');
+    setFormPrefix('');
+    setFormAutoGenerate(true);
   };
 
+  const openAddModal = () => {
+      resetForm();
+    setEditingTrade(null);
+    setIsAddTradeOpen(true);
+  };
+
+  const openEditModal = (trade: TradeRow) => {
+    setFormName(trade.name);
+    setFormDescription(trade.description ?? '');
+    setFormPrefix(''); // Prefix is derived, not editable after creation
+    setFormAutoGenerate(false); // Don't regenerate on edit by default
+    setEditingTrade(trade);
+    setIsAddTradeOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsAddTradeOpen(false);
+    setEditingTrade(null);
+    resetForm();
+  };
+
+  // ============================================================================
+  // DATA FETCHING
+  // ============================================================================
+
   const { data, isLoading } = useQuery({
-    queryKey: ['trades-cost-codes', activeCompanyId],
+    queryKey: ['trades-admin', activeCompanyId],
     queryFn: async () => {
       if (!activeCompanyId) return { trades: [] as TradeRow[], costCodes: [] as CostCodeRow[] };
 
       const [tradesRes, codesRes] = await Promise.all([
         supabase
           .from('trades')
-          .select(
-            'id, company_id, name, description, default_labor_cost_code_id, default_material_cost_code_id, default_sub_cost_code_id'
-          )
+          .select('id, company_id, name, description, default_labor_cost_code_id, default_material_cost_code_id, default_sub_cost_code_id')
           .eq('company_id', activeCompanyId)
           .order('name'),
         supabase
-          .from('cost_codes')
+              .from('cost_codes')
           .select('id, trade_id, code, category, is_active')
           .eq('company_id', activeCompanyId)
           .order('code'),
@@ -91,43 +168,152 @@ export const TradesTab = () => {
     return map;
   }, [data?.costCodes]);
 
+  // ============================================================================
+  // MUTATIONS
+  // ============================================================================
+
   const createTradeMutation = useMutation({
     mutationFn: async () => {
       if (!activeCompanyId) throw new Error('No company selected');
-      if (!newTradeName.trim()) throw new Error('Trade name is required');
+      if (!formName.trim()) throw new Error('Trade name is required');
 
-      // ONE CALL ONLY (no client-side multi-step inserts)
-      const { data: trade, error } = await supabase.rpc('create_trade_with_default_cost_codes', {
+      const { data: result, error } = await supabase.rpc('create_trade_with_default_cost_codes', {
         p_company_id: activeCompanyId,
-        p_name: newTradeName.trim(),
-        p_description: newTradeDescription.trim() || null,
-        p_code_prefix: newTradePrefix.trim() || null,
-        p_auto_generate: autoGenerate,
+        p_name: formName.trim(),
+        p_description: formDescription.trim() || null,
+        p_code_prefix: formPrefix.trim() || null,
+        p_auto_generate: formAutoGenerate,
       });
 
-      if (error) {
-        // Surface exact Postgres error message (include constraint name when present)
-        throw new Error(error.message || 'Database error');
-      }
-
-      return trade as TradeRow;
+      if (error) throw new Error(error.message || 'Database error');
+      return result as TradeRow;
     },
-    onSuccess: async (trade) => {
+    onSuccess: (trade) => {
       toast.success(`Trade created: ${trade.name}`);
-      setIsAddTradeOpen(false);
-      resetAddForm();
-      await queryClient.invalidateQueries({ queryKey: ['trades-cost-codes', activeCompanyId] });
+      closeModal();
+      queryClient.invalidateQueries({ queryKey: ['trades-admin', activeCompanyId] });
     },
-    onError: (err: any) => {
-      toast.error(err?.message ?? 'Failed to create trade');
+    onError: (err: Error) => {
+      toast.error(err.message);
     },
   });
 
+  const updateTradeMutation = useMutation({
+    mutationFn: async () => {
+      if (!editingTrade) throw new Error('No trade selected');
+      if (!formName.trim()) throw new Error('Trade name is required');
+
+      const { error } = await supabase
+            .from('trades')
+            .update({
+          name: formName.trim(),
+          description: formDescription.trim() || null,
+        })
+        .eq('id', editingTrade.id)
+        .eq('company_id', activeCompanyId);
+
+      if (error) throw new Error(error.message || 'Database error');
+      return formName.trim();
+    },
+    onSuccess: (name) => {
+      toast.success(`Trade updated: ${name}`);
+      closeModal();
+      queryClient.invalidateQueries({ queryKey: ['trades-admin', activeCompanyId] });
+    },
+    onError: (err: Error) => {
+      toast.error(err.message);
+    },
+  });
+
+  const regenerateDefaultsMutation = useMutation({
+    mutationFn: async (tradeId: string) => {
+      const { data: result, error } = await supabase.rpc('ensure_trade_has_default_cost_codes', {
+        p_trade_id: tradeId,
+      });
+
+      if (error) throw new Error(error.message || 'Database error');
+      return result;
+    },
+    onSuccess: () => {
+      toast.success('Default cost codes regenerated');
+      setRegenerateTrade(null);
+      queryClient.invalidateQueries({ queryKey: ['trades-admin', activeCompanyId] });
+    },
+    onError: (err: Error) => {
+      toast.error(err.message);
+      setRegenerateTrade(null);
+    },
+  });
+
+  // ============================================================================
+  // RENDER HELPERS
+  // ============================================================================
+
+  const renderDefaultCell = (code: CostCodeRow | null, label: string) => {
+    if (code) {
+      return (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex items-center gap-1.5">
+                <Check className="w-4 h-4 text-emerald-600" />
+                <span className="font-mono text-xs text-muted-foreground">{code.code}</span>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{label} default: {code.code}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      );
+    }
+    return (
+      <div className="flex items-center gap-1.5 text-muted-foreground">
+        <X className="w-4 h-4" />
+        <span className="text-xs">—</span>
+      </div>
+    );
+  };
+
+  const renderStatusBadge = (status: TradeStatus) => {
+    switch (status) {
+      case 'complete':
+        return <Badge variant="default" className="bg-emerald-600 hover:bg-emerald-700">Complete</Badge>;
+      case 'incomplete':
+        return <Badge variant="secondary">Incomplete</Badge>;
+      case 'invalid':
+        return (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Badge variant="destructive" className="cursor-help">
+                  <AlertTriangle className="w-3 h-3 mr-1" />
+                  Error
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Configuration error: expected 0 or 3 cost codes.</p>
+                <p className="text-xs text-muted-foreground">Contact support.</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        );
+    }
+  };
+
+  // ============================================================================
+  // EMPTY / LOADING STATES
+  // ============================================================================
+
   if (!activeCompanyId) {
     return (
-      <Card className="shadow-medium">
-        <CardContent className="py-12 text-center text-muted-foreground">
-          Select a company to manage trades.
+      <Card>
+        <CardContent className="py-16 text-center">
+          <Info className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
+          <h3 className="text-lg font-medium">Select a Company</h3>
+          <p className="text-sm text-muted-foreground mt-1">
+            Trades are tenant-scoped. Select or create a company to continue.
+          </p>
         </CardContent>
       </Card>
     );
@@ -135,78 +321,145 @@ export const TradesTab = () => {
 
   const trades = data?.trades ?? [];
 
+  // ============================================================================
+  // MAIN RENDER
+  // ============================================================================
+
   return (
-    <Card className="shadow-medium">
-      <CardHeader className="flex flex-row items-center justify-between border-b border-border pb-4">
-        <div>
-          <CardTitle className="text-xl">Trades</CardTitle>
-          <CardDescription>Trades own default cost code generation (labor/material/sub).</CardDescription>
-        </div>
-        <Button onClick={() => setIsAddTradeOpen(true)}>
-          <Plus className="w-4 h-4 mr-2" />
-          Add Trade
-        </Button>
-      </CardHeader>
-
-      <CardContent className="pt-6">
-        {isLoading ? (
-          <div className="py-10 text-center text-muted-foreground">Loading…</div>
-        ) : trades.length === 0 ? (
-          <div className="py-10 text-center text-muted-foreground">No trades yet.</div>
-        ) : (
-          <div className="border rounded-lg overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/30">
-                  <TableHead>Trade</TableHead>
-                  <TableHead>Defaults</TableHead>
-                  <TableHead>Cost Codes</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {trades.map((t) => {
-                  const codes = codesByTradeId.get(t.id) ?? [];
-                  const defaultsOk = codes.length === 3;
-                  return (
-                    <TableRow key={t.id}>
-                      <TableCell>
-                        <div className="font-medium">{t.name}</div>
-                        {t.description ? <div className="text-sm text-muted-foreground">{t.description}</div> : null}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={defaultsOk ? 'default' : 'secondary'}>{defaultsOk ? 'Complete' : 'Missing'}</Badge>
-                      </TableCell>
-                      <TableCell className="font-mono text-sm">
-                        {codes.length === 0 ? (
-                          <span className="text-muted-foreground">—</span>
-                        ) : (
-                          codes.map((cc) => (
-                            <span key={cc.id} className="mr-2">
-                              {cc.code}
-                            </span>
-                          ))
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+    <>
+      <Card>
+        <CardHeader className="flex flex-row items-start justify-between gap-4 pb-4 border-b">
+          <div className="space-y-1">
+            <CardTitle className="text-xl">Trades</CardTitle>
+            <CardDescription className="max-w-xl">
+              Trades define categories of work. Each trade can have default cost codes (Labor, Material, Subcontractor)
+              generated automatically.
+            </CardDescription>
           </div>
-        )}
-      </CardContent>
+          <Button onClick={openAddModal}>
+            <Plus className="w-4 h-4 mr-2" />
+            Add Trade
+          </Button>
+        </CardHeader>
 
-      <Dialog
-        open={isAddTradeOpen}
-        onOpenChange={(open) => {
-          setIsAddTradeOpen(open);
-          if (!open) resetAddForm();
-        }}
-      >
+        <CardContent className="pt-6">
+          {isLoading ? (
+            <div className="py-16 text-center text-muted-foreground">Loading…</div>
+          ) : trades.length === 0 ? (
+            <div className="py-16 text-center">
+              <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-muted mb-4">
+                <Info className="w-6 h-6 text-muted-foreground" />
+              </div>
+              <h3 className="text-lg font-medium mb-1">No trades yet</h3>
+              <p className="text-sm text-muted-foreground max-w-sm mx-auto">
+                Create a trade to define a category of work. You can optionally generate default cost codes
+                (Labor, Material, Subcontractor) for each trade.
+              </p>
+              <Button onClick={openAddModal} className="mt-4">
+                <Plus className="w-4 h-4 mr-2" />
+                Add Trade
+              </Button>
+              </div>
+          ) : (
+            <div className="border rounded-lg overflow-hidden">
+          <Table>
+            <TableHeader>
+                  <TableRow className="bg-muted/40">
+                    <TableHead className="w-[200px]">Trade Name</TableHead>
+                    <TableHead className="w-[100px]">Prefix</TableHead>
+                    <TableHead className="w-[100px]">Labor</TableHead>
+                    <TableHead className="w-[100px]">Material</TableHead>
+                    <TableHead className="w-[100px]">Sub</TableHead>
+                    <TableHead className="w-[100px]">Status</TableHead>
+                    <TableHead className="w-[60px]"></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {trades.map((trade) => {
+                    const codes = codesByTradeId.get(trade.id) ?? [];
+                    const status = getTradeStatus(codes);
+                    const laborCode = getCodeForCategory(codes, 'labor');
+                    const materialCode = getCodeForCategory(codes, 'material');
+                    const subCode = getCodeForCategory(codes, 'sub');
+
+                    // Derive prefix from existing codes if available
+                    const prefix = codes.length > 0
+                      ? codes[0].code.split('-')[0]
+                      : '—';
+                
+                return (
+                      <TableRow key={trade.id}>
+                    <TableCell>
+                          <div className="font-medium">{trade.name}</div>
+                          {trade.description && (
+                            <div className="text-xs text-muted-foreground line-clamp-1">{trade.description}</div>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                          <span className="font-mono text-sm text-muted-foreground">{prefix}</span>
+                    </TableCell>
+                        <TableCell>{renderDefaultCell(laborCode, 'Labor')}</TableCell>
+                        <TableCell>{renderDefaultCell(materialCode, 'Material')}</TableCell>
+                        <TableCell>{renderDefaultCell(subCode, 'Subcontractor')}</TableCell>
+                        <TableCell>{renderStatusBadge(status)}</TableCell>
+                    <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <MoreHorizontal className="w-4 h-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => openEditModal(trade)}>
+                                <Pencil className="w-4 h-4 mr-2" />
+                                Edit Trade
+                              </DropdownMenuItem>
+                              {status === 'incomplete' && (
+                                <>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem onClick={() => setRegenerateTrade(trade)}>
+                                    <RefreshCw className="w-4 h-4 mr-2" />
+                                    Generate Defaults
+                                  </DropdownMenuItem>
+                                </>
+                              )}
+                              {status === 'complete' && (
+                                <>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                    onClick={() => setRegenerateTrade(trade)}
+                                    className="text-destructive focus:text-destructive"
+                                  >
+                                    <RefreshCw className="w-4 h-4 mr-2" />
+                                    Regenerate Defaults
+                                  </DropdownMenuItem>
+                                </>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
+          )}
+      </CardContent>
+    </Card>
+
+      {/* ================================================================ */}
+      {/* ADD / EDIT TRADE MODAL */}
+      {/* ================================================================ */}
+      <Dialog open={isAddTradeOpen} onOpenChange={(open) => !open && closeModal()}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Add Trade</DialogTitle>
-            <DialogDescription>Create a trade. Optionally auto-generate labor/material/sub cost codes.</DialogDescription>
+            <DialogTitle>{editingTrade ? 'Edit Trade' : 'Add Trade'}</DialogTitle>
+            <DialogDescription>
+              {editingTrade
+                ? 'Update the trade name or description.'
+                : 'Create a trade. Optionally auto-generate Labor, Material, and Subcontractor cost codes.'}
+            </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
@@ -214,54 +467,122 @@ export const TradesTab = () => {
               <Label htmlFor="trade-name">Trade Name *</Label>
               <Input
                 id="trade-name"
-                value={newTradeName}
-                onChange={(e) => setNewTradeName(e.target.value)}
+                value={formName}
+                onChange={(e) => setFormName(e.target.value)}
                 placeholder="e.g., Plumbing"
+                autoFocus
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="trade-prefix">Code Prefix (optional)</Label>
-              <Input
-                id="trade-prefix"
-                value={newTradePrefix}
-                onChange={(e) => setNewTradePrefix(e.target.value)}
-                placeholder="Letters only; otherwise derived from name"
-              />
-              <p className="text-xs text-muted-foreground">If provided, non-letters will be stripped server-side.</p>
-            </div>
+            {!editingTrade && (
+              <div className="space-y-2">
+                <Label htmlFor="trade-prefix">Code Prefix</Label>
+                <Input
+                  id="trade-prefix"
+                  value={formPrefix}
+                  onChange={(e) => setFormPrefix(e.target.value)}
+                  placeholder="Optional"
+                  className="font-mono"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Defaults to first letters of trade name. Non-letters are stripped.
+                </p>
+              </div>
+            )}
 
             <div className="space-y-2">
-              <Label htmlFor="trade-description">Description (optional)</Label>
+              <Label htmlFor="trade-description">Description</Label>
               <Textarea
                 id="trade-description"
-                value={newTradeDescription}
-                onChange={(e) => setNewTradeDescription(e.target.value)}
+                value={formDescription}
+                onChange={(e) => setFormDescription(e.target.value)}
                 rows={2}
+                placeholder="Optional notes about this trade"
               />
             </div>
 
-            <div className="flex items-center gap-2">
-              <Checkbox id="auto-generate" checked={autoGenerate} onCheckedChange={(v) => setAutoGenerate(v === true)} />
-              <Label htmlFor="auto-generate" className="text-sm">
-                Auto-generate Labor, Material, and Subcontractor cost codes
-              </Label>
-            </div>
+            {!editingTrade && (
+              <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
+                <Checkbox
+                  id="auto-generate"
+                  checked={formAutoGenerate}
+                  onCheckedChange={(v) => setFormAutoGenerate(v === true)}
+                  className="mt-0.5"
+                />
+                <div className="space-y-1">
+                  <Label htmlFor="auto-generate" className="font-medium cursor-pointer">
+                    Auto-generate Labor, Material, and Subcontractor cost codes
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Creates 3 cost codes using the prefix (e.g., PLB-L, PLB-M, PLB-S). Uncheck if you want to
+                    generate cost codes later.
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsAddTradeOpen(false)}>
+            <Button variant="outline" onClick={closeModal}>
               Cancel
             </Button>
-            <Button onClick={() => createTradeMutation.mutate()} disabled={createTradeMutation.isPending || !newTradeName.trim()}>
-              {createTradeMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Plus className="w-4 h-4 mr-2" />}
-              Create Trade
+            <Button
+              onClick={() => (editingTrade ? updateTradeMutation.mutate() : createTradeMutation.mutate())}
+              disabled={
+                (editingTrade ? updateTradeMutation.isPending : createTradeMutation.isPending) ||
+                !formName.trim()
+              }
+            >
+              {(editingTrade ? updateTradeMutation.isPending : createTradeMutation.isPending) && (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              )}
+              {editingTrade ? 'Save Changes' : 'Create Trade'}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </Card>
+
+      {/* ================================================================ */}
+      {/* REGENERATE DEFAULTS CONFIRMATION */}
+      {/* ================================================================ */}
+      <AlertDialog open={!!regenerateTrade} onOpenChange={(open) => !open && setRegenerateTrade(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {codesByTradeId.get(regenerateTrade?.id ?? '')?.length === 0
+                ? 'Generate Default Cost Codes'
+                : 'Regenerate Default Cost Codes'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {codesByTradeId.get(regenerateTrade?.id ?? '')?.length === 0 ? (
+                <>
+                  This will create 3 cost codes for <strong>{regenerateTrade?.name}</strong>:
+                  <ul className="mt-2 ml-4 list-disc text-sm">
+                    <li>Labor</li>
+                    <li>Material</li>
+                    <li>Subcontractor</li>
+                  </ul>
+                </>
+              ) : (
+                <>
+                  This will regenerate the default cost codes for <strong>{regenerateTrade?.name}</strong>.
+                  Existing codes will be preserved if they already exist.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => regenerateTrade && regenerateDefaultsMutation.mutate(regenerateTrade.id)}
+              disabled={regenerateDefaultsMutation.isPending}
+            >
+              {regenerateDefaultsMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              {codesByTradeId.get(regenerateTrade?.id ?? '')?.length === 0 ? 'Generate' : 'Regenerate'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 };
-
-
