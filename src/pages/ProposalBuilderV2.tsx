@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/Layout';
 import { Button } from '@/components/ui/button';
@@ -16,8 +16,6 @@ import {
 } from 'lucide-react';
 import {
   useProposalData,
-  useUpdateProposalField,
-  useUpdateProposalSettings,
   useRefreshProposalFromEstimate,
   ProposalSettings,
 } from '@/hooks/useProposalData';
@@ -25,8 +23,15 @@ import { ProposalContextPanel } from '@/components/proposals/ProposalContextPane
 import { ProposalContentEditor } from '@/components/proposals/ProposalContentEditor';
 import { ProposalSettingsPanel } from '@/components/proposals/ProposalSettingsPanel';
 import { ProposalPDFPreview } from '@/components/proposals/ProposalPDFPreview';
+import { useCompany } from '@/company/CompanyProvider';
+import { useProposalAutosave } from '@/hooks/useProposalAutosave';
 
-type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
+type SaveStatus = 'saved' | 'saving' | 'dirty' | 'error';
+
+function isUuid(v: string | undefined): boolean {
+  if (!v) return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
+}
 
 export default function ProposalBuilderV2() {
   // Support both route patterns: /proposals/:id and /projects/:projectId/proposals/:proposalId
@@ -35,79 +40,69 @@ export default function ProposalBuilderV2() {
   const projectId = params.projectId;
   const navigate = useNavigate();
 
+  const { activeCompanyId } = useCompany();
   const { data: proposal, isLoading, error } = useProposalData(proposalId);
-  const updateField = useUpdateProposalField();
-  const updateSettings = useUpdateProposalSettings();
   const refreshFromEstimate = useRefreshProposalFromEstimate();
 
-  const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
-  const [showPDFPreview, setShowPDFPreview] = useState(false);
-  const debounceRef = useRef<NodeJS.Timeout | null>(null);
-  const savedTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // Local draft state (source of truth for autosave payload)
+  const [draftTitle, setDraftTitle] = useState<string>('');
+  const [draftIntro, setDraftIntro] = useState<string>('');
+  const [draftSettings, setDraftSettings] = useState<ProposalSettings | null>(null);
 
-  // Cleanup timeouts
+  // Initialize local draft when proposal loads/changes
   useEffect(() => {
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-      if (savedTimeoutRef.current) clearTimeout(savedTimeoutRef.current);
+    if (!proposal) return;
+    setDraftTitle(proposal.title ?? '');
+    setDraftIntro(proposal.intro_text ?? '');
+    setDraftSettings(proposal.settings ?? null);
+  }, [proposal?.id]);
+
+  const snapshot = useMemo(() => {
+    return {
+      title: draftTitle,
+      intro_text: draftIntro,
+      settings: draftSettings ?? proposal?.settings ?? null,
     };
-  }, []);
+  }, [draftTitle, draftIntro, draftSettings, proposal?.settings]);
+
+  const autosave = useProposalAutosave({
+    companyId: activeCompanyId,
+    proposalId: proposalId || '',
+    projectId: proposal?.project_id || projectId || '',
+    getSnapshot: () => snapshot,
+    debounceMs: 1000,
+    onServerAck: (ack) => {
+      // keep expected version for optimistic locking; version stored server-side
+      autosave.setExpectedVersion(ack.draft_version);
+    },
+  });
+
+  const [showPDFPreview, setShowPDFPreview] = useState(false);
 
   // Update field with debounce
   const handleFieldChange = useCallback(
     (field: string, value: any) => {
       if (!proposalId) return;
+      if (proposal?.status && proposal.status !== 'draft') return; // no autosave for non-drafts
 
-      if (debounceRef.current) {
-        clearTimeout(debounceRef.current);
-      }
+      if (field === 'title') setDraftTitle(String(value ?? ''));
+      if (field === 'intro_text') setDraftIntro(String(value ?? ''));
 
-      setSaveStatus('saving');
-
-      debounceRef.current = setTimeout(() => {
-        updateField.mutate(
-          { id: proposalId, field, value },
-          {
-            onSuccess: () => {
-              setSaveStatus('saved');
-              if (savedTimeoutRef.current) clearTimeout(savedTimeoutRef.current);
-              savedTimeoutRef.current = setTimeout(() => {
-                setSaveStatus('idle');
-              }, 2000);
-            },
-            onError: () => {
-              setSaveStatus('error');
-            },
-          }
-        );
-      }, 600);
+      autosave.markDirtyAndSchedule();
     },
-    [proposalId, updateField]
+    [proposalId, autosave, proposal?.status]
   );
 
   // Update settings immediately (merge logic is inside the hook)
   const handleSettingsChange = useCallback(
     (settings: Partial<ProposalSettings>) => {
       if (!proposalId) return;
+      if (proposal?.status && proposal.status !== 'draft') return;
 
-      setSaveStatus('saving');
-      updateSettings.mutate(
-        { id: proposalId, settings },
-        {
-          onSuccess: () => {
-            setSaveStatus('saved');
-            if (savedTimeoutRef.current) clearTimeout(savedTimeoutRef.current);
-            savedTimeoutRef.current = setTimeout(() => {
-              setSaveStatus('idle');
-            }, 2000);
-          },
-          onError: () => {
-            setSaveStatus('error');
-          },
-        }
-      );
+      setDraftSettings((prev) => ({ ...(prev ?? proposal?.settings ?? ({} as any)), ...settings }));
+      autosave.markDirtyAndSchedule();
     },
-    [proposalId, updateSettings]
+    [proposalId, autosave, proposal?.settings, proposal?.status]
   );
 
   // Refresh totals from estimate
@@ -158,6 +153,22 @@ export default function ProposalBuilderV2() {
     );
   }
 
+  // Route stability: invalid/missing proposalId should not redirect silently
+  if (!proposalId || !isUuid(proposalId)) {
+    return (
+      <Layout>
+        <div className="flex flex-col items-center justify-center py-16">
+          <AlertCircle className="h-12 w-12 text-muted-foreground mb-4" />
+          <h2 className="text-xl font-semibold mb-2">Invalid proposal link</h2>
+          <p className="text-muted-foreground mb-4">This proposal URL is missing or malformed.</p>
+          <Button variant="outline" onClick={() => navigate('/app/proposals')}>
+            Back to Proposals
+          </Button>
+        </div>
+      </Layout>
+    );
+  }
+
   if (error || !proposal) {
     return (
       <Layout>
@@ -196,13 +207,9 @@ export default function ProposalBuilderV2() {
             <div className="min-w-0 flex-1">
               <input
                 type="text"
-                defaultValue={proposal.title}
+                value={draftTitle}
                 className="text-lg font-semibold bg-transparent border-none outline-none focus:ring-1 focus:ring-primary rounded px-2 py-1 w-full max-w-md"
-                onBlur={(e) => {
-                  if (e.target.value !== proposal.title) {
-                    handleFieldChange('title', e.target.value);
-                  }
-                }}
+                onChange={(e) => handleFieldChange('title', e.target.value)}
               />
               <div className="flex items-center gap-2 mt-0.5 px-2">
                 <Badge variant={getStatusColor(proposal.status)} className="text-xs">
@@ -219,22 +226,34 @@ export default function ProposalBuilderV2() {
           <div className="flex items-center gap-3 shrink-0">
             {/* Save Status */}
             <div className="flex items-center gap-1.5 text-sm min-w-[100px] justify-end">
-              {saveStatus === 'saving' && (
+              {autosave.status === 'saving' && (
                 <>
                   <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
                   <span className="text-muted-foreground">Saving...</span>
                 </>
               )}
-              {saveStatus === 'saved' && (
+              {autosave.status === 'dirty' && (
+                <>
+                  <span className="text-muted-foreground">Unsaved</span>
+                </>
+              )}
+              {autosave.status === 'saved' && (
                 <>
                   <Check className="h-3.5 w-3.5 text-success" />
                   <span className="text-success">Saved</span>
                 </>
               )}
-              {saveStatus === 'error' && (
+              {autosave.status === 'error' && (
                 <>
                   <AlertCircle className="h-3.5 w-3.5 text-destructive" />
-                  <span className="text-destructive">Error</span>
+                  <button
+                    className="text-destructive underline underline-offset-2"
+                    onClick={autosave.retry}
+                    title={autosave.errorMessage ?? 'Save failed'}
+                    type="button"
+                  >
+                    Error (retry)
+                  </button>
                 </>
               )}
             </div>
@@ -283,7 +302,12 @@ export default function ProposalBuilderV2() {
         {/* Middle Column: Content Editor */}
         <div className="lg:col-span-6">
           <ProposalContentEditor
-            proposal={proposal}
+            proposal={{
+              ...proposal,
+              title: draftTitle,
+              intro_text: draftIntro,
+              settings: draftSettings ?? proposal.settings,
+            }}
             onFieldChange={handleFieldChange}
             onSettingsChange={handleSettingsChange}
           />
@@ -292,7 +316,7 @@ export default function ProposalBuilderV2() {
         {/* Right Column: Settings & Toggles */}
         <div className="lg:col-span-3">
           <ProposalSettingsPanel
-            settings={proposal.settings}
+            settings={draftSettings ?? proposal.settings}
             onSettingsChange={handleSettingsChange}
           />
         </div>

@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useCompany } from '@/company/CompanyProvider';
 
 export interface Proposal {
   id: string;
@@ -36,9 +37,11 @@ export interface Proposal {
 }
 
 export function useProposals(projectId?: string) {
+  const { activeCompanyId } = useCompany();
   return useQuery({
-    queryKey: ['proposals', projectId],
+    queryKey: ['proposals', activeCompanyId, projectId],
     queryFn: async () => {
+      if (!activeCompanyId) return [];
       let query = supabase
         .from('proposals')
         .select(`
@@ -46,6 +49,7 @@ export function useProposals(projectId?: string) {
           projects (project_name),
           estimates!primary_estimate_id (title, total_amount)
         `)
+        .eq('company_id', activeCompanyId)
         .order('created_at', { ascending: false });
 
       if (projectId) {
@@ -56,13 +60,17 @@ export function useProposals(projectId?: string) {
       if (error) throw error;
       return data;
     },
+    enabled: !!activeCompanyId,
+    retry: false,
   });
 }
 
 export function useProposal(proposalId: string) {
+  const { activeCompanyId } = useCompany();
   return useQuery({
-    queryKey: ['proposal', proposalId],
+    queryKey: ['proposal', activeCompanyId, proposalId],
     queryFn: async () => {
+      if (!activeCompanyId) return null;
       const { data, error } = await supabase
         .from('proposals')
         .select(`
@@ -74,11 +82,14 @@ export function useProposal(proposalId: string) {
             estimate_items (*)
           )
         `)
+        .eq('company_id', activeCompanyId)
         .eq('id', proposalId)
         .single();
       if (error) throw error;
       return data;
     },
+    enabled: !!activeCompanyId && !!proposalId,
+    retry: false,
   });
 }
 

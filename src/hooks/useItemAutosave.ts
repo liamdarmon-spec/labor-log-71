@@ -3,7 +3,7 @@
 // - Batch saves (single RPC call for multiple rows)
 // - Optimistic locking (updated_at conflict detection)
 // - Smart debouncing with flush
-// - Retry with exponential backoff
+// - NO automatic retries (manual retry only)
 // - Memory-safe cleanup
 
 import { useCallback, useRef, useState, useEffect } from "react";
@@ -18,7 +18,6 @@ export interface RowSaveState {
   error?: string;
   lastSaved?: Date;
   serverUpdatedAt?: string; // For conflict resolution
-  retryCount?: number;
 }
 
 export interface ItemUpdate {
@@ -50,8 +49,6 @@ interface BatchResult {
 const DEBOUNCE_MS = 400; // Faster debounce for better UX
 const BATCH_FLUSH_MS = 100; // Micro-batch window
 const SAVED_DISPLAY_MS = 1500;
-const MAX_RETRIES = 3;
-const RETRY_DELAYS = [500, 1500, 3000]; // Exponential backoff
 
 export function useItemAutosave(estimateId: string | undefined) {
   const queryClient = useQueryClient();
@@ -160,23 +157,10 @@ export function useItemAutosave(estimateId: string | undefined) {
           });
           toast.warning("Conflict detected - another user modified this item");
         } else {
-          const retryCount = (rowStates.get(result.id)?.retryCount || 0) + 1;
-          if (retryCount < MAX_RETRIES) {
-            // Schedule retry
-            setTimeout(() => {
-              const update = updates.find(u => u.id === result.id);
-              if (update) {
-                pendingUpdates.current.set(result.id, update);
-                scheduleBatchFlush();
-              }
-            }, RETRY_DELAYS[retryCount - 1]);
-            setRowState(result.id, { status: "dirty", retryCount });
-          } else {
-            setRowState(result.id, { 
-              status: "error", 
-              error: result.error || "Save failed after retries" 
-            });
-          }
+          setRowState(result.id, {
+            status: "error",
+            error: result.error || "Save failed",
+          });
         }
       });
       
@@ -267,7 +251,7 @@ export function useItemAutosave(estimateId: string | undefined) {
 
   // Retry a failed save
   const retrySave = useCallback((id: string, currentValues: ItemUpdate) => {
-    setRowState(id, { status: "dirty", retryCount: 0, error: undefined });
+    setRowState(id, { status: "dirty", error: undefined });
     pendingUpdates.current.set(id, { ...currentValues, id });
     scheduleBatchFlush();
   }, [setRowState, scheduleBatchFlush]);

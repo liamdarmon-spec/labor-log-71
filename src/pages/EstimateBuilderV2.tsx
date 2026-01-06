@@ -68,6 +68,7 @@ interface ScopeBlockDB {
 
 interface Estimate {
   id: string;
+  company_id?: string | null;
   title: string;
   status: string;
   tax_amount: number | null;
@@ -198,11 +199,19 @@ export default function EstimateBuilderV2() {
     refetchOnWindowFocus: false,
   });
 
+  // Canonical company context for this page (used for all writes).
+  // Prefer the estimate's company_id; fall back to the user's active selection.
+  // Fail loudly if neither is available.
+  const companyId = useMemo(() => {
+    return estimate?.company_id ?? activeCompanyId ?? null;
+  }, [estimate?.company_id, activeCompanyId]);
+
   // Fetch scope blocks with cost items - cached with good stale/gc times
   const { data: scopeBlocks = [], isLoading: blocksLoading } = useQuery({
     queryKey: ["scope-blocks", "estimate", estimateId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // Cast to any to avoid Supabase generic type explosion in TS
+      let q: any = supabase
         .from("scope_blocks")
         .select(`
           id,
@@ -214,8 +223,13 @@ export default function EstimateBuilderV2() {
         `)
         .eq("entity_type", "estimate")
         .eq("entity_id", estimateId!)
-        .eq("block_type", "cost_items")
-        .order("sort_order", { ascending: true });
+        .eq("block_type", "cost_items");
+
+      if (companyId) {
+        q = q.eq("company_id", companyId);
+      }
+
+      const { data, error } = await q.order("sort_order", { ascending: true });
       if (error) throw error;
 
       // Sort cost items within each block
@@ -228,7 +242,7 @@ export default function EstimateBuilderV2() {
       
       return blocks;
     },
-    enabled: !!estimateId,
+    enabled: !!estimateId && !!companyId,
     staleTime: 30000, // 30s - don't refetch within this window
     gcTime: 5 * 60 * 1000, // 5 minutes
     refetchOnWindowFocus: false, // Don't refetch on tab focus
@@ -267,13 +281,13 @@ export default function EstimateBuilderV2() {
   // Auto-create first scope block if none exist
   const createFirstBlock = useMutation({
     mutationFn: async () => {
-      if (!activeCompanyId) {
-        throw new Error("No active company selected");
+      if (!companyId) {
+        throw new Error("No company context available for this estimate");
       }
       const { data, error } = await supabase
         .from("scope_blocks")
         .insert({
-          company_id: activeCompanyId,
+          company_id: companyId,
           entity_type: "estimate",
           entity_id: estimateId!,
           block_type: "cost_items",
@@ -286,7 +300,7 @@ export default function EstimateBuilderV2() {
       return data;
     },
     onError: (err: Error) => {
-      console.error("Failed to create section", err);
+      console.error("Failed to create section", { estimateId, companyId, error: err });
       toast.error(err.message || "Failed to create section");
     },
     onSuccess: () => {
@@ -348,14 +362,14 @@ export default function EstimateBuilderV2() {
   // Add section mutation
   const addSection = useMutation({
     mutationFn: async () => {
-      if (!activeCompanyId) {
-        throw new Error("No active company selected");
+      if (!companyId) {
+        throw new Error("No company context available for this estimate");
       }
       const maxOrder = Math.max(...localBlocks.map((b) => b.block.sort_order || 0), -1);
       const { data, error } = await supabase
         .from("scope_blocks")
         .insert({
-          company_id: activeCompanyId,
+          company_id: companyId,
           entity_type: "estimate",
           entity_id: estimateId!,
           block_type: "cost_items",
@@ -372,7 +386,7 @@ export default function EstimateBuilderV2() {
       toast.success("Section added");
     },
     onError: (err: Error) => {
-      console.error("Failed to add section", err);
+      console.error("Failed to add section", { estimateId, companyId, error: err });
       toast.error(err.message || "Failed to add section");
     },
   });
@@ -411,6 +425,10 @@ export default function EstimateBuilderV2() {
     isSavingRef.current = true;
     
     try {
+      if (!companyId) {
+        throw new Error("No company context available for this estimate");
+      }
+
       const currentItems = new Map<string, ScopeItem>();
       blocks.forEach(b => b.items.forEach(item => currentItems.set(item.id, item)));
       
@@ -433,31 +451,34 @@ export default function EstimateBuilderV2() {
       
       // Execute deletions
       if (toDelete.length > 0) {
-        const { error } = await supabase
+        const { error } = await (supabase as any)
           .from("scope_block_cost_items")
           .delete()
-          .in("id", toDelete);
+          .in("id", toDelete)
+          .eq("company_id", companyId);
         if (error) throw error;
       }
       
       // Execute creations
       if (toCreate.length > 0) {
-        if (!activeCompanyId) {
-          throw new Error('No active company selected');
-        }
-        const unassignedId = await getUnassignedCostCodeId(activeCompanyId);
+        const unassignedId = await getUnassignedCostCodeId(companyId);
+
         const insertData = toCreate.map((item, idx) => ({
-          company_id: activeCompanyId || undefined, // Let trigger fill if missing
+          // IMPORTANT: preserve client-generated UUID so autosave updates target the correct row
+          id: item.id,
+          company_id: companyId,
           scope_block_id: item.scope_block_id,
           category: item.category,
+          // DB invariant: cost_code_id is NOT NULL; default to company-scoped UNASSIGNED
           cost_code_id: item.cost_code_id || unassignedId,
-          description: item.description || "New Item",
-          quantity: item.quantity || 1,
+          description: item.description ?? "",
+          quantity: item.quantity ?? 1,
           unit: item.unit || "ea",
-          unit_price: item.unit_price || 0,
-          markup_percent: item.markup_percent || 0,
-          line_total: (item.quantity || 0) * (item.unit_price || 0) * (1 + (item.markup_percent || 0) / 100),
-          sort_order: idx,
+          unit_price: item.unit_price ?? 0,
+          markup_percent: item.markup_percent ?? 0,
+          // line_total is calculated by DB trigger (server is source of truth)
+          // Preserve UI sort order (fallback to deterministic order within this batch)
+          sort_order: item.sort_order ?? idx,
           area_label: item.area_label,
           group_label: item.group_label,
         }));
@@ -480,8 +501,9 @@ export default function EstimateBuilderV2() {
       });
       
     } catch (error) {
-      console.error("Error saving structural changes:", error);
-      toast.error("Failed to save changes");
+      console.error("Error saving structural changes", { estimateId, companyId, error });
+      const message = error instanceof Error ? error.message : String(error);
+      toast.error(message || "Failed to save changes");
     } finally {
       isSavingRef.current = false;
       
@@ -491,7 +513,7 @@ export default function EstimateBuilderV2() {
         saveStructuralChanges(pending);
       }
     }
-  }, [estimateId, queryClient]);
+  }, [companyId, estimateId, queryClient]);
 
   // Handle blocks change - for structural changes only
   const handleBlocksChange = useCallback((newBlocks: EstimateEditorBlock[]) => {
@@ -735,9 +757,15 @@ export default function EstimateBuilderV2() {
           getItemSaveStatus={(itemId) => autosave.getRowState(itemId)}
           onItemRetry={(itemId, values) => autosave.retrySave(itemId, { id: itemId, ...values })}
           onReorderItems={async (blockId, items) => {
+            if (!companyId) {
+              const err = new Error("No company context available for this estimate");
+              console.error("Reorder items blocked", { estimateId, blockId, companyId, error: err });
+              toast.error(err.message);
+              return;
+            }
             // Batch update sort_order for items
             const promises = items.map((item) =>
-              supabase
+              (supabase as any)
                 .from("scope_block_cost_items")
                 .update({
                   sort_order: item.sort_order,
@@ -745,18 +773,27 @@ export default function EstimateBuilderV2() {
                   group_label: item.group_label,
                 })
                 .eq("id", item.id)
+                .eq("company_id", companyId)
             );
             const results = await Promise.all(promises);
             const errors = results.filter((r) => r.error);
             if (errors.length > 0) {
-              toast.error("Failed to reorder items");
-              queryClient.invalidateQueries({ queryKey: ["scope-blocks", estimateId] });
+              const first = errors[0].error;
+              console.error("Failed to reorder items", { estimateId, blockId, companyId, error: first });
+              toast.error(first?.message || "Failed to reorder items");
+              queryClient.invalidateQueries({ queryKey: ["scope-blocks", "estimate", estimateId] });
             }
           }}
           onMoveItems={async (moves) => {
+            if (!companyId) {
+              const err = new Error("No company context available for this estimate");
+              console.error("Move items blocked", { estimateId, companyId, error: err });
+              toast.error(err.message);
+              return;
+            }
             // Handle cross-section moves
             const promises = moves.map((move) =>
-              supabase
+              (supabase as any)
                 .from("scope_block_cost_items")
                 .update({
                   scope_block_id: move.scope_block_id,
@@ -765,36 +802,56 @@ export default function EstimateBuilderV2() {
                   sort_order: move.sort_order,
                 })
                 .eq("id", move.id)
+                .eq("company_id", companyId)
             );
             const results = await Promise.all(promises);
             const errors = results.filter((r) => r.error);
             if (errors.length > 0) {
-              toast.error("Failed to move item");
-              queryClient.invalidateQueries({ queryKey: ["scope-blocks", estimateId] });
+              const first = errors[0].error;
+              console.error("Failed to move item(s)", { estimateId, companyId, error: first });
+              toast.error(first?.message || "Failed to move item");
+              queryClient.invalidateQueries({ queryKey: ["scope-blocks", "estimate", estimateId] });
             }
           }}
           onReorderSections={async (sections) => {
+            if (!companyId) {
+              const err = new Error("No company context available for this estimate");
+              console.error("Reorder sections blocked", { estimateId, companyId, error: err });
+              toast.error(err.message);
+              return;
+            }
             const promises = sections.map((section) =>
-              supabase
+              (supabase as any)
                 .from("scope_blocks")
                 .update({ sort_order: section.sort_order })
                 .eq("id", section.id)
+                .eq("company_id", companyId)
             );
             const results = await Promise.all(promises);
             const errors = results.filter((r) => r.error);
             if (errors.length > 0) {
-              toast.error("Failed to reorder sections");
-              queryClient.invalidateQueries({ queryKey: ["scope-blocks", estimateId] });
+              const first = errors[0].error;
+              console.error("Failed to reorder sections", { estimateId, companyId, error: first });
+              toast.error(first?.message || "Failed to reorder sections");
+              queryClient.invalidateQueries({ queryKey: ["scope-blocks", "estimate", estimateId] });
             }
           }}
           onUpdateSection={async (blockId, patch) => {
-            const { error } = await supabase
+            if (!companyId) {
+              const err = new Error("No company context available for this estimate");
+              console.error("Update section blocked", { estimateId, blockId, companyId, error: err });
+              toast.error(err.message);
+              return;
+            }
+            const { error } = await (supabase as any)
               .from("scope_blocks")
               .update(patch)
-              .eq("id", blockId);
+              .eq("id", blockId)
+              .eq("company_id", companyId);
             if (error) {
-              toast.error("Failed to update section");
-              queryClient.invalidateQueries({ queryKey: ["scope-blocks", estimateId] });
+              console.error("Failed to update section", { estimateId, blockId, companyId, error });
+              toast.error(error.message || "Failed to update section");
+              queryClient.invalidateQueries({ queryKey: ["scope-blocks", "estimate", estimateId] });
             } else {
               // Update local state
               setLocalBlocks((prev) =>
@@ -808,29 +865,36 @@ export default function EstimateBuilderV2() {
           }}
           onDeleteSection={async (blockId) => {
             try {
+              if (!companyId) {
+                throw new Error("No company context available for this estimate");
+              }
               // Delete all cost items first
-              const { error: itemsError } = await supabase
+              const { error: itemsError } = await (supabase as any)
                 .from("scope_block_cost_items")
                 .delete()
-                .eq("scope_block_id", blockId);
+                .eq("scope_block_id", blockId)
+                .eq("company_id", companyId);
               if (itemsError) throw itemsError;
 
               // Then delete the scope_block
-              const { error: blockError } = await supabase
+              const { error: blockError } = await (supabase as any)
                 .from("scope_blocks")
                 .delete()
-                .eq("id", blockId);
+                .eq("id", blockId)
+                .eq("company_id", companyId);
               if (blockError) throw blockError;
 
               // Update local state immediately
               setLocalBlocks((prev) => prev.filter((b) => b.block.id !== blockId));
               
               // Refresh from DB
-              queryClient.invalidateQueries({ queryKey: ["scope-blocks", estimateId] });
+              queryClient.invalidateQueries({ queryKey: ["scope-blocks", "estimate", estimateId] });
               toast.success("Section deleted");
             } catch (error) {
-              toast.error("Failed to delete section");
-              queryClient.invalidateQueries({ queryKey: ["scope-blocks", estimateId] });
+              console.error("Failed to delete section", { estimateId, blockId, companyId, error });
+              const message = error instanceof Error ? error.message : String(error);
+              toast.error(message || "Failed to delete section");
+              queryClient.invalidateQueries({ queryKey: ["scope-blocks", "estimate", estimateId] });
             }
           }}
         />

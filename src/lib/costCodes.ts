@@ -14,18 +14,21 @@ export async function getUnassignedCostCodeId(companyId: string): Promise<string
     return unassignedCostCodeId;
   }
 
-  // Canonical SOT: fetch via get_cost_code_catalog, never direct-table read
-  const { data, error } = await supabase.rpc('get_cost_code_catalog', { p_company_id: companyId });
+  // IMPORTANT:
+  // `get_cost_code_catalog` intentionally filters out UNASSIGNED for dropdown UX.
+  // But multiple core tables enforce cost_code_id NOT NULL (see migrations), so we must
+  // be able to resolve the company-scoped UNASSIGNED id for inserts.
+  const { data, error } = await supabase
+    .from('cost_codes')
+    .select('id')
+    .eq('company_id', companyId)
+    .eq('code', 'UNASSIGNED')
+    .maybeSingle();
 
-  if (error || !data) {
+  if (error || !data?.id) {
     throw new Error('UNASSIGNED cost code not found');
   }
 
-  const row = (data as any[]).find((r) => r.code === 'UNASSIGNED');
-  if (!row?.cost_code_id) {
-    throw new Error('UNASSIGNED cost code not found');
-  }
-
-  unassignedCostCodeId = row.cost_code_id;
-  return row.cost_code_id;
+  unassignedCostCodeId = data.id;
+  return data.id;
 }

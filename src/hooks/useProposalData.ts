@@ -4,6 +4,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useCompany } from '@/company/CompanyProvider';
 
 export interface ProposalSettings {
   show_project_info: boolean;
@@ -118,18 +119,20 @@ const defaultSettings: ProposalSettings = {
 };
 
 export function useProposalData(proposalId: string | undefined) {
+  const { activeCompanyId } = useCompany();
   return useQuery({
-    queryKey: ['proposal-data', proposalId],
+    queryKey: ['proposal-data', activeCompanyId, proposalId],
     queryFn: async (): Promise<ProposalData | null> => {
-      if (!proposalId) return null;
+      if (!proposalId || !activeCompanyId) return null;
 
-      // Fetch proposal with project
+      // Fetch proposal with project - company-scoped for RLS
       const { data: proposal, error: proposalError } = await supabase
         .from('proposals')
         .select(`
           *,
           projects (id, project_name, client_name, address)
         `)
+        .eq('company_id', activeCompanyId)
         .eq('id', proposalId)
         .single();
 
@@ -237,8 +240,9 @@ export function useProposalData(proposalId: string | undefined) {
         allItems,
       };
     },
-    enabled: !!proposalId,
+    enabled: !!proposalId && !!activeCompanyId,
     staleTime: 30000,
+    retry: false,
   });
 }
 
