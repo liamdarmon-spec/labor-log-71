@@ -38,6 +38,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useCompany } from '@/company/CompanyProvider';
 import { Loader2, Plus, MoreHorizontal, Pencil, RefreshCw, Check, X, AlertTriangle, Info } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { cn } from '@/lib/utils';
 
 // ============================================================================
 // TYPES (matches RPC return shape)
@@ -130,6 +131,7 @@ export const TradesTab = () => {
       return (data || []) as TradeWithDefaults[];
     },
     enabled: !!activeCompanyId,
+    retry: false,
   });
 
   // ============================================================================
@@ -254,12 +256,14 @@ export const TradesTab = () => {
               <TooltipTrigger asChild>
                 <Badge variant="destructive" className="cursor-help">
                   <AlertTriangle className="w-3 h-3 mr-1" />
-                  Error
+                  Mismatch
                 </Badge>
               </TooltipTrigger>
               <TooltipContent>
-                <p>Configuration error: expected 0 or 3 cost codes.</p>
-                <p className="text-xs text-muted-foreground">Contact support.</p>
+                <p>Data mismatch detected.</p>
+                <p className="text-xs text-muted-foreground">
+                  Defaults must point to active, trade-linked cost codes with matching categories.
+                </p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
@@ -318,6 +322,21 @@ export const TradesTab = () => {
         </CardHeader>
 
         <CardContent className="pt-6">
+          {/* Mismatch banner (no silent fixes) */}
+          {!isLoading && trades.some((t) => t.status === 'invalid') && (
+            <div className="mb-4 flex items-start justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-amber-900">
+              <div className="flex gap-2">
+                <AlertTriangle className="mt-0.5 h-4 w-4" />
+                <div className="text-sm">
+                  <div className="font-medium">Data mismatch detected</div>
+                  <div className="text-amber-800">
+                    One or more trades have default pointers that don’t match trade-linked cost codes. Use “Ensure Defaults” per trade.
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {isLoading ? (
             <div className="py-16 text-center text-muted-foreground">Loading…</div>
           ) : trades.length === 0 ? (
@@ -379,6 +398,18 @@ export const TradesTab = () => {
                               <Pencil className="w-4 h-4 mr-2" />
                               Edit Trade
                             </DropdownMenuItem>
+                            {trade.status === 'invalid' && (
+                              <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  onClick={() => setRegenerateTrade(trade)}
+                                  className={cn("text-amber-700 focus:text-amber-800")}
+                                >
+                                  <RefreshCw className="w-4 h-4 mr-2" />
+                                  Ensure Defaults
+                                </DropdownMenuItem>
+                              </>
+                            )}
                             {trade.status === 'incomplete' && (
                               <>
                                 <DropdownMenuSeparator />
@@ -515,7 +546,9 @@ export const TradesTab = () => {
             <AlertDialogTitle>
               {regenerateTrade?.status === 'incomplete'
                 ? 'Generate Default Cost Codes'
-                : 'Regenerate Default Cost Codes'}
+                : regenerateTrade?.status === 'invalid'
+                  ? 'Ensure Default Cost Codes'
+                  : 'Regenerate Default Cost Codes'}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {regenerateTrade?.status === 'incomplete' ? (
@@ -526,6 +559,11 @@ export const TradesTab = () => {
                     <li>Material</li>
                     <li>Subcontractor</li>
                   </ul>
+                </>
+              ) : regenerateTrade?.status === 'invalid' ? (
+                <>
+                  This will attempt to generate defaults only if the trade currently has <strong>0</strong> cost codes.
+                  If it has a partial/mismatched set, you’ll get a clear error to resolve it explicitly.
                 </>
               ) : (
                 <>
@@ -542,7 +580,11 @@ export const TradesTab = () => {
               disabled={regenerateDefaultsMutation.isPending}
             >
               {regenerateDefaultsMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              {regenerateTrade?.status === 'incomplete' ? 'Generate' : 'Regenerate'}
+              {regenerateTrade?.status === 'incomplete'
+                ? 'Generate'
+                : regenerateTrade?.status === 'invalid'
+                  ? 'Ensure'
+                  : 'Regenerate'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

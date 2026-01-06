@@ -235,16 +235,20 @@ export default function EstimateBuilderV2() {
 
   // Fetch cost codes for export
   const { data: costCodes = [] } = useQuery({
-    queryKey: ["cost-codes-map"],
+    queryKey: ["cost-codes-map", activeCompanyId],
     queryFn: async () => {
+      if (!activeCompanyId) return [];
       const { data, error } = await supabase
         .from("cost_codes")
         .select("id, code, name")
-        .eq("is_active", true);
+        .eq("company_id", activeCompanyId)
+        .eq("is_active", true)
+        .not("trade_id", "is", null);
       if (error) throw error;
       return data || [];
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
+    retry: false,
   });
 
   // Sync local state when DB data changes

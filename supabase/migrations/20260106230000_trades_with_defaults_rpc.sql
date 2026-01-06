@@ -49,8 +49,27 @@ BEGIN
     sc.id AS sub_code_id,
     -- Determine status
     CASE
-      WHEN lc.id IS NOT NULL AND mc.id IS NOT NULL AND sc.id IS NOT NULL THEN 'complete'
+      -- Complete only if ALL invariants are satisfied:
+      -- - all three default ids exist
+      -- - each resolves to a cost_codes row in the same company
+      -- - each cost code is linked to this trade via trade_id
+      -- - categories are correct
+      -- - cost codes are active and not legacy
+      WHEN
+        lc.id IS NOT NULL
+        AND mc.id IS NOT NULL
+        AND sc.id IS NOT NULL
+        AND lc.company_id = p_company_id AND mc.company_id = p_company_id AND sc.company_id = p_company_id
+        AND lc.trade_id = t.id AND mc.trade_id = t.id AND sc.trade_id = t.id
+        AND lc.category::text = 'labor' AND mc.category::text = 'material' AND sc.category::text = 'sub'
+        AND lc.is_active = true AND mc.is_active = true AND sc.is_active = true
+        AND COALESCE(lc.is_legacy, false) = false
+        AND COALESCE(mc.is_legacy, false) = false
+        AND COALESCE(sc.is_legacy, false) = false
+      THEN 'complete'
+      -- Incomplete if all pointers are NULL (no defaults yet)
       WHEN lc.id IS NULL AND mc.id IS NULL AND sc.id IS NULL THEN 'incomplete'
+      -- Otherwise, something is mismatched/legacy/inconsistent
       ELSE 'invalid'
     END::text AS status
   FROM public.trades t
@@ -109,7 +128,7 @@ BEGIN
     cc.is_active,
     cc.trade_id,
     t.name AS trade_name,
-    (cc.trade_id IS NULL)::boolean AS is_legacy
+    COALESCE(cc.is_legacy, (cc.trade_id IS NULL))::boolean AS is_legacy
   FROM public.cost_codes cc
   LEFT JOIN public.trades t ON t.id = cc.trade_id AND t.company_id = p_company_id
   WHERE cc.company_id = p_company_id
