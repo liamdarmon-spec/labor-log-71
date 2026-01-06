@@ -80,39 +80,39 @@ BEGIN
   ORDER BY code
   LIMIT 1;
 
-  -- Create / find Materials
+  -- Create / find Material
   INSERT INTO public.cost_codes (company_id, company_trade_id, code, name, category, is_active)
   VALUES (
     v_trade.company_id,
     v_trade.id,
     v_trade.code_prefix || '-M',
-    v_trade.name || ' (Materials)',
-    'materials',
+    v_trade.name || ' (Material)',
+    'material',
     true
   )
   ON CONFLICT (company_id, code) DO NOTHING;
   IF FOUND THEN v_created := v_created + 1; END IF;
   SELECT id INTO v_materials_id
   FROM public.cost_codes
-  WHERE company_id = v_trade.company_id AND company_trade_id = v_trade.id AND category = 'materials'
+  WHERE company_id = v_trade.company_id AND company_trade_id = v_trade.id AND category = 'material'
   ORDER BY code
   LIMIT 1;
 
-  -- Create / find Subs
+  -- Create / find Sub
   INSERT INTO public.cost_codes (company_id, company_trade_id, code, name, category, is_active)
   VALUES (
     v_trade.company_id,
     v_trade.id,
     v_trade.code_prefix || '-S',
-    v_trade.name || ' (Subs)',
-    'subs',
+    v_trade.name || ' (Subcontractor)',
+    'sub',
     true
   )
   ON CONFLICT (company_id, code) DO NOTHING;
   IF FOUND THEN v_created := v_created + 1; END IF;
   SELECT id INTO v_subs_id
   FROM public.cost_codes
-  WHERE company_id = v_trade.company_id AND company_trade_id = v_trade.id AND category = 'subs'
+  WHERE company_id = v_trade.company_id AND company_trade_id = v_trade.id AND category = 'sub'
   ORDER BY code
   LIMIT 1;
 
