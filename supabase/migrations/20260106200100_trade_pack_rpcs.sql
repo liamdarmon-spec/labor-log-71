@@ -47,73 +47,96 @@ SET search_path = public, pg_temp
 AS $$
 DECLARE
   v_trade public.company_trades;
-  v_codes text[];
-  v_code text;
   v_created int := 0;
-  v_code_name text;
-  v_full_code text;
+  v_labor_id uuid;
+  v_materials_id uuid;
+  v_subs_id uuid;
 BEGIN
-  -- Get the trade
   SELECT * INTO v_trade FROM public.company_trades WHERE id = p_company_trade_id;
-  
   IF v_trade IS NULL THEN
     RETURN jsonb_build_object('success', false, 'error', 'Trade not found');
   END IF;
-  
-  -- Determine which codes to create
-  IF p_mode = 'LMS' OR p_mode IS NULL THEN
-    v_codes := ARRAY['L', 'M', 'S'];
-  ELSIF p_mode = 'LMSE' THEN
-    v_codes := ARRAY['L', 'M', 'S', 'E'];
-  ELSIF p_mode = 'LMSEO' THEN
-    v_codes := ARRAY['L', 'M', 'S', 'E', 'O'];
-  ELSE
-    v_codes := ARRAY['L', 'M', 'S'];
+
+  -- Ensure tenant member
+  IF NOT public.is_company_member(v_trade.company_id) THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Access denied');
   END IF;
-  
-  -- Create cost codes
-  FOREACH v_code IN ARRAY v_codes
-  LOOP
-    -- Determine name based on code
-    CASE v_code
-      WHEN 'L' THEN v_code_name := v_trade.name || ' (Labor)';
-      WHEN 'M' THEN v_code_name := v_trade.name || ' (Material)';
-      WHEN 'S' THEN v_code_name := v_trade.name || ' (Subcontractor)';
-      WHEN 'E' THEN v_code_name := v_trade.name || ' (Equipment)';
-      WHEN 'O' THEN v_code_name := v_trade.name || ' (Other)';
-      ELSE v_code_name := v_trade.name || ' (' || v_code || ')';
-    END CASE;
-    
-    v_full_code := v_trade.code_prefix || '-' || v_code;
-    
-    -- Insert with ON CONFLICT DO NOTHING for idempotency
-    INSERT INTO public.cost_codes (company_id, company_trade_id, code, name, category, is_active)
-    VALUES (
-      v_trade.company_id,
-      v_trade.id,
-      v_full_code,
-      v_code_name,
-      CASE v_code
-        WHEN 'L' THEN 'labor'
-        WHEN 'M' THEN 'material'
-        WHEN 'S' THEN 'subcontractor'
-        WHEN 'E' THEN 'equipment'
-        ELSE 'other'
-      END,
-      true
-    )
-    ON CONFLICT (company_id, code) DO NOTHING;
-    
-    IF FOUND THEN
-      v_created := v_created + 1;
-    END IF;
-  END LOOP;
-  
+
+  -- Create / find Labor
+  INSERT INTO public.cost_codes (company_id, company_trade_id, code, name, category, is_active)
+  VALUES (
+    v_trade.company_id,
+    v_trade.id,
+    v_trade.code_prefix || '-L',
+    v_trade.name || ' (Labor)',
+    'labor',
+    true
+  )
+  ON CONFLICT (company_id, code) DO NOTHING;
+  IF FOUND THEN v_created := v_created + 1; END IF;
+  SELECT id INTO v_labor_id
+  FROM public.cost_codes
+  WHERE company_id = v_trade.company_id AND company_trade_id = v_trade.id AND category = 'labor'
+  ORDER BY code
+  LIMIT 1;
+
+  -- Create / find Materials
+  INSERT INTO public.cost_codes (company_id, company_trade_id, code, name, category, is_active)
+  VALUES (
+    v_trade.company_id,
+    v_trade.id,
+    v_trade.code_prefix || '-M',
+    v_trade.name || ' (Materials)',
+    'materials',
+    true
+  )
+  ON CONFLICT (company_id, code) DO NOTHING;
+  IF FOUND THEN v_created := v_created + 1; END IF;
+  SELECT id INTO v_materials_id
+  FROM public.cost_codes
+  WHERE company_id = v_trade.company_id AND company_trade_id = v_trade.id AND category = 'materials'
+  ORDER BY code
+  LIMIT 1;
+
+  -- Create / find Subs
+  INSERT INTO public.cost_codes (company_id, company_trade_id, code, name, category, is_active)
+  VALUES (
+    v_trade.company_id,
+    v_trade.id,
+    v_trade.code_prefix || '-S',
+    v_trade.name || ' (Subs)',
+    'subs',
+    true
+  )
+  ON CONFLICT (company_id, code) DO NOTHING;
+  IF FOUND THEN v_created := v_created + 1; END IF;
+  SELECT id INTO v_subs_id
+  FROM public.cost_codes
+  WHERE company_id = v_trade.company_id AND company_trade_id = v_trade.id AND category = 'subs'
+  ORDER BY code
+  LIMIT 1;
+
+  -- Backfill default refs on company_trades if columns exist
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'company_trades' AND column_name = 'default_labor_cost_code_id'
+  ) THEN
+    UPDATE public.company_trades
+    SET
+      default_labor_cost_code_id = COALESCE(default_labor_cost_code_id, v_labor_id),
+      default_material_cost_code_id = COALESCE(default_material_cost_code_id, v_materials_id),
+      default_sub_cost_code_id = COALESCE(default_sub_cost_code_id, v_subs_id)
+    WHERE id = v_trade.id;
+  END IF;
+
   RETURN jsonb_build_object(
     'success', true,
     'trade_id', v_trade.id,
     'trade_name', v_trade.name,
-    'codes_created', v_created
+    'codes_created', v_created,
+    'labor_id', v_labor_id,
+    'materials_id', v_materials_id,
+    'subs_id', v_subs_id
   );
 END;
 $$;
@@ -313,6 +336,10 @@ BEGIN
       'description', ct.description,
       'code_prefix', ct.code_prefix,
       'is_active', ct.is_active,
+      'default_labor_cost_code_id', ct.default_labor_cost_code_id,
+      'default_material_cost_code_id', ct.default_material_cost_code_id,
+      'default_sub_cost_code_id', ct.default_sub_cost_code_id,
+      'defaults_complete', (ct.default_labor_cost_code_id IS NOT NULL AND ct.default_material_cost_code_id IS NOT NULL AND ct.default_sub_cost_code_id IS NOT NULL),
       'cost_codes', COALESCE(
         (SELECT jsonb_agg(
           jsonb_build_object(

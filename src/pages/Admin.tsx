@@ -8,7 +8,7 @@ import { Users, Briefcase, Wrench, FileText, BarChart3, UserCog, Archive, Settin
 const WorkersTab = lazy(() => import('@/components/admin/WorkersTab').then(m => ({ default: m.WorkersTab })));
 const ProjectsTab = lazy(() => import('@/components/admin/ProjectsTab').then(m => ({ default: m.ProjectsTab })));
 const TradesTab = lazy(() => import('@/components/admin/TradesTab').then(m => ({ default: m.TradesTab })));
-const CostCodesManagementTab = lazy(() => import('@/components/admin/CostCodesManagementTab').then(m => ({ default: m.CostCodesManagementTab })));
+const CostCodesTab = lazy(() => import('@/components/admin/CostCodesTab').then(m => ({ default: m.CostCodesTab })));
 const LogsTab = lazy(() => import('@/components/admin/LogsTab').then(m => ({ default: m.LogsTab })));
 const ReportsTab = lazy(() => import('@/components/admin/ReportsTab').then(m => ({ default: m.ReportsTab })));
 const UsersTab = lazy(() => import('@/components/admin/UsersTab').then(m => ({ default: m.UsersTab })));
@@ -58,11 +58,11 @@ const Admin = () => {
             </TabsTrigger>
             <TabsTrigger value="trades" className="gap-1 sm:gap-2 py-2 sm:py-3 text-xs sm:text-sm flex-col sm:flex-row">
               <Wrench className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              <span className="text-[10px] sm:text-sm">Trades</span>
+              <span className="text-[10px] sm:text-sm">Trades &amp; Defaults</span>
             </TabsTrigger>
             <TabsTrigger value="costcodes" className="gap-1 sm:gap-2 py-2 sm:py-3 text-xs sm:text-sm flex-col sm:flex-row">
               <Hash className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              <span className="text-[10px] sm:text-sm">Cost Codes</span>
+              <span className="text-[10px] sm:text-sm">Cost Code Library</span>
             </TabsTrigger>
             <TabsTrigger value="projects" className="gap-1 sm:gap-2 py-2 sm:py-3 text-xs sm:text-sm flex-col sm:flex-row">
               <Briefcase className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
@@ -122,7 +122,7 @@ const Admin = () => {
 
           <TabsContent value="costcodes" className="mt-4 sm:mt-6">
             <Suspense fallback={<TabLoading />}>
-              <CostCodesManagementTab />
+              <CostCodesTab />
             </Suspense>
           </TabsContent>
 
