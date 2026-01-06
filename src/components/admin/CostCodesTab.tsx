@@ -6,16 +6,16 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { supabase } from '@/integrations/supabase/client';
 import { useCompany } from '@/company/CompanyProvider';
 import { Search, Info, ArrowRight, AlertTriangle } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
+import { fetchCostCodes, type CanonicalCostCodeCategory, type CostCodeStatusFilter } from '@/data/catalog';
 
 // ============================================================================
 // TYPES (matches RPC return shape)
 // ============================================================================
 
-type CostCodeCategory = 'labor' | 'material' | 'sub';
+type CostCodeCategory = CanonicalCostCodeCategory;
 
 const CATEGORY_LABEL: Record<CostCodeCategory, string> = {
   labor: 'Labor',
@@ -64,18 +64,35 @@ export const CostCodesTab = () => {
   // ============================================================================
 
   const { data: costCodes = [], isLoading, error } = useQuery({
-    queryKey: ['cost-codes-with-trades', activeCompanyId],
+    queryKey: [
+      'cost-codes-with-trades',
+      activeCompanyId,
+      search,
+      tradeFilter,
+      categoryFilter,
+      statusFilter,
+      showLegacy,
+    ],
     queryFn: async () => {
       if (!activeCompanyId) return [];
 
-      const { data, error } = await supabase.rpc('get_cost_codes_with_trades', {
-        p_company_id: activeCompanyId,
-      });
+      const tradeIdParam =
+        tradeFilter === 'all' ? null : tradeFilter === 'unassigned' ? null : tradeFilter;
+      const categoryParam = categoryFilter === 'all' ? null : (categoryFilter as CostCodeCategory);
+      const statusParam = statusFilter as CostCodeStatusFilter;
 
-      if (error) throw new Error(error.message);
-      return (data || []) as CostCodeWithTrade[];
+      return await fetchCostCodes(activeCompanyId, {
+        search: search.trim() || undefined,
+        tradeId: tradeFilter === 'unassigned' ? null : tradeIdParam,
+        category: categoryParam ?? undefined,
+        status: statusParam,
+        includeLegacy: showLegacy,
+        limit: 200,
+        offset: 0,
+      });
     },
     enabled: !!activeCompanyId,
+    retry: false,
   });
 
   // Build unique trades list for filter dropdown
@@ -94,45 +111,8 @@ export const CostCodesTab = () => {
   // Count legacy codes
   const legacyCount = useMemo(() => costCodes.filter((cc) => cc.is_legacy).length, [costCodes]);
 
-  // Apply filters
-  const filteredCodes = useMemo(() => {
-    let rows = [...costCodes];
-
-    // Legacy filter (default: hide legacy)
-    if (!showLegacy) {
-      rows = rows.filter((r) => !r.is_legacy);
-    }
-
-    // Status filter
-    if (statusFilter !== 'all') {
-      rows = rows.filter((r) => (statusFilter === 'active' ? r.is_active : !r.is_active));
-    }
-
-    // Category filter
-    if (categoryFilter !== 'all') {
-      rows = rows.filter((r) => r.category === categoryFilter);
-    }
-
-    // Trade filter
-    if (tradeFilter !== 'all') {
-      if (tradeFilter === 'unassigned') {
-        rows = rows.filter((r) => r.is_legacy);
-      } else {
-        rows = rows.filter((r) => r.trade_id === tradeFilter);
-      }
-    }
-
-    // Search
-    const q = search.trim().toLowerCase();
-    if (q) {
-      rows = rows.filter((r) => {
-        const hay = `${r.code} ${r.name} ${r.category} ${r.trade_name ?? ''}`.toLowerCase();
-        return hay.includes(q);
-      });
-    }
-
-    return rows;
-  }, [costCodes, search, statusFilter, categoryFilter, tradeFilter, showLegacy]);
+  // Server-side filtered (RPC). Keep client-side view as-is.
+  const filteredCodes = useMemo(() => costCodes, [costCodes]);
 
   // ============================================================================
   // EMPTY / LOADING / ERROR STATES

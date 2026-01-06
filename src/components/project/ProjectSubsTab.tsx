@@ -179,15 +179,15 @@ export function ProjectSubsTab({ projectId }: ProjectSubsTabProps) {
       const sub = allSubs?.find(s => s.id === selectedSub.id);
       if (!sub?.trade_id) throw new Error('Sub trade not found');
 
-      // Find the sub labor cost code ({TRADE}-S)
-      const { data: costCode, error: costCodeError } = await supabase
-        .from('cost_codes')
-        .select('id')
-        .eq('trade_id', sub.trade_id)
-        .eq('category', 'subs')
-        .single();
-
-      if (costCodeError) throw costCodeError;
+      // Find the trade's SUB cost code from the canonical catalog
+      if (!activeCompanyId) throw new Error('No active company selected');
+      const { data: catalogData, error: catalogError } = await supabase.rpc('get_cost_code_catalog', {
+        p_company_id: activeCompanyId,
+      });
+      if (catalogError) throw catalogError;
+      const rows = (catalogData || []) as any[];
+      const subCode = rows.find((r) => r.trade_id === sub.trade_id && r.category === 'sub');
+      if (!subCode?.cost_code_id) throw new Error('Sub cost code not found for trade');
 
       // Create sub_log entry (this feeds into project costs)
       const { error: logError } = await supabase
@@ -195,7 +195,7 @@ export function ProjectSubsTab({ projectId }: ProjectSubsTabProps) {
         .insert([{
           project_id: projectId,
           sub_id: selectedSub.id,
-          cost_code_id: costCode.id,
+          cost_code_id: subCode.cost_code_id,
           amount: Number(invoice.total),
           date: invoice.invoice_date,
           description: `Invoice ${invoice.invoice_number}`,

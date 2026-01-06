@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { useCompany } from '@/company/CompanyProvider';
+import { fetchCostCodes, fetchTradesWithDefaults } from '@/data/catalog';
 
 export interface Trade {
   id: string;
@@ -16,19 +17,27 @@ export interface Trade {
  * Used across: Admin, Workers, Subs, Materials, Cost Codes, Schedule
  */
 export function useTrades() {
+  const { activeCompanyId } = useCompany();
   return useQuery({
-    queryKey: ['trades'],
+    queryKey: ['trades', activeCompanyId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('trades')
-        .select('*')
-        .order('name');
-      
-      if (error) throw error;
-      return data as Trade[];
+      if (!activeCompanyId) return [];
+      const rows = await fetchTradesWithDefaults(activeCompanyId);
+      // Map to legacy Trade shape where needed
+      return rows.map((t) => ({
+        id: t.id,
+        name: t.name,
+        description: t.description,
+        created_at: '', // not provided by RPC (avoid relying on it)
+        default_labor_cost_code_id: t.labor_code_id,
+        default_material_cost_code_id: t.material_code_id,
+        default_sub_cost_code_id: t.sub_code_id,
+      })) as Trade[];
     },
     staleTime: 10 * 60 * 1000, // 10 minutes - trades rarely change
     gcTime: 30 * 60 * 1000, // 30 minutes
+    retry: false,
+    enabled: !!activeCompanyId,
   });
 }
 
@@ -36,45 +45,41 @@ export function useTrades() {
  * Lightweight version for dropdowns - only id and name
  */
 export function useTradesSimple() {
+  const { activeCompanyId } = useCompany();
   return useQuery({
-    queryKey: ['trades-simple'],
+    queryKey: ['trades-simple', activeCompanyId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('trades')
-        .select('id, name')
-        .order('name');
-      
-      if (error) throw error;
-      return data;
+      if (!activeCompanyId) return [];
+      const rows = await fetchTradesWithDefaults(activeCompanyId);
+      return rows.map((t) => ({ id: t.id, name: t.name }));
     },
     staleTime: 10 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
+    retry: false,
+    enabled: !!activeCompanyId,
   });
 }
 
 export function useTradeCostCodes(tradeId?: string) {
+  const { activeCompanyId } = useCompany();
   return useQuery({
-    queryKey: ['trade-cost-codes', tradeId],
+    queryKey: ['trade-cost-codes', activeCompanyId, tradeId],
     queryFn: async () => {
-      let query = supabase
-        .from('cost_codes')
-        .select('*')
-        .eq('is_active', true)
-        .order('code');
-      
-      if (tradeId) {
-        query = query.eq('trade_id', tradeId);
-      } else {
-        query = query.not('trade_id', 'is', null);
-      }
-      
-      const { data, error } = await query;
-      if (error) throw error;
-      return data;
+      if (!activeCompanyId) return [];
+      // Canonical: trade-linked cost codes only (legacy excluded by default)
+      const rows = await fetchCostCodes(activeCompanyId, {
+        tradeId: tradeId ?? null,
+        status: 'active',
+        includeLegacy: false,
+        limit: 500,
+        offset: 0,
+      });
+      return rows;
     },
-    enabled: !!tradeId || tradeId === undefined,
+    enabled: !!activeCompanyId,
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
+    retry: false,
   });
 }
 

@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useCompany } from '@/company/CompanyProvider';
+import { getUnassignedCostCodeId } from '@/lib/costCodes';
 
 export interface ScopeBlockCostItem {
   id: string;
@@ -189,18 +190,7 @@ export function useCreateCostItem() {
       
       // If no cost_code_id provided, fetch UNASSIGNED as fallback
       if (!costCodeId) {
-        const { data: unassignedCode, error: codeError } = await supabase
-          .from('cost_codes')
-          .select('id')
-          .eq('code', 'UNASSIGNED')
-          .single();
-        
-        if (codeError) {
-          console.error('Error fetching UNASSIGNED cost code:', codeError);
-          throw new Error('Could not find UNASSIGNED cost code');
-        }
-        
-        costCodeId = unassignedCode.id;
+        costCodeId = await getUnassignedCostCodeId(activeCompanyId);
       }
       
       const { data, error } = await supabase

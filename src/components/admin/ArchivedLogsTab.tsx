@@ -12,6 +12,7 @@ import { useWorkersSimple } from '@/hooks/useWorkers';
 import { useProjectsSimple } from '@/hooks/useProjects';
 import { useTradesSimple } from '@/hooks/useTrades';
 import { getUnassignedCostCodeId } from '@/lib/costCodes';
+import { useCompany } from '@/company/CompanyProvider';
 
 interface ArchivedLog {
   id: string;
@@ -43,6 +44,7 @@ interface Trade {
 }
 
 export const ArchivedLogsTab = () => {
+  const { activeCompanyId } = useCompany();
   const [archivedLogs, setArchivedLogs] = useState<ArchivedLog[]>([]);
   const [filteredLogs, setFilteredLogs] = useState<ArchivedLog[]>([]);
   const [searchDate, setSearchDate] = useState('');
@@ -98,7 +100,15 @@ export const ArchivedLogsTab = () => {
   const handleRestore = async (log: ArchivedLog) => {
     if (!confirm('Restore this time entry back to active logs?')) return;
 
-    const unassignedId = await getUnassignedCostCodeId();
+    if (!activeCompanyId) {
+      toast({
+        title: 'Error',
+        description: 'No active company selected',
+        variant: 'destructive',
+      });
+      return;
+    }
+    const unassignedId = await getUnassignedCostCodeId(activeCompanyId);
 
     // Restore to daily_logs
     const { error: insertError } = await supabase

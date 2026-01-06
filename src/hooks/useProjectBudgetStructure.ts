@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { getUnassignedCostCodeId } from '@/lib/costCodes';
+import { useCompany } from '@/company/CompanyProvider';
 
 export type BudgetCategory = 'labor' | 'subs' | 'materials' | 'other';
 
@@ -60,6 +61,7 @@ export interface ProjectBudgetStructure {
 
 export function useProjectBudgetStructure(projectId: string | undefined) {
   const queryClient = useQueryClient();
+  const { activeCompanyId } = useCompany();
 
   const query = useQuery<ProjectBudgetStructure>({
     queryKey: ['project-budget-structure', projectId],
@@ -218,7 +220,10 @@ export function useProjectBudgetStructure(projectId: string | undefined) {
       group_id: string | null;
       line_type: BudgetCategory;
     }) => {
-      const unassignedId = await getUnassignedCostCodeId();
+      if (!activeCompanyId) {
+        throw new Error('No active company selected');
+      }
+      const unassignedId = await getUnassignedCostCodeId(activeCompanyId);
       
       const { data, error } = await supabase
         .from('project_budget_lines')

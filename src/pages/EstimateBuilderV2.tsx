@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { ArrowLeft, Plus, FileText, Check, Download, FileSpreadsheet } from "lucide-react";
 import { useCompany } from "@/company/CompanyProvider";
 import { getUnassignedCostCodeId } from "@/lib/costCodes";
+import { useCostCodeCatalog } from "@/hooks/useCostCodeCatalog";
 import { checkEstimateNeedsMigration, migrateEstimateToScopeBlocks } from "@/lib/estimateMigration";
 import { downloadCSV, downloadPDF, type EstimateExportData } from "@/lib/estimateExport";
 import {
@@ -234,22 +235,14 @@ export default function EstimateBuilderV2() {
   });
 
   // Fetch cost codes for export
-  const { data: costCodes = [] } = useQuery({
-    queryKey: ["cost-codes-map", activeCompanyId],
-    queryFn: async () => {
-      if (!activeCompanyId) return [];
-      const { data, error } = await supabase
-        .from("cost_codes")
-        .select("id, code, name")
-        .eq("company_id", activeCompanyId)
-        .eq("is_active", true)
-        .not("trade_id", "is", null);
-      if (error) throw error;
-      return data || [];
-    },
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    retry: false,
-  });
+  const { data: catalog } = useCostCodeCatalog();
+  const costCodes = useMemo(() => {
+    return (catalog?.rows ?? []).map((r) => ({
+      id: r.cost_code_id,
+      code: r.code,
+      name: r.name,
+    }));
+  }, [catalog?.rows]);
 
   // Sync local state when DB data changes
   useEffect(() => {
@@ -449,7 +442,10 @@ export default function EstimateBuilderV2() {
       
       // Execute creations
       if (toCreate.length > 0) {
-        const unassignedId = await getUnassignedCostCodeId();
+        if (!activeCompanyId) {
+          throw new Error('No active company selected');
+        }
+        const unassignedId = await getUnassignedCostCodeId(activeCompanyId);
         const insertData = toCreate.map((item, idx) => ({
           company_id: activeCompanyId || undefined, // Let trigger fill if missing
           scope_block_id: item.scope_block_id,

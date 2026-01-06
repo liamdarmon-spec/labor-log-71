@@ -34,11 +34,11 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/client';
 import { useCompany } from '@/company/CompanyProvider';
 import { Loader2, Plus, MoreHorizontal, Pencil, RefreshCw, Check, X, AlertTriangle, Info } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
+import { createTradeWithDefaults, ensureTradeDefaults, fetchTradesWithDefaults } from '@/data/catalog';
 
 // ============================================================================
 // TYPES (matches RPC return shape)
@@ -122,13 +122,7 @@ export const TradesTab = () => {
     queryKey: ['trades-with-defaults', activeCompanyId],
     queryFn: async () => {
       if (!activeCompanyId) return [];
-
-      const { data, error } = await supabase.rpc('get_trades_with_default_codes', {
-        p_company_id: activeCompanyId,
-      });
-
-      if (error) throw new Error(error.message);
-      return (data || []) as TradeWithDefaults[];
+      return await fetchTradesWithDefaults(activeCompanyId);
     },
     enabled: !!activeCompanyId,
     retry: false,
@@ -142,17 +136,13 @@ export const TradesTab = () => {
     mutationFn: async () => {
       if (!activeCompanyId) throw new Error('No company selected');
       if (!formName.trim()) throw new Error('Trade name is required');
-
-      const { data: result, error } = await supabase.rpc('create_trade_with_default_cost_codes', {
-        p_company_id: activeCompanyId,
-        p_name: formName.trim(),
-        p_description: formDescription.trim() || null,
-        p_code_prefix: formPrefix.trim() || null,
-        p_auto_generate: formAutoGenerate,
+      return await createTradeWithDefaults({
+        companyId: activeCompanyId,
+        name: formName,
+        description: formDescription,
+        codePrefix: formPrefix,
+        autoGenerate: formAutoGenerate,
       });
-
-      if (error) throw new Error(error.message || 'Database error');
-      return result;
     },
     onSuccess: () => {
       toast.success(`Trade created: ${formName}`);
@@ -194,12 +184,7 @@ export const TradesTab = () => {
 
   const regenerateDefaultsMutation = useMutation({
     mutationFn: async (tradeId: string) => {
-      const { data: result, error } = await supabase.rpc('ensure_trade_has_default_cost_codes', {
-        p_trade_id: tradeId,
-      });
-
-      if (error) throw new Error(error.message || 'Database error');
-      return result;
+      return await ensureTradeDefaults(tradeId);
     },
     onSuccess: () => {
       toast.success('Default cost codes generated');

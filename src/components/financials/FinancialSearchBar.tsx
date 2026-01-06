@@ -5,14 +5,17 @@ import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList } from '@
 import { Search } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useCompany } from '@/company/CompanyProvider';
+import { fetchCostCodeCatalog } from '@/data/costCodeCatalog';
 
 export function FinancialSearchBar() {
   const [search, setSearch] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const navigate = useNavigate();
+  const { activeCompanyId } = useCompany();
 
   const { data: results } = useQuery({
-    queryKey: ['financial-search', search],
+    queryKey: ['financial-search', activeCompanyId, search],
     queryFn: async () => {
       if (!search || search.length < 2) {
         return {
@@ -21,6 +24,10 @@ export function FinancialSearchBar() {
           materials: [],
           costCodes: [],
         };
+      }
+
+      if (!activeCompanyId) {
+        return { subs: [], invoices: [], materials: [], costCodes: [] };
       }
 
       const searches = await Promise.all([
@@ -39,21 +46,24 @@ export function FinancialSearchBar() {
           .select('id, vendor, total')
           .ilike('vendor', `%${search}%`)
           .limit(3),
-        supabase
-          .from('cost_codes')
-          .select('id, code, name')
-          .or(`code.ilike.%${search}%,name.ilike.%${search}%`)
-          .limit(3),
       ]);
+
+      const catalog = await fetchCostCodeCatalog(activeCompanyId);
+      const q = search.toLowerCase();
+      const costCodes = catalog.rows
+        .filter((r) => r.code.toLowerCase().includes(q) || r.name.toLowerCase().includes(q))
+        .slice(0, 3)
+        .map((r) => ({ id: r.cost_code_id, code: r.code, name: r.name }));
 
       return {
         subs: searches[0].data || [],
         invoices: searches[1].data || [],
         materials: searches[2].data || [],
-        costCodes: searches[3].data || [],
+        costCodes,
       };
     },
     enabled: search.length >= 2,
+    retry: false,
   });
 
   const handleSelect = (type: string, id: string) => {

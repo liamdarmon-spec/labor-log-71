@@ -9,6 +9,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
+import { useCostCodeCatalog } from '@/hooks/useCostCodeCatalog';
+import { useCompany } from '@/company/CompanyProvider';
 
 interface AddMaterialReceiptDialogProps {
   isOpen: boolean;
@@ -17,6 +19,7 @@ interface AddMaterialReceiptDialogProps {
 }
 
 export function AddMaterialReceiptDialog({ isOpen, onClose, projectId }: AddMaterialReceiptDialogProps) {
+  const { activeCompanyId } = useCompany();
   const [formData, setFormData] = useState({
     project_id: projectId || '',
     vendor: '',
@@ -40,17 +43,8 @@ export function AddMaterialReceiptDialog({ isOpen, onClose, projectId }: AddMate
     },
   });
 
-  const { data: costCodes } = useQuery({
-    queryKey: ['cost-codes'],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from('cost_codes')
-        .select('id, code, name, category')
-        .eq('is_active', true)
-        .order('code');
-      return data || [];
-    },
-  });
+  const { data: catalog } = useCostCodeCatalog();
+  const costCodes = catalog?.rows ?? [];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

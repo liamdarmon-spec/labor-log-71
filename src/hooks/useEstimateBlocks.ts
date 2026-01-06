@@ -172,7 +172,10 @@ export function useEstimateBlocks(estimateId: string | undefined) {
         .limit(1);
       
       const maxOrder = existingItems?.[0]?.sort_order ?? -1;
-      const unassignedId = await getUnassignedCostCodeId();
+      if (!activeCompanyId) {
+        throw new Error("No active company selected");
+      }
+      const unassignedId = await getUnassignedCostCodeId(activeCompanyId);
       
       const { data, error } = await supabase
         .from("scope_block_cost_items")

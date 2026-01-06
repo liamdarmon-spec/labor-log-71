@@ -1,12 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/company/CompanyProvider";
+import { fetchCostCodes, type CanonicalCostCodeCategory } from "@/data/catalog";
 
 export interface CostCode {
   id: string;
   code: string;
   name: string | null;
-  category: 'labor' | 'material' | 'sub';
+  category: CanonicalCostCodeCategory;
   trade_id: string | null;
   default_trade_id: string | null;
   is_active: boolean;
@@ -19,23 +19,16 @@ export function useCostCodes(category?: CostCode['category']) {
     queryKey: ['cost_codes', activeCompanyId, category],
     queryFn: async () => {
       if (!activeCompanyId) return [];
-      let query = supabase
-        .from('cost_codes')
-        .select('*')
-        .eq('company_id', activeCompanyId)
-        .eq('is_active', true)
-        .not('trade_id', 'is', null)
-        .neq('code', 'UNASSIGNED')
-        .order('code');
-      
-      if (category) {
-        query = query.eq('category', category);
-      }
-      
-      const { data, error } = await query;
-      
-      if (error) throw error;
-      return data as CostCode[];
+      const rows = await fetchCostCodes(activeCompanyId, {
+        status: 'active',
+        includeLegacy: false,
+        category: category ?? undefined,
+        limit: 500,
+        offset: 0,
+      });
+
+      // Canonical dropdowns must not include UNASSIGNED
+      return rows.filter((r) => r.code !== 'UNASSIGNED') as unknown as CostCode[];
     },
     staleTime: 5 * 60 * 1000, // 5 minutes - cost codes rarely change
     gcTime: 30 * 60 * 1000, // Keep in cache for 30 minutes
@@ -51,17 +44,18 @@ export function useCostCodesForSelect() {
     queryKey: ['cost-codes-select', activeCompanyId],
     queryFn: async () => {
       if (!activeCompanyId) return [];
-      const { data, error } = await supabase
-        .from('cost_codes')
-        .select('id, code, name, category')
-        .eq('company_id', activeCompanyId)
-        .eq('is_active', true)
-        .not('trade_id', 'is', null)
-        .neq('code', 'UNASSIGNED')
-        .order('code');
-      
-      if (error) throw error;
-      return data as Pick<CostCode, 'id' | 'code' | 'name' | 'category'>[];
+      const rows = await fetchCostCodes(activeCompanyId, {
+        status: 'active',
+        includeLegacy: false,
+        limit: 500,
+        offset: 0,
+      });
+      return rows
+        .filter((r) => r.code !== 'UNASSIGNED')
+        .map((r) => ({ id: r.id, code: r.code, name: r.name, category: r.category })) as Pick<
+          CostCode,
+          'id' | 'code' | 'name' | 'category'
+        >[];
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 30 * 60 * 1000, // 30 minutes
