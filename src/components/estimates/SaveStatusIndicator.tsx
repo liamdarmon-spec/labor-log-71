@@ -2,7 +2,7 @@
 // Row-level and global save status indicators
 
 import React, { memo } from "react";
-import { Check, AlertCircle, Loader2, RefreshCw } from "lucide-react";
+import { Check, AlertCircle, Loader2, RefreshCw, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { SaveStatus } from "@/hooks/useItemAutosave";
@@ -52,6 +52,25 @@ export const RowSaveIndicator = memo(function RowSaveIndicator({
           </Tooltip>
         </TooltipProvider>
       )}
+      {status === "conflict" && (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                className="flex items-center gap-1 text-amber-600 hover:text-amber-500 transition-colors"
+                onClick={onRetry}
+              >
+                <AlertTriangle className="h-3 w-3" />
+                <RefreshCw className="h-2.5 w-2.5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="max-w-xs">
+              <p className="text-xs">{error || "Conflict detected"} - Click to refresh</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      )}
     </div>
   );
 });
@@ -97,6 +116,12 @@ export const GlobalSaveStatus = memo(function GlobalSaveStatus({
         <>
           <AlertCircle className="h-3 w-3 text-destructive" />
           <span className="text-destructive">Some changes failed</span>
+        </>
+      )}
+      {status === "conflict" && (
+        <>
+          <AlertTriangle className="h-3 w-3 text-amber-500" />
+          <span className="text-amber-600 dark:text-amber-400">Conflict detected</span>
         </>
       )}
     </div>

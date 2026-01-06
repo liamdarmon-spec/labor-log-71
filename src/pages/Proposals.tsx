@@ -26,7 +26,12 @@ import {
 export default function Proposals() {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
-  const { data: proposals, isLoading } = useProposals();
+  const { data: proposals, isLoading, error } = useProposals();
+
+  // Debug: log any query errors
+  if (error) {
+    console.error('[Proposals] Query error:', error);
+  }
 
   const getStatusColor = (status: string): 'secondary' | 'default' | 'destructive' => {
     switch (status) {
@@ -41,6 +46,30 @@ export default function Proposals() {
     p.title.toLowerCase().includes(search.toLowerCase()) ||
     p.client_name?.toLowerCase().includes(search.toLowerCase())
   );
+
+  // Show error state if query failed
+  if (error) {
+    return (
+      <Layout>
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold">Proposals</h1>
+              <p className="text-muted-foreground">Manage client proposals and bids</p>
+            </div>
+          </div>
+          <Card className="p-8 text-center">
+            <FileText className="h-12 w-12 mx-auto mb-4 text-destructive opacity-50" />
+            <p className="text-lg font-medium text-destructive mb-2">Failed to load proposals</p>
+            <p className="text-sm text-muted-foreground mb-4">
+              {(error as Error)?.message || 'Unknown error'}
+            </p>
+            <Button onClick={() => window.location.reload()}>Retry</Button>
+          </Card>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>

@@ -638,7 +638,7 @@ export default function EstimateBuilderV2() {
           <p className="text-muted-foreground mb-4">
             The estimate you're looking for doesn't exist or has been deleted.
           </p>
-          <Button onClick={() => navigate("/projects")}>
+          <Button onClick={() => navigate("/app/projects")}>
             Back to Projects
           </Button>
         </div>
@@ -659,7 +659,7 @@ export default function EstimateBuilderV2() {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => safeNavigate(`/projects/${projectId}?tab=estimates`)}
+              onClick={() => safeNavigate(`/app/projects/${projectId}?tab=estimates`)}
               className="shrink-0"
             >
               <ArrowLeft className="h-4 w-4" />
