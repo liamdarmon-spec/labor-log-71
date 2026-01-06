@@ -37,9 +37,41 @@ EXCEPTION WHEN unique_violation THEN
 END $$;
 
 -- 1.4) Make company_id NOT NULL for cost_codes (tenant-scoped)
--- First backfill any NULLs with a fallback (or delete orphans)
-DELETE FROM public.cost_codes WHERE company_id IS NULL;
-ALTER TABLE public.cost_codes ALTER COLUMN company_id SET NOT NULL;
+-- Step 1: Clear FK references in trades to cost_codes that have NULL company_id
+UPDATE public.trades 
+SET default_labor_cost_code_id = NULL 
+WHERE default_labor_cost_code_id IN (SELECT id FROM public.cost_codes WHERE company_id IS NULL);
+
+UPDATE public.trades 
+SET default_material_cost_code_id = NULL 
+WHERE default_material_cost_code_id IN (SELECT id FROM public.cost_codes WHERE company_id IS NULL);
+
+UPDATE public.trades 
+SET default_sub_cost_code_id = NULL 
+WHERE default_sub_cost_code_id IN (SELECT id FROM public.cost_codes WHERE company_id IS NULL);
+
+-- Step 2: Try to backfill company_id from a default company (first company in system)
+-- This preserves cost codes instead of deleting them
+UPDATE public.cost_codes 
+SET company_id = (SELECT id FROM public.companies ORDER BY created_at LIMIT 1)
+WHERE company_id IS NULL
+  AND EXISTS (SELECT 1 FROM public.companies);
+
+-- Step 3: Delete only truly orphaned cost codes (no company exists to assign)
+DELETE FROM public.cost_codes 
+WHERE company_id IS NULL;
+
+-- Step 4: Now enforce NOT NULL
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_schema = 'public' AND table_name = 'cost_codes' 
+    AND column_name = 'company_id' AND is_nullable = 'NO'
+  ) THEN
+    ALTER TABLE public.cost_codes ALTER COLUMN company_id SET NOT NULL;
+  END IF;
+END $$;
 
 -- 1.5) Add index for common queries
 CREATE INDEX IF NOT EXISTS idx_cost_codes_company_trade 
