@@ -1,120 +1,110 @@
-### Trades → Cost Codes Verification Checklist
+# Trades + Cost Codes Verification Checklist
 
-### Apply migrations
+## System Overview
 
-Run:
+- **Trades** = Source of truth for work categories
+- **Cost Codes** = Read-only projection (derived from Trades)
+- Each Trade has exactly **3 default cost codes**: Labor, Material, Subcontractor
 
-- `supabase db reset`
-- `supabase db push --linked`
+## Verification Steps
 
-### SQL checks (run in Supabase SQL Editor)
+### 1. Create Trade with Auto-Generate
 
-- **No invalid categories**:
+1. Navigate to **Admin → Trades**
+2. Click **Add Trade**
+3. Enter trade name (e.g., "Electrical")
+4. Leave "Auto-generate Labor, Material, and Subcontractor cost codes" checked
+5. Click **Create Trade**
+6. **Expected:**
+   - Trade appears in list with Status = **Complete**
+   - Columns show: ✓ ELE-L | ✓ ELE-M | ✓ ELE-S (or similar prefix)
+
+### 2. Verify Cost Codes Page
+
+1. Navigate to **Admin → Cost Codes**
+2. **Expected:**
+   - The 3 new cost codes appear with correct trade name in Trade column
+   - Category shows: Labor, Material, Subcontractor
+   - No "Auto-Generate" button exists on this page
+
+### 3. Create Trade Without Auto-Generate
+
+1. Navigate to **Admin → Trades**
+2. Click **Add Trade**
+3. Enter trade name (e.g., "Roofing")
+4. **Uncheck** "Auto-generate Labor, Material, and Subcontractor cost codes"
+5. Click **Create Trade**
+6. **Expected:**
+   - Trade appears with Status = **Incomplete**
+   - Labor/Material/Sub columns show "Missing"
+
+### 4. Generate Defaults for Incomplete Trade
+
+1. On the incomplete trade row, click the **⋮** menu
+2. Click **Generate Defaults**
+3. Confirm the dialog
+4. **Expected:**
+   - Trade status changes to **Complete**
+   - All 3 default codes now show ✓
+
+### 5. Legacy/Unassigned Codes
+
+1. Navigate to **Admin → Cost Codes**
+2. If legacy codes exist:
+   - A yellow banner shows "X legacy/unassigned cost codes hidden"
+   - Toggle "Show legacy" to reveal them
+   - Trade column shows "Legacy" badge for these codes
+
+### 6. Filters Work
+
+1. On Cost Codes page, test:
+   - Search by code (e.g., "ELE")
+   - Filter by Trade dropdown
+   - Filter by Category dropdown
+   - Filter by Status (Active/Archived)
+
+### 7. No Stray Auto-Generate Buttons
+
+1. On Cost Codes page: **No "Auto-Generate" button exists**
+2. On Cost Codes page: **No "Add Cost Code" button exists**
+3. All cost code creation happens only through Trades page
+
+## SQL Verification Queries
+
+Run in Supabase SQL Editor:
 
 ```sql
-SELECT category, COUNT(*)
+-- 1) Check for invalid categories (should return 0)
+SELECT COUNT(*) AS invalid_categories
 FROM public.cost_codes
-GROUP BY 1
-ORDER BY 2 DESC;
-```
+WHERE category NOT IN ('labor', 'material', 'sub');
 
-Expected categories: `labor`, `material`, `sub` only.
-
-- **Category enum exists**:
-
-```sql
-SELECT t.typname
-FROM pg_type t
-JOIN pg_namespace n ON n.oid = t.typnamespace
-WHERE n.nspname = 'public' AND t.typname = 'cost_code_category';
-```
-
-- **Constraints exist**:
-
-```sql
-SELECT conname, conrelid::regclass AS table_name, pg_get_constraintdef(oid)
-FROM pg_constraint
-WHERE conrelid::regclass::text IN ('public.cost_codes','public.trades')
-ORDER BY table_name, conname;
-```
-
-Expected:
-- `cost_codes_company_id_code_key` on `(company_id, code)`
-- `cost_codes_trade_id_category_key` on `(trade_id, category)`
-
-- **Broken trades count = 0**:
-
-```sql
-SELECT t.id, t.name, t.company_id, COUNT(cc.*) AS cost_code_count
+-- 2) Check for trades with invalid code count (should return 0)
+SELECT t.id, t.name, COUNT(cc.*) AS code_count
 FROM public.trades t
 LEFT JOIN public.cost_codes cc ON cc.trade_id = t.id
-GROUP BY t.id, t.name, t.company_id
-HAVING COUNT(cc.*) NOT IN (0,3)
-ORDER BY cost_code_count DESC;
+GROUP BY t.id, t.name
+HAVING COUNT(cc.*) NOT IN (0, 3);
+
+-- 3) Check for orphaned cost codes (legacy/unassigned)
+SELECT COUNT(*) AS legacy_count
+FROM public.cost_codes
+WHERE trade_id IS NULL;
+
+-- 4) Verify RPC functions exist
+SELECT proname FROM pg_proc
+WHERE proname IN ('get_trades_with_default_codes', 'get_cost_codes_with_trades');
 ```
 
-Expected: 0 rows.
+## Performance Verification
 
-### RPC tests (run in Supabase SQL Editor as an authenticated user)
+- **Trades page:** Makes 1 RPC call (`get_trades_with_default_codes`)
+- **Cost Codes page:** Makes 1 RPC call (`get_cost_codes_with_trades`)
+- No N+1 queries
+- No per-row queries
 
-You’ll need a real company UUID you’re a member of.
+## Security Verification
 
-- **Create trade with auto-gen (should create exactly 3 codes and set defaults)**:
-
-```sql
-SELECT (public.create_trade_with_default_cost_codes(
-  '<company_id>'::uuid,
-  'Plumbing',
-  'Test trade',
-  NULL,
-  true
-)).id;
-```
-
-- **Create the same name twice (prefix collision should resolve deterministically)**:
-
-```sql
-SELECT (public.create_trade_with_default_cost_codes(
-  '<company_id>'::uuid,
-  'Plumbing',
-  'Second plumbing trade',
-  NULL,
-  true
-)).id;
-```
-
-Expected: second call succeeds with a different generated code prefix due to deterministic uniqueness logic.
-
-- **Tenant isolation (must fail with ERRCODE 42501)**:
-
-```sql
-SELECT public.create_trade_with_default_cost_codes(
-  '<other_company_id>'::uuid,
-  'Illegal Trade',
-  NULL,
-  NULL,
-  true
-);
-```
-
-Expected: error `not a member of company ...` with SQLSTATE `42501`.
-
-### UI verification
-
-- **Trades page**:
-  - Create Trade modal checkbox “Auto-generate Labor, Material, and Subcontractor cost codes”.
-  - Submit calls **only** `create_trade_with_default_cost_codes` once.
-  - Error toast shows exact Postgres message (includes constraint name when relevant).
-
-- **Cost Codes page**:
-  - Read-only list with filters/search.
-  - No auto-generate button.
-  - No create/edit/archive actions.
-
-### Lint
-
-Run:
-
-- `supabase db lint --linked`
-
-
+- All queries filtered by `activeCompanyId`
+- RPCs validate company membership via `is_company_member()`
+- Cost Codes page is completely read-only (no write operations)

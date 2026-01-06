@@ -1,17 +1,18 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useCompany } from '@/company/CompanyProvider';
-import { Search, Info, ArrowRight } from 'lucide-react';
+import { Search, Info, ArrowRight, AlertTriangle } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 
 // ============================================================================
-// TYPES
+// TYPES (matches RPC return shape)
 // ============================================================================
 
 type CostCodeCategory = 'labor' | 'material' | 'sub';
@@ -22,29 +23,23 @@ const CATEGORY_LABEL: Record<CostCodeCategory, string> = {
   sub: 'Subcontractor',
 };
 
-type TradeRow = {
+type CostCodeWithTrade = {
   id: string;
-  name: string;
-  company_id: string;
-};
-
-type CostCodeRow = {
-  id: string;
-  company_id: string;
-  trade_id: string | null;
   code: string;
   name: string;
   category: CostCodeCategory;
   is_active: boolean;
-  created_at: string;
+  trade_id: string | null;
+  trade_name: string | null;
+  is_legacy: boolean;
 };
 
 // ============================================================================
-// COST CODES TAB (READ-ONLY)
+// COST CODES TAB (READ-ONLY PROJECTION)
 // ============================================================================
 
 /**
- * Cost Code Library (Read-Only)
+ * Cost Code Library (Read-Only Projection)
  *
  * This page displays cost codes for visibility, filtering, and education.
  * Cost codes are generated from Trades — this page cannot create or modify them.
@@ -57,39 +52,71 @@ type CostCodeRow = {
 export const CostCodesTab = () => {
   const { activeCompanyId } = useCompany();
 
-  const [loading, setLoading] = useState(true);
-  const [trades, setTrades] = useState<TradeRow[]>([]);
-  const [costCodes, setCostCodes] = useState<CostCodeRow[]>([]);
-
   // Filters
   const [search, setSearch] = useState('');
   const [tradeFilter, setTradeFilter] = useState<string>('all');
-  const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<'active' | 'archived' | 'all'>('active');
+  const [showLegacy, setShowLegacy] = useState(false);
 
-  const tradeById = useMemo(() => {
-    const map = new Map<string, TradeRow>();
-    for (const t of trades) map.set(t.id, t);
-    return map;
-  }, [trades]);
+  // ============================================================================
+  // DATA FETCHING (SINGLE QUERY VIA RPC)
+  // ============================================================================
 
+  const { data: costCodes = [], isLoading, error } = useQuery({
+    queryKey: ['cost-codes-with-trades', activeCompanyId],
+    queryFn: async () => {
+      if (!activeCompanyId) return [];
+
+      const { data, error } = await supabase.rpc('get_cost_codes_with_trades', {
+        p_company_id: activeCompanyId,
+      });
+
+      if (error) throw new Error(error.message);
+      return (data || []) as CostCodeWithTrade[];
+    },
+    enabled: !!activeCompanyId,
+  });
+
+  // Build unique trades list for filter dropdown
+  const uniqueTrades = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const cc of costCodes) {
+      if (cc.trade_id && cc.trade_name) {
+        map.set(cc.trade_id, cc.trade_name);
+      }
+    }
+    return Array.from(map.entries())
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [costCodes]);
+
+  // Count legacy codes
+  const legacyCount = useMemo(() => costCodes.filter((cc) => cc.is_legacy).length, [costCodes]);
+
+  // Apply filters
   const filteredCodes = useMemo(() => {
     let rows = [...costCodes];
+
+    // Legacy filter (default: hide legacy)
+    if (!showLegacy) {
+      rows = rows.filter((r) => !r.is_legacy);
+    }
 
     // Status filter
     if (statusFilter !== 'all') {
       rows = rows.filter((r) => (statusFilter === 'active' ? r.is_active : !r.is_active));
     }
 
-    // Type filter
-    if (typeFilter !== 'all') {
-      rows = rows.filter((r) => r.category === typeFilter);
+    // Category filter
+    if (categoryFilter !== 'all') {
+      rows = rows.filter((r) => r.category === categoryFilter);
     }
 
     // Trade filter
     if (tradeFilter !== 'all') {
       if (tradeFilter === 'unassigned') {
-        rows = rows.filter((r) => !r.trade_id);
+        rows = rows.filter((r) => r.is_legacy);
       } else {
         rows = rows.filter((r) => r.trade_id === tradeFilter);
       }
@@ -99,47 +126,16 @@ export const CostCodesTab = () => {
     const q = search.trim().toLowerCase();
     if (q) {
       rows = rows.filter((r) => {
-        const t = r.trade_id ? tradeById.get(r.trade_id) : null;
-        const hay = `${r.code} ${r.name} ${r.category} ${t?.name ?? ''}`.toLowerCase();
+        const hay = `${r.code} ${r.name} ${r.category} ${r.trade_name ?? ''}`.toLowerCase();
         return hay.includes(q);
       });
     }
 
     return rows;
-  }, [costCodes, search, statusFilter, typeFilter, tradeFilter, tradeById]);
-
-  useEffect(() => {
-    const load = async () => {
-      if (!activeCompanyId) return;
-      setLoading(true);
-      try {
-        const [tradesRes, codesRes] = await Promise.all([
-          supabase.from('trades').select('id, name, company_id').eq('company_id', activeCompanyId).order('name'),
-          supabase
-            .from('cost_codes')
-            .select('id, company_id, trade_id, code, name, category, is_active, created_at')
-            .eq('company_id', activeCompanyId)
-            .order('code'),
-        ]);
-
-        if (tradesRes.error) throw tradesRes.error;
-        if (codesRes.error) throw codesRes.error;
-
-        setTrades((tradesRes.data || []) as TradeRow[]);
-        setCostCodes((codesRes.data || []) as unknown as CostCodeRow[]);
-      } catch (err: any) {
-        console.error('CostCodesTab load error:', err);
-        toast.error(err?.message ?? 'Failed to load cost codes');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    void load();
-  }, [activeCompanyId]);
+  }, [costCodes, search, statusFilter, categoryFilter, tradeFilter, showLegacy]);
 
   // ============================================================================
-  // EMPTY / LOADING STATES
+  // EMPTY / LOADING / ERROR STATES
   // ============================================================================
 
   if (!activeCompanyId) {
@@ -156,6 +152,18 @@ export const CostCodesTab = () => {
     );
   }
 
+  if (error) {
+    return (
+      <Card>
+        <CardContent className="py-16 text-center">
+          <AlertTriangle className="w-10 h-10 mx-auto text-destructive mb-3" />
+          <h3 className="text-lg font-medium">Failed to load cost codes</h3>
+          <p className="text-sm text-muted-foreground mt-1">{(error as Error).message}</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   // ============================================================================
   // MAIN RENDER
   // ============================================================================
@@ -165,13 +173,31 @@ export const CostCodesTab = () => {
       <CardHeader className="border-b">
         <CardTitle className="text-xl">Cost Codes</CardTitle>
         <CardDescription className="max-w-xl">
-          A read-only view of all cost codes in your company. Cost codes are generated from Trades.
+          Read-only list of all cost codes generated from Trades. Manage defaults in the <span className="font-medium">Trades</span> tab.
         </CardDescription>
       </CardHeader>
 
       <CardContent className="pt-6 space-y-4">
+        {/* Legacy codes notice */}
+        {legacyCount > 0 && !showLegacy && (
+          <div className="flex items-center justify-between p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-sm">
+            <div className="flex items-center gap-2">
+              <Info className="w-4 h-4" />
+              <span>
+                <strong>{legacyCount}</strong> legacy/unassigned cost codes hidden.
+              </span>
+            </div>
+            <button
+              onClick={() => setShowLegacy(true)}
+              className="text-amber-700 hover:text-amber-900 underline underline-offset-2 text-sm"
+            >
+              Show
+            </button>
+          </div>
+        )}
+
         {/* Filters */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
+        <div className="grid grid-cols-1 md:grid-cols-6 gap-3 items-end">
           <div className="md:col-span-2 space-y-1">
             <Label className="text-xs text-muted-foreground">Search</Label>
             <div className="relative">
@@ -193,8 +219,8 @@ export const CostCodesTab = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All trades</SelectItem>
-                <SelectItem value="unassigned">Unassigned</SelectItem>
-                {trades.map((t) => (
+                <SelectItem value="unassigned">Legacy / Unassigned</SelectItem>
+                {uniqueTrades.map((t) => (
                   <SelectItem key={t.id} value={t.id}>
                     {t.name}
                   </SelectItem>
@@ -205,7 +231,7 @@ export const CostCodesTab = () => {
 
           <div className="space-y-1">
             <Label className="text-xs text-muted-foreground">Category</Label>
-            <Select value={typeFilter} onValueChange={setTypeFilter}>
+            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -220,7 +246,7 @@ export const CostCodesTab = () => {
 
           <div className="space-y-1">
             <Label className="text-xs text-muted-foreground">Status</Label>
-            <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
+            <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as 'active' | 'archived' | 'all')}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -231,6 +257,17 @@ export const CostCodesTab = () => {
               </SelectContent>
             </Select>
           </div>
+
+          <div className="flex items-center gap-2 pb-1">
+            <Switch
+              id="show-legacy"
+              checked={showLegacy}
+              onCheckedChange={setShowLegacy}
+            />
+            <Label htmlFor="show-legacy" className="text-xs text-muted-foreground cursor-pointer">
+              Show legacy
+            </Label>
+          </div>
         </div>
 
         {/* Table */}
@@ -240,13 +277,13 @@ export const CostCodesTab = () => {
               <TableRow className="bg-muted/40">
                 <TableHead className="w-[120px]">Code</TableHead>
                 <TableHead>Name</TableHead>
-                <TableHead className="w-[120px]">Category</TableHead>
+                <TableHead className="w-[130px]">Category</TableHead>
                 <TableHead className="w-[180px]">Trade</TableHead>
                 <TableHead className="w-[100px]">Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {loading ? (
+              {isLoading ? (
                 <TableRow>
                   <TableCell colSpan={5} className="py-16 text-center text-muted-foreground">
                     Loading…
@@ -278,37 +315,36 @@ export const CostCodesTab = () => {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredCodes.map((row) => {
-                  const trade = row.trade_id ? tradeById.get(row.trade_id) : null;
-                  return (
-                    <TableRow key={row.id}>
-                      <TableCell className="font-mono font-medium">{row.code}</TableCell>
-                      <TableCell>{row.name}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{CATEGORY_LABEL[row.category]}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        {trade ? (
-                          <span className="text-muted-foreground">{trade.name}</span>
-                        ) : (
-                          <span className="text-muted-foreground/50">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={row.is_active ? 'default' : 'secondary'}>
-                          {row.is_active ? 'Active' : 'Archived'}
+                filteredCodes.map((row) => (
+                  <TableRow key={row.id}>
+                    <TableCell className="font-mono font-medium">{row.code}</TableCell>
+                    <TableCell>{row.name}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{CATEGORY_LABEL[row.category] || row.category}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      {row.trade_name ? (
+                        <span className="text-muted-foreground">{row.trade_name}</span>
+                      ) : (
+                        <Badge variant="secondary" className="text-xs">
+                          Legacy
                         </Badge>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={row.is_active ? 'default' : 'secondary'}>
+                        {row.is_active ? 'Active' : 'Archived'}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))
               )}
             </TableBody>
           </Table>
         </div>
 
         {/* Lineage education footer */}
-        {!loading && costCodes.length > 0 && (
+        {!isLoading && costCodes.length > 0 && (
           <div className="text-xs text-muted-foreground text-center pt-2">
             Cost codes are derived from Trades. Edit trades in the <span className="font-medium">Trades</span> tab to
             modify defaults.
