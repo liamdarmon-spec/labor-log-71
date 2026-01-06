@@ -13,10 +13,15 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Plus, Search, FileText, Eye, Calendar, DollarSign } from 'lucide-react';
+import { Plus, Search, FileText, Eye, Calendar, DollarSign, FolderOpen } from 'lucide-react';
 import { useProposals } from '@/hooks/useProposals';
 import { format } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 export default function Proposals() {
   const navigate = useNavigate();
@@ -46,10 +51,17 @@ export default function Proposals() {
             <h1 className="text-3xl font-bold">Proposals</h1>
             <p className="text-muted-foreground">Manage client proposals and bids</p>
           </div>
-          <Button onClick={() => navigate('/proposals/new')}>
-            <Plus className="h-4 w-4 mr-2" />
-            New Proposal
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button onClick={() => navigate('/app/projects')}>
+                <FolderOpen className="h-4 w-4 mr-2" />
+                Create from Project
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Proposals are created from within a project's Proposals tab</p>
+            </TooltipContent>
+          </Tooltip>
         </div>
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -160,7 +172,7 @@ export default function Proposals() {
                   <TableRow
                     key={proposal.id}
                     className="cursor-pointer hover:bg-muted/50"
-                    onClick={() => navigate(`/proposals/${proposal.id}`)}
+                    onClick={() => navigate(`/app/proposals/${proposal.id}`)}
                   >
                     <TableCell className="font-medium">{proposal.title}</TableCell>
                     <TableCell>{proposal.client_name || '-'}</TableCell>
@@ -187,7 +199,7 @@ export default function Proposals() {
                         size="sm"
                         onClick={(e) => {
                           e.stopPropagation();
-                          navigate(`/proposals/${proposal.id}`);
+                          navigate(`/app/proposals/${proposal.id}`);
                         }}
                       >
                         <Eye className="h-4 w-4" />

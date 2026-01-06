@@ -58,64 +58,64 @@ export const Layout = ({ children, hideNav = false }: LayoutProps) => {
             <CompanySwitcher />
             <nav className="hidden lg:flex items-center gap-2">
             <Button
-              variant={location.pathname === '/projects' || location.pathname.startsWith('/projects/') ? 'default' : 'ghost'}
+              variant={location.pathname === '/app/projects' || location.pathname.startsWith('/app/projects/') ? 'default' : 'ghost'}
               size="sm"
-              onClick={() => navigate('/projects')}
-              className={`gap-2 h-9 ${location.pathname === '/projects' || location.pathname.startsWith('/projects/') ? 'font-semibold' : ''}`}
+              onClick={() => navigate('/app/projects')}
+              className={`gap-2 h-9 ${location.pathname === '/app/projects' || location.pathname.startsWith('/app/projects/') ? 'font-semibold' : ''}`}
             >
               <Building2 className="w-4 h-4" />
               <span>Projects</span>
             </Button>
             <Button
-              variant={location.pathname === '/tasks' ? 'default' : 'ghost'}
+              variant={location.pathname === '/app/tasks' ? 'default' : 'ghost'}
               size="sm"
-              onClick={() => navigate('/tasks')}
-              className={`gap-2 h-9 ${location.pathname === '/tasks' ? 'font-semibold' : ''}`}
+              onClick={() => navigate('/app/tasks')}
+              className={`gap-2 h-9 ${location.pathname === '/app/tasks' ? 'font-semibold' : ''}`}
             >
               <CheckSquare className="w-4 h-4" />
               <span>Tasks</span>
             </Button>
             <Button
-              variant={location.pathname === '/schedule' ? 'default' : 'ghost'}
+              variant={location.pathname === '/app/schedule' ? 'default' : 'ghost'}
               size="sm"
-              onClick={() => navigate('/schedule')}
-              className={`gap-2 h-9 ${location.pathname === '/schedule' ? 'font-semibold' : ''}`}
+              onClick={() => navigate('/app/schedule')}
+              className={`gap-2 h-9 ${location.pathname === '/app/schedule' ? 'font-semibold' : ''}`}
             >
               <CalendarDays className="w-4 h-4" />
               <span>Schedule</span>
             </Button>
             <Button
-              variant={location.pathname.startsWith('/workforce') ? 'default' : 'ghost'}
+              variant={location.pathname.startsWith('/app/workforce') ? 'default' : 'ghost'}
               size="sm"
-              onClick={() => navigate('/workforce')}
-              className={`gap-2 h-9 ${location.pathname.startsWith('/workforce') ? 'font-semibold' : ''}`}
+              onClick={() => navigate('/app/workforce')}
+              className={`gap-2 h-9 ${location.pathname.startsWith('/app/workforce') ? 'font-semibold' : ''}`}
             >
               <Users className="w-4 h-4" />
               <span>Workforce</span>
             </Button>
             <Button
-              variant={location.pathname.startsWith('/financials') ? 'default' : 'ghost'}
+              variant={location.pathname.startsWith('/app/financials') ? 'default' : 'ghost'}
               size="sm"
-              onClick={() => navigate('/financials')}
-              className={`gap-2 h-9 ${location.pathname.startsWith('/financials') ? 'font-semibold' : ''}`}
+              onClick={() => navigate('/app/financials')}
+              className={`gap-2 h-9 ${location.pathname.startsWith('/app/financials') ? 'font-semibold' : ''}`}
             >
               <DollarSign className="w-4 h-4" />
               <span>Financials</span>
             </Button>
             <Button
-              variant={location.pathname.startsWith('/proposals') ? 'default' : 'ghost'}
+              variant={location.pathname.startsWith('/app/proposals') ? 'default' : 'ghost'}
               size="sm"
-              onClick={() => navigate('/proposals')}
-              className={`gap-2 h-9 ${location.pathname.startsWith('/proposals') ? 'font-semibold' : ''}`}
+              onClick={() => navigate('/app/proposals')}
+              className={`gap-2 h-9 ${location.pathname.startsWith('/app/proposals') ? 'font-semibold' : ''}`}
             >
               <CalendarClock className="w-4 h-4" />
               <span>Proposals</span>
             </Button>
             <Button
-              variant={location.pathname === '/admin' ? 'default' : 'ghost'}
+              variant={location.pathname === '/app/admin' ? 'default' : 'ghost'}
               size="sm"
-              onClick={() => navigate('/admin')}
-              className={`gap-2 h-9 ${location.pathname === '/admin' ? 'font-semibold' : ''}`}
+              onClick={() => navigate('/app/admin')}
+              className={`gap-2 h-9 ${location.pathname === '/app/admin' ? 'font-semibold' : ''}`}
             >
               <Settings className="w-4 h-4" />
               <span>Admin</span>

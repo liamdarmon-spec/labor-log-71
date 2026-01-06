@@ -119,11 +119,11 @@ export default function ProposalBuilderV2() {
   // Navigate back
   const handleBack = () => {
     if (projectId) {
-      navigate(`/projects/${projectId}?tab=proposals`);
+      navigate(`/app/projects/${projectId}?tab=proposals`);
     } else if (proposal?.project_id) {
-      navigate(`/projects/${proposal.project_id}?tab=proposals`);
+      navigate(`/app/projects/${proposal.project_id}?tab=proposals`);
     } else {
-      navigate('/proposals');
+      navigate('/app/proposals');
     }
   };
 
