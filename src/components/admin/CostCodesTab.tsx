@@ -15,13 +15,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { useCompany } from '@/company/CompanyProvider';
 import { Plus, Pencil, Archive, Search, Info } from 'lucide-react';
 
-type CostCodeCategory = 'labor' | 'materials' | 'subs' | 'other';
+// CANONICAL categories - must match cost_codes_category_check constraint
+type CostCodeCategory = 'labor' | 'material' | 'sub';
 
 const CATEGORIES: Array<{ value: CostCodeCategory; label: string }> = [
   { value: 'labor', label: 'Labor' },
-  { value: 'materials', label: 'Materials' },
-  { value: 'subs', label: 'Subcontractor' },
-  { value: 'other', label: 'Other' },
+  { value: 'material', label: 'Material' },
+  { value: 'sub', label: 'Subcontractor' },
 ];
 
 type CompanyTrade = {
@@ -70,7 +70,7 @@ export const CostCodesTab = () => {
     is_active: true,
     company_trade_id: 'unassigned' as string, // trade id or 'unassigned'
     set_as_default: false,
-    default_kind: 'labor' as CostCodeCategory, // only labor/materials/subs
+    default_kind: 'labor' as CostCodeCategory, // only labor/material/sub (canonical)
   });
 
   const tradeById = useMemo(() => {
@@ -169,7 +169,7 @@ export const CostCodesTab = () => {
       is_active: row.is_active,
       company_trade_id: row.company_trade_id ?? 'unassigned',
       set_as_default: false,
-      default_kind: row.category === 'materials' ? 'materials' : row.category === 'subs' ? 'subs' : 'labor',
+      default_kind: row.category === 'material' ? 'material' : row.category === 'sub' ? 'sub' : 'labor',
     });
     setDialogOpen(true);
   };
@@ -197,7 +197,7 @@ export const CostCodesTab = () => {
         if (error) throw error;
 
         // Optional: set as default
-        if (company_trade_id && form.set_as_default && (form.default_kind === 'labor' || form.default_kind === 'materials' || form.default_kind === 'subs')) {
+        if (company_trade_id && form.set_as_default && (form.default_kind === 'labor' || form.default_kind === 'material' || form.default_kind === 'sub')) {
           const { data, error: setErr } = await supabase.rpc('set_company_trade_default_cost_code', {
             p_company_trade_id: company_trade_id,
             p_default_kind: form.default_kind,
@@ -224,7 +224,7 @@ export const CostCodesTab = () => {
         const newId = (data as any).id as string;
 
         // Optional: set as default
-        if (company_trade_id && form.set_as_default && (form.default_kind === 'labor' || form.default_kind === 'materials' || form.default_kind === 'subs')) {
+        if (company_trade_id && form.set_as_default && (form.default_kind === 'labor' || form.default_kind === 'material' || form.default_kind === 'sub')) {
           const { data: setData, error: setErr } = await supabase.rpc('set_company_trade_default_cost_code', {
             p_company_trade_id: company_trade_id,
             p_default_kind: form.default_kind,
@@ -368,7 +368,7 @@ export const CostCodesTab = () => {
                     <span className="text-sm">Active</span>
                   </div>
 
-                  {form.company_trade_id !== 'unassigned' && (form.category === 'labor' || form.category === 'materials' || form.category === 'subs') && (
+                  {form.company_trade_id !== 'unassigned' && (form.category === 'labor' || form.category === 'material' || form.category === 'sub') && (
                     <div className="rounded-md border p-3 space-y-2">
                       <div className="flex items-center justify-between">
                         <div className="text-sm font-medium">Trade Defaults</div>
@@ -392,8 +392,8 @@ export const CostCodesTab = () => {
                     </SelectTrigger>
                     <SelectContent>
                               <SelectItem value="labor">Labor</SelectItem>
-                              <SelectItem value="materials">Materials</SelectItem>
-                              <SelectItem value="subs">Subcontractor</SelectItem>
+                              <SelectItem value="material">Material</SelectItem>
+                              <SelectItem value="sub">Subcontractor</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

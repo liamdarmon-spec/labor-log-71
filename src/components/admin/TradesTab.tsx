@@ -141,36 +141,57 @@ export const TradesTab = () => {
     },
   });
 
-  // Create trade mutation
+  // Create trade mutation - uses atomic RPC that creates trade + cost codes in one transaction
   const createTradeMutation = useMutation({
     mutationFn: async () => {
       if (!activeCompanyId || !newTradeName.trim()) throw new Error('Company and name required');
       
-      const { data, error } = await supabase.rpc('create_company_trade', {
+      // Use canonical atomic RPC: create_trade_with_default_cost_codes
+      const { data, error } = await supabase.rpc('create_trade_with_default_cost_codes', {
         p_company_id: activeCompanyId,
         p_name: newTradeName.trim(),
         p_description: newTradeDescription.trim() || null,
         p_code_prefix: newTradePrefix.trim() || null,
-        p_generate_defaults: generateDefaults,
-        p_mode: 'LMS'
+        p_auto_generate: generateDefaults
       });
       
-      if (error) throw error;
-      return data as { success: boolean; trade_id: string; codes_created: number; error?: string };
+      if (error) {
+        // Surface exact constraint violation to user
+        throw new Error(error.message || 'Database error');
+      }
+      return data as { 
+        success: boolean; 
+        trade_id: string; 
+        trade_name: string;
+        code_prefix: string;
+        auto_generated: boolean;
+        labor_code_id?: string;
+        material_code_id?: string;
+        sub_code_id?: string;
+        labor_code?: string;
+        material_code?: string;
+        sub_code?: string;
+      };
     },
     onSuccess: (result) => {
       if (result.success) {
-        toast.success(`Created trade with ${result.codes_created} cost codes`);
+        const codesCreated = result.auto_generated ? 3 : 0;
+        toast.success(
+          result.auto_generated 
+            ? `Created "${result.trade_name}" with ${codesCreated} cost codes (${result.labor_code}, ${result.material_code}, ${result.sub_code})`
+            : `Created "${result.trade_name}" trade (no cost codes generated)`
+        );
         setIsAddTradeOpen(false);
         resetAddForm();
         queryClient.invalidateQueries({ queryKey: ['company-trades'] });
         queryClient.invalidateQueries({ queryKey: ['costCodes'] });
       } else {
-        toast.error(result.error || 'Failed to create trade');
+        toast.error('Failed to create trade');
       }
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'Failed to create trade');
+      // Show exact error message from constraint violation
+      toast.error(`Failed to create trade: ${error.message}`);
     },
   });
 
