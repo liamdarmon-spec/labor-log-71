@@ -39,54 +39,54 @@ const Admin = () => {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-12 h-auto gap-1 p-1 bg-muted/50">
-            <TabsTrigger value="users" className="gap-1 sm:gap-2 py-2 sm:py-3 text-xs sm:text-sm flex-col sm:flex-row">
-              <UserCog className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              <span className="text-[10px] sm:text-sm">Users</span>
+          <TabsList className="inline-flex w-full h-auto gap-1 p-1 bg-muted/50 overflow-x-auto">
+            <TabsTrigger value="users" className="gap-2 px-3 py-2 text-sm whitespace-nowrap">
+              <UserCog className="w-4 h-4" />
+              <span>Users</span>
             </TabsTrigger>
-            <TabsTrigger value="workers" className="gap-1 sm:gap-2 py-2 sm:py-3 text-xs sm:text-sm flex-col sm:flex-row">
-              <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              <span className="text-[10px] sm:text-sm">Workers</span>
+            <TabsTrigger value="workers" className="gap-2 px-3 py-2 text-sm whitespace-nowrap">
+              <Users className="w-4 h-4" />
+              <span>Workers</span>
             </TabsTrigger>
-            <TabsTrigger value="subs" className="gap-1 sm:gap-2 py-2 sm:py-3 text-xs sm:text-sm flex-col sm:flex-row">
-              <Building2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              <span className="text-[10px] sm:text-sm">Subs</span>
+            <TabsTrigger value="subs" className="gap-2 px-3 py-2 text-sm whitespace-nowrap">
+              <Building2 className="w-4 h-4" />
+              <span>Subs</span>
             </TabsTrigger>
-            <TabsTrigger value="vendors" className="gap-1 sm:gap-2 py-2 sm:py-3 text-xs sm:text-sm flex-col sm:flex-row">
-              <Package className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              <span className="text-[10px] sm:text-sm">Vendors</span>
+            <TabsTrigger value="vendors" className="gap-2 px-3 py-2 text-sm whitespace-nowrap">
+              <Package className="w-4 h-4" />
+              <span>Vendors</span>
             </TabsTrigger>
-            <TabsTrigger value="trades" className="gap-1 sm:gap-2 py-2 sm:py-3 text-xs sm:text-sm flex-col sm:flex-row">
-              <Wrench className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              <span className="text-[10px] sm:text-sm">Trades &amp; Defaults</span>
+            <TabsTrigger value="trades" className="gap-2 px-3 py-2 text-sm whitespace-nowrap">
+              <Wrench className="w-4 h-4" />
+              <span>Trades</span>
             </TabsTrigger>
-            <TabsTrigger value="costcodes" className="gap-1 sm:gap-2 py-2 sm:py-3 text-xs sm:text-sm flex-col sm:flex-row">
-              <Hash className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              <span className="text-[10px] sm:text-sm">Cost Code Library</span>
+            <TabsTrigger value="costcodes" className="gap-2 px-3 py-2 text-sm whitespace-nowrap">
+              <Hash className="w-4 h-4" />
+              <span>Cost Codes</span>
             </TabsTrigger>
-            <TabsTrigger value="projects" className="gap-1 sm:gap-2 py-2 sm:py-3 text-xs sm:text-sm flex-col sm:flex-row">
-              <Briefcase className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              <span className="text-[10px] sm:text-sm">Projects</span>
+            <TabsTrigger value="projects" className="gap-2 px-3 py-2 text-sm whitespace-nowrap">
+              <Briefcase className="w-4 h-4" />
+              <span>Projects</span>
             </TabsTrigger>
-            <TabsTrigger value="logs" className="gap-1 sm:gap-2 py-2 sm:py-3 text-xs sm:text-sm flex-col sm:flex-row">
-              <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              <span className="text-[10px] sm:text-sm">Logs</span>
+            <TabsTrigger value="logs" className="gap-2 px-3 py-2 text-sm whitespace-nowrap">
+              <FileText className="w-4 h-4" />
+              <span>Logs</span>
             </TabsTrigger>
-            <TabsTrigger value="archived" className="gap-1 sm:gap-2 py-2 sm:py-3 text-xs sm:text-sm flex-col sm:flex-row">
-              <Archive className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              <span className="text-[10px] sm:text-sm">Archive</span>
+            <TabsTrigger value="archived" className="gap-2 px-3 py-2 text-sm whitespace-nowrap">
+              <Archive className="w-4 h-4" />
+              <span>Archive</span>
             </TabsTrigger>
-            <TabsTrigger value="documents" className="gap-1 sm:gap-2 py-2 sm:py-3 text-xs sm:text-sm flex-col sm:flex-row">
-              <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              <span className="text-[10px] sm:text-sm">Docs</span>
+            <TabsTrigger value="documents" className="gap-2 px-3 py-2 text-sm whitespace-nowrap">
+              <FileText className="w-4 h-4" />
+              <span>Docs</span>
             </TabsTrigger>
-            <TabsTrigger value="reports" className="gap-1 sm:gap-2 py-2 sm:py-3 text-xs sm:text-sm flex-col sm:flex-row">
-              <BarChart3 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              <span className="text-[10px] sm:text-sm">Reports</span>
+            <TabsTrigger value="reports" className="gap-2 px-3 py-2 text-sm whitespace-nowrap">
+              <BarChart3 className="w-4 h-4" />
+              <span>Reports</span>
             </TabsTrigger>
-            <TabsTrigger value="settings" className="gap-1 sm:gap-2 py-2 sm:py-3 text-xs sm:text-sm flex-col sm:flex-row">
-              <Settings className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              <span className="text-[10px] sm:text-sm">Settings</span>
+            <TabsTrigger value="settings" className="gap-2 px-3 py-2 text-sm whitespace-nowrap">
+              <Settings className="w-4 h-4" />
+              <span>Settings</span>
             </TabsTrigger>
           </TabsList>
 
