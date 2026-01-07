@@ -59,6 +59,7 @@ export interface AreaSummary {
 
 export interface ProposalData {
   id: string;
+  company_id: string;
   project_id: string;
   primary_estimate_id: string | null;
   title: string;
@@ -121,18 +122,18 @@ const defaultSettings: ProposalSettings = {
 export function useProposalData(proposalId: string | undefined) {
   const { activeCompanyId } = useCompany();
   return useQuery({
-    queryKey: ['proposal-data', activeCompanyId, proposalId],
+    // activeCompanyId is not required for read access (RLS via authed_company_ids()).
+    queryKey: ['proposal-data', proposalId],
     queryFn: async (): Promise<ProposalData | null> => {
-      if (!proposalId || !activeCompanyId) return null;
+      if (!proposalId) return null;
 
-      // Fetch proposal with project - company-scoped for RLS
+      // Fetch proposal with project (RLS-scoped)
       const { data: proposal, error: proposalError } = await supabase
         .from('proposals')
         .select(`
           *,
           projects (id, project_name, client_name, address)
         `)
-        .eq('company_id', activeCompanyId)
         .eq('id', proposalId)
         .single();
 
@@ -217,6 +218,7 @@ export function useProposalData(proposalId: string | undefined) {
 
       return {
         id: proposal.id,
+        company_id: proposal.company_id,
         project_id: proposal.project_id,
         primary_estimate_id: proposal.primary_estimate_id,
         title: proposal.title,

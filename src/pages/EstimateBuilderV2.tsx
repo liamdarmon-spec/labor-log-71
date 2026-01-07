@@ -43,6 +43,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { useItemAutosave } from "@/hooks/useItemAutosave";
 type BatchUpsertItemUpdate = {
   id: string;
   category?: string;
@@ -229,7 +230,7 @@ export default function EstimateBuilderV2() {
   const [localBlocks, setLocalBlocks] = useState<EstimateEditorBlock[]>([]);
   const [isMigrating, setIsMigrating] = useState(false);
   const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
-  const [isDirty, setIsDirty] = useState(false);
+  const [isDirtyStructural, setIsDirtyStructural] = useState(false);
   const [isSavingManual, setIsSavingManual] = useState(false);
   const [saveError, setSaveError] = useState<SaveErrorPayload>(null);
   const [saveWarning, setSaveWarning] = useState<SaveWarningPayload>(null);
@@ -239,10 +240,26 @@ export default function EstimateBuilderV2() {
   const [lastSaveErrorSummary, setLastSaveErrorSummary] = useState<string | null>(null);
   const postSaveExpectedIdsRef = useRef<{ blocks: Set<string>; items: Set<string> } | null>(null);
 
+  // Autosave for existing rows only (field edits)
+  const autosave = useItemAutosave(estimateId);
+  const autosaveDiag = useMemo(() => autosave.getDiagnostics(), [autosave]);
+  const hasUnsavedChanges =
+    isDirtyStructural ||
+    isSavingManual ||
+    autosave.hasPendingChanges() ||
+    autosave.hasErrors() ||
+    saveError != null;
+
   // Browser beforeunload handler
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (isDirty || isSavingManual) {
+      if (hasUnsavedChanges) {
+        // Best-effort flush (cannot await)
+        try {
+          void autosave.flushPendingSaves();
+        } catch {
+          // noop
+        }
         e.preventDefault();
         e.returnValue = "";
         return "";
@@ -251,16 +268,36 @@ export default function EstimateBuilderV2() {
 
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [isDirty, isSavingManual]);
+  }, [hasUnsavedChanges, autosave]);
+
+  // Best-effort flush on blur/visibility change
+  useEffect(() => {
+    const onBlur = () => {
+      try {
+        void autosave.flushPendingSaves();
+      } catch {
+        // noop
+      }
+    };
+    const onVis = () => {
+      if (document.visibilityState === "hidden") onBlur();
+    };
+    window.addEventListener("blur", onBlur);
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      window.removeEventListener("blur", onBlur);
+      document.removeEventListener("visibilitychange", onVis);
+    };
+  }, [autosave]);
 
   // Safe navigation function that checks for unsaved changes
   const safeNavigate = useCallback((path: string) => {
-    if (isDirty || isSavingManual) {
+    if (hasUnsavedChanges) {
       setPendingNavigation(path);
     } else {
       navigate(path);
     }
-  }, [isDirty, isSavingManual, navigate]);
+  }, [hasUnsavedChanges, navigate]);
 
   const confirmNavigation = useCallback(async () => {
     if (pendingNavigation) {
@@ -349,7 +386,12 @@ export default function EstimateBuilderV2() {
     if (scopeBlocks.length > 0) {
       // Block server sync while local edits are dirty or a manual save is in-flight.
       // This prevents typed text from being overwritten by a refetch.
-      const blockServerSync = isDirty || isSavingManual || saveError != null;
+      const blockServerSync =
+        isDirtyStructural ||
+        isSavingManual ||
+        autosave.hasPendingChanges() ||
+        autosave.hasErrors() ||
+        saveError != null;
       
       if (blockServerSync) {
         // Don't overwrite local edits with stale server data
@@ -371,13 +413,13 @@ export default function EstimateBuilderV2() {
       existingItemsRef.current = newMap;
       existingIdsRef.current = newIds;
     }
-  }, [scopeBlocks, isDirty, isSavingManual, saveError]);
+  }, [scopeBlocks, isDirtyStructural, isSavingManual, saveError, autosave]);
 
   // Post-save integrity guardrails: after a successful save + refetch, verify server matches what we saved.
   useEffect(() => {
     const expected = postSaveExpectedIdsRef.current;
     if (!expected) return;
-    if (isDirty || isSavingManual) return;
+    if (isDirtyStructural || isSavingManual) return;
     if (scopeBlocks.length === 0) return;
 
     const serverBlocks = new Set(scopeBlocks.map((b) => b.id));
@@ -403,7 +445,7 @@ export default function EstimateBuilderV2() {
     }
 
     postSaveExpectedIdsRef.current = null;
-  }, [scopeBlocks, isDirty, isSavingManual]);
+  }, [scopeBlocks, isDirtyStructural, isSavingManual]);
 
   // Auto-create first scope block if none exist
   const createFirstBlock = useMutation({
@@ -695,6 +737,8 @@ export default function EstimateBuilderV2() {
       setIsErrorDismissed(false);
       setLastSaveErrorSummary(null);
       setLastSaveAt(new Date().toISOString());
+      autosave.reset();
+      setIsDirtyStructural(false);
 
       const expectedBlockIds = new Set(blocks.map((b) => b.block.id));
       const expectedItemIds = new Set<string>();
@@ -711,7 +755,7 @@ export default function EstimateBuilderV2() {
       existingIdsRef.current = newIds;
       existingItemsRef.current = newMap;
 
-      setIsDirty(false);
+      // Manual save is source-of-truth; clear structural dirty only on success.
       toast.success("Saved");
 
       // Refetch exactly once after success
@@ -732,15 +776,50 @@ export default function EstimateBuilderV2() {
     } finally {
       setIsSavingManual(false);
     }
-  }, [estimateId, estimate?.company_id, isSavingManual, localBlocks, queryClient]);
+  }, [estimateId, estimate?.company_id, isSavingManual, localBlocks, queryClient, autosave]);
 
-  // Handle blocks change (manual save only)
+  // Surface autosave errors in the same persistent panel (no silent failures)
+  useEffect(() => {
+    const global = autosave.getGlobalStatus();
+    if (global !== "error" && global !== "conflict") return;
+
+    const diag = autosave.getDiagnostics();
+    const failures = (diag.lastBatchResults || []).filter((r: any) => !r?.success);
+    const msg =
+      diag.lastBatchError ||
+      (failures.length > 0 ? failures[0]?.error || "Autosave failed" : "Autosave failed");
+
+    setSaveError({
+      title: "Save failed",
+      message: String(msg || "Autosave failed"),
+      extra: {
+        source: "autosave",
+        failures: failures.slice(0, 25),
+      },
+    });
+    setLastSaveErrorSummary(String(msg || "Autosave failed"));
+    setIsErrorDismissed(false);
+  }, [autosave]);
+
+  // Handle blocks change: detect structural changes (create/delete) and mark structural dirty.
   const handleBlocksChange = useCallback((newBlocks: EstimateEditorBlock[]) => {
     setLocalBlocks(newBlocks);
-    setIsDirty(true);
+
+    const currentIds = new Set<string>();
+    newBlocks.forEach((b) => b.items.forEach((item) => currentIds.add(item.id)));
+
+    const existingIds = existingIdsRef.current;
+    const hasCreateDelete =
+      currentIds.size !== existingIds.size ||
+      [...currentIds].some((id) => !existingIds.has(id)) ||
+      [...existingIds].some((id) => !currentIds.has(id));
+
+    if (hasCreateDelete) {
+      setIsDirtyStructural(true);
+    }
   }, []);
 
-  // Handle individual item update (manual save only)
+  // Handle individual item update: autosave existing rows only (field edits).
   const handleItemUpdate = useCallback((itemId: string, patch: Partial<ScopeItem>) => {
     // Update local state immediately
     setLocalBlocks(prev => prev.map(block => ({
@@ -749,10 +828,16 @@ export default function EstimateBuilderV2() {
         item.id === itemId ? { ...item, ...patch } : item
       )
     })));
-    setIsDirty(true);
-  }, []);
+    const existsOnServer = existingIdsRef.current.has(itemId);
+    if (existsOnServer) {
+      autosave.queueUpdate({ id: itemId, ...patch } as any);
+    } else {
+      // New row not yet inserted: requires manual save
+      setIsDirtyStructural(true);
+    }
+  }, [autosave]);
 
-  // Handle immediate item update (manual save only)
+  // Handle immediate item update (dropdowns): autosave existing rows only.
   const handleItemUpdateImmediate = useCallback((itemId: string, patch: Partial<ScopeItem>) => {
     // Update local state immediately
     setLocalBlocks(prev => prev.map(block => ({
@@ -761,8 +846,13 @@ export default function EstimateBuilderV2() {
         item.id === itemId ? { ...item, ...patch } : item
       )
     })));
-    setIsDirty(true);
-  }, []);
+    const existsOnServer = existingIdsRef.current.has(itemId);
+    if (existsOnServer) {
+      autosave.saveImmediate({ id: itemId, ...patch } as any);
+    } else {
+      setIsDirtyStructural(true);
+    }
+  }, [autosave]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -863,7 +953,8 @@ export default function EstimateBuilderV2() {
   const projectId = estimate.projects?.id;
   const projectName = estimate.projects?.project_name;
   const isBudgetSourceLocked = estimate.is_budget_source === true;
-  const combinedGlobalStatus = isSavingManual ? "saving" : isDirty ? "dirty" : "idle";
+  const combinedGlobalStatus =
+    isSavingManual ? "saving" : isDirtyStructural || autosave.hasPendingChanges() || autosave.hasErrors() ? "dirty" : "idle";
 
   return (
     <Layout>
@@ -995,7 +1086,7 @@ export default function EstimateBuilderV2() {
               onClick={async () => {
                 await saveNow();
               }}
-              disabled={!isDirty || isSavingManual}
+              disabled={isSavingManual || (!isDirtyStructural && !autosave.hasPendingChanges() && !autosave.hasErrors())}
             >
               <Check className="h-4 w-4 mr-1.5" />
               <span className="hidden sm:inline">Save now</span>
@@ -1043,14 +1134,17 @@ export default function EstimateBuilderV2() {
         {import.meta.env.DEV && (
           <details className="text-xs opacity-70 bg-muted/50 rounded p-2 border">
             <summary className="cursor-pointer font-mono">
-              save: {combinedGlobalStatus} | dirty: {isDirty ? "yes" : "no"} | saving: {isSavingManual ? "yes" : "no"} | error: {saveError ? "yes" : "no"}
+              save: {combinedGlobalStatus} | structuralDirty: {isDirtyStructural ? "yes" : "no"} | autosave: {autosave.getGlobalStatus()} | saving: {isSavingManual ? "yes" : "no"} | error: {saveError ? "yes" : "no"}
             </summary>
             <div className="mt-2 space-y-1">
               <pre className="max-h-40 overflow-auto text-[10px]">
                 {JSON.stringify(
                   {
                     status: combinedGlobalStatus,
-                    isDirty,
+                    isDirtyStructural,
+                    autosaveGlobalStatus: autosave.getGlobalStatus(),
+                    autosavePendingCount: autosaveDiag.pendingCount,
+                    autosaveLastBatchError: autosaveDiag.lastBatchError,
                     isSavingManual,
                     lastSaveAt,
                     lastSaveErrorSummary,
@@ -1062,7 +1156,17 @@ export default function EstimateBuilderV2() {
               </pre>
               <button
                 className="text-[10px] underline"
-                onClick={() => console.log("Manual save diagnostics:", { isDirty, isSavingManual, lastSaveAt, lastSaveErrorSummary, saveError, localBlocks })}
+                onClick={() =>
+                  console.log("Save diagnostics:", {
+                    isDirtyStructural,
+                    isSavingManual,
+                    autosave: autosave.getDiagnostics(),
+                    lastSaveAt,
+                    lastSaveErrorSummary,
+                    saveError,
+                    localBlocks,
+                  })
+                }
               >
                 Dump save diagnostics
               </button>

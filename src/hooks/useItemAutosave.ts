@@ -41,7 +41,6 @@ interface BatchResult {
   success: boolean;
   error?: string;
   updated_at?: string;
-  line_total?: number;
   server_updated_at?: string;
 }
 
@@ -64,6 +63,10 @@ export function useItemAutosave(estimateId: string | undefined) {
   
   // Track updated_at for optimistic locking
   const lastKnownUpdates = useRef<Map<string, string>>(new Map());
+
+  // DEV / diagnostics
+  const lastBatchResultsRef = useRef<BatchResult[] | null>(null);
+  const lastBatchErrorRef = useRef<string | null>(null);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -97,11 +100,10 @@ export function useItemAutosave(estimateId: string | undefined) {
       lastKnownUpdates.current.set(id, updatedAt);
     }
 
-    setRowState(id, { 
-      status: "saved", 
-      lastSaved: new Date(), 
+    setRowState(id, {
+      status: "saved",
+      lastSaved: new Date(),
       error: undefined,
-      retryCount: 0 
     });
 
     const timer = setTimeout(() => {
@@ -113,22 +115,27 @@ export function useItemAutosave(estimateId: string | undefined) {
   }, [setRowState]);
 
   // Batch flush - saves all pending updates in a single RPC call
+  // CRITICAL: Failed edits are RESTORED to pendingUpdates so they are never lost.
   const flushBatch = useCallback(async () => {
     if (isFlushing.current || pendingUpdates.current.size === 0) return;
     
     isFlushing.current = true;
     
-    // Collect all pending updates
+    // Collect all pending updates and create snapshot map for restoration
     const updates = Array.from(pendingUpdates.current.values());
-    const itemIds = updates.map(u => u.id);
-    
-    // Clear pending (we have a copy)
+    const updatesById = new Map<string, ItemUpdate>();
+    updates.forEach((u) => updatesById.set(u.id, u));
+    const itemIds = updates.map((u) => u.id);
+
+    // Clear pending (we have a snapshot to restore from on failure)
     pendingUpdates.current.clear();
     
     // Mark all as saving
     itemIds.forEach(id => setRowState(id, { status: "saving", error: undefined }));
     
     try {
+      lastBatchErrorRef.current = null;
+
       // Add expected_updated_at for optimistic locking
       const itemsWithLocking = updates.map(update => ({
         ...update,
@@ -143,19 +150,31 @@ export function useItemAutosave(estimateId: string | undefined) {
       if (error) throw error;
       
       const results: BatchResult[] = data || [];
+      lastBatchResultsRef.current = results;
+
+      let failureCount = 0;
       
       // Process results
       results.forEach((result) => {
         if (result.success) {
+          // Only clear saved state on explicit success
           clearSavedState(result.id, result.updated_at);
-        } else if (result.error === 'CONFLICT') {
-          // Optimistic locking conflict
-          setRowState(result.id, { 
-            status: "conflict", 
+          return;
+        }
+
+        // RESTORE the client edit so it can't be lost
+        const original = updatesById.get(result.id);
+        if (original) {
+          pendingUpdates.current.set(result.id, original);
+        }
+        failureCount++;
+
+        if (result.error === 'CONFLICT') {
+          setRowState(result.id, {
+            status: "conflict",
             error: "Another user modified this row",
-            serverUpdatedAt: result.server_updated_at
+            serverUpdatedAt: result.server_updated_at,
           });
-          toast.warning("Conflict detected - another user modified this item");
         } else {
           setRowState(result.id, {
             status: "error",
@@ -163,33 +182,46 @@ export function useItemAutosave(estimateId: string | undefined) {
           });
         }
       });
-      
-      // Light invalidation - don't force refetch
-      if (estimateId) {
-        queryClient.invalidateQueries({ 
-          queryKey: ["scope-blocks", "estimate", estimateId],
-          refetchType: "none"
-        });
+
+      // If server returned nothing for some ids, treat as failure + restore
+      const returnedIds = new Set(results.map((r) => r.id));
+      updatesById.forEach((u, id) => {
+        if (!returnedIds.has(id)) {
+          failureCount++;
+          pendingUpdates.current.set(id, u);
+          setRowState(id, { status: "error", error: "No response from server for this row" });
+        }
+      });
+
+      // Single consolidated error toast if failures
+      if (failureCount > 0) {
+        toast.error(`Save failed (${failureCount}) — your edits are kept locally`);
       }
+      
+      // IMPORTANT: do not invalidate/refetch here; local UI is source of truth.
       
     } catch (error) {
       console.error("Batch save error:", error);
+      const msg = error instanceof Error ? error.message : String(error);
+      lastBatchErrorRef.current = msg || "Network error";
+      lastBatchResultsRef.current = null;
+
+      // RESTORE ALL pending edits (critical)
+      updatesById.forEach((u, id) => pendingUpdates.current.set(id, u));
+
       // Mark all as error
-      itemIds.forEach(id => {
-        setRowState(id, { 
-          status: "error", 
-          error: (error as Error).message || "Network error" 
-        });
+      itemIds.forEach((id) => {
+        setRowState(id, { status: "error", error: msg || "Network error" });
       });
+
+      toast.error(`Save failed — your edits are kept locally`);
     } finally {
       isFlushing.current = false;
-      
-      // If more updates accumulated during flush, schedule another
-      if (pendingUpdates.current.size > 0) {
-        scheduleBatchFlush();
-      }
+
+      // NOTE: Do NOT auto-schedule another flush on failures.
+      // User must change again or click retry.
     }
-  }, [estimateId, queryClient, setRowState, clearSavedState, rowStates]);
+  }, [setRowState, clearSavedState]);
 
   // Schedule a batch flush with micro-batching window
   const scheduleBatchFlush = useCallback(() => {
@@ -253,6 +285,14 @@ export function useItemAutosave(estimateId: string | undefined) {
   const retrySave = useCallback((id: string, currentValues: ItemUpdate) => {
     setRowState(id, { status: "dirty", error: undefined });
     pendingUpdates.current.set(id, { ...currentValues, id });
+    scheduleBatchFlush();
+  }, [setRowState, scheduleBatchFlush]);
+
+  const retryAll = useCallback((rows: Array<{ id: string; values: ItemUpdate }>) => {
+    rows.forEach(({ id, values }) => {
+      setRowState(id, { status: "dirty", error: undefined });
+      pendingUpdates.current.set(id, { ...values, id });
+    });
     scheduleBatchFlush();
   }, [setRowState, scheduleBatchFlush]);
 
@@ -343,10 +383,36 @@ export function useItemAutosave(estimateId: string | undefined) {
     if (batchFlushTimer.current) clearTimeout(batchFlushTimer.current);
   }, []);
 
+  const reset = useCallback(() => {
+    debounceTimers.current.forEach((timer) => clearTimeout(timer));
+    debounceTimers.current.clear();
+    savedTimers.current.forEach((timer) => clearTimeout(timer));
+    savedTimers.current.clear();
+    if (batchFlushTimer.current) {
+      clearTimeout(batchFlushTimer.current);
+      batchFlushTimer.current = null;
+    }
+    pendingUpdates.current.clear();
+    lastBatchResultsRef.current = null;
+    lastBatchErrorRef.current = null;
+    setRowStates(new Map());
+  }, []);
+
+  const getDiagnostics = useCallback(() => ({
+    pendingCount: pendingUpdates.current.size,
+    pendingUpdates: Array.from(pendingUpdates.current.values()),
+    rowStates: Array.from(rowStates.entries()).map(([id, s]) => ({ id, ...s })),
+    isFlushing: isFlushing.current,
+    lastKnownUpdates: Array.from(lastKnownUpdates.current.entries()).map(([id, ts]) => ({ id, ts })),
+    lastBatchResults: lastBatchResultsRef.current,
+    lastBatchError: lastBatchErrorRef.current,
+  }), [rowStates]);
+
   return {
     queueUpdate,
     saveImmediate,
     retrySave,
+    retryAll,
     acceptServerVersion,
     forceLocalVersion,
     flushPendingSaves,
@@ -355,6 +421,8 @@ export function useItemAutosave(estimateId: string | undefined) {
     hasErrors,
     getGlobalStatus,
     cleanup,
+    reset,
     isSaving: isFlushing.current,
+    getDiagnostics,
   };
 }

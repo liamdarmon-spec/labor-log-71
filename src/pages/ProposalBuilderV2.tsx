@@ -28,6 +28,17 @@ import { useProposalAutosave } from '@/hooks/useProposalAutosave';
 
 type SaveStatus = 'saved' | 'saving' | 'dirty' | 'error';
 
+type SaveErrorPayload =
+  | {
+      title: string;
+      message: string;
+      details?: string | null;
+      hint?: string | null;
+      code?: string | null;
+      extra?: any;
+    }
+  | null;
+
 function isUuid(v: string | undefined): boolean {
   if (!v) return false;
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
@@ -43,6 +54,11 @@ export default function ProposalBuilderV2() {
   const { activeCompanyId } = useCompany();
   const { data: proposal, isLoading, error } = useProposalData(proposalId);
   const refreshFromEstimate = useRefreshProposalFromEstimate();
+
+  const [saveError, setSaveError] = useState<SaveErrorPayload>(null);
+  const [isErrorDismissed, setIsErrorDismissed] = useState(false);
+  const [lastSaveAt, setLastSaveAt] = useState<string | null>(null);
+  const [lastSaveErrorSummary, setLastSaveErrorSummary] = useState<string | null>(null);
 
   // Local draft state (source of truth for autosave payload)
   const [draftTitle, setDraftTitle] = useState<string>('');
@@ -65,8 +81,9 @@ export default function ProposalBuilderV2() {
     };
   }, [draftTitle, draftIntro, draftSettings, proposal?.settings]);
 
+  const autosaveCompanyId = proposal?.company_id ?? activeCompanyId ?? null;
   const autosave = useProposalAutosave({
-    companyId: activeCompanyId,
+    companyId: autosaveCompanyId,
     proposalId: proposalId || '',
     projectId: proposal?.project_id || projectId || '',
     getSnapshot: () => snapshot,
@@ -78,6 +95,50 @@ export default function ProposalBuilderV2() {
   });
 
   const [showPDFPreview, setShowPDFPreview] = useState(false);
+
+  const hasUnsavedChanges = autosave.status === 'dirty' || autosave.status === 'saving' || autosave.status === 'error';
+
+  // Best-effort flush on blur / beforeunload
+  useEffect(() => {
+    const onBlur = () => {
+      try {
+        void autosave.saveNow();
+      } catch {
+        // noop
+      }
+    };
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (!hasUnsavedChanges) return;
+      onBlur();
+      e.preventDefault();
+      e.returnValue = '';
+      return '';
+    };
+    window.addEventListener('blur', onBlur);
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => {
+      window.removeEventListener('blur', onBlur);
+      window.removeEventListener('beforeunload', onBeforeUnload);
+    };
+  }, [autosave, hasUnsavedChanges]);
+
+  // Mirror autosave errors into a persistent, copyable panel
+  useEffect(() => {
+    if (autosave.status !== 'error') return;
+    const msg = autosave.errorMessage ?? 'Save failed';
+    setSaveError({ title: 'Save failed', message: msg, extra: { source: 'autosave' } });
+    setLastSaveErrorSummary(msg);
+    setIsErrorDismissed(false);
+  }, [autosave.status, autosave.errorMessage]);
+
+  // Clear error panel on confirmed successful save
+  useEffect(() => {
+    if (autosave.status !== 'saved') return;
+    setSaveError(null);
+    setIsErrorDismissed(false);
+    setLastSaveErrorSummary(null);
+    setLastSaveAt(new Date().toISOString());
+  }, [autosave.status]);
 
   // Update field with debounce
   const handleFieldChange = useCallback(
@@ -189,6 +250,53 @@ export default function ProposalBuilderV2() {
 
   return (
     <Layout hideNav>
+      {/* Bottom-right save error surface (persistent, copyable) */}
+      {saveError && !isErrorDismissed && (
+        <div className="fixed bottom-4 right-4 z-[9999] max-w-md rounded-lg border bg-background p-3 shadow-lg">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-sm font-medium text-destructive">{saveError.title}</div>
+              <div className="mt-1 text-xs text-muted-foreground break-words">{saveError.message}</div>
+              {(saveError.details || saveError.hint || saveError.code) && (
+                <pre className="mt-2 max-h-40 overflow-auto text-[10px] whitespace-pre-wrap opacity-80">
+                  {JSON.stringify(
+                    {
+                      details: saveError.details ?? null,
+                      hint: saveError.hint ?? null,
+                      code: saveError.code ?? null,
+                    },
+                    null,
+                    2
+                  )}
+                </pre>
+              )}
+            </div>
+            <div className="flex flex-col gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(JSON.stringify(saveError, null, 2));
+                  } catch {
+                    // noop
+                  }
+                }}
+                className="h-7 px-2"
+              >
+                Copy error
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => autosave.retry()} className="h-7 px-2">
+                Retry
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => setIsErrorDismissed(true)} className="h-7 px-2">
+                Dismiss
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Top Bar */}
       <div className="border-b bg-background sticky top-0 z-10">
         <div className="flex items-center justify-between px-4 py-3 gap-4">
@@ -260,6 +368,33 @@ export default function ProposalBuilderV2() {
 
             <Separator orientation="vertical" className="h-6" />
 
+            {/* Manual Save Now (source-of-truth action) */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={async () => {
+                // Preflight: ensure we have companyId + ids (server enforces too, but fail loud here)
+                if (!proposalId) {
+                  setSaveError({ title: 'Save failed', message: 'Missing proposalId' });
+                  setIsErrorDismissed(false);
+                  setLastSaveErrorSummary('Missing proposalId');
+                  return;
+                }
+                if (!autosaveCompanyId) {
+                  setSaveError({ title: 'Save failed', message: 'Missing company_id (cannot save)' });
+                  setIsErrorDismissed(false);
+                  setLastSaveErrorSummary('Missing company_id');
+                  return;
+                }
+                await autosave.saveNow();
+              }}
+              disabled={autosave.status === 'saving'}
+              title="Manual save (source of truth)"
+            >
+              <Check className="h-4 w-4 mr-1.5" />
+              Save now
+            </Button>
+
             {proposal.primary_estimate_id && (
               <Button
                 variant="ghost"
@@ -287,6 +422,29 @@ export default function ProposalBuilderV2() {
           </div>
         </div>
       </div>
+
+      {/* DEV-only autosave diagnostics */}
+      {import.meta.env.DEV && (
+        <details className="text-xs opacity-70 bg-muted/50 rounded p-2 border m-4">
+          <summary className="cursor-pointer font-mono">
+            autosave: {autosave.status} | lastSaveAt: {lastSaveAt ? 'yes' : 'no'} | lastErr: {lastSaveErrorSummary ? 'yes' : 'no'}
+          </summary>
+          <pre className="mt-2 max-h-40 overflow-auto text-[10px]">
+            {JSON.stringify(
+              {
+                autosaveStatus: autosave.status,
+                autosaveErrorMessage: autosave.errorMessage,
+                hasUnsavedChanges,
+                lastSaveAt,
+                lastSaveErrorSummary,
+                autosaveCompanyId,
+              },
+              null,
+              2
+            )}
+          </pre>
+        </details>
+      )}
 
       {/* 3-Column Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 p-6 max-w-[1600px] mx-auto">
