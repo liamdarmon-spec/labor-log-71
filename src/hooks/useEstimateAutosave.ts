@@ -49,7 +49,11 @@ export function useEstimateAutosave<TPayload>(opts: Options<TPayload>) {
   useEffect(() => clearTimer, []);
 
   const saveNow = useCallback(async () => {
-    if (!canSave) return;
+    if (!canSave) {
+      setStatus('error');
+      setErrorMessage('Cannot save: missing company_id / estimateId / projectId');
+      return;
+    }
     if (inFlightRef.current) return;
 
     const payload = getSnapshot();
@@ -104,7 +108,11 @@ export function useEstimateAutosave<TPayload>(opts: Options<TPayload>) {
   }, [canSave, companyId, estimateId, projectId, getSnapshot, onServerAck]);
 
   const markDirtyAndSchedule = useCallback(() => {
-    if (!canSave) return;
+    if (!canSave) {
+      setStatus('error');
+      setErrorMessage('Cannot autosave: missing company_id / estimateId / projectId');
+      return;
+    }
 
     const payload = getSnapshot();
     const hash = stableHash(payload);

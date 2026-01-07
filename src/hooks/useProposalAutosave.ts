@@ -57,7 +57,11 @@ export function useProposalAutosave<TPayload>(opts: Options<TPayload>) {
   useEffect(() => clearTimer, []);
 
   const saveNow = useCallback(async () => {
-    if (!canSave) return;
+    if (!canSave) {
+      setStatus('error');
+      setErrorMessage('Cannot save: missing company_id / proposalId / projectId');
+      return;
+    }
     if (inFlightRef.current) return;
 
     const payload = getSnapshot();
@@ -122,7 +126,12 @@ export function useProposalAutosave<TPayload>(opts: Options<TPayload>) {
   }, [canSave, companyId, proposalId, projectId, getSnapshot, onServerAck]);
 
   const markDirtyAndSchedule = useCallback(() => {
-    if (!canSave) return;
+    if (!canSave) {
+      // Fail loud: user is editing but we cannot persist.
+      setStatus('error');
+      setErrorMessage('Cannot autosave: missing company_id / proposalId / projectId');
+      return;
+    }
 
     const payload = getSnapshot();
     const hash = stableHash(payload);

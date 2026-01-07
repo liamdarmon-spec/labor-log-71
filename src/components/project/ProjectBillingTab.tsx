@@ -361,6 +361,7 @@ export function ProjectBillingTab({ projectId }: ProjectBillingTabProps) {
         changeOrders={approvedCOs}
         formatCurrency={formatCurrency}
         hasBaseline={hasBaseline}
+        isCreating={createInvoice.isPending}
         onCreate={async (params) => {
           try {
             await createInvoice.mutateAsync({ projectId, ...params });
@@ -368,7 +369,6 @@ export function ProjectBillingTab({ projectId }: ProjectBillingTabProps) {
           } catch (err: any) {
             // Hook already toasts; keep dialog open for visible failure state.
             console.error('Invoice create failed:', err);
-            toast.error(err?.message || 'Failed to create invoice');
           }
         }}
       />
@@ -844,7 +844,7 @@ function EmptyState({ icon, title, description }: { icon: React.ReactNode; title
 // Every invoice must have a source - no free-form billing
 // ============================================================
 
-function InvoiceCreationDialog({ open, onOpenChange, projectId, billingBasis, billingLines, changeOrders, formatCurrency, hasBaseline, onCreate }: {
+function InvoiceCreationDialog({ open, onOpenChange, projectId, billingBasis, billingLines, changeOrders, formatCurrency, hasBaseline, isCreating, onCreate }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   projectId: string;
@@ -853,6 +853,7 @@ function InvoiceCreationDialog({ open, onOpenChange, projectId, billingBasis, bi
   changeOrders: any[];
   formatCurrency: (v: number) => string;
   hasBaseline: boolean;
+  isCreating: boolean;
   onCreate: (params: {
     sourceType: 'milestone' | 'sov_period' | 'change_order' | 'deposit' | 'manual';
     sourceId?: string;
@@ -899,6 +900,7 @@ function InvoiceCreationDialog({ open, onOpenChange, projectId, billingBasis, bi
   const handleCreate = async () => {
     setError(null);
     try {
+      if (isCreating) return;
       if (invoiceType === 'standalone') {
         if (!amount || amount <= 0) throw new Error('Amount is required');
         await onCreate({ sourceType: 'manual', amount, notes: notes || undefined });
@@ -1136,8 +1138,12 @@ function InvoiceCreationDialog({ open, onOpenChange, projectId, billingBasis, bi
           )}
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={handleCreate}>Create Invoice</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isCreating}>
+            Cancel
+          </Button>
+          <Button onClick={handleCreate} disabled={isCreating}>
+            {isCreating ? 'Creating…' : 'Create Invoice'}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
