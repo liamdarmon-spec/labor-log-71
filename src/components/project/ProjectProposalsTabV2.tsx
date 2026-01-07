@@ -142,7 +142,7 @@ export function ProjectProposalsTabV2({ projectId }: ProjectProposalsTabV2Props)
                             <DropdownMenuItem
                               onClick={() =>
                                 navigate(
-                                  `/projects/${projectId}/proposals/${proposal.id}`
+                                  `/app/projects/${projectId}/proposals/${proposal.id}`
                                 )
                               }
                             >
@@ -199,7 +199,7 @@ export function ProjectProposalsTabV2({ projectId }: ProjectProposalsTabV2Props)
         onOpenChange={setCreateDialogOpen}
         onSuccess={(id) => {
           setCreateDialogOpen(false);
-          navigate(`/projects/${projectId}/proposals/${id}`);
+          navigate(`/app/projects/${projectId}/proposals/${id}`);
         }}
       />
     </div>

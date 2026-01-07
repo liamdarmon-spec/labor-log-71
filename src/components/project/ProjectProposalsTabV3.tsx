@@ -191,7 +191,7 @@ export function ProjectProposalsTabV3({ projectId }: ProjectProposalsTabV3Props)
                         <Button
                           size="sm"
                           variant="ghost"
-                          onClick={() => navigate(`/projects/${projectId}/proposals/${proposal.id}`)}
+                          onClick={() => navigate(`/app/projects/${projectId}/proposals/${proposal.id}`)}
                           title="Edit Proposal"
                         >
                           <Eye className="h-4 w-4" />
@@ -242,7 +242,7 @@ export function ProjectProposalsTabV3({ projectId }: ProjectProposalsTabV3Props)
         projectId={projectId}
         onSuccess={(proposalId) => {
           refetch();
-          navigate(`/projects/${projectId}/proposals/${proposalId}`);
+          navigate(`/app/projects/${projectId}/proposals/${proposalId}`);
         }}
       />
     </>

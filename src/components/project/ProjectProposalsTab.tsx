@@ -218,7 +218,7 @@ export function ProjectProposalsTab({ projectId }: ProjectProposalsTabProps) {
                   <TableRow
                     key={proposal.id}
                     className="cursor-pointer hover:bg-muted/50"
-                    onClick={() => navigate(`/projects/${projectId}/proposals/${proposal.id}`)}
+                    onClick={() => navigate(`/app/projects/${projectId}/proposals/${proposal.id}`)}
                   >
                     <TableCell className="font-medium">{proposal.title}</TableCell>
                     <TableCell>
@@ -241,7 +241,7 @@ export function ProjectProposalsTab({ projectId }: ProjectProposalsTabProps) {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => navigate(`/projects/${projectId}/proposals/${proposal.id}`)}
+                          onClick={() => navigate(`/app/projects/${projectId}/proposals/${proposal.id}`)}
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
@@ -278,7 +278,7 @@ export function ProjectProposalsTab({ projectId }: ProjectProposalsTabProps) {
         onSuccess={(proposalId) => {
           fetchProposals();
           setCreateDialogOpen(false);
-          navigate(`/projects/${projectId}/proposals/${proposalId}`);
+          navigate(`/app/projects/${projectId}/proposals/${proposalId}`);
         }}
       />
     </div>
