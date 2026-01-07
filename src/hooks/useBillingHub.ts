@@ -210,7 +210,6 @@ export function useChangeOrders(projectId: string) {
 
 export function useCreateChangeOrder() {
   const queryClient = useQueryClient();
-  const { activeCompanyId } = useCompany();
 
   return useMutation({
     mutationFn: async (co: {
@@ -221,15 +220,12 @@ export function useCreateChangeOrder() {
       tax_amount?: number;
       total_amount?: number;
     }) => {
-      if (!activeCompanyId) throw new Error('No active company selected');
-
       const { data, error } = await supabase
         .from('change_orders')
         .insert({
           project_id: co.project_id,
           title: co.title,
           description: co.description ?? null,
-          company_id: activeCompanyId,
           status: 'draft',
           subtotal_amount: co.subtotal_amount ?? 0,
           tax_amount: co.tax_amount ?? 0,

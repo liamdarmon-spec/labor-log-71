@@ -15,6 +15,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -63,7 +64,9 @@ import {
   useInvoices,
   useCustomerPayments,
   useCreateCustomerPayment,
+  useCreateInvoiceFromSource,
 } from '@/hooks/useBillingHub';
+import { toast } from 'sonner';
 
 interface ProjectBillingTabProps {
   projectId: string;
@@ -83,13 +86,14 @@ export function ProjectBillingTab({ projectId }: ProjectBillingTabProps) {
 
   // Mutations (ONLY payment recording allowed on this page)
   const createPayment = useCreateCustomerPayment();
+  const createInvoice = useCreateInvoiceFromSource();
 
   // UI State
   const hasBaseline = summary?.has_contract_baseline ?? false;
   const billingBasis = summary?.billing_basis as 'payment_schedule' | 'sov' | null;
 
   const getDefaultTab = () => {
-    if (!hasBaseline) return 'setup';
+    if (!hasBaseline) return 'summary';
     if (billingBasis === 'sov') return 'sov';
     return 'milestones';
   };
@@ -138,9 +142,8 @@ export function ProjectBillingTab({ projectId }: ProjectBillingTabProps) {
   // ============================================================
   // STATE A: No Contract Baseline
   // ============================================================
-  if (!hasBaseline) {
-    return <NoBaselineState projectId={projectId} />;
-  }
+  // NOTE: Standalone invoices must still be allowed without a baseline, so we
+  // render the full shell even when baseline is missing.
 
   // ============================================================
   // STATE B & C: Has Baseline (Billing Active)
@@ -156,15 +159,45 @@ export function ProjectBillingTab({ projectId }: ProjectBillingTabProps) {
           <div className="flex items-center gap-2 px-4 py-2 bg-muted rounded-lg">
             <Lock className="w-4 h-4 text-muted-foreground" />
             <span className="text-sm font-medium">
-              Billing Basis: {billingBasis === 'sov' ? 'Schedule of Values' : 'Payment Schedule'}
+              Billing Basis:{' '}
+              {!hasBaseline || !billingBasis
+                ? 'Not set'
+                : billingBasis === 'sov'
+                  ? 'Schedule of Values'
+                  : 'Payment Schedule'}
             </span>
-            <Badge variant="secondary" className="text-xs">Locked</Badge>
+            {hasBaseline && <Badge variant="secondary" className="text-xs">Locked</Badge>}
           </div>
         </div>
         <Button onClick={() => setInvoiceDialogOpen(true)}>
           <Plus className="w-4 h-4 mr-2" /> Create Invoice
         </Button>
       </div>
+
+      {!hasBaseline && (
+        <div className="rounded-xl border-2 border-dashed border-orange-300 bg-orange-50 dark:border-orange-800 dark:bg-orange-950/20 p-6">
+          <div className="flex items-start gap-4">
+            <div className="rounded-full bg-orange-100 dark:bg-orange-900 p-3">
+              <AlertCircle className="w-6 h-6 text-orange-600" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-orange-900 dark:text-orange-100 text-lg">
+                Contract baseline not created yet
+              </h3>
+              <p className="text-orange-700 dark:text-orange-300 mt-2 text-sm">
+                Progress/SOV billing requires a contract baseline. You can still create a standalone invoice now.
+              </p>
+              <div className="mt-4 flex gap-2">
+                <Link to={`/app/projects/${projectId}`}>
+                  <Button variant="outline" size="sm">
+                    View Proposals <ArrowRight className="w-4 h-4 ml-2" />
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* KPI Cards - ALL from canonical function */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -201,11 +234,11 @@ export function ProjectBillingTab({ projectId }: ProjectBillingTabProps) {
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="w-full justify-start bg-muted/50 p-1">
           <TabsTrigger value="summary">Summary</TabsTrigger>
-          {billingBasis === 'sov' ? (
+          {hasBaseline && (billingBasis === 'sov' ? (
             <TabsTrigger value="sov">Schedule of Values</TabsTrigger>
           ) : (
             <TabsTrigger value="milestones">Milestones</TabsTrigger>
-          )}
+          ))}
           <TabsTrigger value="change-orders" className="gap-2">
             Change Orders
             {pendingCOs.length > 0 && (
@@ -327,6 +360,17 @@ export function ProjectBillingTab({ projectId }: ProjectBillingTabProps) {
         billingLines={billingLines}
         changeOrders={approvedCOs}
         formatCurrency={formatCurrency}
+        hasBaseline={hasBaseline}
+        onCreate={async (params) => {
+          try {
+            await createInvoice.mutateAsync({ projectId, ...params });
+            setInvoiceDialogOpen(false);
+          } catch (err: any) {
+            // Hook already toasts; keep dialog open for visible failure state.
+            console.error('Invoice create failed:', err);
+            toast.error(err?.message || 'Failed to create invoice');
+          }
+        }}
       />
     </div>
   );
@@ -800,7 +844,7 @@ function EmptyState({ icon, title, description }: { icon: React.ReactNode; title
 // Every invoice must have a source - no free-form billing
 // ============================================================
 
-function InvoiceCreationDialog({ open, onOpenChange, projectId, billingBasis, billingLines, changeOrders, formatCurrency }: {
+function InvoiceCreationDialog({ open, onOpenChange, projectId, billingBasis, billingLines, changeOrders, formatCurrency, hasBaseline, onCreate }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   projectId: string;
@@ -808,8 +852,106 @@ function InvoiceCreationDialog({ open, onOpenChange, projectId, billingBasis, bi
   billingLines: any[];
   changeOrders: any[];
   formatCurrency: (v: number) => string;
+  hasBaseline: boolean;
+  onCreate: (params: {
+    sourceType: 'milestone' | 'sov_period' | 'change_order' | 'deposit' | 'manual';
+    sourceId?: string;
+    amount?: number;
+    milestoneAllocations?: Array<{ milestone_id: string; amount: number }>;
+    sovLines?: Array<{ sov_line_id: string; this_period_amount: number }>;
+    notes?: string;
+    billingPeriodFrom?: string;
+    billingPeriodTo?: string;
+  }) => Promise<void>;
 }) {
-  const [invoiceType, setInvoiceType] = useState<'progress' | 'change_order' | 'deposit'>('progress');
+  const [invoiceType, setInvoiceType] = useState<'progress' | 'change_order' | 'deposit' | 'standalone'>(
+    hasBaseline ? 'progress' : 'standalone'
+  );
+  const [notes, setNotes] = useState('');
+  const [error, setError] = useState<any>(null);
+
+  const [milestoneAmounts, setMilestoneAmounts] = useState<Record<string, number>>({});
+  const [sovAmounts, setSovAmounts] = useState<Record<string, number>>({});
+  const [selectedCoId, setSelectedCoId] = useState<string>('');
+  const [amount, setAmount] = useState<number>(0);
+
+  useEffect(() => {
+    if (open) {
+      setError(null);
+      setNotes('');
+      setMilestoneAmounts({});
+      setSovAmounts({});
+      setSelectedCoId('');
+      setAmount(0);
+      setInvoiceType(hasBaseline ? 'progress' : 'standalone');
+    }
+  }, [open, hasBaseline]);
+
+  const copyError = async () => {
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(error, null, 2));
+      toast.success('Copied error');
+    } catch {
+      toast.error('Failed to copy');
+    }
+  };
+
+  const handleCreate = async () => {
+    setError(null);
+    try {
+      if (invoiceType === 'standalone') {
+        if (!amount || amount <= 0) throw new Error('Amount is required');
+        await onCreate({ sourceType: 'manual', amount, notes: notes || undefined });
+        return;
+      }
+
+      if (!hasBaseline) {
+        throw new Error('Progress/SOV/CO invoices require a contract baseline');
+      }
+
+      if (invoiceType === 'progress') {
+        if (billingBasis === 'payment_schedule') {
+          const allocations = billingLines
+            .map((l) => ({
+              milestone_id: String(l.line_id),
+              amount: Number(milestoneAmounts[String(l.line_id)] || 0),
+            }))
+            .filter((a) => a.amount > 0);
+          if (allocations.length === 0) throw new Error('Select at least one milestone amount');
+          await onCreate({ sourceType: 'milestone', milestoneAllocations: allocations, notes: notes || undefined });
+          return;
+        }
+        if (billingBasis === 'sov') {
+          const sovLinesPayload = billingLines
+            .map((l) => ({
+              sov_line_id: String(l.line_id),
+              this_period_amount: Number(sovAmounts[String(l.line_id)] || 0),
+            }))
+            .filter((a) => a.this_period_amount > 0);
+          if (sovLinesPayload.length === 0) throw new Error('Enter at least one “this period” amount');
+          await onCreate({ sourceType: 'sov_period', sovLines: sovLinesPayload, notes: notes || undefined });
+          return;
+        }
+        throw new Error('Billing basis not configured');
+      }
+
+      if (invoiceType === 'change_order') {
+        if (!selectedCoId) throw new Error('Select a change order');
+        const amt = amount && amount > 0 ? amount : undefined;
+        await onCreate({ sourceType: 'change_order', sourceId: selectedCoId, amount: amt, notes: notes || undefined });
+        return;
+      }
+
+      if (invoiceType === 'deposit') {
+        if (!amount || amount <= 0) throw new Error('Deposit amount is required');
+        await onCreate({ sourceType: 'deposit', amount, notes: notes || undefined });
+        return;
+      }
+    } catch (e: any) {
+      setError(e);
+      throw e;
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -833,29 +975,169 @@ function InvoiceCreationDialog({ open, onOpenChange, projectId, billingBasis, bi
                   Change Order Invoice {changeOrders.length === 0 && '(none available)'}
                 </SelectItem>
                 <SelectItem value="deposit">Deposit / Retainer</SelectItem>
+                <SelectItem value="standalone">Standalone Invoice</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
-          {/* Placeholder for invoice source selection UI */}
+          {!hasBaseline && invoiceType !== 'standalone' && (
           <div className="p-4 bg-muted rounded-lg text-sm text-muted-foreground">
-            {invoiceType === 'progress' && billingBasis === 'payment_schedule' && (
-              <p>Select milestones to include in this invoice. Amount will be derived from milestone values.</p>
-            )}
-            {invoiceType === 'progress' && billingBasis === 'sov' && (
-              <p>Enter "this period" amounts for each SOV line. System will track previous and remaining.</p>
-            )}
-            {invoiceType === 'change_order' && (
-              <p>Select an approved change order. Invoice amount cannot exceed unbilled CO balance.</p>
-            )}
+              Progress/SOV/Change Order invoices require a contract baseline. Create a standalone invoice instead.
+            </div>
+          )}
+
+          {invoiceType === 'progress' && hasBaseline && billingBasis === 'payment_schedule' && (
+            <div className="space-y-2">
+              <Label>Milestones (enter amounts to bill)</Label>
+              <div className="max-h-64 overflow-auto rounded border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Milestone</TableHead>
+                      <TableHead className="text-right">Remaining</TableHead>
+                      <TableHead className="text-right w-40">This Invoice</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {billingLines.map((l) => (
+                      <TableRow key={l.line_id}>
+                        <TableCell className="font-medium">{l.line_name}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(Number(l.remaining_amount || 0))}</TableCell>
+                        <TableCell className="text-right">
+                          <Input
+                            type="number"
+                            min={0}
+                            step="0.01"
+                            value={milestoneAmounts[String(l.line_id)] ?? ''}
+                            onChange={(e) =>
+                              setMilestoneAmounts((prev) => ({
+                                ...prev,
+                                [String(l.line_id)]: Number(e.target.value || 0),
+                              }))
+                            }
+                          />
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          )}
+
+          {invoiceType === 'progress' && hasBaseline && billingBasis === 'sov' && (
+            <div className="space-y-2">
+              <Label>SOV Lines (enter “this period” amounts)</Label>
+              <div className="max-h-64 overflow-auto rounded border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Line</TableHead>
+                      <TableHead className="text-right">Remaining</TableHead>
+                      <TableHead className="text-right w-40">This Period</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {billingLines.map((l) => (
+                      <TableRow key={l.line_id}>
+                        <TableCell className="font-medium">{l.line_name}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(Number(l.remaining_amount || 0))}</TableCell>
+                        <TableCell className="text-right">
+                          <Input
+                            type="number"
+                            min={0}
+                            step="0.01"
+                            value={sovAmounts[String(l.line_id)] ?? ''}
+                            onChange={(e) =>
+                              setSovAmounts((prev) => ({
+                                ...prev,
+                                [String(l.line_id)]: Number(e.target.value || 0),
+                              }))
+                            }
+                          />
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          )}
+
+          {invoiceType === 'change_order' && hasBaseline && (
+            <div className="space-y-3">
+              <div className="space-y-2">
+                <Label>Change Order</Label>
+                <Select value={selectedCoId} onValueChange={setSelectedCoId}>
+                  <SelectTrigger><SelectValue placeholder="Select change order" /></SelectTrigger>
+                  <SelectContent>
+                    {changeOrders.map((co) => (
+                      <SelectItem key={co.id} value={co.id}>
+                        {co.change_order_number || co.title} ({formatCurrency(Number(co.total_amount || 0))})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Amount (optional)</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={amount || ''}
+                  onChange={(e) => setAmount(Number(e.target.value || 0))}
+                  placeholder="Leave blank to invoice remaining CO balance"
+                />
+              </div>
+            </div>
+          )}
+
+          {(invoiceType === 'deposit' || invoiceType === 'standalone') && (
+            <div className="space-y-2">
+              <Label>Amount</Label>
+              <Input
+                type="number"
+                min={0}
+                step="0.01"
+                value={amount || ''}
+                onChange={(e) => setAmount(Number(e.target.value || 0))}
+              />
             {invoiceType === 'deposit' && (
-              <p>Enter deposit amount. This does not affect contract value and will be applied to future invoices.</p>
+                <p className="text-xs text-muted-foreground">
+                  Deposit invoices require a baseline in this system and do not affect contract value.
+                </p>
+              )}
+              {invoiceType === 'standalone' && (
+                <p className="text-xs text-muted-foreground">
+                  Standalone invoices are always allowed and do not depend on the contract baseline.
+                </p>
             )}
           </div>
+          )}
+
+          <div className="space-y-2">
+            <Label>Notes (optional)</Label>
+            <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} />
+          </div>
+
+          {error && (
+            <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm">
+              <div className="flex items-center justify-between gap-2">
+                <div className="font-medium text-destructive">Save failed</div>
+                <Button variant="outline" size="sm" onClick={copyError}>
+                  Copy error
+                </Button>
+              </div>
+              <div className="mt-2 text-muted-foreground break-words">
+                {String((error as any)?.message || error)}
+              </div>
+            </div>
+          )}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button disabled>Create Invoice (Coming Soon)</Button>
+          <Button onClick={handleCreate}>Create Invoice</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

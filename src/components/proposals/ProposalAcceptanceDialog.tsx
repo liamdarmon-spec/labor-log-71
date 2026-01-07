@@ -42,6 +42,7 @@ interface ProposalAcceptanceDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   proposalId: string;
+  publicToken: string;
   type: 'accept' | 'changes' | 'reject';
   onSuccess: () => void;
 }
@@ -50,6 +51,7 @@ export function ProposalAcceptanceDialog({
   open,
   onOpenChange,
   proposalId,
+  publicToken,
   type,
   onSuccess,
 }: ProposalAcceptanceDialogProps) {
@@ -100,9 +102,9 @@ export function ProposalAcceptanceDialog({
         eventType = 'rejected';
       }
 
-      // Use backend function with double-submission protection
-      const { data: result, error: rpcError } = await supabase.rpc('update_proposal_acceptance', {
-        p_proposal_id: proposalId,
+      // Public acceptance MUST be token-validated (no raw proposal_id writes)
+      const { data: result, error: rpcError } = await (supabase as any).rpc('update_proposal_acceptance_public', {
+        p_public_token: publicToken,
         p_new_status: acceptanceStatus,
         p_accepted_by_name: validData.name,
         p_accepted_by_email: validData.email || null,

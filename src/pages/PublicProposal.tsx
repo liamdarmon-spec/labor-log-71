@@ -375,6 +375,7 @@ export default function PublicProposal() {
           open={!!dialogType}
           onOpenChange={(open) => !open && setDialogType(null)}
           proposalId={proposal.id}
+          publicToken={token || ''}
           type={dialogType}
           onSuccess={() => refetch()}
         />
