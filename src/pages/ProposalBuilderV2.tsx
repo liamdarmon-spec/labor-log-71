@@ -22,6 +22,7 @@ import {
 import { ProposalContextPanel } from '@/components/proposals/ProposalContextPanel';
 import { ProposalContentEditor } from '@/components/proposals/ProposalContentEditor';
 import { ProposalSettingsPanel } from '@/components/proposals/ProposalSettingsPanel';
+import { ProposalContractPanel } from '@/components/proposals/ProposalContractPanel';
 import { ProposalPDFPreview } from '@/components/proposals/ProposalPDFPreview';
 import { useCompany } from '@/company/CompanyProvider';
 import { useProposalAutosave } from '@/hooks/useProposalAutosave';
@@ -323,6 +324,21 @@ export default function ProposalBuilderV2() {
                 <Badge variant={getStatusColor(proposal.status)} className="text-xs">
                   {proposal.status}
                 </Badge>
+                {proposal.acceptance_status === 'accepted' && (
+                  <Badge variant="default" className="text-xs bg-emerald-600">
+                    ✓ Approved
+                  </Badge>
+                )}
+                {proposal.acceptance_status === 'rejected' && (
+                  <Badge variant="destructive" className="text-xs">
+                    ✗ Rejected
+                  </Badge>
+                )}
+                {proposal.acceptance_status === 'changes_requested' && (
+                  <Badge variant="secondary" className="text-xs bg-amber-100 text-amber-800">
+                    Changes Requested
+                  </Badge>
+                )}
                 <span className="text-sm text-muted-foreground truncate">
                   {proposal.project?.project_name}
                 </span>
@@ -471,8 +487,25 @@ export default function ProposalBuilderV2() {
           />
         </div>
 
-        {/* Right Column: Settings & Toggles */}
-        <div className="lg:col-span-3">
+        {/* Right Column: Contract Settings & Display Toggles */}
+        <div className="lg:col-span-3 space-y-4">
+          {/* Contract Settings (approval, type, terms) */}
+          <ProposalContractPanel
+            proposalId={proposal.id}
+            contractType={proposal.contract_type}
+            billingTerms={proposal.billing_terms}
+            retainagePercent={proposal.retainage_percent}
+            acceptanceStatus={proposal.acceptance_status}
+            approvedAt={proposal.approved_at}
+            approvedBy={proposal.approved_by}
+            totalAmount={proposal.total_amount}
+            isLocked={proposal.acceptance_status === 'accepted'}
+            onContractChange={() => {
+              // Force refetch proposal data after contract changes
+            }}
+          />
+          
+          {/* Display Settings */}
           <ProposalSettingsPanel
             settings={draftSettings ?? proposal.settings}
             onSettingsChange={handleSettingsChange}

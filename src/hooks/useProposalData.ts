@@ -57,6 +57,9 @@ export interface AreaSummary {
   items: ScopeLineItem[];
 }
 
+export type ContractType = 'fixed_price' | 'milestone' | 'progress_billing';
+export type AcceptanceStatus = 'pending' | 'accepted' | 'changes_requested' | 'rejected';
+
 export interface ProposalData {
   id: string;
   company_id: string;
@@ -73,10 +76,18 @@ export interface ProposalData {
   validity_days: number;
   client_name: string | null;
   client_email: string | null;
-  acceptance_status: string;
+  acceptance_status: AcceptanceStatus;
   public_token: string | null;
   created_at: string;
   updated_at: string;
+  
+  // Contract settings (new)
+  contract_type: ContractType | null;
+  billing_terms: string | null;
+  retainage_percent: number | null;
+  billing_basis: string | null;
+  approved_at: string | null;
+  approved_by: string | null;
   
   // Related data
   project: {
@@ -232,17 +243,26 @@ export function useProposalData(proposalId: string | undefined) {
         validity_days: proposal.validity_days,
         client_name: proposal.client_name,
         client_email: proposal.client_email,
-        acceptance_status: proposal.acceptance_status,
+        acceptance_status: (proposal.acceptance_status || 'pending') as AcceptanceStatus,
         public_token: proposal.public_token,
         created_at: proposal.created_at,
         updated_at: proposal.updated_at,
+        // Contract settings
+        contract_type: (proposal as any).contract_type as ContractType | null,
+        billing_terms: (proposal as any).billing_terms as string | null,
+        retainage_percent: (proposal as any).retainage_percent as number | null,
+        billing_basis: (proposal as any).billing_basis as string | null,
+        approved_at: (proposal as any).approved_at as string | null,
+        approved_by: (proposal as any).approved_by as string | null,
+        // Related
         project: proposal.projects,
         estimate,
         scopeByArea,
         allItems,
       };
     },
-    enabled: !!proposalId && !!activeCompanyId,
+    // RLS handles company scoping; don't require activeCompanyId
+    enabled: !!proposalId,
     staleTime: 30000,
     retry: false,
   });
