@@ -400,6 +400,18 @@ export default function EstimateBuilderV2() {
       
       const transformed = transformToEditorBlocks(scopeBlocks);
       setLocalBlocks(transformed);
+
+      // Seed optimistic locking timestamps for autosave (prevents silent overwrites under concurrency).
+      // We intentionally read updated_at directly from the DB rows (scope_block_cost_items(*)).
+      try {
+        (scopeBlocks as any).forEach((b: any) => {
+          (b.scope_block_cost_items || []).forEach((it: any) => {
+            if (it?.id && it?.updated_at) autosave.setLastKnownUpdatedAt(String(it.id), String(it.updated_at));
+          });
+        });
+      } catch {
+        // noop (best-effort)
+      }
       
       // Update tracking refs
       const newMap = new Map<string, string>();
@@ -613,7 +625,7 @@ export default function EstimateBuilderV2() {
     // do NOT clear error until we have a successful save (per requirements)
     setSaveWarning(null);
     setIsWarningDismissed(false);
-
+    
     try {
       // Transactional client-side behavior:
       // - Disable button while saving
@@ -636,7 +648,7 @@ export default function EstimateBuilderV2() {
       currentItems.forEach((item, id) => {
         if (!existingIds.has(id)) toCreate.push(item);
       });
-
+      
       // updates (diff against last server snapshot)
       const toUpdate: ScopeItem[] = [];
       currentItems.forEach((item, id) => {
@@ -804,16 +816,16 @@ export default function EstimateBuilderV2() {
   // Handle blocks change: detect structural changes (create/delete) and mark structural dirty.
   const handleBlocksChange = useCallback((newBlocks: EstimateEditorBlock[]) => {
     setLocalBlocks(newBlocks);
-
+    
     const currentIds = new Set<string>();
     newBlocks.forEach((b) => b.items.forEach((item) => currentIds.add(item.id)));
-
+    
     const existingIds = existingIdsRef.current;
     const hasCreateDelete =
       currentIds.size !== existingIds.size ||
       [...currentIds].some((id) => !existingIds.has(id)) ||
       [...existingIds].some((id) => !currentIds.has(id));
-
+    
     if (hasCreateDelete) {
       setIsDirtyStructural(true);
     }

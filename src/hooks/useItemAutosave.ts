@@ -63,6 +63,11 @@ export function useItemAutosave(estimateId: string | undefined) {
   
   // Track updated_at for optimistic locking
   const lastKnownUpdates = useRef<Map<string, string>>(new Map());
+  // Seed lastKnown updated_at from server hydration (critical for optimistic locking).
+  const setLastKnownUpdatedAt = useCallback((id: string, updatedAt: string | null | undefined) => {
+    if (!id || !updatedAt) return;
+    lastKnownUpdates.current.set(id, updatedAt);
+  }, []);
 
   // DEV / diagnostics
   const lastBatchResultsRef = useRef<BatchResult[] | null>(null);
@@ -100,9 +105,9 @@ export function useItemAutosave(estimateId: string | undefined) {
       lastKnownUpdates.current.set(id, updatedAt);
     }
 
-    setRowState(id, {
-      status: "saved",
-      lastSaved: new Date(),
+    setRowState(id, { 
+      status: "saved", 
+      lastSaved: new Date(), 
       error: undefined,
     });
 
@@ -126,7 +131,7 @@ export function useItemAutosave(estimateId: string | undefined) {
     const updatesById = new Map<string, ItemUpdate>();
     updates.forEach((u) => updatesById.set(u.id, u));
     const itemIds = updates.map((u) => u.id);
-
+    
     // Clear pending (we have a snapshot to restore from on failure)
     pendingUpdates.current.clear();
     
@@ -170,8 +175,8 @@ export function useItemAutosave(estimateId: string | undefined) {
         failureCount++;
 
         if (result.error === 'CONFLICT') {
-          setRowState(result.id, {
-            status: "conflict",
+          setRowState(result.id, { 
+            status: "conflict", 
             error: "Another user modified this row",
             serverUpdatedAt: result.server_updated_at,
           });
@@ -182,7 +187,7 @@ export function useItemAutosave(estimateId: string | undefined) {
           });
         }
       });
-
+      
       // If server returned nothing for some ids, treat as failure + restore
       const returnedIds = new Set(results.map((r) => r.id));
       updatesById.forEach((u, id) => {
@@ -217,7 +222,7 @@ export function useItemAutosave(estimateId: string | undefined) {
       toast.error(`Save failed — your edits are kept locally`);
     } finally {
       isFlushing.current = false;
-
+      
       // NOTE: Do NOT auto-schedule another flush on failures.
       // User must change again or click retry.
     }
@@ -424,5 +429,6 @@ export function useItemAutosave(estimateId: string | undefined) {
     reset,
     isSaving: isFlushing.current,
     getDiagnostics,
+    setLastKnownUpdatedAt,
   };
 }
