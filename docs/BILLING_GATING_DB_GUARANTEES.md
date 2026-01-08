@@ -179,11 +179,10 @@ WHERE n.nspname = 'public'
 - ✅ Tenant-unsafe readiness function: now checks `authed_company_ids()`
 - ✅ UI "Not set" lie: fixed conditional
 
-### P1 (Not critical for launch)
-- Milestone total validation: we only check "≥1 milestone exists", not "milestones sum to contract total"
-- Change order SOV allocation: escape hatch exists but not wired to any RPC yet
+### P1 (Closed in 20260108130000)
+- ✅ Milestone total validation: now enforces sum == proposal.total_amount
+- ✅ Escape hatch: now secured with `apply_billing_revision()` RPC + audit logging
 
 ### P2 (Post-launch hardening)
 - Consider storing SOV as integer basis points (0-10000) for exact precision
-- Add audit logging for escape hatch usage
 
