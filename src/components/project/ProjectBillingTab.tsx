@@ -632,7 +632,7 @@ function ChangeOrdersReflection({ changeOrders, projectId, formatCurrency }: {
               Approved COs affect contract value — manage COs from the Change Orders module
             </CardDescription>
           </div>
-          <Link to={`/app/projects/${projectId}`}>
+          <Link to={`/app/change-orders?projectId=${projectId}`}>
             <Button variant="outline" size="sm">
               Manage COs <ExternalLink className="w-4 h-4 ml-2" />
             </Button>

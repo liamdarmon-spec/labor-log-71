@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { Menu, DollarSign, Settings, LogOut, Building2, Users, CheckSquare, CalendarDays } from 'lucide-react';
+import { Menu, DollarSign, Settings, LogOut, Building2, Users, CheckSquare, CalendarDays, FileDiff } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -12,12 +12,13 @@ export const MobileNav = () => {
   const { signOut } = useAuth();
 
   const navItems = [
-    { path: '/projects', icon: Building2, label: 'Projects' },
-    { path: '/tasks', icon: CheckSquare, label: 'Tasks' },
-    { path: '/schedule', icon: CalendarDays, label: 'Schedule' },
-    { path: '/workforce', icon: Users, label: 'Workforce' },
-    { path: '/financials', icon: DollarSign, label: 'Financials' },
-    { path: '/admin', icon: Settings, label: 'Admin' },
+    { path: '/app/projects', icon: Building2, label: 'Projects' },
+    { path: '/app/tasks', icon: CheckSquare, label: 'Tasks' },
+    { path: '/app/schedule', icon: CalendarDays, label: 'Schedule' },
+    { path: '/app/workforce', icon: Users, label: 'Workforce' },
+    { path: '/app/financials', icon: DollarSign, label: 'Financials' },
+    { path: '/app/change-orders', icon: FileDiff, label: 'Change Orders' },
+    { path: '/app/admin', icon: Settings, label: 'Admin' },
   ];
 
   const handleNavigate = (path: string) => {

@@ -44,6 +44,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useItemAutosave } from "@/hooks/useItemAutosave";
+import { AutosaveDiagnostics, collectAutosaveDiagnostics } from "@/components/dev/AutosaveDiagnostics";
 type BatchUpsertItemUpdate = {
   id: string;
   category?: string;
@@ -1142,48 +1143,27 @@ export default function EstimateBuilderV2() {
           </div>
         </div>
 
-        {/* DEV-only manual-save diagnostics */}
+        {/* DEV-only autosave diagnostics overlay */}
         {import.meta.env.DEV && (
-          <details className="text-xs opacity-70 bg-muted/50 rounded p-2 border">
-            <summary className="cursor-pointer font-mono">
-              save: {combinedGlobalStatus} | structuralDirty: {isDirtyStructural ? "yes" : "no"} | autosave: {autosave.getGlobalStatus()} | saving: {isSavingManual ? "yes" : "no"} | error: {saveError ? "yes" : "no"}
-            </summary>
-            <div className="mt-2 space-y-1">
-              <pre className="max-h-40 overflow-auto text-[10px]">
-                {JSON.stringify(
-                  {
-                    status: combinedGlobalStatus,
-                    isDirtyStructural,
-                    autosaveGlobalStatus: autosave.getGlobalStatus(),
-                    autosavePendingCount: autosaveDiag.pendingCount,
-                    autosaveLastBatchError: autosaveDiag.lastBatchError,
-                    isSavingManual,
-                    lastSaveAt,
-                    lastSaveErrorSummary,
-                    saveError: saveError ? { title: saveError.title, message: saveError.message } : null,
-                  },
-                  null,
-                  2
-                )}
-              </pre>
-              <button
-                className="text-[10px] underline"
-                onClick={() =>
-                  console.log("Save diagnostics:", {
-                    isDirtyStructural,
-                    isSavingManual,
-                    autosave: autosave.getDiagnostics(),
-                    lastSaveAt,
-                    lastSaveErrorSummary,
-                    saveError,
-                    localBlocks,
-                  })
-                }
-              >
-                Dump save diagnostics
-              </button>
-            </div>
-          </details>
+          <AutosaveDiagnostics
+            data={{
+              documentType: 'estimate',
+              documentId: estimateId || null,
+              projectId: projectId ?? estimate?.project_id ?? null,
+              companyId: activeCompanyId ?? null,
+              status: combinedGlobalStatus,
+              errorMessage: saveError?.message ?? autosaveDiag.lastBatchError ?? null,
+              pendingUpdatesCount: autosaveDiag.pendingCount,
+              isFlushing: isSavingManual || autosave.getGlobalStatus() === 'saving',
+              lastSuccessAt: lastSaveAt,
+              lastErrorAt: saveError ? new Date().toISOString() : null,
+              lastPayloadBytes: 0, // Would need to track in hook
+              lastResponseCount: 0,
+              lastDirtyReason: isDirtyStructural ? 'structural' : 'field',
+              onRetry: handleManualSave,
+              onFlush: handleManualSave,
+            }}
+          />
         )}
 
         {/* ProjectEstimateEditor */}

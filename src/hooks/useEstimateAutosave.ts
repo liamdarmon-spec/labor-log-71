@@ -70,7 +70,7 @@ export function useEstimateAutosave<TPayload>(opts: Options<TPayload>) {
     setErrorMessage(null);
 
     try {
-      const { data, error } = await supabase.rpc('upsert_estimate_draft', {
+      const { data, error } = await (supabase as any).rpc('upsert_estimate_draft', {
         p_company_id: companyId,
         p_estimate_id: estimateId,
         p_project_id: projectId,
@@ -80,17 +80,21 @@ export function useEstimateAutosave<TPayload>(opts: Options<TPayload>) {
 
       if (error) throw error;
 
+      // RPC returns out_estimate_id, out_draft_version, out_updated_at (prefixed to avoid ambiguity)
       const ack = (Array.isArray(data) ? data[0] : data) as any;
-      if (!ack?.estimate_id) throw new Error('Invalid server response from upsert_estimate_draft');
+      const estimateIdVal = ack?.out_estimate_id ?? ack?.estimate_id;
+      const draftVersion = ack?.out_draft_version ?? ack?.draft_version;
+      const updatedAt = ack?.out_updated_at ?? ack?.updated_at;
+      if (!estimateIdVal) throw new Error('Invalid server response from upsert_estimate_draft');
 
-      expectedVersionRef.current = Number(ack.draft_version);
+      expectedVersionRef.current = Number(draftVersion);
       lastSavedHashRef.current = hash;
       setStatus('saved');
       setErrorMessage(null);
       onServerAck?.({
-        estimate_id: ack.estimate_id,
-        draft_version: Number(ack.draft_version),
-        updated_at: ack.updated_at,
+        estimate_id: estimateIdVal,
+        draft_version: Number(draftVersion),
+        updated_at: updatedAt,
       });
     } catch (e: any) {
       setStatus('error');

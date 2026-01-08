@@ -59,16 +59,45 @@ export function useBillingSummary(projectId: string) {
     enabled: !!projectId,
     staleTime: 30_000,
     queryFn: async (): Promise<BillingSummary | null> => {
+      // RPC returns a TABLE - Supabase gives us an array, take first row
       const { data, error } = await supabase
-        .rpc('get_project_billing_summary', { p_project_id: projectId })
-        .single();
+        .rpc('get_project_billing_summary', { p_project_id: projectId });
 
       if (error) {
-        console.error('Billing summary error:', error);
+        console.error('Billing summary error:', error, 'Data:', data);
         throw error;
       }
 
-      return data as BillingSummary;
+      // Handle both array (normal) and object (maybe single) responses
+      if (Array.isArray(data) && data.length > 0) {
+        return data[0] as BillingSummary;
+      }
+      if (data && typeof data === 'object' && !Array.isArray(data)) {
+        return data as BillingSummary;
+      }
+      
+      // No data found - return defaults
+      return {
+        has_contract_baseline: false,
+        contract_baseline_id: null,
+        billing_basis: null,
+        base_contract_total: 0,
+        approved_change_order_total: 0,
+        current_contract_total: 0,
+        pending_change_order_count: 0,
+        approved_change_order_count: 0,
+        pending_change_order_value: 0,
+        billed_to_date: 0,
+        paid_to_date: 0,
+        open_ar: 0,
+        remaining_to_bill: 0,
+        retention_held: 0,
+        invoice_count: 0,
+        payment_count: 0,
+        has_base_proposal: false,
+        base_proposal_id: null,
+        base_proposal_total: 0,
+      };
     },
   });
 }

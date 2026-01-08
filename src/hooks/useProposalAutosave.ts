@@ -79,7 +79,7 @@ export function useProposalAutosave<TPayload>(opts: Options<TPayload>) {
     setErrorMessage(null);
 
     try {
-      const { data, error } = await supabase.rpc('upsert_proposal_draft', {
+      const { data, error } = await (supabase as any).rpc('upsert_proposal_draft', {
         p_company_id: companyId,
         p_proposal_id: proposalId,
         p_project_id: projectId,
@@ -91,19 +91,23 @@ export function useProposalAutosave<TPayload>(opts: Options<TPayload>) {
         throw error;
       }
 
+      // RPC returns out_proposal_id, out_draft_version, out_updated_at (prefixed to avoid ambiguity)
       const ack = (Array.isArray(data) ? data[0] : data) as any;
-      if (!ack?.proposal_id) {
+      const proposalId = ack?.out_proposal_id ?? ack?.proposal_id;
+      const draftVersion = ack?.out_draft_version ?? ack?.draft_version;
+      const updatedAt = ack?.out_updated_at ?? ack?.updated_at;
+      if (!proposalId) {
         throw new Error('Invalid server response from upsert_proposal_draft');
       }
 
-      expectedVersionRef.current = Number(ack.draft_version);
+      expectedVersionRef.current = Number(draftVersion);
       lastSavedHashRef.current = hash;
       setStatus('saved');
       setErrorMessage(null);
       onServerAck?.({
-        proposal_id: ack.proposal_id,
-        draft_version: Number(ack.draft_version),
-        updated_at: ack.updated_at,
+        proposal_id: proposalId,
+        draft_version: Number(draftVersion),
+        updated_at: updatedAt,
       });
     } catch (e: any) {
       const msg = e?.message || 'Failed to save';

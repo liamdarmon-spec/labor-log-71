@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { HardHat, Settings, DollarSign, CalendarClock, Languages, Building2, Users, CheckSquare, CalendarDays } from 'lucide-react';
+import { HardHat, Settings, DollarSign, CalendarClock, Languages, Building2, Users, CheckSquare, CalendarDays, FileDiff } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { MobileNav } from '@/components/MobileNav';
 import { MobileBottomNav } from '@/components/MobileBottomNav';
@@ -110,6 +110,15 @@ export const Layout = ({ children, hideNav = false }: LayoutProps) => {
             >
               <CalendarClock className="w-4 h-4" />
               <span>Proposals</span>
+            </Button>
+            <Button
+              variant={location.pathname.startsWith('/app/change-orders') ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => navigate('/app/change-orders')}
+              className={`gap-2 h-9 ${location.pathname.startsWith('/app/change-orders') ? 'font-semibold' : ''}`}
+            >
+              <FileDiff className="w-4 h-4" />
+              <span>Change Orders</span>
             </Button>
             <Button
               variant={location.pathname === '/app/admin' ? 'default' : 'ghost'}

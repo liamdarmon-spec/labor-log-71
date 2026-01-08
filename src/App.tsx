@@ -32,6 +32,7 @@ import Materials from '@/pages/Materials';
 import SubProfileV2 from './pages/SubProfileV2';
 import Subs from "./pages/Subs";
 import Tasks from "./pages/Tasks";
+import ChangeOrders from "./pages/ChangeOrders";
 import NotFound from "./pages/NotFound";
 import "./i18n/config";
 import AuthPage from "@/auth/AuthPage";
@@ -121,6 +122,7 @@ const App = () => (
               <Route path="/app/materials" element={<Materials />} />
               <Route path="/app/subs" element={<Subs />} />
               <Route path="/app/subs/:id" element={<SubProfileV2 />} />
+              <Route path="/app/change-orders" element={<ChangeOrders />} />
               <Route path="/app/admin" element={<Admin />} />
             </Route>
 
@@ -142,6 +144,7 @@ const App = () => (
             <Route path="/proposals/*" element={<Navigate to="/app/proposals" replace />} />
             <Route path="/materials" element={<Navigate to="/app/materials" replace />} />
             <Route path="/subs/*" element={<Navigate to="/app/subs" replace />} />
+            <Route path="/change-orders" element={<Navigate to="/app/change-orders" replace />} />
             <Route path="/admin" element={<Navigate to="/app/admin" replace />} />
 
             <Route path="*" element={<NotFound />} />

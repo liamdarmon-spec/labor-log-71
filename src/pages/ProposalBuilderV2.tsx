@@ -26,6 +26,8 @@ import { ProposalContractPanel } from '@/components/proposals/ProposalContractPa
 import { ProposalPDFPreview } from '@/components/proposals/ProposalPDFPreview';
 import { useCompany } from '@/company/CompanyProvider';
 import { useProposalAutosave } from '@/hooks/useProposalAutosave';
+import { AutosaveDiagnostics, collectAutosaveDiagnostics } from '@/components/dev/AutosaveDiagnostics';
+import { useContractBaseline } from '@/hooks/useBillingHub';
 
 type SaveStatus = 'saved' | 'saving' | 'dirty' | 'error';
 
@@ -55,6 +57,9 @@ export default function ProposalBuilderV2() {
   const { activeCompanyId } = useCompany();
   const { data: proposal, isLoading, error } = useProposalData(proposalId);
   const refreshFromEstimate = useRefreshProposalFromEstimate();
+  
+  // Get baseline info for DEV diagnostics
+  const { data: contractBaseline } = useContractBaseline(proposal?.project_id || '');
 
   const [saveError, setSaveError] = useState<SaveErrorPayload>(null);
   const [isErrorDismissed, setIsErrorDismissed] = useState(false);
@@ -439,27 +444,23 @@ export default function ProposalBuilderV2() {
         </div>
       </div>
 
-      {/* DEV-only autosave diagnostics */}
+      {/* DEV-only autosave diagnostics overlay */}
       {import.meta.env.DEV && (
-        <details className="text-xs opacity-70 bg-muted/50 rounded p-2 border m-4">
-          <summary className="cursor-pointer font-mono">
-            autosave: {autosave.status} | lastSaveAt: {lastSaveAt ? 'yes' : 'no'} | lastErr: {lastSaveErrorSummary ? 'yes' : 'no'}
-          </summary>
-          <pre className="mt-2 max-h-40 overflow-auto text-[10px]">
-            {JSON.stringify(
-              {
-                autosaveStatus: autosave.status,
-                autosaveErrorMessage: autosave.errorMessage,
-                hasUnsavedChanges,
-                lastSaveAt,
-                lastSaveErrorSummary,
-                autosaveCompanyId,
-              },
-              null,
-              2
-            )}
-          </pre>
-        </details>
+        <AutosaveDiagnostics
+          data={collectAutosaveDiagnostics({
+            documentType: 'proposal',
+            documentId: proposalId || null,
+            projectId: proposal?.project_id || null,
+            companyId: autosaveCompanyId,
+            status: autosave.status,
+            errorMessage: autosave.errorMessage,
+            contractType: proposal?.contract_type || null,
+            billingBasis: proposal?.billing_basis || null,
+            hasBaseline: !!contractBaseline,
+            onRetry: autosave.retry,
+            onFlush: autosave.saveNow,
+          })}
+        />
       )}
 
       {/* 3-Column Layout */}
