@@ -160,13 +160,17 @@ export function ProjectBillingTab({ projectId }: ProjectBillingTabProps) {
             <Lock className="w-4 h-4 text-muted-foreground" />
             <span className="text-sm font-medium">
               Billing Basis:{' '}
-              {!hasBaseline || !billingBasis
+              {!billingBasis
                 ? 'Not set'
                 : billingBasis === 'sov'
                   ? 'Schedule of Values'
                   : 'Payment Schedule'}
             </span>
-            {hasBaseline && <Badge variant="secondary" className="text-xs">Locked</Badge>}
+            {hasBaseline ? (
+              <Badge variant="secondary" className="text-xs">Locked</Badge>
+            ) : billingBasis ? (
+              <Badge variant="outline" className="text-xs">Pending Baseline</Badge>
+            ) : null}
           </div>
         </div>
         <Button onClick={() => setInvoiceDialogOpen(true)}>
