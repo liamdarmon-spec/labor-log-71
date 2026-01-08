@@ -1,6 +1,17 @@
 // src/pages/ChangeOrders.tsx
 // Change Orders module — top-level list of all COs across projects
 // Supports optional projectId query param for filtering
+//
+// Canonical CO route: /app/change-orders
+// All "Change Order" / "Manage CO" buttons should navigate here
+//
+// UI SMOKE TEST CHECKLIST:
+// □ Page renders with header, stats, filters, and table
+// □ Project filter pill appears when ?projectId= is in URL
+// □ Clicking a CO row opens detail dialog
+// □ "Create Change Order" button opens coming-soon modal
+// □ Empty state shows when no COs exist
+// □ Status filter works correctly
 
 import { useState, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
@@ -141,6 +152,12 @@ export default function ChangeOrders() {
 
   // Selected CO for detail view
   const [selectedCO, setSelectedCO] = useState<ChangeOrder | null>(null);
+  
+  // Coming soon modal
+  const [showComingSoon, setShowComingSoon] = useState(false);
+
+  // Get project name for filter pill
+  const filterProject = projects.find(p => p.id === projectIdFilter);
 
   const formatCurrency = (value: number | null | undefined) => {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value ?? 0);
@@ -179,13 +196,31 @@ export default function ChangeOrders() {
             <div>
               <h1 className="text-2xl font-bold">Change Orders</h1>
               <p className="text-muted-foreground text-sm">
-                {changeOrders.length} change order{changeOrders.length !== 1 ? 's' : ''}
-                {projectIdFilter && ' for selected project'}
+                Track, approve, and bill change orders tied to projects
               </p>
             </div>
           </div>
-          {/* Future: Add Create CO button here if creation workflow exists */}
+          <Button onClick={() => setShowComingSoon(true)}>
+            <Plus className="w-4 h-4 mr-2" />
+            Create Change Order
+          </Button>
         </div>
+
+        {/* Project filter pill */}
+        {projectIdFilter && filterProject && (
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary" className="gap-2 py-1.5 px-3">
+              <Building2 className="h-3.5 w-3.5" />
+              Filtered to: {filterProject.project_name}
+              <button 
+                onClick={() => updateFilter('projectId', null)}
+                className="ml-1 hover:text-destructive"
+              >
+                ×
+              </button>
+            </Badge>
+          </div>
+        )}
 
         {/* Summary Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -330,6 +365,56 @@ export default function ChangeOrders() {
           }
         }}
       />
+
+      {/* Coming Soon Modal */}
+      <Dialog open={showComingSoon} onOpenChange={setShowComingSoon}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileDiff className="h-5 w-5" />
+              CO Creation Coming Soon
+            </DialogTitle>
+            <DialogDescription>
+              Change Order creation is in development. Here&apos;s what&apos;s coming:
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-3">
+            <div className="flex items-start gap-3">
+              <CheckCircle className="h-5 w-5 text-muted-foreground mt-0.5" />
+              <div>
+                <p className="font-medium text-sm">Create CO from scope changes</p>
+                <p className="text-xs text-muted-foreground">Add or remove work from the contract</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <CheckCircle className="h-5 w-5 text-muted-foreground mt-0.5" />
+              <div>
+                <p className="font-medium text-sm">Auto-allocate to SOV lines</p>
+                <p className="text-xs text-muted-foreground">COs automatically update SOV when approved</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <CheckCircle className="h-5 w-5 text-muted-foreground mt-0.5" />
+              <div>
+                <p className="font-medium text-sm">Send for client approval</p>
+                <p className="text-xs text-muted-foreground">Public link for client review and signature</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <DollarSign className="h-5 w-5 text-muted-foreground mt-0.5" />
+              <div>
+                <p className="font-medium text-sm">Bill approved COs</p>
+                <p className="text-xs text-muted-foreground">Create invoices for approved change orders</p>
+              </div>
+            </div>
+          </div>
+          <div className="flex justify-end">
+            <Button variant="outline" onClick={() => setShowComingSoon(false)}>
+              Got it
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 }

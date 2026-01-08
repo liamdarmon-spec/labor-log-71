@@ -662,6 +662,8 @@ function ChangeOrdersReflection({ changeOrders, projectId, formatCurrency }: {
   const approved = changeOrders.filter(co => co.status === 'approved');
   const pending = changeOrders.filter(co => co.status === 'sent' || co.status === 'draft');
 
+  // Canonical CO route: /app/change-orders
+  // This section shows COs for context; full management is on the Change Orders page
   return (
     <Card>
       <CardHeader>
@@ -669,12 +671,12 @@ function ChangeOrdersReflection({ changeOrders, projectId, formatCurrency }: {
           <div>
             <CardTitle>Change Orders</CardTitle>
             <CardDescription>
-              Approved COs affect contract value — manage COs from the Change Orders module
+              COs adjust billable amount depending on contract type. Approved COs update the contract value.
             </CardDescription>
           </div>
           <Link to={`/app/change-orders?projectId=${projectId}`}>
             <Button variant="outline" size="sm">
-              Manage COs <ExternalLink className="w-4 h-4 ml-2" />
+              View Change Orders <ExternalLink className="w-4 h-4 ml-2" />
             </Button>
           </Link>
         </div>
