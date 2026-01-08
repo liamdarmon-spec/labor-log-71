@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { Briefcase, Users, MoreHorizontal, DollarSign, CheckSquare, CalendarDays, FileDiff } from 'lucide-react';
+import { Briefcase, Users, MoreHorizontal, DollarSign, CheckSquare, CalendarDays } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 
@@ -68,13 +68,6 @@ export function MobileBottomNav() {
               >
                 <DollarSign className="h-5 w-5" />
                 <span>Financials</span>
-              </NavLink>
-              <NavLink
-                to="/app/change-orders"
-                className="flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-muted transition-colors text-base font-medium"
-              >
-                <FileDiff className="h-5 w-5" />
-                <span>Change Orders</span>
               </NavLink>
               <NavLink
                 to="/app/admin"

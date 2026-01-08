@@ -24,6 +24,7 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
+  FileDiff,
 } from 'lucide-react';
 
 interface NavItem {
@@ -39,6 +40,7 @@ const navItems: NavItem[] = [
   { id: 'budget', label: 'Budget', icon: Wallet },
   { id: 'financials', label: 'Financials', icon: DollarSign },
   { id: 'billing', label: 'Billing', icon: Receipt },
+  { id: 'change-orders', label: 'Change Orders', icon: FileDiff },
   { id: 'schedule', label: 'Schedule', icon: CalendarDays },
   { id: 'tasks', label: 'Tasks', icon: CheckSquare },
   { id: 'checklists', label: 'Checklists', icon: ClipboardList },

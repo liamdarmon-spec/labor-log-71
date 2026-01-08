@@ -19,11 +19,12 @@ import { ProjectDocumentsTab } from '@/components/project/ProjectDocumentsTab';
 import { ProjectLaborTab } from '@/components/project/ProjectLaborTab';
 import { ProjectTasksTab } from '@/components/project/ProjectTasksTab';
 import { ProjectChecklistsTab } from '@/components/checklists/ProjectChecklistsTab';
+import { ProjectChangeOrdersTab } from '@/components/project/ProjectChangeOrdersTab';
 import { useCompany } from '@/company/CompanyProvider';
 import { toast } from 'sonner';
 
 const VALID_TABS = [
-  'overview', 'estimates', 'proposals', 'budget', 'billing', 
+  'overview', 'estimates', 'proposals', 'budget', 'billing', 'change-orders',
   'financials', 'dashboard', 'labor', 'tasks', 'checklists', 
   'schedule', 'subs', 'documents', 'photos', 'settings'
 ] as const;
@@ -153,6 +154,8 @@ const ProjectDetail = () => {
         return <ProjectBudgetTabV2 projectId={project.id} />;
       case 'billing':
         return <ProjectBillingTab projectId={project.id} />;
+      case 'change-orders':
+        return <ProjectChangeOrdersTab projectId={project.id} />;
       case 'financials':
         return <ProjectFinancialsTab projectId={project.id} />;
       case 'dashboard':
