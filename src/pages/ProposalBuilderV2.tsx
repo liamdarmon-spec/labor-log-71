@@ -504,6 +504,10 @@ export default function ProposalBuilderV2() {
             onContractChange={() => {
               // Force refetch proposal data after contract changes
             }}
+            billingReadiness={proposal.billing_readiness}
+            milestoneCount={0}
+            milestoneTotal={0}
+            sovTotal={0}
           />
           
           {/* Display Settings */}

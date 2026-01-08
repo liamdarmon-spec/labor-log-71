@@ -1092,6 +1092,42 @@ export default function EstimateBuilderV2() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {/* Save Status Pill */}
+            <div className="flex items-center gap-1.5 text-sm min-w-[100px] justify-end">
+              {combinedGlobalStatus === 'saving' && (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                  <span className="text-muted-foreground">Saving...</span>
+                </>
+              )}
+              {combinedGlobalStatus === 'dirty' && (
+                <>
+                  <span className="text-muted-foreground">Unsaved</span>
+                </>
+              )}
+              {combinedGlobalStatus === 'idle' && !saveError && (
+                <>
+                  <Check className="h-3.5 w-3.5 text-success" />
+                  <span className="text-success">Saved</span>
+                </>
+              )}
+              {combinedGlobalStatus === 'error' && (
+                <>
+                  <AlertCircle className="h-3.5 w-3.5 text-destructive" />
+                  <button
+                    className="text-destructive underline underline-offset-2"
+                    onClick={() => autosave.retryAll()}
+                    title="Retry failed saves"
+                    type="button"
+                  >
+                    Error (retry)
+                  </button>
+                </>
+              )}
+            </div>
+
+            <Separator orientation="vertical" className="h-6" />
+
             {/* Save now button (manual) */}
             <Button
               variant="outline"

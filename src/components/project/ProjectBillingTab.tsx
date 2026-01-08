@@ -1,5 +1,15 @@
 // Project Billing Hub - Read-Only Financial Cockpit
 // ============================================================
+//
+// UI SMOKE TEST CHECKLIST:
+// □ "Billing Basis" shows correct value even if baseline missing
+// □ Missing baseline: shows orange warning with clear CTA to proposals
+// □ Approved but misconfigured billing: shows red banner (if detected via checks)
+// □ Invoice creation dialog works for standalone (without baseline)
+// □ Invoice creation for milestone/SOV blocked with helpful message if baseline missing
+// □ Change Orders list links to /app/change-orders
+// □ Payments and invoices display correctly
+//
 // Big 3: Canonical, Security, Performance
 //
 // HARD RULES:
@@ -167,7 +177,7 @@ export function ProjectBillingTab({ projectId }: ProjectBillingTabProps) {
                   : 'Payment Schedule'}
             </span>
             {hasBaseline ? (
-              <Badge variant="secondary" className="text-xs">Locked</Badge>
+            <Badge variant="secondary" className="text-xs">Locked</Badge>
             ) : billingBasis ? (
               <Badge variant="outline" className="text-xs">Pending Baseline</Badge>
             ) : null}
@@ -178,7 +188,7 @@ export function ProjectBillingTab({ projectId }: ProjectBillingTabProps) {
         </Button>
       </div>
 
-      {!hasBaseline && (
+      {!hasBaseline && !billingBasis && (
         <div className="rounded-xl border-2 border-dashed border-orange-300 bg-orange-50 dark:border-orange-800 dark:bg-orange-950/20 p-6">
           <div className="flex items-start gap-4">
             <div className="rounded-full bg-orange-100 dark:bg-orange-900 p-3">
@@ -186,13 +196,39 @@ export function ProjectBillingTab({ projectId }: ProjectBillingTabProps) {
             </div>
             <div className="flex-1">
               <h3 className="font-semibold text-orange-900 dark:text-orange-100 text-lg">
-                Contract baseline not created yet
+                Billing not configured
               </h3>
               <p className="text-orange-700 dark:text-orange-300 mt-2 text-sm">
-                Progress/SOV billing requires a contract baseline. You can still create a standalone invoice now.
+                Set up billing from an accepted proposal to enable progress invoicing. You can create standalone invoices in the meantime.
               </p>
               <div className="mt-4 flex gap-2">
-                <Link to={`/app/projects/${projectId}`}>
+                <Link to={`/app/projects/${projectId}?tab=proposals`}>
+                  <Button variant="outline" size="sm">
+                    View Proposals <ArrowRight className="w-4 h-4 ml-2" />
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {!hasBaseline && billingBasis && (
+        <div className="rounded-xl border-2 border-dashed border-blue-300 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/20 p-6">
+          <div className="flex items-start gap-4">
+            <div className="rounded-full bg-blue-100 dark:bg-blue-900 p-3">
+              <Clock className="w-6 h-6 text-blue-600" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-blue-900 dark:text-blue-100 text-lg">
+                Contract baseline pending
+              </h3>
+              <p className="text-blue-700 dark:text-blue-300 mt-2 text-sm">
+                Billing basis is set to <strong>{billingBasis === 'sov' ? 'Schedule of Values' : 'Payment Schedule'}</strong>, but the contract baseline hasn't been created yet. 
+                Approve a proposal to enable progress/SOV invoicing.
+              </p>
+              <div className="mt-4 flex gap-2">
+                <Link to={`/app/projects/${projectId}?tab=proposals`}>
                   <Button variant="outline" size="sm">
                     View Proposals <ArrowRight className="w-4 h-4 ml-2" />
                   </Button>

@@ -1,5 +1,16 @@
 // src/components/proposals/ProposalContractPanel.tsx
 // Contract settings & manual approval controls for proposals
+//
+// UI SMOKE TEST CHECKLIST:
+// □ Contract type selector shows all 3 types with clear descriptions
+// □ Milestone type: milestone editor is required, shows blocking error if missing
+// □ SOV type: SOV editor is required, shows blocking error if invalid
+// □ Fixed price: hides milestone/SOV editors
+// □ Approve button disabled with tooltip when billing not ready
+// □ After approval: contract type is locked with clear messaging
+// □ Error from DB surfaces in toast with exact message
+// □ Readiness card shows current status (Ready / Missing config / Locked)
+//
 
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -26,6 +37,12 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import {
   FileText,
   CheckCircle2,
   Clock,
@@ -37,6 +54,8 @@ import {
   Banknote,
   ClipboardCheck,
   FileCheck,
+  ShieldCheck,
+  AlertTriangle,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -56,6 +75,11 @@ interface ProposalContractPanelProps {
   totalAmount: number;
   isLocked: boolean; // True after baseline created
   onContractChange?: () => void;
+  // NEW: billing readiness fields
+  billingReadiness?: string | null;
+  milestoneCount?: number;
+  milestoneTotal?: number;
+  sovTotal?: number;
 }
 
 const CONTRACT_TYPES = [
@@ -98,6 +122,10 @@ export function ProposalContractPanel({
   totalAmount,
   isLocked,
   onContractChange,
+  billingReadiness,
+  milestoneCount = 0,
+  milestoneTotal = 0,
+  sovTotal = 0,
 }: ProposalContractPanelProps) {
   const queryClient = useQueryClient();
   const [showApproveDialog, setShowApproveDialog] = useState(false);
@@ -247,8 +275,106 @@ export function ProposalContractPanel({
 
   const selectedContractInfo = CONTRACT_TYPES.find(c => c.value === localContractType);
 
+  // Billing readiness logic
+  const getBillingReadiness = (): { status: 'ready' | 'locked' | 'incomplete'; reason: string; isReady: boolean } => {
+    if (billingReadiness === 'locked' || acceptanceStatus === 'accepted') {
+      return { status: 'locked', reason: 'Billing configuration is locked after approval', isReady: true };
+    }
+    
+    const type = localContractType;
+    if (type === 'fixed_price') {
+      return { status: 'ready', reason: 'Fixed price is always billable', isReady: true };
+    }
+    
+    if (type === 'milestone') {
+      if (milestoneCount === 0) {
+        return { status: 'incomplete', reason: 'At least one milestone is required', isReady: false };
+      }
+      const diff = Math.abs(milestoneTotal - totalAmount);
+      if (diff > 0.01) {
+        return { 
+          status: 'incomplete', 
+          reason: `Milestone total ($${milestoneTotal.toFixed(2)}) must equal proposal total ($${totalAmount.toFixed(2)})`, 
+          isReady: false 
+        };
+      }
+      return { status: 'ready', reason: 'Milestone schedule is complete', isReady: true };
+    }
+    
+    if (type === 'progress_billing') {
+      if (sovTotal === 0) {
+        return { status: 'incomplete', reason: 'SOV allocation is required', isReady: false };
+      }
+      const diff = Math.abs(sovTotal - totalAmount);
+      if (diff > 0.01) {
+        return { 
+          status: 'incomplete', 
+          reason: `SOV total ($${sovTotal.toFixed(2)}) must equal proposal total ($${totalAmount.toFixed(2)})`, 
+          isReady: false 
+        };
+      }
+      return { status: 'ready', reason: 'SOV allocation is complete', isReady: true };
+    }
+    
+    return { status: 'incomplete', reason: 'Set contract type to continue', isReady: false };
+  };
+
+  const readiness = getBillingReadiness();
+
   return (
     <div className="space-y-4">
+      {/* Billing Readiness Card */}
+      <Card className={
+        readiness.status === 'locked' 
+          ? 'border-emerald-200 bg-emerald-50/50 dark:border-emerald-800 dark:bg-emerald-950/20'
+          : readiness.status === 'ready'
+            ? 'border-blue-200 bg-blue-50/50 dark:border-blue-800 dark:bg-blue-950/20'
+            : 'border-amber-200 bg-amber-50/50 dark:border-amber-800 dark:bg-amber-950/20'
+      }>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            {readiness.status === 'locked' ? (
+              <ShieldCheck className="h-4 w-4 text-emerald-600" />
+            ) : readiness.status === 'ready' ? (
+              <CheckCircle2 className="h-4 w-4 text-blue-600" />
+            ) : (
+              <AlertTriangle className="h-4 w-4 text-amber-600" />
+            )}
+            Billing Readiness
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium">Status:</span>
+            <Badge 
+              variant={readiness.status === 'locked' ? 'default' : readiness.status === 'ready' ? 'secondary' : 'outline'}
+              className={
+                readiness.status === 'locked'
+                  ? 'bg-emerald-600'
+                  : readiness.status === 'ready'
+                    ? 'bg-blue-600 text-white'
+                    : 'border-amber-600 text-amber-700'
+              }
+            >
+              {readiness.status === 'locked' ? 'Locked' : readiness.status === 'ready' ? 'Ready' : 'Incomplete'}
+            </Badge>
+          </div>
+          <p className="text-xs text-muted-foreground">{readiness.reason}</p>
+          
+          {!readiness.isReady && localContractType === 'milestone' && (
+            <div className="mt-2 p-2 rounded bg-amber-100 dark:bg-amber-950/30 text-xs">
+              <strong>Required:</strong> Add milestones in the payment schedule editor below. Total must equal ${totalAmount.toFixed(2)}.
+            </div>
+          )}
+          
+          {!readiness.isReady && localContractType === 'progress_billing' && (
+            <div className="mt-2 p-2 rounded bg-amber-100 dark:bg-amber-950/30 text-xs">
+              <strong>Required:</strong> Configure SOV allocation. Total must equal ${totalAmount.toFixed(2)}.
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Approval Status Card */}
       <Card className={acceptanceStatus === 'accepted' ? 'border-emerald-200 bg-emerald-50/50 dark:border-emerald-800 dark:bg-emerald-950/20' : ''}>
         <CardHeader className="pb-3">
@@ -274,16 +400,29 @@ export function ProposalContractPanel({
             </div>
           ) : (
             <div className="flex gap-2">
-              <Button
-                size="sm"
-                variant="default"
-                className="bg-emerald-600 hover:bg-emerald-700 flex-1"
-                onClick={() => setShowApproveDialog(true)}
-                disabled={isUpdating}
-              >
-                <CheckCircle2 className="h-4 w-4 mr-1.5" />
-                Mark as Approved
-              </Button>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex-1">
+                      <Button
+                        size="sm"
+                        variant="default"
+                        className="bg-emerald-600 hover:bg-emerald-700 w-full"
+                        onClick={() => setShowApproveDialog(true)}
+                        disabled={isUpdating || !readiness.isReady}
+                      >
+                        <CheckCircle2 className="h-4 w-4 mr-1.5" />
+                        Mark as Approved
+                      </Button>
+                    </div>
+                  </TooltipTrigger>
+                  {!readiness.isReady && (
+                    <TooltipContent>
+                      <p className="text-xs">{readiness.reason}</p>
+                    </TooltipContent>
+                  )}
+                </Tooltip>
+              </TooltipProvider>
               <Button
                 size="sm"
                 variant="outline"
@@ -307,7 +446,7 @@ export function ProposalContractPanel({
             Contract Type
           </CardTitle>
           <CardDescription className="text-xs">
-            Determines how billing will be structured
+            Determines how billing and invoicing will work
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -322,19 +461,40 @@ export function ProposalContractPanel({
             <SelectContent>
               {CONTRACT_TYPES.map((type) => (
                 <SelectItem key={type.value} value={type.value}>
-                  <div className="flex items-center gap-2">
-                    <type.icon className="h-4 w-4 text-muted-foreground" />
-                    <span>{type.label}</span>
+                  <div className="flex flex-col py-1">
+                    <div className="flex items-center gap-2">
+                      <type.icon className="h-4 w-4 text-muted-foreground" />
+                      <span className="font-medium">{type.label}</span>
+                    </div>
+                    <span className="text-xs text-muted-foreground ml-6">{type.description}</span>
                   </div>
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
 
-          {selectedContractInfo && (
-            <p className="text-xs text-muted-foreground">
-              {selectedContractInfo.description}
-            </p>
+          {localContractType === 'fixed_price' && (
+            <div className="rounded-lg bg-muted p-3 text-xs text-muted-foreground">
+              ℹ️ Standalone invoices are allowed. No milestones or SOV required.
+            </div>
+          )}
+          
+          {localContractType === 'milestone' && (
+            <div className="rounded-lg bg-blue-50 dark:bg-blue-950/30 p-3 text-xs">
+              <p className="font-medium text-blue-900 dark:text-blue-100 mb-1">Milestone Schedule Required</p>
+              <p className="text-blue-700 dark:text-blue-300">
+                Add payment milestones below. Total must equal ${formatCurrency(totalAmount)}.
+              </p>
+            </div>
+          )}
+          
+          {localContractType === 'progress_billing' && (
+            <div className="rounded-lg bg-blue-50 dark:bg-blue-950/30 p-3 text-xs">
+              <p className="font-medium text-blue-900 dark:text-blue-100 mb-1">SOV Allocation Required</p>
+              <p className="text-blue-700 dark:text-blue-300">
+                Configure Schedule of Values. Total must equal ${formatCurrency(totalAmount)}.
+              </p>
+            </div>
           )}
 
           {isLocked && (
