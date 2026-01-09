@@ -38,7 +38,7 @@ export function SubProjectsTab({ subId }: SubProjectsTabProps) {
               <TableRow>
                 <TableHead>Project</TableHead>
                 <TableHead className="text-right">Contract Value</TableHead>
-                <TableHead className="text-right">Approved COs</TableHead>
+                <TableHead className="text-right">Approved Change Orders</TableHead>
                 <TableHead className="text-right">Contract Total</TableHead>
                 <TableHead className="text-right">Actual Cost</TableHead>
                 <TableHead className="text-right">Remaining</TableHead>

@@ -193,13 +193,13 @@ export function ProjectOverviewTab({ projectId }: ProjectOverviewTabProps) {
 
   // ========== DERIVE PROPS ==========
 
-  // Change Orders tab is within the project sidebar
+  // Canonical Change Orders route: /change-orders?projectId=<id>
   const actionHandlers: ActionRowProps = {
     onNewTask: undefined, // CreateTaskDialog uses trigger pattern below
     onScheduleWorkers: () => setShowScheduleDialog(true),
     onAddDocument: undefined, // Coming soon
     onLogCost: () => setShowCostDialog(true),
-    onAddChangeOrder: () => setSearchParams({ tab: 'change-orders' }),
+    onAddChangeOrder: () => navigate(`/change-orders?projectId=${projectId}`),
   };
 
   const weeklySummaryProps: WeeklySummaryProps = {

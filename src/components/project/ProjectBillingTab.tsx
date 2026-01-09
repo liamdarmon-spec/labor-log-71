@@ -244,7 +244,7 @@ export function ProjectBillingTab({ projectId }: ProjectBillingTabProps) {
         <KPICard
           title="Contract Value"
           value={formatCurrency(summary?.current_contract_total)}
-          breakdown={`Base: ${formatCurrency(summary?.base_contract_total)} + COs: ${formatCurrency(summary?.approved_change_order_total)}`}
+          breakdown={`Base: ${formatCurrency(summary?.base_contract_total)} + Change Orders: ${formatCurrency(summary?.approved_change_order_total)}`}
           icon={<FileCheck className="w-5 h-5" />}
         />
         <KPICard
@@ -662,8 +662,8 @@ function ChangeOrdersReflection({ changeOrders, projectId, formatCurrency }: {
   const approved = changeOrders.filter(co => co.status === 'approved');
   const pending = changeOrders.filter(co => co.status === 'sent' || co.status === 'draft');
 
-  // Change Orders tab is within the project sidebar (Project > Change Orders)
-  // This section shows COs for context; full management is on the Change Orders tab
+  // Canonical Change Orders route: /change-orders?projectId=<id>
+  // This section shows change orders for context; full management is on the Change Orders page.
   return (
     <Card>
       <CardHeader>
@@ -671,10 +671,10 @@ function ChangeOrdersReflection({ changeOrders, projectId, formatCurrency }: {
           <div>
             <CardTitle>Change Orders</CardTitle>
             <CardDescription>
-              COs adjust billable amount depending on contract type. Approved COs update the contract value.
+              Change orders adjust billable amount depending on contract type. Approved change orders update the contract value.
             </CardDescription>
           </div>
-          <Link to={`?tab=change-orders`}>
+          <Link to={`/change-orders?projectId=${projectId}`}>
             <Button variant="outline" size="sm">
               View Change Orders <ExternalLink className="w-4 h-4 ml-2" />
             </Button>

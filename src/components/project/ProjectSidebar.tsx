@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import {
@@ -58,6 +58,7 @@ interface ProjectSidebarProps {
 const STORAGE_KEY = 'project-sidebar-collapsed';
 
 export function ProjectSidebar({ projectId, projectName }: ProjectSidebarProps) {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get('tab') || 'overview';
   
@@ -71,6 +72,12 @@ export function ProjectSidebar({ projectId, projectName }: ProjectSidebarProps) 
   }, [collapsed]);
 
   const handleNavClick = (tabId: string) => {
+    // Change Orders lives in project nav, but routes to canonical Change Orders page.
+    // Canonical CO route: /change-orders?projectId=<id>
+    if (tabId === 'change-orders') {
+      navigate(`/change-orders?projectId=${projectId}`);
+      return;
+    }
     const next = new URLSearchParams(searchParams);
     next.set('tab', tabId);
     setSearchParams(next);

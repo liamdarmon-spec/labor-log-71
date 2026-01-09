@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
-// Canonical CO route: /app/change-orders
-// The "Change Order" action button navigates to the Change Orders page with projectId context
+// Canonical Change Orders route: /change-orders?projectId=<id>
+// The "Change Order" action button navigates to the Change Orders page with project context.
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { CalendarPlus, FileUp, Receipt, FileEdit } from 'lucide-react';
 import { cn } from '@/lib/utils';

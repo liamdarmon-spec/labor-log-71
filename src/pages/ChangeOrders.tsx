@@ -1,16 +1,17 @@
 // src/pages/ChangeOrders.tsx
-// Change Orders module — top-level list of all COs across projects
+// Change Orders module — top-level list of all change orders across projects
 // Supports optional projectId query param for filtering
 //
-// Canonical CO route: /app/change-orders
-// All "Change Order" / "Manage CO" buttons should navigate here
+// Canonical Change Orders route: /change-orders (redirects to /app/change-orders)
+// All "Change Order" entry points should navigate here
 //
 // UI SMOKE TEST CHECKLIST:
 // □ Page renders with header, stats, filters, and table
 // □ Project filter pill appears when ?projectId= is in URL
+// □ When filtered, page shows a Back to Project link
 // □ Clicking a CO row opens detail dialog
 // □ "Create Change Order" button opens coming-soon modal
-// □ Empty state shows when no COs exist
+// □ Empty state shows when no change orders exist
 // □ Status filter works correctly
 
 import { useState, useMemo } from 'react';
@@ -208,7 +209,7 @@ export default function ChangeOrders() {
 
         {/* Project filter pill */}
         {projectIdFilter && filterProject && (
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2">
             <Badge variant="secondary" className="gap-2 py-1.5 px-3">
               <Building2 className="h-3.5 w-3.5" />
               Filtered to: {filterProject.project_name}
@@ -219,6 +220,13 @@ export default function ChangeOrders() {
                 ×
               </button>
             </Badge>
+            <Button
+              variant="link"
+              className="h-auto p-0 text-sm justify-start"
+              onClick={() => navigate(`/app/projects/${projectIdFilter}?tab=billing`)}
+            >
+              Back to Project Billing
+            </Button>
           </div>
         )}
 
@@ -307,7 +315,10 @@ export default function ChangeOrders() {
                 ))}
               </div>
             ) : changeOrders.length === 0 ? (
-              <EmptyState projectFilter={!!projectIdFilter} />
+              <EmptyState
+                projectFilter={!!projectIdFilter}
+                onCreate={() => setShowComingSoon(true)}
+              />
             ) : (
               <Table>
                 <TableHeader>
@@ -390,7 +401,7 @@ export default function ChangeOrders() {
               <CheckCircle className="h-5 w-5 text-muted-foreground mt-0.5" />
               <div>
                 <p className="font-medium text-sm">Auto-allocate to SOV lines</p>
-                <p className="text-xs text-muted-foreground">COs automatically update SOV when approved</p>
+                <p className="text-xs text-muted-foreground">Approved change orders can update SOV when configured</p>
               </div>
             </div>
             <div className="flex items-start gap-3">
@@ -403,7 +414,7 @@ export default function ChangeOrders() {
             <div className="flex items-start gap-3">
               <DollarSign className="h-5 w-5 text-muted-foreground mt-0.5" />
               <div>
-                <p className="font-medium text-sm">Bill approved COs</p>
+                <p className="font-medium text-sm">Bill approved change orders</p>
                 <p className="text-xs text-muted-foreground">Create invoices for approved change orders</p>
               </div>
             </div>
@@ -467,18 +478,30 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-function EmptyState({ projectFilter }: { projectFilter: boolean }) {
+function EmptyState({
+  projectFilter,
+  onCreate,
+}: {
+  projectFilter: boolean;
+  onCreate: () => void;
+}) {
   return (
     <div className="text-center py-16">
       <div className="mx-auto mb-4 opacity-50">
         <FileDiff className="h-12 w-12 mx-auto" />
       </div>
-      <h3 className="font-medium mb-1">No Change Orders</h3>
+      <h3 className="font-medium mb-1">No Change Orders yet</h3>
       <p className="text-sm text-muted-foreground max-w-sm mx-auto">
         {projectFilter
           ? 'No change orders found for this project. Try clearing the filter.'
-          : 'Change orders will appear here when created from a project.'}
+          : 'Create and track change orders tied to projects.'}
       </p>
+      <div className="mt-6 flex justify-center">
+        <Button onClick={onCreate}>
+          <Plus className="h-4 w-4 mr-2" />
+          Create Change Order
+        </Button>
+      </div>
     </div>
   );
 }
