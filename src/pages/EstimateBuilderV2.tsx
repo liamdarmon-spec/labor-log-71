@@ -8,7 +8,7 @@
  */
 
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Layout } from "@/components/Layout";
@@ -78,6 +78,13 @@ type SaveWarningPayload =
       extra?: any;
     }
   | null;
+
+type LoadErrorPayload = SaveErrorPayload;
+
+function isUuid(v: string | undefined | null): boolean {
+  if (!v) return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
+}
 
 function isFiniteNumber(n: unknown): n is number {
   return typeof n === "number" && Number.isFinite(n);
@@ -223,8 +230,10 @@ function serializeItem(item: ScopeItem): string {
 }
 
 export default function EstimateBuilderV2() {
-  const { estimateId } = useParams();
+  const params = useParams<{ estimateId?: string; id?: string }>();
+  const estimateId = params.estimateId ?? params.id;
   const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
 
   // Local state for immediate UI updates
@@ -237,6 +246,8 @@ export default function EstimateBuilderV2() {
   const [saveWarning, setSaveWarning] = useState<SaveWarningPayload>(null);
   const [isErrorDismissed, setIsErrorDismissed] = useState(false);
   const [isWarningDismissed, setIsWarningDismissed] = useState(false);
+  const [loadError, setLoadError] = useState<LoadErrorPayload>(null);
+  const [isLoadErrorDismissed, setIsLoadErrorDismissed] = useState(false);
   const [lastSaveAt, setLastSaveAt] = useState<string | null>(null);
   const [lastSaveErrorSummary, setLastSaveErrorSummary] = useState<string | null>(null);
   const postSaveExpectedIdsRef = useRef<{ blocks: Set<string>; items: Set<string> } | null>(null);
@@ -250,6 +261,9 @@ export default function EstimateBuilderV2() {
     autosave.hasPendingChanges() ||
     autosave.hasErrors() ||
     saveError != null;
+
+  // Hard invariant: estimateId must exist and be a UUID, otherwise render explicit error (no silent behavior).
+  const isValidEstimateId = isUuid(estimateId);
 
   // Browser beforeunload handler
   useEffect(() => {
@@ -317,7 +331,11 @@ export default function EstimateBuilderV2() {
   const hasMigratedRef = useRef(false);
 
   // Fetch estimate - cached and won't refetch on window focus
-  const { data: estimate, isLoading: estimateLoading } = useQuery({
+  const {
+    data: estimate,
+    isLoading: estimateLoading,
+    error: estimateError,
+  } = useQuery({
     queryKey: ["estimate-builder", estimateId],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -328,14 +346,18 @@ export default function EstimateBuilderV2() {
       if (error) throw error;
       return data as Estimate;
     },
-    enabled: !!estimateId,
+    enabled: !!estimateId && isValidEstimateId,
     staleTime: 60000, // 1 minute
     gcTime: 5 * 60 * 1000, // 5 minutes
     refetchOnWindowFocus: false,
   });
 
   // Fetch scope blocks with cost items - cached with good stale/gc times
-  const { data: scopeBlocks = [], isLoading: blocksLoading } = useQuery({
+  const {
+    data: scopeBlocks = [],
+    isLoading: blocksLoading,
+    error: blocksError,
+  } = useQuery({
     queryKey: ["scope-blocks", "estimate", estimateId],
     queryFn: async () => {
       // Cast to any to avoid Supabase generic type explosion in TS
@@ -366,11 +388,59 @@ export default function EstimateBuilderV2() {
       
       return blocks;
     },
-    enabled: !!estimateId,
+    enabled: !!estimateId && isValidEstimateId,
     staleTime: 30000, // 30s - don't refetch within this window
     gcTime: 5 * 60 * 1000, // 5 minutes
     refetchOnWindowFocus: false, // Don't refetch on tab focus
   });
+
+  // Surface load errors (estimate query + scope blocks query) in a persistent, copyable panel.
+  useEffect(() => {
+    const err: any = (estimateError as any) ?? (blocksError as any) ?? null;
+    if (!err) return;
+
+    const code = err?.code ?? err?.error_code ?? null;
+    const msg = err?.message ?? String(err);
+    const details = err?.details ?? null;
+    const hint = err?.hint ?? null;
+
+    // PGRST116 is commonly "Results contain 0 rows" (not found OR RLS-invisible).
+    const likelyRls =
+      String(code ?? "").toUpperCase() === "PGRST116" ||
+      /0 rows/i.test(String(details ?? "")) ||
+      /Results contain 0 rows/i.test(msg);
+
+    const prettyMsg = likelyRls
+      ? `Estimate not found or access denied (RLS). If you switched companies, select the company that owns this estimate.\n\nRaw: ${msg}`
+      : msg;
+
+    setLoadError({
+      title: "Failed to load estimate",
+      message: prettyMsg,
+      details,
+      hint,
+      code: code ? String(code) : null,
+      extra: {
+        path: location.pathname + location.search,
+        params,
+        estimateId,
+        source: estimateError ? "estimate" : "scope_blocks",
+      },
+    });
+    setIsLoadErrorDismissed(false);
+
+    if (import.meta.env.DEV) {
+      console.warn("[estimate] load failed", {
+        estimateId,
+        path: location.pathname + location.search,
+        code,
+        message: msg,
+        details,
+        hint,
+        err,
+      });
+    }
+  }, [estimateError, blocksError, estimateId, location.pathname, location.search, params]);
 
   // Fetch cost codes for export
   const { data: catalog } = useCostCodeCatalog();
@@ -897,6 +967,92 @@ export default function EstimateBuilderV2() {
     }
   }, [estimateId, estimate, localBlocks, costCodes]);
 
+  // Route/param invariant (must be explicit; no silent fallbacks)
+  if (!estimateId) {
+    return (
+      <Layout>
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <FileText className="h-12 w-12 text-muted-foreground mb-4" />
+          <h2 className="text-xl font-semibold mb-2">Invalid estimate link</h2>
+          <p className="text-muted-foreground mb-4">
+            This URL is missing an <code>estimateId</code> parameter.
+          </p>
+          <pre className="max-w-2xl w-full text-left text-xs bg-muted/50 border rounded-lg p-3 overflow-auto">
+            {JSON.stringify(
+              {
+                path: location.pathname + location.search,
+                params,
+              },
+              null,
+              2
+            )}
+          </pre>
+          <div className="mt-4 flex gap-2">
+            <Button
+              variant="outline"
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(
+                    JSON.stringify({ path: location.pathname + location.search, params }, null, 2)
+                  );
+                  toast.success("Copied");
+                } catch {
+                  toast.error("Failed to copy");
+                }
+              }}
+            >
+              Copy details
+            </Button>
+            <Button onClick={() => navigate("/app/projects")}>Back to Projects</Button>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
+  if (!isValidEstimateId) {
+    return (
+      <Layout>
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <FileText className="h-12 w-12 text-muted-foreground mb-4" />
+          <h2 className="text-xl font-semibold mb-2">Invalid estimate ID</h2>
+          <p className="text-muted-foreground mb-4">
+            The estimate ID in this URL is not a valid UUID.
+          </p>
+          <pre className="max-w-2xl w-full text-left text-xs bg-muted/50 border rounded-lg p-3 overflow-auto">
+            {JSON.stringify(
+              {
+                estimateId,
+                path: location.pathname + location.search,
+                params,
+              },
+              null,
+              2
+            )}
+          </pre>
+          <div className="mt-4 flex gap-2">
+            <Button
+              variant="outline"
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(
+                    JSON.stringify({ estimateId, path: location.pathname + location.search, params }, null, 2)
+                  );
+                  toast.success("Copied");
+                } catch {
+                  toast.error("Failed to copy");
+                }
+              }}
+            >
+              Copy details
+            </Button>
+            <Button onClick={() => navigate("/app/projects")}>Back to Projects</Button>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
   const handleExportPDF = useCallback(() => {
     try {
       const costCodeMap = new Map(costCodes.map(cc => [cc.id, { code: cc.code, name: cc.name }]));
@@ -949,12 +1105,83 @@ export default function EstimateBuilderV2() {
   if (!estimate) {
     return (
       <Layout>
+        {/* Persistent load error surface */}
+        {loadError && !isLoadErrorDismissed && (
+          <div className="fixed bottom-4 right-4 z-[9999] max-w-md rounded-lg border bg-background p-3 shadow-lg">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="text-sm font-medium text-destructive">{loadError.title}</div>
+                <div className="mt-1 text-xs text-muted-foreground break-words">{loadError.message}</div>
+                {(loadError.details || loadError.hint || loadError.code) && (
+                  <pre className="mt-2 max-h-40 overflow-auto text-[10px] whitespace-pre-wrap opacity-80">
+                    {JSON.stringify(
+                      {
+                        details: loadError.details ?? null,
+                        hint: loadError.hint ?? null,
+                        code: loadError.code ?? null,
+                      },
+                      null,
+                      2
+                    )}
+                  </pre>
+                )}
+              </div>
+              <div className="flex flex-col gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(JSON.stringify(loadError, null, 2));
+                      toast.success("Copied error");
+                    } catch {
+                      toast.error("Failed to copy");
+                    }
+                  }}
+                  className="h-7 px-2"
+                >
+                  Copy error
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={async () => {
+                    await queryClient.refetchQueries({ queryKey: ["estimate-builder", estimateId] } as any);
+                    await queryClient.refetchQueries({ queryKey: ["scope-blocks", "estimate", estimateId] } as any);
+                  }}
+                  className="h-7 px-2"
+                >
+                  Retry
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsLoadErrorDismissed(true)}
+                  className="h-7 px-2"
+                >
+                  Dismiss
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="text-center py-12">
           <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-          <h2 className="text-xl font-semibold mb-2">Estimate not found</h2>
+          <h2 className="text-xl font-semibold mb-2">Estimate not found or access denied</h2>
           <p className="text-muted-foreground mb-4">
-            The estimate you're looking for doesn't exist or has been deleted.
+            This can happen if the estimate was deleted, or if it belongs to a different company (RLS).
           </p>
+          <pre className="max-w-xl mx-auto text-left text-xs bg-muted/50 border rounded-lg p-3 overflow-auto mb-4">
+            {JSON.stringify(
+              {
+                estimateId,
+                path: location.pathname + location.search,
+              },
+              null,
+              2
+            )}
+          </pre>
           <Button onClick={() => navigate("/app/projects")}>
             Back to Projects
           </Button>
@@ -972,6 +1199,67 @@ export default function EstimateBuilderV2() {
   return (
     <Layout>
       <div className="space-y-6 max-w-7xl mx-auto">
+        {/* Bottom-right load error surface (exact DB/RLS message). Does NOT affect dirty state. */}
+        {loadError && !isLoadErrorDismissed && (
+          <div className="fixed bottom-4 right-4 z-[9997] max-w-md rounded-lg border bg-background p-3 shadow-lg">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="text-sm font-medium text-destructive">{loadError.title}</div>
+                <div className="mt-1 text-xs text-muted-foreground break-words">{loadError.message}</div>
+                {(loadError.details || loadError.hint || loadError.code) && (
+                  <pre className="mt-2 max-h-40 overflow-auto text-[10px] whitespace-pre-wrap opacity-80">
+                    {JSON.stringify(
+                      {
+                        details: loadError.details ?? null,
+                        hint: loadError.hint ?? null,
+                        code: loadError.code ?? null,
+                      },
+                      null,
+                      2
+                    )}
+                  </pre>
+                )}
+              </div>
+              <div className="flex flex-col gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(JSON.stringify(loadError, null, 2));
+                      toast.success("Copied error");
+                    } catch {
+                      toast.error("Failed to copy");
+                    }
+                  }}
+                  className="h-7 px-2"
+                >
+                  Copy error
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={async () => {
+                    await queryClient.refetchQueries({ queryKey: ["estimate-builder", estimateId] } as any);
+                    await queryClient.refetchQueries({ queryKey: ["scope-blocks", "estimate", estimateId] } as any);
+                  }}
+                  className="h-7 px-2"
+                >
+                  Retry
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsLoadErrorDismissed(true)}
+                  className="h-7 px-2"
+                >
+                  Dismiss
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Bottom-right save error surface (exact DB/trigger message) */}
         {saveError && !isErrorDismissed && (
           <div className="fixed bottom-4 right-4 z-[9999] max-w-md rounded-lg border bg-background p-3 shadow-lg">

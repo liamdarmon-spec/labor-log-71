@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useParams } from "react-router-dom";
 import Dashboard from "./pages/Dashboard";
 import Admin from "./pages/Admin";
 import ViewLogs from "./pages/ViewLogs";
@@ -55,6 +55,13 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+function EstimateLegacyRedirect() {
+  const params = useParams<{ estimateId?: string; id?: string }>();
+  const eid = params.estimateId ?? params.id;
+  if (!eid) return <Navigate to="/app/projects" replace />;
+  return <Navigate to={`/app/estimates/${eid}`} replace />;
+}
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -133,7 +140,9 @@ const App = () => (
             <Route path="/schedule" element={<Navigate to="/app/schedule" replace />} />
             <Route path="/payments" element={<Navigate to="/app/payments" replace />} />
             <Route path="/projects/*" element={<Navigate to="/app/projects" replace />} />
-            {/* Legacy /estimates routes - estimates are accessed via /app/estimates/:id */}
+            {/* Legacy /estimates routes -> canonical /app/estimates/:estimateId */}
+            <Route path="/estimates/:estimateId" element={<EstimateLegacyRedirect />} />
+            <Route path="/estimates/:id" element={<EstimateLegacyRedirect />} />
             <Route path="/tasks" element={<Navigate to="/app/tasks" replace />} />
             <Route path="/settings/proposals" element={<Navigate to="/app/settings/proposals" replace />} />
             <Route path="/workforce/*" element={<Navigate to="/app/workforce" replace />} />

@@ -141,7 +141,9 @@ export function BudgetDetailTable({ projectId }: BudgetDetailTableProps) {
               variant="outline"
               disabled={!baselineEstimateId}
               onClick={() =>
-                baselineEstimateId && window.open(`/estimates/${baselineEstimateId}`, '_blank')
+                // Canonical Estimate route: /app/estimates/:estimateId
+                // Legacy /estimates/:id deep links are supported via redirect, but open canonical directly.
+                baselineEstimateId && window.open(`/app/estimates/${baselineEstimateId}`, '_blank')
               }
             >
               View Baseline Estimate
