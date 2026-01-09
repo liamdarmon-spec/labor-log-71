@@ -21,8 +21,8 @@ import {
 } from '@/hooks/useProposalData';
 import { ProposalContextPanel } from '@/components/proposals/ProposalContextPanel';
 import { ProposalContentEditor } from '@/components/proposals/ProposalContentEditor';
-import { ProposalSettingsPanel } from '@/components/proposals/ProposalSettingsPanel';
-import { ProposalContractPanel } from '@/components/proposals/ProposalContractPanel';
+import { ProposalRightRail } from '@/components/proposals/ProposalRightRail';
+import { ContractPhaseIndicator, ContractPhase } from '@/components/proposals/ContractPhaseIndicator';
 import { ProposalPDFPreview } from '@/components/proposals/ProposalPDFPreview';
 import { useCompany } from '@/company/CompanyProvider';
 import { useProposalAutosave } from '@/hooks/useProposalAutosave';
@@ -65,6 +65,9 @@ export default function ProposalBuilderV2() {
   const [isErrorDismissed, setIsErrorDismissed] = useState(false);
   const [lastSaveAt, setLastSaveAt] = useState<string | null>(null);
   const [lastSaveErrorSummary, setLastSaveErrorSummary] = useState<string | null>(null);
+  
+  // UI-only "Review" phase state (between Draft and Approved)
+  const [reviewPhase, setReviewPhase] = useState(false);
 
   // Local draft state (source of truth for autosave payload)
   const [draftTitle, setDraftTitle] = useState<string>('');
@@ -463,6 +466,21 @@ export default function ProposalBuilderV2() {
         />
       )}
 
+      {/* Contract Phase Indicator */}
+      <div className="border-b bg-slate-50/50 dark:bg-slate-900/30 px-6 py-4">
+        <div className="max-w-[1600px] mx-auto">
+          <ContractPhaseIndicator
+            currentPhase={
+              proposal.acceptance_status === 'accepted'
+                ? 'approved'
+                : reviewPhase
+                  ? 'review'
+                  : 'draft'
+            }
+          />
+        </div>
+      </div>
+
       {/* 3-Column Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 p-6 max-w-[1600px] mx-auto">
         {/* Left Column: Context & Data Source */}
@@ -488,10 +506,9 @@ export default function ProposalBuilderV2() {
           />
         </div>
 
-        {/* Right Column: Contract Settings & Display Toggles */}
-        <div className="lg:col-span-3 space-y-4">
-          {/* Contract Settings (approval, type, terms) */}
-          <ProposalContractPanel
+        {/* Right Column: Unified Contract & Settings Rail */}
+        <div className="lg:col-span-3">
+          <ProposalRightRail
             proposalId={proposal.id}
             contractType={proposal.contract_type}
             billingTerms={proposal.billing_terms}
@@ -508,12 +525,16 @@ export default function ProposalBuilderV2() {
             milestoneCount={0}
             milestoneTotal={0}
             sovTotal={0}
-          />
-          
-          {/* Display Settings */}
-          <ProposalSettingsPanel
             settings={draftSettings ?? proposal.settings}
             onSettingsChange={handleSettingsChange}
+            currentPhase={
+              proposal.acceptance_status === 'accepted'
+                ? 'approved'
+                : reviewPhase
+                  ? 'review'
+                  : 'draft'
+            }
+            onPhaseChange={(phase) => setReviewPhase(phase === 'review')}
           />
         </div>
       </div>
