@@ -3,6 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useParams } from "react-router-dom";
+import { AppErrorBoundary } from "@/components/system/AppErrorBoundary";
 import Dashboard from "./pages/Dashboard";
 import Admin from "./pages/Admin";
 import ViewLogs from "./pages/ViewLogs";
@@ -68,9 +69,10 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <BrowserRouter>
-        <CompanyProvider>
-          <Routes>
+      <AppErrorBoundary>
+        <BrowserRouter>
+          <CompanyProvider>
+            <Routes>
             {/* Auth */}
             <Route path="/login" element={<AuthPage />} />
             <Route path="/signup" element={<AuthPage />} />
@@ -157,9 +159,10 @@ const App = () => (
             <Route path="/admin" element={<Navigate to="/app/admin" replace />} />
 
             <Route path="*" element={<NotFound />} />
-          </Routes>
-        </CompanyProvider>
-      </BrowserRouter>
+            </Routes>
+          </CompanyProvider>
+        </BrowserRouter>
+      </AppErrorBoundary>
     </TooltipProvider>
   </QueryClientProvider>
 );

@@ -15,6 +15,7 @@ import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { ArrowLeft, Plus, FileText, Check, Download, FileSpreadsheet } from "lucide-react";
 import { useCostCodeCatalog } from "@/hooks/useCostCodeCatalog";
@@ -1507,7 +1508,8 @@ export default function EstimateBuilderV2() {
               documentType: 'estimate',
               documentId: estimateId || null,
               projectId: projectId ?? estimate?.project_id ?? null,
-              companyId: activeCompanyId ?? null,
+              // Avoid relying on global company state here; this is diagnostic-only.
+              companyId: estimate?.company_id ?? null,
               status: combinedGlobalStatus,
               errorMessage: saveError?.message ?? autosaveDiag.lastBatchError ?? null,
               pendingUpdatesCount: autosaveDiag.pendingCount,
@@ -1517,8 +1519,8 @@ export default function EstimateBuilderV2() {
               lastPayloadBytes: 0, // Would need to track in hook
               lastResponseCount: 0,
               lastDirtyReason: isDirtyStructural ? 'structural' : 'field',
-              onRetry: handleManualSave,
-              onFlush: handleManualSave,
+              onRetry: saveNow,
+              onFlush: saveNow,
             }}
           />
         )}
