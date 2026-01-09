@@ -93,10 +93,11 @@ export function useProposalAutosave<TPayload>(opts: Options<TPayload>) {
 
       // RPC returns out_proposal_id, out_draft_version, out_updated_at (prefixed to avoid ambiguity)
       const ack = (Array.isArray(data) ? data[0] : data) as any;
-      const proposalId = ack?.out_proposal_id ?? ack?.proposal_id;
+      // IMPORTANT: do NOT shadow the outer `proposalId` (would cause TDZ errors earlier in this try block).
+      const serverProposalId = ack?.out_proposal_id ?? ack?.proposal_id;
       const draftVersion = ack?.out_draft_version ?? ack?.draft_version;
       const updatedAt = ack?.out_updated_at ?? ack?.updated_at;
-      if (!proposalId) {
+      if (!serverProposalId) {
         throw new Error('Invalid server response from upsert_proposal_draft');
       }
 
@@ -105,7 +106,7 @@ export function useProposalAutosave<TPayload>(opts: Options<TPayload>) {
       setStatus('saved');
       setErrorMessage(null);
       onServerAck?.({
-        proposal_id: proposalId,
+        proposal_id: serverProposalId,
         draft_version: Number(draftVersion),
         updated_at: updatedAt,
       });
