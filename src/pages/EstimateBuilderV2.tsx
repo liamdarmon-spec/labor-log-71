@@ -565,23 +565,45 @@ export default function EstimateBuilderV2() {
       const hasNoItems = scopeBlocks.every(b => (b.scope_block_cost_items || []).length === 0);
       
       if (!hasNoItems) return; // Already has items in new format
-      
-      const { needsMigration, legacyItemCount } = await checkEstimateNeedsMigration(estimateId);
-      
-      if (needsMigration && legacyItemCount > 0) {
-        hasMigratedRef.current = true;
-        setIsMigrating(true);
-        
-        const result = await migrateEstimateToScopeBlocks(estimateId);
-        
-        setIsMigrating(false);
-        
-        if (result.success && result.migratedCount > 0) {
-          toast.success(`Migrated ${result.migratedCount} items to new format`);
-          queryClient.invalidateQueries({ queryKey: ["scope-blocks", "estimate", estimateId] });
-        } else if (result.error) {
-          toast.error("Failed to migrate legacy items: " + result.error);
+
+      try {
+        const { needsMigration, legacyItemCount } = await checkEstimateNeedsMigration(estimateId);
+
+        if (needsMigration && legacyItemCount > 0) {
+          setIsMigrating(true);
+          const result = await migrateEstimateToScopeBlocks(estimateId);
+
+          if (result.success && result.migratedCount > 0) {
+            hasMigratedRef.current = true; // mark migrated only on success
+            toast.success(`Migrated ${result.migratedCount} items to new format`);
+            queryClient.invalidateQueries({ queryKey: ["scope-blocks", "estimate", estimateId] });
+          } else if (result.error) {
+            // Do not permanently lock the user out; allow retry after dismissing the error.
+            hasMigratedRef.current = false;
+            const msg = "Failed to migrate legacy items: " + result.error;
+            toast.error(msg);
+            setLoadError({
+              title: "Migration failed",
+              message: msg,
+              extra: { estimateId, source: "migrateEstimateToScopeBlocks" },
+            });
+            setIsLoadErrorDismissed(false);
+            if (import.meta.env.DEV) console.warn("[estimate] migration failed", { estimateId, result });
+          }
         }
+      } catch (e) {
+        // Critical: never get stuck in migrating=true on exception.
+        hasMigratedRef.current = false;
+        const msg = e instanceof Error ? e.message : String(e);
+        setLoadError({
+          title: "Migration check failed",
+          message: msg,
+          extra: { estimateId, source: "checkEstimateNeedsMigration" },
+        });
+        setIsLoadErrorDismissed(false);
+        if (import.meta.env.DEV) console.warn("[estimate] migration check threw", { estimateId, error: e });
+      } finally {
+        setIsMigrating(false);
       }
     };
     
@@ -593,12 +615,23 @@ export default function EstimateBuilderV2() {
     const createBlockIfNeeded = async () => {
       if (blocksLoading || scopeBlocks.length > 0 || createFirstBlock.isPending || isMigrating) return;
       
-      // Check if there are legacy items first
-      const { needsMigration } = await checkEstimateNeedsMigration(estimateId!);
-      
-      // Only auto-create empty block if no migration needed
-      if (!needsMigration) {
-        createFirstBlock.mutate();
+      try {
+        // Check if there are legacy items first
+        const { needsMigration } = await checkEstimateNeedsMigration(estimateId!);
+
+        // Only auto-create empty block if no migration needed
+        if (!needsMigration) {
+          createFirstBlock.mutate();
+        }
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        setLoadError({
+          title: "Failed to initialize estimate",
+          message: msg,
+          extra: { estimateId, source: "auto-create-first-block" },
+        });
+        setIsLoadErrorDismissed(false);
+        if (import.meta.env.DEV) console.warn("[estimate] auto-create init failed", { estimateId, error: e });
       }
     };
     
