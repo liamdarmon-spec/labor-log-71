@@ -40,11 +40,16 @@ interface CostCodeSelectProps {
   compact?: boolean;
 }
 
-const CATEGORY_ORDER = ["labor", "subs", "materials", "other"];
+// ============================================================================
+// ROOT CAUSE FIX (2026-01-12):
+// DB enum is: 'labor' | 'material' | 'sub' (singular)
+// Old code used: 'labor' | 'materials' | 'subs' (plural) → mismatch → hidden codes
+// ============================================================================
+const CATEGORY_ORDER = ["labor", "material", "sub", "other"];
 const CATEGORY_COLORS: Record<string, string> = {
   labor: "bg-blue-500/10 text-blue-700 border-blue-200",
-  subs: "bg-orange-500/10 text-orange-700 border-orange-200",
-  materials: "bg-green-500/10 text-green-700 border-green-200",
+  sub: "bg-orange-500/10 text-orange-700 border-orange-200",
+  material: "bg-green-500/10 text-green-700 border-green-200",
   other: "bg-gray-500/10 text-gray-700 border-gray-200",
 };
 
@@ -101,6 +106,21 @@ export function CostCodeSelect({
       if (!groups[cat]) groups[cat] = [];
       groups[cat].push(code);
     }
+    
+    // DEV DIAGNOSTIC: Ensure CATEGORY_ORDER matches actual DB categories
+    if (import.meta.env.DEV && codes.length > 0) {
+      const actualCategories = Object.keys(groups);
+      const missingInOrder = actualCategories.filter(c => !CATEGORY_ORDER.includes(c) && c !== 'other');
+      if (missingInOrder.length > 0) {
+        console.warn('[CostCodeSelect] Categories in DB but missing from CATEGORY_ORDER:', missingInOrder);
+        console.warn('[CostCodeSelect] CATEGORY_ORDER should be:', actualCategories);
+      }
+      // Log counts by category
+      console.debug('[CostCodeSelect] Category counts:', Object.fromEntries(
+        Object.entries(groups).map(([k, v]) => [k, v.length])
+      ));
+    }
+    
     return groups;
   }, [codes, search]);
 
