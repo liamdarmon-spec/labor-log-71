@@ -17,7 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, FileText, Check, Download, FileSpreadsheet } from "lucide-react";
+import { ArrowLeft, Plus, FileText, Check, Download, FileSpreadsheet, Loader2, AlertCircle } from "lucide-react";
 import { useCostCodeCatalog } from "@/hooks/useCostCodeCatalog";
 import { checkEstimateNeedsMigration, migrateEstimateToScopeBlocks } from "@/lib/estimateMigration";
 import { downloadCSV, downloadPDF, type EstimateExportData } from "@/lib/estimateExport";

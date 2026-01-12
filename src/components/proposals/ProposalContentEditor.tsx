@@ -184,7 +184,7 @@ export function ProposalContentEditor({
                   </Badge>
                 </div>
                 {settings.show_line_item_totals && (
-                  <span className="font-mono font-medium">
+                  <span className="font-sans font-bold tabular-nums tracking-tight">
                     ${area.subtotal.toLocaleString()}
                   </span>
                 )}
@@ -209,7 +209,7 @@ export function ProposalContentEditor({
                           <span className="truncate">{item.description}</span>
                         </div>
                         {settings.show_line_item_totals && (
-                          <span className="font-mono text-muted-foreground ml-2">
+                          <span className="font-sans font-medium tabular-nums tracking-tight text-muted-foreground ml-2">
                             ${item.line_total.toLocaleString()}
                           </span>
                         )}
@@ -252,7 +252,7 @@ export function ProposalContentEditor({
               <span className="truncate">{item.description}</span>
             </div>
             {settings.show_line_item_totals && (
-              <span className="font-mono text-muted-foreground ml-2">
+              <span className="font-sans font-medium tabular-nums tracking-tight text-muted-foreground ml-2">
                 ${item.line_total.toLocaleString()}
               </span>
             )}
@@ -358,7 +358,7 @@ export function ProposalContentEditor({
           <Separator />
           <div className="flex justify-between items-center pt-2">
             <span className="font-medium">Grand Total</span>
-            <span className="text-2xl font-bold font-mono">
+            <span className="text-2xl font-bold font-sans tabular-nums tracking-tighter">
               ${proposal.total_amount.toLocaleString()}
             </span>
           </div>
@@ -446,7 +446,7 @@ export function ProposalContentEditor({
                       }
                       onBlur={savePaymentSchedule}
                       placeholder="%"
-                      className="w-16 px-2 py-1 text-sm border rounded text-right"
+                      className="w-16 px-2 py-1 text-sm border rounded text-right font-sans tabular-nums"
                     />
                     <input
                       type="text"

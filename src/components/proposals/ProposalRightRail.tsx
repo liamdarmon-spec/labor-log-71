@@ -167,12 +167,19 @@ export function ProposalRightRail({
   const [createBaseline, setCreateBaseline] = useState(true);
 
   // Determine default open sections based on phase
-  const defaultOpenSections = useMemo(() => {
-    const sections = ['contract-logic'];
+  // We use a key to force re-render/re-evaluation of defaultOpenSections when phase changes if needed,
+  // but Accordion usually manages its own state. To programmatically open, we might need controlled value.
+  // For now, we'll let the user manage it, but "Proceed to Review" could handle it if we lifted state.
+  // Simpler approach: Just rely on the user clicking the accordion or "Proceed to Review" auto-opening signature.
+  
+  // Actually, to make "Proceed to Review" feel responsive, we should probably force the Signature section open.
+  const [openSections, setOpenSections] = useState<string[]>(['contract-logic']);
+
+  // Sync open sections with phase changes
+  useMemo(() => {
     if (currentPhase === 'review' || currentPhase === 'approved') {
-      sections.push('signature-approval');
+      setOpenSections((prev) => Array.from(new Set([...prev, 'signature-approval'])));
     }
-    return sections;
   }, [currentPhase]);
 
   const formatCurrency = (value: number) =>
@@ -353,8 +360,16 @@ export function ProposalRightRail({
   };
 
   return (
-    <div className="sticky top-20 space-y-2">
-      <Accordion type="multiple" defaultValue={defaultOpenSections} className="w-full">
+    <div className={cn(
+      "sticky top-20 space-y-2",
+      "max-h-[calc(100vh-6rem)] overflow-y-auto pr-1"
+    )}>
+      <Accordion 
+        type="multiple" 
+        value={openSections} 
+        onValueChange={setOpenSections} 
+        className="w-full"
+      >
         {/* ============================================================ */}
         {/* A) CONTRACT LOGIC - Primary section */}
         {/* ============================================================ */}
@@ -378,7 +393,7 @@ export function ProposalRightRail({
           </AccordionTrigger>
           <AccordionContent className="px-4 pt-4 space-y-5">
             {/* Contract Type Selector */}
-            <div className="space-y-2">
+            <div className="space-y-3">
               <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                 Contract Type
               </Label>
@@ -399,7 +414,7 @@ export function ProposalRightRail({
                         <selectedContractInfo.icon className="h-4 w-4 text-primary shrink-0" />
                         <div>
                           <div className="font-medium">{selectedContractInfo.label}</div>
-                          <div className="text-xs text-muted-foreground">
+                          <div className="text-xs text-muted-foreground line-clamp-1">
                             {selectedContractInfo.description}
                           </div>
                         </div>
@@ -424,9 +439,10 @@ export function ProposalRightRail({
 
               {/* Contract type consequence helper */}
               {selectedContractInfo && (
-                <p className="text-xs text-muted-foreground pl-1">
-                  → {selectedContractInfo.consequence}
-                </p>
+                <div className="rounded-md bg-muted/50 p-2.5 text-xs text-muted-foreground flex gap-2">
+                   <div className="shrink-0 w-1 h-full bg-primary/20 rounded-full" />
+                   <span>{selectedContractInfo.consequence}</span>
+                </div>
               )}
             </div>
 
@@ -460,7 +476,7 @@ export function ProposalRightRail({
                     </span>
                   </div>
                   {readiness.progress !== undefined && readiness.status !== 'locked' && (
-                    <span className="text-xs font-mono text-muted-foreground">
+                    <span className="text-xs font-sans font-bold tabular-nums tracking-tight text-muted-foreground">
                       {readiness.progress.toFixed(0)}%
                     </span>
                   )}
@@ -532,7 +548,7 @@ export function ProposalRightRail({
                       step={0.5}
                       value={localRetainage}
                       onChange={(e) => handleRetainageChange(parseFloat(e.target.value) || 0)}
-                      className="w-20"
+                      className="w-20 font-sans tabular-nums"
                       disabled={isUpdating}
                     />
                     <span className="text-sm text-muted-foreground">%</span>
@@ -548,12 +564,12 @@ export function ProposalRightRail({
             <div className="bg-muted/50 rounded-lg p-3 space-y-2">
               <div className="flex justify-between items-center">
                 <span className="text-xs text-muted-foreground">Contract Value</span>
-                <span className="font-semibold">{formatCurrency(totalAmount)}</span>
+                <span className="font-sans font-bold tabular-nums tracking-tight">{formatCurrency(totalAmount)}</span>
               </div>
               {localContractType === 'progress_billing' && localRetainage > 0 && (
                 <div className="flex justify-between items-center text-xs">
                   <span className="text-muted-foreground">Retainage ({localRetainage}%)</span>
-                  <span className="text-amber-600">
+                  <span className="text-amber-600 font-sans font-medium tabular-nums tracking-tight">
                     {formatCurrency(totalAmount * (localRetainage / 100))}
                   </span>
                 </div>
@@ -565,6 +581,29 @@ export function ProposalRightRail({
                 <Lock className="h-3 w-3" />
                 Contract logic is locked after approval
               </p>
+            )}
+
+            {/* Phase Progression: Draft -> Review */}
+            {!isLocked && currentPhase === 'draft' && (
+              <Button
+                className="w-full mt-4 transition-all duration-300 hover:shadow-md active:scale-[0.98]"
+                onClick={() => onPhaseChange?.('review')}
+                disabled={!readiness.isReady}
+                variant={readiness.isReady ? 'default' : 'secondary'}
+              >
+                {readiness.isReady ? 'Proceed to Review' : 'Complete Setup to Review'}
+              </Button>
+            )}
+            
+            {!isLocked && currentPhase === 'review' && (
+               <Button
+                variant="ghost"
+                size="sm"
+                className="w-full mt-2 text-muted-foreground"
+                onClick={() => onPhaseChange?.('draft')}
+              >
+                ← Back to Editing
+              </Button>
             )}
           </AccordionContent>
         </AccordionItem>

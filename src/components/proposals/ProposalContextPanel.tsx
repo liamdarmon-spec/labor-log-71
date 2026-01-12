@@ -102,15 +102,15 @@ export function ProposalContextPanel({
               <div className="space-y-2">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Subtotal</span>
-                  <span>${estimate.subtotal_amount.toLocaleString()}</span>
+                  <span className="font-sans tabular-nums tracking-tight">${estimate.subtotal_amount.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Tax</span>
-                  <span>${estimate.tax_amount.toLocaleString()}</span>
+                  <span className="font-sans tabular-nums tracking-tight">${estimate.tax_amount.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between font-medium">
                   <span>Total</span>
-                  <span>${estimate.total_amount.toLocaleString()}</span>
+                  <span className="font-sans font-bold tabular-nums tracking-tight">${estimate.total_amount.toLocaleString()}</span>
                 </div>
               </div>
               
@@ -122,7 +122,7 @@ export function ProposalContextPanel({
                       <AlertTriangle className="h-3 w-3" />
                       Estimate has changed
                     </p>
-                    <p className="text-muted-foreground mt-1">
+                    <p className="text-muted-foreground mt-1 font-sans tabular-nums tracking-tight">
                       Proposal total: ${proposal.total_amount.toLocaleString()}
                     </p>
                   </div>
@@ -165,7 +165,7 @@ export function ProposalContextPanel({
           <Separator />
           <div className="flex justify-between items-baseline">
             <span className="text-muted-foreground">Total</span>
-            <span className="text-xl font-bold">
+            <span className="text-xl font-bold font-sans tabular-nums tracking-tight">
               ${proposal.total_amount.toLocaleString()}
             </span>
           </div>
