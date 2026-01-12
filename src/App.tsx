@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate, useParams } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useParams } from "react-router-dom";
 import { AppErrorBoundary } from "@/components/system/AppErrorBoundary";
 import Dashboard from "./pages/Dashboard";
 import Admin from "./pages/Admin";
@@ -62,6 +62,12 @@ function EstimateLegacyRedirect() {
   const eid = params.estimateId ?? params.id;
   if (!eid) return <Navigate to="/app/projects" replace />;
   return <Navigate to={`/app/estimates/${eid}`} replace />;
+}
+
+function ChangeOrdersLegacyRedirect() {
+  const location = useLocation();
+  // Preserve query params like ?projectId=... when redirecting.
+  return <Navigate to={`/app/change-orders${location.search ?? ""}`} replace />;
 }
 
 const App = () => (
@@ -155,7 +161,7 @@ const App = () => (
             <Route path="/proposals/*" element={<Navigate to="/app/proposals" replace />} />
             <Route path="/materials" element={<Navigate to="/app/materials" replace />} />
             <Route path="/subs/*" element={<Navigate to="/app/subs" replace />} />
-            <Route path="/change-orders" element={<Navigate to="/app/change-orders" replace />} />
+            <Route path="/change-orders" element={<ChangeOrdersLegacyRedirect />} />
             <Route path="/admin" element={<Navigate to="/app/admin" replace />} />
 
             <Route path="*" element={<NotFound />} />

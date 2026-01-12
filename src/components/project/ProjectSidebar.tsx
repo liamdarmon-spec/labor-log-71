@@ -73,9 +73,9 @@ export function ProjectSidebar({ projectId, projectName }: ProjectSidebarProps) 
 
   const handleNavClick = (tabId: string) => {
     // Change Orders lives in project nav, but routes to canonical Change Orders page.
-    // Canonical CO route: /change-orders?projectId=<id>
+    // Canonical CO route: /app/change-orders?projectId=<id>
     if (tabId === 'change-orders') {
-      navigate(`/change-orders?projectId=${projectId}`);
+      navigate(`/app/change-orders?projectId=${projectId}`);
       return;
     }
     const next = new URLSearchParams(searchParams);

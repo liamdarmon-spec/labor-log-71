@@ -193,13 +193,13 @@ export function ProjectOverviewTab({ projectId }: ProjectOverviewTabProps) {
 
   // ========== DERIVE PROPS ==========
 
-  // Canonical Change Orders route: /change-orders?projectId=<id>
+  // Canonical Change Orders route: /app/change-orders?projectId=<id>
   const actionHandlers: ActionRowProps = {
     onNewTask: undefined, // CreateTaskDialog uses trigger pattern below
     onScheduleWorkers: () => setShowScheduleDialog(true),
     onAddDocument: undefined, // Coming soon
     onLogCost: () => setShowCostDialog(true),
-    onAddChangeOrder: () => navigate(`/change-orders?projectId=${projectId}`),
+    onAddChangeOrder: () => navigate(`/app/change-orders?projectId=${projectId}`),
   };
 
   const weeklySummaryProps: WeeklySummaryProps = {
