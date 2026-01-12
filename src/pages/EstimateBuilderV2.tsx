@@ -46,7 +46,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useItemAutosave } from "@/hooks/useItemAutosave";
 import { AutosaveDiagnostics, collectAutosaveDiagnostics } from "@/components/dev/AutosaveDiagnostics";
-import { devIsForceServerErrorEnabled, devMaybeInjectBadPayload, devSetForceServerErrorEnabled } from "@/lib/dev/forceServerError";
+import { devIsForceServerErrorEnabled, devMaybeForceError, devSetForceServerErrorEnabled } from "@/lib/dev/forceServerError";
 type BatchUpsertItemUpdate = {
   id: string;
   category?: string;
@@ -844,8 +844,14 @@ export default function EstimateBuilderV2() {
         }));
 
         lastManualPayloadSummary = summarizeBatchPayload(payload);
-        const rpcArgs = devMaybeInjectBadPayload({ p_items: payload });
-        const { data, error } = await (supabase as any).rpc("batch_upsert_cost_items", rpcArgs);
+        
+        // DEV: Check for forced error BEFORE making the RPC call
+        const forcedError = devMaybeForceError();
+        if (forcedError) {
+          throw new Error(forcedError.error.message);
+        }
+        
+        const { data, error } = await (supabase as any).rpc("batch_upsert_cost_items", { p_items: payload });
         if (error) throw error;
 
         const resultsRaw = data as unknown;

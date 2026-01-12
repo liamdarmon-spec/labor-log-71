@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { devMaybeInjectBadPayload } from '@/lib/dev/forceServerError';
+import { devMaybeForceError } from '@/lib/dev/forceServerError';
 
 export type ProposalAutosaveStatus = 'saved' | 'saving' | 'dirty' | 'error';
 
@@ -92,14 +92,19 @@ export function useProposalAutosave<TPayload>(opts: Options<TPayload>) {
     setErrorMessage(null);
 
     try {
-      const rpcArgs = devMaybeInjectBadPayload({
+      // DEV: Check for forced error BEFORE making the RPC call
+      const forcedError = devMaybeForceError();
+      if (forcedError) {
+        throw new Error(forcedError.error.message);
+      }
+      
+      const { data, error } = await (supabase as any).rpc('upsert_proposal_draft', {
         p_company_id: companyId,
         p_proposal_id: proposalId,
         p_project_id: projectId,
         p_payload: payload,
         p_expected_version: expectedVersionRef.current,
       });
-      const { data, error } = await (supabase as any).rpc('upsert_proposal_draft', rpcArgs);
 
       if (error) {
         throw error;

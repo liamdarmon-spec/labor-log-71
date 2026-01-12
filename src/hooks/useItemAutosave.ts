@@ -10,7 +10,7 @@ import { useCallback, useRef, useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { devMaybeInjectBadPayload } from "@/lib/dev/forceServerError";
+import { devMaybeForceError } from "@/lib/dev/forceServerError";
 
 export type SaveStatus = "idle" | "dirty" | "saving" | "saved" | "error" | "conflict";
 
@@ -160,11 +160,16 @@ export function useItemAutosave(estimateId: string | undefined) {
       lastPayloadCountRef.current = itemsWithLocking.length;
       lastPayloadIdsSampleRef.current = itemIds.slice(0, 10);
       
+      // DEV: Check for forced error BEFORE making the RPC call
+      const forcedError = devMaybeForceError();
+      if (forcedError) {
+        throw new Error(forcedError.error.message);
+      }
+      
       // Single RPC call for all updates
-      const rpcArgs = devMaybeInjectBadPayload({
+      const { data, error } = await (supabase as any).rpc('batch_upsert_cost_items', {
         p_items: itemsWithLocking,
       });
-      const { data, error } = await (supabase as any).rpc('batch_upsert_cost_items', rpcArgs);
       
       if (error) throw error;
       

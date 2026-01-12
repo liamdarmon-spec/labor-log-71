@@ -29,22 +29,32 @@ export function devSetForceServerErrorEnabled(enabled: boolean): void {
 }
 
 /**
- * DEV-only injection to guarantee a server/RPC failure on demand.
+ * Returns a synthetic Supabase error response if force-error is enabled.
+ * Use this INSTEAD of calling the actual RPC.
  *
- * We intentionally do NOT mutate row payloads (arrays) to avoid client-side crashes.
- * Instead, we add an extra RPC argument key, causing PostgREST to fail schema cache lookup:
- *   "Could not find function ... with the given arguments"
- *
- * This is deterministic and does not depend on DB constraints or casting behavior.
+ * @returns null if force-error is disabled (proceed with real call),
+ *          or { data: null, error: {...} } if force-error is enabled.
+ */
+export function devMaybeForceError(): { data: null; error: { message: string; code: string; details: string } } | null {
+  if (!devIsForceServerErrorEnabled()) return null;
+
+  // Return a synthetic error that looks like a real Supabase/PostgREST error
+  return {
+    data: null,
+    error: {
+      message: '[DEV] Forced server error for testing',
+      code: 'DEV_FORCE_ERROR',
+      details: 'This error was injected by the "Force server error" checkbox. Uncheck it to resume normal saves.',
+    },
+  };
+}
+
+/**
+ * @deprecated Use devMaybeForceError() instead.
+ * This approach doesn't work because PostgreSQL ignores unknown keys in RPC args.
  */
 export function devMaybeInjectBadPayload<TPayload>(payload: TPayload): TPayload {
-  if (!devIsForceServerErrorEnabled()) return payload;
-
-  // Only safe for object payloads (e.g. RPC args object).
-  if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
-    return { ...(payload as any), p___force_fail___: true } as TPayload;
-  }
-
+  // Kept for backwards compat but now a no-op
   return payload;
 }
 
