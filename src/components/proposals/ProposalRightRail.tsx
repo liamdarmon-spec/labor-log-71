@@ -13,7 +13,7 @@
 // □ All billing readiness warnings are visible inline
 // □ Contract type shows clear consequences
 
-import { useState, useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Accordion,
   AccordionContent,
@@ -166,17 +166,15 @@ export function ProposalRightRail({
   const [approverName, setApproverName] = useState('');
   const [createBaseline, setCreateBaseline] = useState(true);
 
-  // Determine default open sections based on phase
-  // We use a key to force re-render/re-evaluation of defaultOpenSections when phase changes if needed,
-  // but Accordion usually manages its own state. To programmatically open, we might need controlled value.
-  // For now, we'll let the user manage it, but "Proceed to Review" could handle it if we lifted state.
-  // Simpler approach: Just rely on the user clicking the accordion or "Proceed to Review" auto-opening signature.
-  
-  // Actually, to make "Proceed to Review" feel responsive, we should probably force the Signature section open.
-  const [openSections, setOpenSections] = useState<string[]>(['contract-logic']);
+  // Control accordion open state. This MUST be effect-driven (never setState during render).
+  const [openSections, setOpenSections] = useState<string[]>(() => {
+    const initial = ['contract-logic'];
+    if (currentPhase === 'review' || currentPhase === 'approved') initial.push('signature-approval');
+    return initial;
+  });
 
   // Sync open sections with phase changes
-  useMemo(() => {
+  useEffect(() => {
     if (currentPhase === 'review' || currentPhase === 'approved') {
       setOpenSections((prev) => Array.from(new Set([...prev, 'signature-approval'])));
     }
@@ -292,13 +290,32 @@ export function ProposalRightRail({
     isReady: boolean;
     progress?: number;
   } => {
+    // If backend provides billing_readiness, treat it as authoritative for gating.
     if (billingReadiness === 'locked' || acceptanceStatus === 'accepted') {
       return { status: 'locked', reason: 'Billing configuration is locked', isReady: true };
+    }
+    if (billingReadiness === 'ready') {
+      return { status: 'ready', reason: 'Billing configuration is ready', isReady: true, progress: 100 };
+    }
+    if (billingReadiness === 'incomplete') {
+      // We still show local guidance below, but do NOT allow approval from the UI.
+      // This mirrors the DB guarantee: approval cannot proceed until ready.
+      // Keep a generic reason here; the detailed requirement messaging remains contract-type-specific.
+      // NOTE: We intentionally do not guess about server-side totals here.
+      // The DB will always be the final authority.
+      // (If we later add a read-only RPC to fetch readiness reasons, we can surface them here.)
+      // For now: fail closed.
+      // We'll set progress based on our local heuristics below where possible.
     }
 
     const type = localContractType;
     if (type === 'fixed_price') {
-      return { status: 'ready', reason: 'Fixed price is always billable', isReady: true };
+      // Fixed price is allowed without milestone/SOV configuration.
+      // If backend marked it incomplete, we still fail closed above (billingReadiness === 'incomplete').
+      const failClosed = billingReadiness === 'incomplete';
+      return failClosed
+        ? { status: 'incomplete', reason: 'Billing configuration is incomplete', isReady: false }
+        : { status: 'ready', reason: 'Fixed price is always billable', isReady: true };
     }
 
     if (type === 'milestone') {
@@ -319,6 +336,10 @@ export function ProposalRightRail({
           isReady: false,
           progress,
         };
+      }
+      // If backend marked incomplete, fail closed even if local heuristic says ready.
+      if (billingReadiness === 'incomplete') {
+        return { status: 'incomplete', reason: 'Billing configuration is incomplete', isReady: false, progress };
       }
       return { status: 'ready', reason: 'Milestone schedule is complete', isReady: true, progress: 100 };
     }
@@ -342,10 +363,17 @@ export function ProposalRightRail({
           progress,
         };
       }
+      if (billingReadiness === 'incomplete') {
+        return { status: 'incomplete', reason: 'Billing configuration is incomplete', isReady: false, progress };
+      }
       return { status: 'ready', reason: 'SOV allocation is complete', isReady: true, progress: 100 };
     }
 
-    return { status: 'incomplete', reason: 'Set contract type to continue', isReady: false };
+    return {
+      status: 'incomplete',
+      reason: billingReadiness === 'incomplete' ? 'Billing configuration is incomplete' : 'Set contract type to continue',
+      isReady: false,
+    };
   };
 
   const readiness = getBillingReadiness();
