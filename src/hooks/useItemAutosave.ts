@@ -10,6 +10,7 @@ import { useCallback, useRef, useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { devMaybeInjectBadPayload } from "@/lib/dev/forceServerError";
 
 export type SaveStatus = "idle" | "dirty" | "saving" | "saved" | "error" | "conflict";
 
@@ -72,6 +73,9 @@ export function useItemAutosave(estimateId: string | undefined) {
   // DEV / diagnostics
   const lastBatchResultsRef = useRef<BatchResult[] | null>(null);
   const lastBatchErrorRef = useRef<string | null>(null);
+  const lastPayloadBytesRef = useRef<number>(0);
+  const lastPayloadCountRef = useRef<number>(0);
+  const lastPayloadIdsSampleRef = useRef<string[]>([]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -146,11 +150,21 @@ export function useItemAutosave(estimateId: string | undefined) {
         ...update,
         expected_updated_at: lastKnownUpdates.current.get(update.id) || null,
       }));
+
+      // Diagnostics (DEV + error panel): record payload summary for the last attempt.
+      try {
+        lastPayloadBytesRef.current = JSON.stringify(itemsWithLocking).length;
+      } catch {
+        lastPayloadBytesRef.current = 0;
+      }
+      lastPayloadCountRef.current = itemsWithLocking.length;
+      lastPayloadIdsSampleRef.current = itemIds.slice(0, 10);
       
       // Single RPC call for all updates
-      const { data, error } = await (supabase as any).rpc('batch_upsert_cost_items', {
-        p_items: itemsWithLocking
+      const rpcArgs = devMaybeInjectBadPayload({
+        p_items: itemsWithLocking,
       });
+      const { data, error } = await (supabase as any).rpc('batch_upsert_cost_items', rpcArgs);
       
       if (error) throw error;
       
@@ -411,6 +425,9 @@ export function useItemAutosave(estimateId: string | undefined) {
     lastKnownUpdates: Array.from(lastKnownUpdates.current.entries()).map(([id, ts]) => ({ id, ts })),
     lastBatchResults: lastBatchResultsRef.current,
     lastBatchError: lastBatchErrorRef.current,
+    lastPayloadBytes: lastPayloadBytesRef.current,
+    lastPayloadCount: lastPayloadCountRef.current,
+    lastPayloadIdsSample: lastPayloadIdsSampleRef.current,
   }), [rowStates]);
 
   return {

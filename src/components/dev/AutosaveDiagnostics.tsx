@@ -2,8 +2,9 @@
 // DEV-ONLY: Autosave diagnostic overlay for debugging save issues
 // Renders only in import.meta.env.DEV mode
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ChevronDown, ChevronUp, Copy, XCircle, RotateCw, AlertTriangle } from 'lucide-react';
+import { devIsForceServerErrorEnabled, devSetForceServerErrorEnabled } from '@/lib/dev/forceServerError';
 
 export interface AutosaveDiagnosticsData {
   // Autosave state
@@ -47,6 +48,14 @@ export function AutosaveDiagnostics({ data }: AutosaveDiagnosticsProps) {
 
   const [isExpanded, setIsExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [forceError, setForceError] = useState(() => devIsForceServerErrorEnabled());
+
+  useEffect(() => {
+    // Keep UI in sync if toggled in another tab.
+    const onStorage = () => setForceError(devIsForceServerErrorEnabled());
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
 
   const getStatusColor = () => {
     switch (data.status) {
@@ -81,6 +90,11 @@ export function AutosaveDiagnostics({ data }: AutosaveDiagnosticsProps) {
         className={`flex items-center gap-2 px-3 py-2 rounded-lg shadow-lg text-white text-xs font-mono ${getStatusColor()}`}
       >
         <span className="uppercase font-bold">{data.status}</span>
+        {forceError && (
+          <span className="bg-black/30 px-1.5 py-0.5 rounded border border-white/30">
+            FORCE_ERR
+          </span>
+        )}
         {data.pendingUpdatesCount > 0 && (
           <span className="bg-white/20 px-1.5 py-0.5 rounded">
             {data.pendingUpdatesCount} pending
@@ -96,13 +110,27 @@ export function AutosaveDiagnostics({ data }: AutosaveDiagnosticsProps) {
             <span className="font-bold text-yellow-400">
               🛠 {data.documentType.toUpperCase()} AUTOSAVE
             </span>
-            <button
-              onClick={copyDiagnostics}
-              className="px-2 py-1 rounded bg-gray-700 hover:bg-gray-600 flex items-center gap-1"
-            >
-              <Copy className="w-3 h-3" />
-              {copied ? 'Copied!' : 'Copy'}
-            </button>
+            <div className="flex items-center gap-2">
+              <label className="flex items-center gap-1.5 text-[10px] text-gray-200">
+                <input
+                  type="checkbox"
+                  checked={forceError}
+                  onChange={(e) => {
+                    const next = e.target.checked;
+                    setForceError(next);
+                    devSetForceServerErrorEnabled(next);
+                  }}
+                />
+                Force server error
+              </label>
+              <button
+                onClick={copyDiagnostics}
+                className="px-2 py-1 rounded bg-gray-700 hover:bg-gray-600 flex items-center gap-1"
+              >
+                <Copy className="w-3 h-3" />
+                {copied ? 'Copied!' : 'Copy'}
+              </button>
+            </div>
           </div>
 
           {/* Error display */}
@@ -153,10 +181,10 @@ export function AutosaveDiagnostics({ data }: AutosaveDiagnosticsProps) {
                   <StatRow label="Billing Basis" value={data.billingBasis || 'Not set'} />
                   <StatRow label="Has Baseline" value={data.hasBaseline ? 'Yes' : 'No'} />
                 </div>
-                {!data.hasBaseline && data.contractType && (
+                {!data.hasBaseline && (data.contractType || data.billingBasis) && (
                   <div className="mt-2 flex items-start gap-1 text-amber-400">
                     <AlertTriangle className="w-3 h-3 flex-shrink-0 mt-0.5" />
-                    <span>Baseline not created — Billing will say "Not set"</span>
+                    <span>Baseline not created — billing basis should still be shown/derived</span>
                   </div>
                 )}
               </div>

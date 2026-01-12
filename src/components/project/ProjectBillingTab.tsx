@@ -19,8 +19,10 @@
 // 4. Billing basis is LOCKED at contract baseline
 // ============================================================
 
-import { useState, useEffect } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -102,11 +104,86 @@ export function ProjectBillingTab({ projectId }: ProjectBillingTabProps) {
   const hasBaseline = summary?.has_contract_baseline ?? false;
   const billingBasis = summary?.billing_basis as 'payment_schedule' | 'sov' | null;
 
+  // Accepted proposal fallback (for baseline-missing states).
+  // Goal: never show "Billing Basis: Not set" when billing_basis is known/derivable from an accepted proposal.
+  const { data: acceptedProposal } = useQuery({
+    queryKey: ['accepted-proposal-for-billing', projectId],
+    enabled: !!projectId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('proposals')
+        .select('id, contract_type, billing_basis, billing_readiness, approved_at, updated_at, parent_proposal_id')
+        .eq('project_id', projectId)
+        .eq('acceptance_status', 'accepted')
+        .is('parent_proposal_id', null) // base proposal only
+        .order('approved_at', { ascending: false, nullsFirst: false })
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error) throw error;
+      return data as null | {
+        id: string;
+        contract_type: 'fixed_price' | 'milestone' | 'progress_billing' | null;
+        billing_basis: 'payment_schedule' | 'sov' | null;
+        billing_readiness: string | null;
+        approved_at: string | null;
+        updated_at: string;
+      };
+    },
+  });
+
+  const derivedBilling = useMemo(() => {
+    // Prefer billing summary (canonical DB function output).
+    if (billingBasis) {
+      return {
+        label: billingBasis === 'sov' ? 'Schedule of Values' : 'Payment Schedule',
+        basis: billingBasis,
+        derived: false,
+      } as const;
+    }
+
+    // If no summary basis but we have an accepted proposal, derive (UI-only).
+    if (acceptedProposal) {
+      if (acceptedProposal.billing_basis) {
+        const b = acceptedProposal.billing_basis;
+        return {
+          label: b === 'sov' ? 'Schedule of Values' : 'Payment Schedule',
+          basis: b,
+          derived: true,
+        } as const;
+      }
+
+      if (acceptedProposal.contract_type === 'progress_billing') {
+        return { label: 'Schedule of Values', basis: 'sov', derived: true } as const;
+      }
+      if (acceptedProposal.contract_type === 'milestone') {
+        return { label: 'Payment Schedule', basis: 'payment_schedule', derived: true } as const;
+      }
+      if (acceptedProposal.contract_type === 'fixed_price') {
+        return { label: 'Fixed Price', basis: null, derived: true } as const;
+      }
+    }
+
+    return { label: 'Not set', basis: null, derived: false } as const;
+  }, [billingBasis, acceptedProposal]);
+
   const getDefaultTab = () => {
     if (!hasBaseline) return 'summary';
     if (billingBasis === 'sov') return 'sov';
     return 'milestones';
   };
+
+  type BillingUiState = 'pre_contract' | 'contract_pending' | 'active';
+
+  const uiState: BillingUiState = useMemo(() => {
+    if (hasBaseline) return 'active';
+    // Strict rule: only "pending" if we have a LOCKED accepted proposal to derive from.
+    if (acceptedProposal && acceptedProposal.billing_readiness === 'locked') {
+      return 'contract_pending';
+    }
+    return 'pre_contract';
+  }, [hasBaseline, acceptedProposal]);
 
   const [activeTab, setActiveTab] = useState(getDefaultTab());
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
@@ -170,15 +247,18 @@ export function ProjectBillingTab({ projectId }: ProjectBillingTabProps) {
             <Lock className="w-4 h-4 text-muted-foreground" />
             <span className="text-sm font-medium">
               Billing Basis:{' '}
-              {!billingBasis
-                ? 'Not set'
-                : billingBasis === 'sov'
-                  ? 'Schedule of Values'
-                  : 'Payment Schedule'}
+              <span title={derivedBilling.derived ? 'Derived from accepted proposal (baseline missing)' : undefined}>
+                {derivedBilling.label}
+              </span>
+              {derivedBilling.derived && (
+                <span className="ml-2 inline-flex items-center rounded bg-background/70 px-2 py-0.5 text-[10px] text-muted-foreground border border-border/60">
+                  Derived
+                </span>
+              )}
             </span>
             {hasBaseline ? (
             <Badge variant="secondary" className="text-xs">Locked</Badge>
-            ) : billingBasis ? (
+            ) : derivedBilling.basis ? (
               <Badge variant="outline" className="text-xs">Pending Baseline</Badge>
             ) : null}
           </div>
@@ -188,7 +268,7 @@ export function ProjectBillingTab({ projectId }: ProjectBillingTabProps) {
         </Button>
       </div>
 
-      {!hasBaseline && !billingBasis && (
+      {!hasBaseline && derivedBilling.label === 'Not set' && (
         <div className="rounded-xl border-2 border-dashed border-orange-300 bg-orange-50 dark:border-orange-800 dark:bg-orange-950/20 p-6">
           <div className="flex items-start gap-4">
             <div className="rounded-full bg-orange-100 dark:bg-orange-900 p-3">
@@ -213,7 +293,7 @@ export function ProjectBillingTab({ projectId }: ProjectBillingTabProps) {
         </div>
       )}
 
-      {!hasBaseline && billingBasis && (
+      {!hasBaseline && derivedBilling.label !== 'Not set' && (
         <div className="rounded-xl border-2 border-dashed border-blue-300 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/20 p-6">
           <div className="flex items-start gap-4">
             <div className="rounded-full bg-blue-100 dark:bg-blue-900 p-3">
@@ -224,9 +304,13 @@ export function ProjectBillingTab({ projectId }: ProjectBillingTabProps) {
                 Contract baseline pending
               </h3>
               <p className="text-blue-700 dark:text-blue-300 mt-2 text-sm">
-                Billing basis is set to <strong>{billingBasis === 'sov' ? 'Schedule of Values' : 'Payment Schedule'}</strong>, but the contract baseline hasn't been created yet. 
-                Approve a proposal to enable progress/SOV invoicing.
+                Billing basis is <strong>{derivedBilling.label}</strong>. Create the contract baseline from the accepted proposal to enable progress invoicing.
               </p>
+              {derivedBilling.derived && (
+                <p className="text-blue-700/80 dark:text-blue-300/80 mt-2 text-xs">
+                  Billing basis is derived from the accepted proposal; baseline creation locks the billing structure for invoicing.
+                </p>
+              )}
               <div className="mt-4 flex gap-2">
                 <Link to={`/app/projects/${projectId}?tab=proposals`}>
                   <Button variant="outline" size="sm">
@@ -507,23 +591,24 @@ function FeaturePreview({ icon, title, description }: { icon: React.ReactNode; t
   );
 }
 
-function KPICard({ title, value, breakdown, icon, valueClassName = '' }: {
+function KPICard({ title, value, breakdown, icon, valueClassName = '', ghosted = false }: {
   title: string;
   value: string;
   breakdown: string;
   icon: React.ReactNode;
   valueClassName?: string;
+  ghosted?: boolean;
 }) {
   return (
-    <Card>
+    <Card className={ghosted ? 'bg-muted/30 border-dashed border-border/60 shadow-none' : ''}>
       <CardContent className="pt-6">
         <div className="flex items-start justify-between">
-          <div>
+          <div className={ghosted ? 'opacity-70' : ''}>
             <p className="text-sm text-muted-foreground">{title}</p>
             <p className={`text-2xl font-bold mt-1 ${valueClassName}`}>{value}</p>
             <p className="text-xs text-muted-foreground mt-1">{breakdown}</p>
           </div>
-          <div className="rounded-full bg-muted p-2 text-muted-foreground">{icon}</div>
+          <div className={`rounded-full bg-muted p-2 text-muted-foreground ${ghosted ? 'bg-transparent' : ''}`}>{icon}</div>
         </div>
       </CardContent>
     </Card>

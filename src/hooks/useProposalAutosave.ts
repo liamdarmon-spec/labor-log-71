@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { devMaybeInjectBadPayload } from '@/lib/dev/forceServerError';
 
 export type ProposalAutosaveStatus = 'saved' | 'saving' | 'dirty' | 'error';
 
@@ -44,6 +45,8 @@ export function useProposalAutosave<TPayload>(opts: Options<TPayload>) {
   const queuedHashRef = useRef<string | null>(null);
   const lastSavedHashRef = useRef<string | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastPayloadBytesRef = useRef<number>(0);
+  const lastPayloadKeysSampleRef = useRef<string[]>([]);
 
   const canSave = useMemo(() => !!companyId && !!proposalId && !!projectId, [companyId, proposalId, projectId]);
 
@@ -66,6 +69,16 @@ export function useProposalAutosave<TPayload>(opts: Options<TPayload>) {
 
     const payload = getSnapshot();
     const hash = stableHash(payload);
+    try {
+      lastPayloadBytesRef.current = JSON.stringify(payload).length;
+    } catch {
+      lastPayloadBytesRef.current = 0;
+    }
+    if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
+      lastPayloadKeysSampleRef.current = Object.keys(payload as any).slice(0, 12);
+    } else {
+      lastPayloadKeysSampleRef.current = [];
+    }
 
     // No-op if unchanged
     if (lastSavedHashRef.current === hash) {
@@ -79,13 +92,14 @@ export function useProposalAutosave<TPayload>(opts: Options<TPayload>) {
     setErrorMessage(null);
 
     try {
-      const { data, error } = await (supabase as any).rpc('upsert_proposal_draft', {
+      const rpcArgs = devMaybeInjectBadPayload({
         p_company_id: companyId,
         p_proposal_id: proposalId,
         p_project_id: projectId,
         p_payload: payload,
         p_expected_version: expectedVersionRef.current,
       });
+      const { data, error } = await (supabase as any).rpc('upsert_proposal_draft', rpcArgs);
 
       if (error) {
         throw error;
@@ -182,6 +196,11 @@ export function useProposalAutosave<TPayload>(opts: Options<TPayload>) {
       setStatus('saved');
       setErrorMessage(null);
     },
+    // DEV diagnostics (best-effort)
+    getDiagnostics: () => ({
+      lastPayloadBytes: lastPayloadBytesRef.current,
+      lastPayloadKeysSample: lastPayloadKeysSampleRef.current,
+    }),
   };
 }
 

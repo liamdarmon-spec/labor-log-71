@@ -28,6 +28,7 @@ import { useCompany } from '@/company/CompanyProvider';
 import { useProposalAutosave } from '@/hooks/useProposalAutosave';
 import { AutosaveDiagnostics, collectAutosaveDiagnostics } from '@/components/dev/AutosaveDiagnostics';
 import { useContractBaseline } from '@/hooks/useBillingHub';
+import { devIsForceServerErrorEnabled, devSetForceServerErrorEnabled } from '@/lib/dev/forceServerError';
 
 type SaveStatus = 'saved' | 'saving' | 'dirty' | 'error';
 
@@ -65,6 +66,7 @@ export default function ProposalBuilderV2() {
   const [isErrorDismissed, setIsErrorDismissed] = useState(false);
   const [lastSaveAt, setLastSaveAt] = useState<string | null>(null);
   const [lastSaveErrorSummary, setLastSaveErrorSummary] = useState<string | null>(null);
+  const [forceServerError, setForceServerError] = useState(() => devIsForceServerErrorEnabled());
   
   // UI-only "Review" phase state (between Draft and Approved)
   const [reviewPhase, setReviewPhase] = useState(false);
@@ -135,7 +137,16 @@ export default function ProposalBuilderV2() {
   useEffect(() => {
     if (autosave.status !== 'error') return;
     const msg = autosave.errorMessage ?? 'Save failed';
-    setSaveError({ title: 'Save failed', message: msg, extra: { source: 'autosave' } });
+    const diag = autosave.getDiagnostics?.();
+    setSaveError({
+      title: 'Save failed',
+      message: msg,
+      extra: {
+        source: 'autosave',
+        lastPayloadBytes: diag?.lastPayloadBytes ?? null,
+        lastPayloadKeysSample: diag?.lastPayloadKeysSample ?? null,
+      },
+    });
     setLastSaveErrorSummary(msg);
     setIsErrorDismissed(false);
   }, [autosave.status, autosave.errorMessage]);
@@ -266,13 +277,14 @@ export default function ProposalBuilderV2() {
             <div className="min-w-0">
               <div className="text-sm font-medium text-destructive">{saveError.title}</div>
               <div className="mt-1 text-xs text-muted-foreground break-words">{saveError.message}</div>
-              {(saveError.details || saveError.hint || saveError.code) && (
+              {(saveError.details || saveError.hint || saveError.code || saveError.extra) && (
                 <pre className="mt-2 max-h-40 overflow-auto text-[10px] whitespace-pre-wrap opacity-80">
                   {JSON.stringify(
                     {
                       details: saveError.details ?? null,
                       hint: saveError.hint ?? null,
                       code: saveError.code ?? null,
+                      extra: saveError.extra ?? null,
                     },
                     null,
                     2
@@ -419,6 +431,22 @@ export default function ProposalBuilderV2() {
               Save now
             </Button>
 
+            {/* DEV-only deterministic failure toggle (for proving no silent loss) */}
+            {import.meta.env.DEV && (
+              <label className="flex items-center gap-2 px-2 py-1 rounded border bg-background text-xs text-muted-foreground">
+                <input
+                  type="checkbox"
+                  checked={forceServerError}
+                  onChange={(e) => {
+                    const next = e.target.checked;
+                    setForceServerError(next);
+                    devSetForceServerErrorEnabled(next);
+                  }}
+                />
+                Force server error
+              </label>
+            )}
+
             {proposal.primary_estimate_id && (
               <Button
                 variant="ghost"
@@ -450,19 +478,26 @@ export default function ProposalBuilderV2() {
       {/* DEV-only autosave diagnostics overlay */}
       {import.meta.env.DEV && (
         <AutosaveDiagnostics
-          data={collectAutosaveDiagnostics({
+          data={{
             documentType: 'proposal',
             documentId: proposalId || null,
             projectId: proposal?.project_id || null,
             companyId: autosaveCompanyId,
             status: autosave.status,
             errorMessage: autosave.errorMessage,
+            pendingUpdatesCount: 0,
+            isFlushing: autosave.status === 'saving',
+            lastSuccessAt: autosave.status === 'saved' ? new Date().toISOString() : null,
+            lastErrorAt: autosave.status === 'error' ? new Date().toISOString() : null,
+            lastPayloadBytes: autosave.getDiagnostics?.().lastPayloadBytes ?? 0,
+            lastResponseCount: 0,
+            lastDirtyReason: null,
             contractType: proposal?.contract_type || null,
             billingBasis: proposal?.billing_basis || null,
             hasBaseline: !!contractBaseline,
             onRetry: autosave.retry,
             onFlush: autosave.saveNow,
-          })}
+          }}
         />
       )}
 

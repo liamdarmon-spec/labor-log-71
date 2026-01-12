@@ -1,3 +1,105 @@
+# Launch Audit Proof: Estimates + Proposals + Billing
+
+This doc is a **copy/paste executable manual proof script** for the two remaining launch blockers:
+
+1) **No silent data loss** when autosave/manual-save fails  
+2) **Billing Basis display never lies** (“Not set” is only shown when truly unknown)
+
+---
+
+## DEV Force-Error Toggle (Deterministic)
+
+We added a DEV-only mechanism to force server failures without relying on input validation edge-cases.
+
+### How it works
+
+- When enabled, save RPC calls inject an extra RPC arg `p___force_fail___`, which guarantees PostgREST fails with:
+  - “Could not find function … with the given arguments”
+- This is deterministic and does not depend on DB constraints.
+- This is **DEV-only** (guarded by `import.meta.env.DEV`).
+
+### How to enable
+
+1. Open any Estimate or Proposal page.
+2. Open the **DEV Autosave Diagnostics** overlay (bottom-right).
+3. Expand it.
+4. Check **Force server error**.
+
+### How to disable
+
+Uncheck **Force server error**.
+
+---
+
+## Proof Script: No Silent Data Loss (Estimate)
+
+1. Open an estimate: `/app/estimates/<estimateId>`
+2. Make a visible edit (e.g., change a Description cell).
+3. Expand the **DEV Autosave Diagnostics** overlay and enable **Force server error**.
+4. Click **Save now**.
+5. Confirm:
+   - The page does **NOT** crash (no ErrorBoundary)
+   - Your edit remains visible (no snap-back/revert)
+   - Save status remains **Unsaved** (or equivalent dirty state)
+   - A **persistent bottom-right error panel** appears with:
+     - exact server error message
+     - payload summary (count + bytes + id sample)
+     - Retry + Copy error
+6. Click **Retry** (still forced) → confirms error persists and edits remain.
+7. Disable **Force server error**.
+8. Click **Retry** or **Save now** → confirms it saves successfully and status becomes **Saved**.
+
+---
+
+## Proof Script: No Silent Data Loss (Proposal)
+
+1. Open a proposal: `/app/projects/<projectId>/proposals/<proposalId>` (or `/app/proposals/<id>`)
+2. Make a visible edit (e.g., change intro text or title).
+3. Expand the **DEV Autosave Diagnostics** overlay and enable **Force server error**.
+4. Click **Save now**.
+5. Confirm:
+   - The page does **NOT** crash (no ErrorBoundary)
+   - Your edit remains visible (no snap-back/revert)
+   - Status remains **Unsaved** (dirty)
+   - A persistent bottom-right error panel appears with:
+     - exact server error message
+     - payload bytes + keys sample
+     - Retry + Copy error
+6. Disable **Force server error**, then Retry/Save now → confirm it saves.
+
+---
+
+## Proof Script: Billing Basis “Not set” Never Lies
+
+### Goal
+
+On Project Billing:
+- Prefer `billing_summary.billing_basis` (canonical DB function)
+- Else, if there is an **accepted base proposal**, derive basis from:
+  - `acceptedProposal.billing_basis` (if present)
+  - else `acceptedProposal.contract_type`:
+    - `progress_billing` → SOV
+    - `milestone` → Payment Schedule
+    - `fixed_price` → Fixed Price (display-only)
+- Only show **Not set** when:
+  - no baseline AND
+  - no billing_basis from summary AND
+  - no accepted proposal to derive from
+
+### Steps
+
+1. Navigate to `/app/projects/<projectId>?tab=billing`
+2. If the project has an accepted proposal but no baseline:
+   - Billing basis should show e.g. **Payment Schedule** or **Schedule of Values** with a **Derived** badge.
+3. Confirm **Not set** appears only when there is no accepted proposal to derive from.
+4. Click **View Change Orders** (if present) and confirm it routes to `/app/change-orders?projectId=<projectId>`.
+
+---
+
+## Notes / Constraints
+
+- There is currently **no unit test infrastructure** in this repo (no Vitest/Jest configured), so the “dirty flag not cleared on save error” invariant is proven via deterministic DEV runtime repro instead.
+
 # Launch Audit: Estimates → Proposals → Billing Pipeline
 
 > **Last Updated**: January 8, 2026  

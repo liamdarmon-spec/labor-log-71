@@ -46,6 +46,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useItemAutosave } from "@/hooks/useItemAutosave";
 import { AutosaveDiagnostics, collectAutosaveDiagnostics } from "@/components/dev/AutosaveDiagnostics";
+import { devIsForceServerErrorEnabled, devMaybeInjectBadPayload, devSetForceServerErrorEnabled } from "@/lib/dev/forceServerError";
 type BatchUpsertItemUpdate = {
   id: string;
   category?: string;
@@ -247,6 +248,7 @@ export default function EstimateBuilderV2() {
   const [saveWarning, setSaveWarning] = useState<SaveWarningPayload>(null);
   const [isErrorDismissed, setIsErrorDismissed] = useState(false);
   const [isWarningDismissed, setIsWarningDismissed] = useState(false);
+  const [forceServerError, setForceServerError] = useState(() => devIsForceServerErrorEnabled());
   const [loadError, setLoadError] = useState<LoadErrorPayload>(null);
   const [isLoadErrorDismissed, setIsLoadErrorDismissed] = useState(false);
   const [lastSaveAt, setLastSaveAt] = useState<string | null>(null);
@@ -256,6 +258,17 @@ export default function EstimateBuilderV2() {
   // Autosave for existing rows only (field edits)
   const autosave = useItemAutosave(estimateId);
   const autosaveDiag = useMemo(() => autosave.getDiagnostics(), [autosave]);
+
+  const summarizeBatchPayload = useCallback((payload: BatchUpsertItemUpdate[]) => {
+    const ids = payload.map((p) => p.id).filter(Boolean);
+    let bytes = 0;
+    try {
+      bytes = JSON.stringify(payload).length;
+    } catch {
+      bytes = 0;
+    }
+    return { count: payload.length, bytes, idsSample: ids.slice(0, 10) };
+  }, []);
   const hasUnsavedChanges =
     isDirtyStructural ||
     isSavingManual ||
@@ -736,6 +749,9 @@ export default function EstimateBuilderV2() {
       // - Disable button while saving
       // - No refetch / no dirty clear on failure
 
+      // Used for error-panel payload summary if we fail after building a batch.
+      let lastManualPayloadSummary: { count: number; bytes: number; idsSample: string[] } | null = null;
+
       const currentItems = new Map<string, ScopeItem>();
       blocks.forEach((b) => b.items.forEach((item) => currentItems.set(item.id, item)));
       
@@ -827,7 +843,9 @@ export default function EstimateBuilderV2() {
           sort_order: item.sort_order ?? 0,
         }));
 
-        const { data, error } = await (supabase as any).rpc("batch_upsert_cost_items", { p_items: payload });
+        lastManualPayloadSummary = summarizeBatchPayload(payload);
+        const rpcArgs = devMaybeInjectBadPayload({ p_items: payload });
+        const { data, error } = await (supabase as any).rpc("batch_upsert_cost_items", rpcArgs);
         if (error) throw error;
 
         const resultsRaw = data as unknown;
@@ -841,7 +859,13 @@ export default function EstimateBuilderV2() {
           setSaveError({
             title: "Save failed",
             message: msg,
-            extra: { failures: failures.slice(0, 25) },
+            extra: {
+              source: "manual_save",
+              failures: failures.slice(0, 25),
+              payloadCount: lastManualPayloadSummary?.count ?? null,
+              payloadBytes: lastManualPayloadSummary?.bytes ?? null,
+              idsSample: lastManualPayloadSummary?.idsSample ?? null,
+            },
           });
           setLastSaveErrorSummary(msg);
           setIsErrorDismissed(false);
@@ -886,6 +910,12 @@ export default function EstimateBuilderV2() {
         details: errObj?.details ?? null,
         hint: errObj?.hint ?? null,
         code: errObj?.code ?? null,
+        extra: {
+          source: "manual_save",
+          payloadCount: lastManualPayloadSummary?.count ?? null,
+          payloadBytes: lastManualPayloadSummary?.bytes ?? null,
+          idsSample: lastManualPayloadSummary?.idsSample ?? null,
+        },
       });
       setLastSaveErrorSummary(msg);
       setIsErrorDismissed(false);
@@ -912,6 +942,9 @@ export default function EstimateBuilderV2() {
       extra: {
         source: "autosave",
         failures: failures.slice(0, 25),
+        payloadCount: (diag as any).lastPayloadCount ?? null,
+        payloadBytes: (diag as any).lastPayloadBytes ?? null,
+        idsSample: (diag as any).lastPayloadIdsSample ?? null,
       },
     });
     setLastSaveErrorSummary(String(msg || "Autosave failed"));
@@ -1301,13 +1334,14 @@ export default function EstimateBuilderV2() {
               <div className="min-w-0">
                 <div className="text-sm font-medium text-destructive">{saveError.title}</div>
                 <div className="mt-1 text-xs text-muted-foreground break-words">{saveError.message}</div>
-                {(saveError.details || saveError.hint || saveError.code) && (
+              {(saveError.details || saveError.hint || saveError.code || saveError.extra) && (
                   <pre className="mt-2 max-h-40 overflow-auto text-[10px] whitespace-pre-wrap opacity-80">
                     {JSON.stringify(
                       {
                         details: saveError.details ?? null,
                         hint: saveError.hint ?? null,
                         code: saveError.code ?? null,
+                      extra: saveError.extra ?? null,
                       },
                       null,
                       2
@@ -1464,6 +1498,22 @@ export default function EstimateBuilderV2() {
               <span className="sm:hidden">Save</span>
             </Button>
 
+            {/* DEV-only deterministic failure toggle (for proving no silent loss) */}
+            {import.meta.env.DEV && (
+              <label className="flex items-center gap-2 px-2 py-1 rounded border bg-background text-xs text-muted-foreground">
+                <input
+                  type="checkbox"
+                  checked={forceServerError}
+                  onChange={(e) => {
+                    const next = e.target.checked;
+                    setForceServerError(next);
+                    devSetForceServerErrorEnabled(next);
+                  }}
+                />
+                Force server error
+              </label>
+            )}
+
             {/* Export dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -1516,7 +1566,7 @@ export default function EstimateBuilderV2() {
               isFlushing: isSavingManual || autosave.getGlobalStatus() === 'saving',
               lastSuccessAt: lastSaveAt,
               lastErrorAt: saveError ? new Date().toISOString() : null,
-              lastPayloadBytes: 0, // Would need to track in hook
+              lastPayloadBytes: (autosaveDiag as any).lastPayloadBytes ?? 0,
               lastResponseCount: 0,
               lastDirtyReason: isDirtyStructural ? 'structural' : 'field',
               onRetry: saveNow,
