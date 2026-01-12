@@ -19,8 +19,8 @@
 // 4. Billing basis is LOCKED at contract baseline
 // ============================================================
 
-import { useMemo, useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { useMemo, useState, useEffect, useCallback } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -115,7 +115,7 @@ export function ProjectBillingTab({ projectId }: ProjectBillingTabProps) {
         .select('id, contract_type, billing_basis, billing_readiness, approved_at, updated_at, parent_proposal_id')
         .eq('project_id', projectId)
         .eq('acceptance_status', 'accepted')
-        .is('parent_proposal_id', null) // base proposal only
+        // .is('parent_proposal_id', null) // Removed to ensure we find *any* accepted proposal (e.g. versioned)
         .order('approved_at', { ascending: false, nullsFirst: false })
         .order('updated_at', { ascending: false })
         .limit(1)
@@ -168,33 +168,160 @@ export function ProjectBillingTab({ projectId }: ProjectBillingTabProps) {
     return { label: 'Not set', basis: null, derived: false } as const;
   }, [billingBasis, acceptedProposal]);
 
-  const getDefaultTab = () => {
-    if (!hasBaseline) return 'summary';
-    if (billingBasis === 'sov') return 'sov';
-    return 'milestones';
-  };
+  const [activeTab, setActiveTab] = useState('summary');
+  const navigate = useNavigate();
 
-  type BillingUiState = 'pre_contract' | 'contract_pending' | 'active';
-
-  const uiState: BillingUiState = useMemo(() => {
-    if (hasBaseline) return 'active';
-    // Strict rule: only "pending" if we have a LOCKED accepted proposal to derive from.
-    if (acceptedProposal && acceptedProposal.billing_readiness === 'locked') {
-      return 'contract_pending';
+  useEffect(() => {
+    if (!summaryLoading && hasBaseline) {
+      if (billingBasis === 'sov') setActiveTab('sov');
+      else if (billingBasis === 'payment_schedule') setActiveTab('milestones');
+      else setActiveTab('summary');
     }
-    return 'pre_contract';
-  }, [hasBaseline, acceptedProposal]);
+  }, [hasBaseline, billingBasis, summaryLoading]);
 
-  const [activeTab, setActiveTab] = useState(getDefaultTab());
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
   const [newPayment, setNewPayment] = useState({ amount: 0, payment_method: 'check', reference_number: '' });
 
-  useEffect(() => {
-    if (!summaryLoading) {
-      setActiveTab(getDefaultTab());
+  const pendingCOs = changeOrders.filter(co => co.status === 'sent' || co.status === 'draft');
+
+  // ============================================================
+  // Derived Billing State Logic (Pure)
+  // ============================================================
+  const getBillingUiState = useCallback(() => {
+    if (summaryLoading) {
+      return {
+        status: 'loading' as const,
+        heroCopy: { title: 'Loading...', body: '' },
+        primaryCta: null,
+        secondaryCtas: [],
+        kpiMode: 'ghosted' as const,
+        tabs: { summary: true, milestones: false, sov: false, changeOrders: 'readOnly', invoices: true, payments: true }
+      };
     }
-  }, [hasBaseline, billingBasis, summaryLoading]);
+
+    const hasAcceptedProposal = !!acceptedProposal;
+    const derivedContractType = acceptedProposal?.contract_type;
+    
+    // FIX: Be forgiving about billing_readiness - if proposal is accepted + has contract_type, it's valid
+    // The DB backfill should have set billing_readiness='locked' but legacy data may not have it
+    const isEffectivelyLocked = hasAcceptedProposal && (
+      acceptedProposal?.billing_readiness === 'locked' ||
+      acceptedProposal?.approved_at !== null ||
+      derivedContractType !== null
+    );
+    
+    // Derive billing basis from contract_type correctly
+    const derivedBillingBasis = acceptedProposal?.billing_basis || (
+      derivedContractType === 'progress_billing' ? 'sov' :
+      derivedContractType === 'milestone' ? 'payment_schedule' :
+      null  // Fixed Price doesn't need a billing schedule
+    );
+
+    // State 1: Active (Baseline exists)
+    if (hasBaseline) {
+      // Contract type specific primary CTA
+      const getActiveCta = () => {
+        if (billingBasis === 'sov') {
+          return { label: 'New Pay App', onClick: () => setInvoiceDialogOpen(true), variant: 'default' as const };
+        }
+        if (billingBasis === 'payment_schedule') {
+          return { label: 'Bill Milestone', onClick: () => setInvoiceDialogOpen(true), variant: 'default' as const };
+        }
+        return { label: 'Create Invoice', onClick: () => setInvoiceDialogOpen(true), variant: 'default' as const };
+      };
+      
+      return {
+        status: 'active' as const,
+        heroCopy: null,
+        primaryCta: { 
+          ...getActiveCta(),
+          disabled: createInvoice.isPending 
+        },
+        secondaryCtas: [],
+        kpiMode: 'normal' as const,
+        tabs: { 
+          summary: true, 
+          milestones: billingBasis === 'payment_schedule', 
+          sov: billingBasis === 'sov', 
+          changeOrders: 'enabled', 
+          invoices: true, 
+          payments: true 
+        },
+      };
+    }
+
+    // State 2: Contract Pending (Accepted Proposal with contract_type, but no baseline)
+    if (hasAcceptedProposal && derivedContractType && isEffectivelyLocked) {
+      // Fixed Price: No schedule/SOV required - can bill immediately
+      if (derivedContractType === 'fixed_price') {
+        return {
+          status: 'contract_pending' as const,
+          heroCopy: {
+            title: 'Contract Approved — Ready to Invoice',
+            body: 'This is a Fixed Price contract. Create the billing baseline to record contract value and enable invoicing.',
+          },
+          primaryCta: { 
+            label: 'Create Billing Baseline', 
+            onClick: () => navigate(`/app/projects/${projectId}?tab=proposals`), 
+            variant: 'default' as const 
+          },
+          secondaryCtas: [{ 
+            label: 'Create Standalone Invoice', 
+            onClick: () => setInvoiceDialogOpen(true), 
+            variant: 'ghost' as const 
+          }],
+          kpiMode: 'normal' as const, // Show contract value for fixed price
+          tabs: { summary: true, milestones: false, sov: false, changeOrders: 'readOnly', invoices: true, payments: true },
+        };
+      }
+      
+      // Milestone or SOV: Need schedule/SOV before billing
+      const basisLabel = derivedBillingBasis === 'sov' ? 'Schedule of Values' : 'Payment Schedule';
+      return {
+        status: 'contract_pending' as const,
+        heroCopy: {
+          title: 'Ready to Start Billing?',
+          body: `The proposal was accepted. Confirm the ${basisLabel.toLowerCase()} to lock the contract value and enable progress invoicing.`,
+        },
+        primaryCta: { 
+          label: 'Initialize Contract Billing', 
+          onClick: () => navigate(`/app/projects/${projectId}?tab=proposals`), 
+          variant: 'default' as const 
+        },
+        secondaryCtas: [{ 
+          label: 'Create Standalone Invoice', 
+          onClick: () => setInvoiceDialogOpen(true), 
+          variant: 'ghost' as const 
+        }],
+        kpiMode: 'ghosted' as const,
+        tabs: { summary: true, milestones: false, sov: false, changeOrders: 'readOnly', invoices: true, payments: true },
+      };
+    }
+
+    // State 3: Pre-Contract (No accepted proposal or no contract_type)
+    return {
+      status: 'pre_contract' as const,
+      heroCopy: {
+        title: 'Billing Not Configured',
+        body: 'To enable progress invoicing, you need an accepted proposal with a defined contract type. You can create standalone invoices for deposits or T&M.',
+      },
+      primaryCta: { 
+        label: 'Go to Proposals', 
+        onClick: () => navigate(`/app/projects/${projectId}?tab=proposals`), 
+        variant: 'outline' as const 
+      },
+      secondaryCtas: [{ 
+        label: 'Create Standalone Invoice', 
+        onClick: () => setInvoiceDialogOpen(true), 
+        variant: 'ghost' as const 
+      }],
+      kpiMode: 'ghosted' as const,
+      tabs: { summary: true, milestones: false, sov: false, changeOrders: 'readOnly', invoices: true, payments: true },
+    };
+  }, [summaryLoading, hasBaseline, billingBasis, acceptedProposal, projectId, navigate, createInvoice.isPending]);
+
+  const uiState = getBillingUiState();
 
   const formatCurrency = (value: number | null | undefined) => {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value ?? 0);
@@ -218,25 +345,13 @@ export function ProjectBillingTab({ projectId }: ProjectBillingTabProps) {
   };
 
   // Loading
-  if (summaryLoading) {
+  if (uiState.status === 'loading') {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-pulse text-muted-foreground">Loading billing data...</div>
       </div>
     );
   }
-
-  // ============================================================
-  // STATE A: No Contract Baseline
-  // ============================================================
-  // NOTE: Standalone invoices must still be allowed without a baseline, so we
-  // render the full shell even when baseline is missing.
-
-  // ============================================================
-  // STATE B & C: Has Baseline (Billing Active)
-  // ============================================================
-  const approvedCOs = changeOrders.filter(co => co.status === 'approved');
-  const pendingCOs = changeOrders.filter(co => co.status === 'sent' || co.status === 'draft');
 
   return (
     <div className="space-y-6">
@@ -263,73 +378,55 @@ export function ProjectBillingTab({ projectId }: ProjectBillingTabProps) {
             ) : null}
           </div>
         </div>
-        <Button onClick={() => setInvoiceDialogOpen(true)}>
-          <Plus className="w-4 h-4 mr-2" /> Create Invoice
-        </Button>
+        
+        {/* CTAs */}
+        <div className="flex items-center gap-2">
+           {uiState.secondaryCtas.map((cta, i) => (
+             <Button key={i} variant={cta.variant} onClick={cta.onClick} size="sm">
+               {cta.label}
+             </Button>
+           ))}
+           {uiState.primaryCta && (
+             <Button 
+               variant={uiState.primaryCta.variant} 
+               onClick={uiState.primaryCta.onClick}
+               disabled={uiState.primaryCta.disabled}
+             >
+               <Plus className="w-4 h-4 mr-2" /> {uiState.primaryCta.label}
+             </Button>
+           )}
+        </div>
       </div>
 
-      {!hasBaseline && derivedBilling.label === 'Not set' && (
-        <div className="rounded-xl border-2 border-dashed border-orange-300 bg-orange-50 dark:border-orange-800 dark:bg-orange-950/20 p-6">
-          <div className="flex items-start gap-4">
-            <div className="rounded-full bg-orange-100 dark:bg-orange-900 p-3">
-              <AlertCircle className="w-6 h-6 text-orange-600" />
-            </div>
-            <div className="flex-1">
-              <h3 className="font-semibold text-orange-900 dark:text-orange-100 text-lg">
-                Billing not configured
-              </h3>
-              <p className="text-orange-700 dark:text-orange-300 mt-2 text-sm">
-                Set up billing from an accepted proposal to enable progress invoicing. You can create standalone invoices in the meantime.
-              </p>
-              <div className="mt-4 flex gap-2">
-                <Link to={`/app/projects/${projectId}?tab=proposals`}>
-                  <Button variant="outline" size="sm">
-                    View Proposals <ArrowRight className="w-4 h-4 ml-2" />
-                  </Button>
-                </Link>
-              </div>
-            </div>
-          </div>
-        </div>
+      {/* Hero Card (if applicable) */}
+      {uiState.heroCopy && (
+        <Card className={cn(
+          "border-l-4",
+          uiState.status === 'contract_pending' ? "border-l-blue-500 bg-blue-50/50 dark:bg-blue-950/20" : "border-l-slate-400 bg-slate-50 dark:bg-slate-950/30"
+        )}>
+          <CardContent className="pt-6 pb-6 flex items-start gap-4">
+             <div className={cn(
+               "rounded-full p-3",
+               uiState.status === 'contract_pending' ? "bg-blue-100 dark:bg-blue-900 text-blue-600" : "bg-slate-200 dark:bg-slate-800 text-slate-600"
+             )}>
+               {uiState.status === 'contract_pending' ? <Clock className="w-6 h-6" /> : <AlertCircle className="w-6 h-6" />}
+             </div>
+             <div>
+               <h3 className="font-semibold text-lg">{uiState.heroCopy.title}</h3>
+               <p className="text-sm text-muted-foreground mt-1 max-w-2xl">{uiState.heroCopy.body}</p>
+             </div>
+          </CardContent>
+        </Card>
       )}
 
-      {!hasBaseline && derivedBilling.label !== 'Not set' && (
-        <div className="rounded-xl border-2 border-dashed border-blue-300 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/20 p-6">
-          <div className="flex items-start gap-4">
-            <div className="rounded-full bg-blue-100 dark:bg-blue-900 p-3">
-              <Clock className="w-6 h-6 text-blue-600" />
-            </div>
-            <div className="flex-1">
-              <h3 className="font-semibold text-blue-900 dark:text-blue-100 text-lg">
-                Contract baseline pending
-              </h3>
-              <p className="text-blue-700 dark:text-blue-300 mt-2 text-sm">
-                Billing basis is <strong>{derivedBilling.label}</strong>. Create the contract baseline from the accepted proposal to enable progress invoicing.
-              </p>
-              {derivedBilling.derived && (
-                <p className="text-blue-700/80 dark:text-blue-300/80 mt-2 text-xs">
-                  Billing basis is derived from the accepted proposal; baseline creation locks the billing structure for invoicing.
-                </p>
-              )}
-              <div className="mt-4 flex gap-2">
-                <Link to={`/app/projects/${projectId}?tab=proposals`}>
-                  <Button variant="outline" size="sm">
-                    View Proposals <ArrowRight className="w-4 h-4 ml-2" />
-                  </Button>
-                </Link>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* KPI Cards - ALL from canonical function */}
+      {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KPICard
           title="Contract Value"
           value={formatCurrency(summary?.current_contract_total)}
           breakdown={`Base: ${formatCurrency(summary?.base_contract_total)} + Change Orders: ${formatCurrency(summary?.approved_change_order_total)}`}
           icon={<FileCheck className="w-5 h-5" />}
+          ghosted={uiState.kpiMode === 'ghosted'}
         />
         <KPICard
           title="Billed to Date"
@@ -337,6 +434,7 @@ export function ProjectBillingTab({ projectId }: ProjectBillingTabProps) {
           breakdown={`${summary?.invoice_count ?? 0} invoices`}
           icon={<Receipt className="w-5 h-5" />}
           valueClassName="text-blue-600"
+          ghosted={uiState.kpiMode === 'ghosted'}
         />
         <KPICard
           title="Open A/R"
@@ -344,6 +442,7 @@ export function ProjectBillingTab({ projectId }: ProjectBillingTabProps) {
           breakdown={`Collected: ${formatCurrency(summary?.paid_to_date)}`}
           icon={<DollarSign className="w-5 h-5" />}
           valueClassName="text-orange-600"
+          ghosted={uiState.kpiMode === 'ghosted'}
         />
         <KPICard
           title="Remaining to Bill"
@@ -351,6 +450,7 @@ export function ProjectBillingTab({ projectId }: ProjectBillingTabProps) {
           breakdown={`Retention: ${formatCurrency(summary?.retention_held)}`}
           icon={<TrendingUp className="w-5 h-5" />}
           valueClassName="text-green-600"
+          ghosted={uiState.kpiMode === 'ghosted'}
         />
       </div>
 
@@ -358,11 +458,8 @@ export function ProjectBillingTab({ projectId }: ProjectBillingTabProps) {
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="w-full justify-start bg-muted/50 p-1">
           <TabsTrigger value="summary">Summary</TabsTrigger>
-          {hasBaseline && (billingBasis === 'sov' ? (
-            <TabsTrigger value="sov">Schedule of Values</TabsTrigger>
-          ) : (
-            <TabsTrigger value="milestones">Milestones</TabsTrigger>
-          ))}
+          {uiState.tabs.sov && <TabsTrigger value="sov">Schedule of Values</TabsTrigger>}
+          {uiState.tabs.milestones && <TabsTrigger value="milestones">Milestones</TabsTrigger>}
           <TabsTrigger value="change-orders" className="gap-2">
             Change Orders
             {pendingCOs.length > 0 && (
