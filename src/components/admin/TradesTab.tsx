@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -127,6 +127,17 @@ export const TradesTab = () => {
     enabled: !!activeCompanyId,
     retry: false,
   });
+
+  const devIncomplete = useMemo(() => {
+    if (!import.meta.env.DEV) return [];
+    return (trades || [])
+      .map((t) => {
+        const count =
+          (t.labor_code_id ? 1 : 0) + (t.material_code_id ? 1 : 0) + (t.sub_code_id ? 1 : 0);
+        return { id: t.id, name: t.name, count, status: t.status };
+      })
+      .filter((t) => t.count < 3);
+  }, [trades]);
 
   // ============================================================================
   // MUTATIONS
@@ -307,6 +318,18 @@ export const TradesTab = () => {
         </CardHeader>
 
         <CardContent className="pt-6">
+          {import.meta.env.DEV && devIncomplete.length > 0 && (
+            <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-amber-900">
+              <div className="text-sm font-medium">DEV WARNING: Trades missing default cost codes</div>
+              <div className="mt-1 text-xs">
+                {devIncomplete.slice(0, 10).map((t) => (
+                  <div key={t.id}>
+                    {t.name} ({t.id}) — {t.count}/3 ({t.status})
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           {/* Mismatch banner (no silent fixes) */}
           {!isLoading && trades.some((t) => t.status === 'invalid') && (
             <div className="mb-4 flex items-start justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-amber-900">
