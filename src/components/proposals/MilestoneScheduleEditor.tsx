@@ -84,7 +84,7 @@ export function MilestoneScheduleEditor({
   const isDirtyRef = useRef(false);
 
   // Fetch or create payment schedule for this proposal
-  const { data: paymentSchedule, isLoading: scheduleLoading } = useQuery({
+  const { data: paymentSchedule, isLoading: scheduleLoading, error: scheduleError } = useQuery({
     queryKey: ['payment-schedule', proposalId],
     queryFn: async () => {
       // First try to find existing schedule
@@ -94,10 +94,17 @@ export function MilestoneScheduleEditor({
         .eq('proposal_id', proposalId)
         .maybeSingle();
 
-      if (findError) throw findError;
-      if (existing) return existing;
+      if (findError) {
+        console.error('[MilestoneScheduleEditor] Failed to fetch payment_schedule:', findError);
+        throw findError;
+      }
+      if (existing) {
+        console.log('[MilestoneScheduleEditor] Found existing payment_schedule:', existing.id);
+        return existing;
+      }
 
       // Create new schedule for this proposal
+      console.log('[MilestoneScheduleEditor] Creating new payment_schedule for proposal:', proposalId);
       const { data: created, error: createError } = await supabase
         .from('payment_schedules')
         .insert({
@@ -108,16 +115,21 @@ export function MilestoneScheduleEditor({
         .select()
         .single();
 
-      if (createError) throw createError;
+      if (createError) {
+        console.error('[MilestoneScheduleEditor] Failed to create payment_schedule:', createError);
+        throw createError;
+      }
+      console.log('[MilestoneScheduleEditor] Created payment_schedule:', created?.id);
       return created;
     },
     enabled: !!proposalId && !!projectId,
   });
 
   // Fetch milestone items
-  const { data: milestoneItems = [], isLoading: itemsLoading } = useQuery({
+  const { data: milestoneItems = [], isLoading: itemsLoading, error: itemsError } = useQuery({
     queryKey: ['payment-schedule-items', paymentSchedule?.id],
     queryFn: async () => {
+      console.log('[MilestoneScheduleEditor] Fetching items for payment_schedule:', paymentSchedule!.id);
       const { data, error } = await supabase
         .from('payment_schedule_items')
         .select('*')
@@ -125,21 +137,36 @@ export function MilestoneScheduleEditor({
         .eq('is_archived', false)
         .order('sort_order', { ascending: true });
 
-      if (error) throw error;
+      if (error) {
+        console.error('[MilestoneScheduleEditor] Failed to fetch items:', error);
+        throw error;
+      }
+      console.log('[MilestoneScheduleEditor] Fetched', data?.length || 0, 'items');
       return data || [];
     },
     enabled: !!paymentSchedule?.id,
+    // Don't refetch too aggressively - prevent overwriting local state
+    staleTime: 5000,
   });
 
-  // Sync milestones to local state - only when not dirty
+  // Sync milestones to local state - only when not dirty and server has data
   useEffect(() => {
     if (!milestoneItems) return;
     
     // Don't overwrite local changes with server data
     if (isDirtyRef.current) {
+      console.log('[MilestoneScheduleEditor] Skipping sync - local state is dirty');
       return;
     }
     
+    // Don't overwrite local items with empty server data if we have local items
+    // This prevents RLS/timing issues from wiping out user's work
+    if (milestoneItems.length === 0 && localMilestones.length > 0) {
+      console.log('[MilestoneScheduleEditor] Skipping sync - server returned empty but we have local items');
+      return;
+    }
+    
+    console.log('[MilestoneScheduleEditor] Syncing', milestoneItems.length, 'items from server');
     const items: MilestoneItem[] = milestoneItems.map((item: any) => ({
       id: item.id,
       title: item.title || '',
@@ -157,7 +184,7 @@ export function MilestoneScheduleEditor({
     }));
 
     setLocalMilestones(items);
-  }, [milestoneItems]);
+  }, [milestoneItems, localMilestones.length]);
 
   // Calculate totals
   const { allocatedTotal, allocatedPercent, remainingAmount, isComplete } = useMemo(() => {
@@ -176,6 +203,26 @@ export function MilestoneScheduleEditor({
   useEffect(() => {
     onTotalsChange?.(allocatedTotal, localMilestones.length);
   }, [allocatedTotal, localMilestones.length, onTotalsChange]);
+
+  // Recalculate scheduled_amounts when contractTotal changes
+  useEffect(() => {
+    if (contractTotal <= 0) return;
+    
+    setLocalMilestones((prev) => {
+      let hasChanges = false;
+      const updated = prev.map((m) => {
+        if (m.allocationMode === 'percentage' && m.percent_of_contract != null) {
+          const newAmount = (m.percent_of_contract / 100) * contractTotal;
+          if (Math.abs(newAmount - m.scheduled_amount) > 0.01) {
+            hasChanges = true;
+            return { ...m, scheduled_amount: newAmount, isDirty: true };
+          }
+        }
+        return m;
+      });
+      return hasChanges ? updated : prev;
+    });
+  }, [contractTotal]);
 
   // Add new milestone
   const handleAddMilestone = useCallback(() => {
@@ -273,7 +320,7 @@ export function MilestoneScheduleEditor({
         if (error) throw error;
       }
 
-      // Insert new items
+      // Insert new items - use .select() to verify they're visible after insert
       if (toCreate.length > 0) {
         const insertData = toCreate.map((m) => ({
           id: m.id,
@@ -285,10 +332,17 @@ export function MilestoneScheduleEditor({
           scheduled_amount: m.scheduled_amount,
           sort_order: m.sort_order,
         }));
-        const { error } = await supabase
+        const { data: insertedRows, error } = await supabase
           .from('payment_schedule_items')
-          .insert(insertData);
+          .insert(insertData)
+          .select('id');
         if (error) throw error;
+        
+        // Verify all items were inserted and are visible
+        if (!insertedRows || insertedRows.length !== toCreate.length) {
+          console.warn('[MilestoneScheduleEditor] Insert succeeded but some items not visible after insert. This may be an RLS issue.');
+          console.warn('Expected:', toCreate.length, 'Got:', insertedRows?.length || 0);
+        }
       }
 
       // Update existing items
@@ -342,12 +396,26 @@ export function MilestoneScheduleEditor({
   const needsSave = hasDirtyItems || hasDeletedItems;
 
   const isLoading = scheduleLoading || itemsLoading;
+  const queryError = scheduleError || itemsError;
 
   if (isLoading) {
     return (
       <Card>
         <CardContent className="py-8 flex items-center justify-center">
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (queryError) {
+    return (
+      <Card>
+        <CardContent className="py-8">
+          <div className="flex items-center gap-2 text-red-600">
+            <AlertTriangle className="h-5 w-5" />
+            <span>Failed to load milestone schedule: {String(queryError)}</span>
+          </div>
         </CardContent>
       </Card>
     );
