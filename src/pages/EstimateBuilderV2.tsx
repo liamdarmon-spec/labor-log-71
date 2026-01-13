@@ -1440,22 +1440,20 @@ export default function EstimateBuilderV2() {
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <div className="min-w-0">
-              {/* Locked tooltip instead of badge */}
-              {isBudgetSourceLocked && (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div className="flex items-center text-muted-foreground">
-                        <Lock className="h-4 w-4" />
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Locked because it’s tied to an approved contract. Edit via Change Order.</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              )}
               <div className="flex items-center gap-2 flex-wrap">
+                {/* Locked tooltip */}
+                {isBudgetSourceLocked && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Lock className="h-4 w-4 text-muted-foreground shrink-0" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Locked because it’s tied to an approved contract. Edit via Change Order.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
                 <h1 className="text-xl sm:text-2xl font-bold truncate">{estimate.title}</h1>
                 {/* Status badge removed for internal cleanliness */}
                 {isMigrating && (
@@ -1465,7 +1463,9 @@ export default function EstimateBuilderV2() {
                 )}
                 {/* Manual-save mode: no autosave indicator */}
               </div>
-              <p className="text-sm text-muted-foreground truncate">{projectName}</p>
+              {projectName && projectName.toLowerCase() !== estimate.title.toLowerCase() && (
+                <p className="text-sm text-muted-foreground truncate">{projectName}</p>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -1518,22 +1518,6 @@ export default function EstimateBuilderV2() {
               <span className="hidden sm:inline">Save now</span>
               <span className="sm:hidden">Save</span>
             </Button>
-
-            {/* DEV-only deterministic failure toggle (for proving no silent loss) */}
-            {import.meta.env.DEV && (
-              <label className="flex items-center gap-2 px-2 py-1 rounded border bg-background text-xs text-muted-foreground">
-                <input
-                  type="checkbox"
-                  checked={forceServerError}
-                  onChange={(e) => {
-                    const next = e.target.checked;
-                    setForceServerError(next);
-                    updateDebugFlags({ forceError: next });
-                  }}
-                />
-                Force server error
-              </label>
-            )}
 
             {/* Export dropdown */}
             <DropdownMenu>
