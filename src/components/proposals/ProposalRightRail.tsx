@@ -126,13 +126,6 @@ const CONTRACT_TYPES = [
   },
 ];
 
-const BILLING_TERMS = [
-  { value: 'due_on_receipt', label: 'Due on Receipt' },
-  { value: 'net15', label: 'Net 15' },
-  { value: 'net30', label: 'Net 30' },
-  { value: 'net45', label: 'Net 45' },
-  { value: 'net60', label: 'Net 60' },
-];
 
 export function ProposalRightRail({
   proposalId,
@@ -161,7 +154,6 @@ export function ProposalRightRail({
   const [localContractType, setLocalContractType] = useState<ContractType>(
     contractType || 'fixed_price'
   );
-  const [localBillingTerms, setLocalBillingTerms] = useState(billingTerms || 'net30');
   const [localRetainage, setLocalRetainage] = useState(retainagePercent || 0);
   const [approverName, setApproverName] = useState('');
 
@@ -195,10 +187,6 @@ export function ProposalRightRail({
     await updateContractSettings({ contract_type: value });
   };
 
-  const handleBillingTermsChange = async (value: string) => {
-    setLocalBillingTerms(value);
-    await updateContractSettings({ billing_terms: value });
-  };
 
   const handleRetainageChange = async (value: number) => {
     const clamped = Math.max(0, Math.min(100, value));
@@ -537,55 +525,31 @@ export function ProposalRightRail({
 
             <Separator />
 
-            {/* Billing Terms */}
-            <div className="space-y-3">
+            {/* Retainage (only for progress billing) */}
+            {localContractType === 'progress_billing' && (
               <div className="space-y-2">
-                <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                  Payment Terms
+                <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                  <Percent className="h-3 w-3" />
+                  Retainage
                 </Label>
-                <Select
-                  value={localBillingTerms}
-                  onValueChange={handleBillingTermsChange}
-                  disabled={isUpdating}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {BILLING_TERMS.map((term) => (
-                      <SelectItem key={term.value} value={term.value}>
-                        {term.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {localContractType === 'progress_billing' && (
-                <div className="space-y-2">
-                  <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">
-                    <Percent className="h-3 w-3" />
-                    Retainage
-                  </Label>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="number"
-                      min={0}
-                      max={100}
-                      step={0.5}
-                      value={localRetainage}
-                      onChange={(e) => handleRetainageChange(parseFloat(e.target.value) || 0)}
-                      className="w-20 font-sans tabular-nums"
-                      disabled={isUpdating}
-                    />
-                    <span className="text-sm text-muted-foreground">%</span>
-                  </div>
-                  <p className="text-[11px] text-muted-foreground">
-                    Held from each payment until completion
-                  </p>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step={0.5}
+                    value={localRetainage}
+                    onChange={(e) => handleRetainageChange(parseFloat(e.target.value) || 0)}
+                    className="w-20 font-sans tabular-nums"
+                    disabled={isUpdating}
+                  />
+                  <span className="text-sm text-muted-foreground">%</span>
                 </div>
-              )}
-            </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Held from each payment until completion
+                </p>
+              </div>
+            )}
 
             {/* Contract Summary */}
             <div className="bg-muted/50 rounded-lg p-3 space-y-2">
@@ -888,9 +852,6 @@ export function ProposalRightRail({
               </p>
               <p className="text-sm">
                 <strong>Amount:</strong> {formatCurrency(totalAmount)}
-              </p>
-              <p className="text-sm">
-                <strong>Terms:</strong> {BILLING_TERMS.find((t) => t.value === localBillingTerms)?.label}
               </p>
             </div>
 

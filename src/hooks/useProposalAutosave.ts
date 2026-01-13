@@ -14,6 +14,7 @@ type Options<TPayload> = {
   companyId: string | null | undefined;
   proposalId: string;
   projectId: string;
+  proposalStatus?: string | null; // Only save if status === 'draft'
   getSnapshot: () => TPayload;
   onServerAck?: (ack: ProposalAutosaveAck) => void;
   debounceMs?: number;
@@ -32,6 +33,7 @@ export function useProposalAutosave<TPayload>(opts: Options<TPayload>) {
     companyId,
     proposalId,
     projectId,
+    proposalStatus,
     getSnapshot,
     onServerAck,
     debounceMs = 1000,
@@ -48,7 +50,9 @@ export function useProposalAutosave<TPayload>(opts: Options<TPayload>) {
   const lastPayloadBytesRef = useRef<number>(0);
   const lastPayloadKeysSampleRef = useRef<string[]>([]);
 
-  const canSave = useMemo(() => !!companyId && !!proposalId && !!projectId, [companyId, proposalId, projectId]);
+  // Only allow saves for draft proposals
+  const isDraft = !proposalStatus || proposalStatus === 'draft';
+  const canSave = useMemo(() => !!companyId && !!proposalId && !!projectId && isDraft, [companyId, proposalId, projectId, isDraft]);
 
   const clearTimer = () => {
     if (timerRef.current) {
@@ -61,6 +65,12 @@ export function useProposalAutosave<TPayload>(opts: Options<TPayload>) {
 
   const saveNow = useCallback(async () => {
     if (!canSave) {
+      // Don't show error for non-draft proposals - this is expected behavior
+      if (!isDraft) {
+        setStatus('saved');
+        setErrorMessage(null);
+        return;
+      }
       setStatus('error');
       setErrorMessage('Cannot save: missing company_id / proposalId / projectId');
       return;
@@ -141,10 +151,16 @@ export function useProposalAutosave<TPayload>(opts: Options<TPayload>) {
         queuedHashRef.current = null;
       }
     }
-  }, [canSave, companyId, proposalId, projectId, getSnapshot, onServerAck]);
+  }, [canSave, isDraft, companyId, proposalId, projectId, getSnapshot, onServerAck]);
 
   const markDirtyAndSchedule = useCallback(() => {
     if (!canSave) {
+      // Don't show error for non-draft proposals - this is expected behavior
+      if (!isDraft) {
+        setStatus('saved');
+        setErrorMessage(null);
+        return;
+      }
       // Fail loud: user is editing but we cannot persist.
       setStatus('error');
       setErrorMessage('Cannot autosave: missing company_id / proposalId / projectId');
@@ -173,7 +189,7 @@ export function useProposalAutosave<TPayload>(opts: Options<TPayload>) {
     timerRef.current = setTimeout(() => {
       void saveNow();
     }, debounceMs);
-  }, [canSave, debounceMs, getSnapshot, saveNow]);
+  }, [canSave, isDraft, debounceMs, getSnapshot, saveNow]);
 
   const retry = useCallback(() => {
     clearTimer();

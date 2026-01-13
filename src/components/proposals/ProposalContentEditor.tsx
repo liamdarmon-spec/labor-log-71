@@ -359,7 +359,10 @@ export function ProposalContentEditor({
           <div className="flex justify-between items-center pt-2">
             <span className="font-medium">Grand Total</span>
             <span className="text-2xl font-bold font-sans tabular-nums tracking-tighter">
-              ${proposal.total_amount.toLocaleString()}
+              ${(proposal.total_amount > 0 
+                ? proposal.total_amount 
+                : proposal.allItems.reduce((sum, item) => sum + (item.line_total || 0), 0)
+              ).toLocaleString()}
             </span>
           </div>
         </CardContent>

@@ -97,6 +97,7 @@ export default function ProposalBuilderV2() {
     companyId: autosaveCompanyId,
     proposalId: proposalId || '',
     projectId: proposal?.project_id || projectId || '',
+    proposalStatus: proposal?.status, // Only allow saves for draft proposals
     getSnapshot: () => snapshot,
     debounceMs: 1000,
     onServerAck: (ack) => {
