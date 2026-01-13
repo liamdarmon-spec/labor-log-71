@@ -115,6 +115,8 @@ export const ProjectInvoices = ({ projectId }: { projectId: string }) => {
         .insert({
           project_id: projectId,
           invoice_number: formData.invoice_number,
+          source_type: 'manual',
+          invoice_type: 'standard',
           status: formData.status,
           issue_date: formData.issue_date,
           due_date: formData.due_date || null,

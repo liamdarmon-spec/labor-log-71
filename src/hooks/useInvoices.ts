@@ -80,7 +80,7 @@ export function useCreateInvoice() {
       if (!activeCompanyId) throw new Error('No active company selected');
       const { data, error } = await supabase
         .from('invoices')
-        .insert({ ...(invoice as any), company_id: activeCompanyId })
+        .insert({ ...(invoice as any), company_id: activeCompanyId, source_type: (invoice as any).source_type ?? 'manual', invoice_type: (invoice as any).invoice_type ?? 'standard' })
         .select()
         .single();
 
