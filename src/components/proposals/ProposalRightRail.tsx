@@ -164,7 +164,6 @@ export function ProposalRightRail({
   const [localBillingTerms, setLocalBillingTerms] = useState(billingTerms || 'net30');
   const [localRetainage, setLocalRetainage] = useState(retainagePercent || 0);
   const [approverName, setApproverName] = useState('');
-  const [createBaseline, setCreateBaseline] = useState(true);
 
   // Control accordion open state. This MUST be effect-driven (never setState during render).
   const [openSections, setOpenSections] = useState<string[]>(() => {
@@ -239,7 +238,7 @@ export function ProposalRightRail({
       const { data, error } = await (supabase as any).rpc('approve_proposal_manual', {
         p_proposal_id: proposalId,
         p_approved_by: approverName || null,
-        p_create_baseline: createBaseline,
+        p_create_baseline: false, // Baseline creation now happens explicitly in Billing
       });
       if (error) throw error;
       if (!data?.success) throw new Error(data?.error || 'Approval failed');
@@ -881,19 +880,6 @@ export function ProposalRightRail({
                 onChange={(e) => setApproverName(e.target.value)}
                 placeholder="Your name or client name"
               />
-            </div>
-
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="createBaseline"
-                checked={createBaseline}
-                onChange={(e) => setCreateBaseline(e.target.checked)}
-                className="rounded"
-              />
-              <Label htmlFor="createBaseline" className="text-sm font-normal">
-                Create billing baseline (enables invoicing)
-              </Label>
             </div>
 
             <div className="rounded-lg bg-slate-100 dark:bg-slate-900 p-4 space-y-2">

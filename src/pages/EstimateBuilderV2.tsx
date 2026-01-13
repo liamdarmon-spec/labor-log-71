@@ -17,7 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, FileText, Check, Download, FileSpreadsheet, Loader2, AlertCircle } from "lucide-react";
+import { ArrowLeft, Plus, FileText, Check, Download, FileSpreadsheet, Loader2, AlertCircle, Lock } from "lucide-react";
 import { useCostCodeCatalog } from "@/hooks/useCostCodeCatalog";
 import { checkEstimateNeedsMigration, migrateEstimateToScopeBlocks } from "@/lib/estimateMigration";
 import { downloadCSV, downloadPDF, type EstimateExportData } from "@/lib/estimateExport";
@@ -1440,16 +1440,24 @@ export default function EstimateBuilderV2() {
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <div className="min-w-0">
+              {/* Locked tooltip instead of badge */}
+              {isBudgetSourceLocked && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="flex items-center text-muted-foreground">
+                        <Lock className="h-4 w-4" />
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Locked because it’s tied to an approved contract. Edit via Change Order.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
               <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-xl sm:text-2xl font-bold truncate">{estimate.title}</h1>
-                <Badge variant={estimate.status === "draft" ? "secondary" : "default"}>
-                  {estimate.status}
-                </Badge>
-                {isBudgetSourceLocked && (
-                  <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
-                    Budget Source
-                  </Badge>
-                )}
+                {/* Status badge removed for internal cleanliness */}
                 {isMigrating && (
                   <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-200">
                     Migrating...

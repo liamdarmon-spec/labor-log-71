@@ -78,6 +78,7 @@ import {
   useCustomerPayments,
   useCreateCustomerPayment,
   useCreateInvoiceFromSource,
+  useAcceptProposalCreateBaseline,
 } from '@/hooks/useBillingHub';
 import { toast } from 'sonner';
 
@@ -100,6 +101,7 @@ export function ProjectBillingTab({ projectId }: ProjectBillingTabProps) {
   // Mutations (ONLY payment recording allowed on this page)
   const createPayment = useCreateCustomerPayment();
   const createInvoice = useCreateInvoiceFromSource();
+  const createBaseline = useAcceptProposalCreateBaseline();
 
   // UI State
   const hasBaseline = summary?.has_contract_baseline ?? false;
@@ -264,9 +266,14 @@ export function ProjectBillingTab({ projectId }: ProjectBillingTabProps) {
             body: 'This is a Fixed Price contract. Create the billing baseline to record contract value and enable invoicing.',
           },
           primaryCta: { 
-            label: 'Create Billing Baseline', 
-            onClick: () => navigate(`/app/projects/${projectId}?tab=proposals`), 
-            variant: 'default' as const 
+            label: 'Initialize Contract Billing', 
+            onClick: () => {
+              if (acceptedProposal?.id) {
+                createBaseline.mutate({ proposalId: acceptedProposal.id, projectId });
+              }
+            }, 
+            variant: 'default' as const,
+            disabled: createBaseline.isPending
           },
           secondaryCtas: [{ 
             label: 'Create Standalone Invoice', 
@@ -288,8 +295,13 @@ export function ProjectBillingTab({ projectId }: ProjectBillingTabProps) {
         },
         primaryCta: { 
           label: 'Initialize Contract Billing', 
-          onClick: () => navigate(`/app/projects/${projectId}?tab=proposals`), 
-          variant: 'default' as const 
+          onClick: () => {
+            if (acceptedProposal?.id) {
+              createBaseline.mutate({ proposalId: acceptedProposal.id, projectId });
+            }
+          }, 
+          variant: 'default' as const,
+          disabled: createBaseline.isPending
         },
         secondaryCtas: [{ 
           label: 'Create Standalone Invoice', 
@@ -305,11 +317,11 @@ export function ProjectBillingTab({ projectId }: ProjectBillingTabProps) {
     return {
       status: 'pre_contract' as const,
       heroCopy: {
-        title: 'Billing Not Configured',
+        title: 'No Contract Yet',
         body: 'To enable progress invoicing, you need an accepted proposal with a defined contract type. You can create standalone invoices for deposits or T&M.',
       },
       primaryCta: { 
-        label: 'Go to Proposals', 
+        label: 'View Proposals', 
         onClick: () => navigate(`/app/projects/${projectId}?tab=proposals`), 
         variant: 'outline' as const 
       },
@@ -321,7 +333,7 @@ export function ProjectBillingTab({ projectId }: ProjectBillingTabProps) {
       kpiMode: 'ghosted' as const,
       tabs: { summary: true, milestones: false, sov: false, changeOrders: 'readOnly', invoices: true, payments: true },
     };
-  }, [summaryLoading, hasBaseline, billingBasis, acceptedProposal, projectId, navigate, createInvoice.isPending]);
+  }, [summaryLoading, hasBaseline, billingBasis, acceptedProposal, projectId, navigate, createInvoice.isPending, createBaseline.isPending]);
 
   const uiState = getBillingUiState();
 

@@ -195,29 +195,31 @@ const SummaryCard = memo(function SummaryCard({
   return (
     <div
       className={cn(
-        "rounded-2xl p-4 border transition-all",
+        "rounded-xl p-3 border transition-all flex flex-col justify-between h-full",
         highlight
           ? "bg-primary/5 border-primary/20"
           : variant === "success"
-          ? "bg-emerald-50 border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-800"
+          ? "bg-emerald-50/50 border-emerald-200/60 dark:bg-emerald-900/10 dark:border-emerald-800/60"
           : variant === "warning"
-          ? "bg-amber-50 border-amber-200 dark:bg-amber-900/20 dark:border-amber-800"
-          : "bg-card border-border"
+          ? "bg-amber-50/50 border-amber-200/60 dark:bg-amber-900/10 dark:border-amber-800/60"
+          : "bg-card border-border/60 shadow-sm"
       )}
     >
-      <p className="text-xs font-medium text-muted-foreground mb-1">{label}</p>
-      <p
-        className={cn(
-          "text-2xl font-semibold tracking-tight",
-          highlight && "text-primary",
-          variant === "success" && "text-emerald-600 dark:text-emerald-400",
-          variant === "warning" && "text-amber-600 dark:text-amber-400"
-        )}
-      >
-        {isCount ? value : formatCurrency(value)}
-      </p>
+      <div>
+        <p className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">{label}</p>
+        <p
+          className={cn(
+            "text-xl font-bold tracking-tight font-sans tabular-nums",
+            highlight && "text-primary",
+            variant === "success" && "text-emerald-600 dark:text-emerald-400",
+            variant === "warning" && "text-amber-600 dark:text-amber-400"
+          )}
+        >
+          {isCount ? value : formatCurrency(value)}
+        </p>
+      </div>
       {subtitle && (
-        <p className="text-[11px] text-muted-foreground mt-0.5">{subtitle}</p>
+        <p className="text-[11px] text-muted-foreground mt-1 font-medium">{subtitle}</p>
       )}
     </div>
   );
@@ -234,21 +236,24 @@ const CategoryBreakdownCard = memo(function CategoryBreakdownCard({
   );
 
   return (
-    <div className="rounded-2xl p-4 border bg-card border-border">
-      <p className="text-xs font-medium text-muted-foreground mb-2">By Category</p>
+    <div className="rounded-xl p-3 border bg-card border-border/60 shadow-sm h-full">
+      <p className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground mb-2">By Category</p>
       {entries.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No costs yet</p>
+        <p className="text-xs text-muted-foreground">No costs yet</p>
       ) : (
         <div className="flex flex-wrap gap-1.5">
           {entries.map(([cat, amt]) => (
             <span
               key={cat}
               className={cn(
-                "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium",
-                CATEGORY_COLORS[cat]
+                "inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-bold border",
+                cat === 'labor' && "bg-blue-50 text-blue-700 border-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800",
+                cat === 'subs' && "bg-amber-50 text-amber-700 border-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800",
+                cat === 'materials' && "bg-emerald-50 text-emerald-700 border-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800",
+                cat === 'other' && "bg-slate-50 text-slate-700 border-slate-100 dark:bg-slate-800/20 dark:text-slate-400 dark:border-slate-800"
               )}
             >
-              {CATEGORY_LABELS[cat]} {formatCurrency(amt)}
+              {CATEGORY_LABELS[cat]} <span className="font-sans tabular-nums">{formatCurrency(amt)}</span>
             </span>
           ))}
         </div>
@@ -840,8 +845,8 @@ export const ProjectEstimateEditor: React.FC<EstimateEditorProps> = ({
 
         {/* Budget Source Banner */}
         {isBudgetSourceLocked ? (
-          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 dark:bg-emerald-900/20 dark:border-emerald-800 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-400 flex items-center gap-2">
-            <span className="flex-1">This estimate is the active project budget.</span>
+          <div className="rounded-xl border border-emerald-200/60 bg-emerald-50/50 dark:bg-emerald-900/10 dark:border-emerald-800/60 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-400 flex items-center gap-2">
+            <span className="flex-1 font-medium">This estimate is the active project budget.</span>
           </div>
         ) : (
           <div
