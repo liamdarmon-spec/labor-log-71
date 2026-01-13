@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { devMaybeForceError } from '@/lib/dev/forceServerError';
+import { supabaseRpc } from '@/lib/supabase/rpc';
 
 export type ProposalAutosaveStatus = 'saved' | 'saving' | 'dirty' | 'error';
 
@@ -92,13 +92,7 @@ export function useProposalAutosave<TPayload>(opts: Options<TPayload>) {
     setErrorMessage(null);
 
     try {
-      // DEV: Check for forced error BEFORE making the RPC call
-      const forcedError = devMaybeForceError();
-      if (forcedError) {
-        throw new Error(forcedError.error.message);
-      }
-      
-      const { data, error } = await (supabase as any).rpc('upsert_proposal_draft', {
+      const { data, error } = await supabaseRpc('upsert_proposal_draft', {
         p_company_id: companyId,
         p_proposal_id: proposalId,
         p_project_id: projectId,

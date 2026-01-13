@@ -4,7 +4,7 @@
 
 import { useEffect, useState } from 'react';
 import { ChevronDown, ChevronUp, Copy, XCircle, RotateCw, AlertTriangle } from 'lucide-react';
-import { devIsForceServerErrorEnabled, devSetForceServerErrorEnabled } from '@/lib/dev/forceServerError';
+import { getDebugFlags, updateDebugFlags } from '@/lib/debugFlags';
 
 export interface AutosaveDiagnosticsData {
   // Autosave state
@@ -48,11 +48,11 @@ export function AutosaveDiagnostics({ data }: AutosaveDiagnosticsProps) {
 
   const [isExpanded, setIsExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [forceError, setForceError] = useState(() => devIsForceServerErrorEnabled());
+  const [forceError, setForceError] = useState(() => !!getDebugFlags()?.forceError);
 
   useEffect(() => {
     // Keep UI in sync if toggled in another tab.
-    const onStorage = () => setForceError(devIsForceServerErrorEnabled());
+    const onStorage = () => setForceError(!!getDebugFlags()?.forceError);
     window.addEventListener('storage', onStorage);
     return () => window.removeEventListener('storage', onStorage);
   }, []);
@@ -118,7 +118,7 @@ export function AutosaveDiagnostics({ data }: AutosaveDiagnosticsProps) {
                   onChange={(e) => {
                     const next = e.target.checked;
                     setForceError(next);
-                    devSetForceServerErrorEnabled(next);
+                    updateDebugFlags({ forceError: next });
                   }}
                 />
                 Force server error

@@ -28,7 +28,7 @@ import { useCompany } from '@/company/CompanyProvider';
 import { useProposalAutosave } from '@/hooks/useProposalAutosave';
 import { AutosaveDiagnostics, collectAutosaveDiagnostics } from '@/components/dev/AutosaveDiagnostics';
 import { useContractBaseline } from '@/hooks/useBillingHub';
-import { devIsForceServerErrorEnabled, devSetForceServerErrorEnabled } from '@/lib/dev/forceServerError';
+import { getDebugFlags, updateDebugFlags } from '@/lib/debugFlags';
 
 type SaveStatus = 'saved' | 'saving' | 'dirty' | 'error';
 
@@ -66,7 +66,7 @@ export default function ProposalBuilderV2() {
   const [isErrorDismissed, setIsErrorDismissed] = useState(false);
   const [lastSaveAt, setLastSaveAt] = useState<string | null>(null);
   const [lastSaveErrorSummary, setLastSaveErrorSummary] = useState<string | null>(null);
-  const [forceServerError, setForceServerError] = useState(() => devIsForceServerErrorEnabled());
+  const [forceServerError, setForceServerError] = useState(() => !!getDebugFlags()?.forceError);
   
   // UI-only "Review" phase state (between Draft and Approved)
   const [reviewPhase, setReviewPhase] = useState(false);
@@ -440,7 +440,7 @@ export default function ProposalBuilderV2() {
                   onChange={(e) => {
                     const next = e.target.checked;
                     setForceServerError(next);
-                    devSetForceServerErrorEnabled(next);
+                    updateDebugFlags({ forceError: next });
                   }}
                 />
                 Force server error

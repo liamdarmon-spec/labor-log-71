@@ -8,9 +8,8 @@
 
 import { useCallback, useRef, useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { devMaybeForceError } from "@/lib/dev/forceServerError";
+import { supabaseRpc } from "@/lib/supabase/rpc";
 
 export type SaveStatus = "idle" | "dirty" | "saving" | "saved" | "error" | "conflict";
 
@@ -159,15 +158,8 @@ export function useItemAutosave(estimateId: string | undefined) {
       }
       lastPayloadCountRef.current = itemsWithLocking.length;
       lastPayloadIdsSampleRef.current = itemIds.slice(0, 10);
-      
-      // DEV: Check for forced error BEFORE making the RPC call
-      const forcedError = devMaybeForceError();
-      if (forcedError) {
-        throw new Error(forcedError.error.message);
-      }
-      
-      // Single RPC call for all updates
-      const { data, error } = await (supabase as any).rpc('batch_upsert_cost_items', {
+
+      const { data, error } = await supabaseRpc('batch_upsert_cost_items', {
         p_items: itemsWithLocking,
       });
       
@@ -341,6 +333,33 @@ export function useItemAutosave(estimateId: string | undefined) {
     scheduleBatchFlush();
   }, [setRowState, scheduleBatchFlush]);
 
+  const getConflictItems = useCallback(() => {
+    return Array.from(rowStates.entries())
+      .filter(([, s]) => s.status === "conflict")
+      .map(([id, s]) => ({ id, serverUpdatedAt: s.serverUpdatedAt || null }));
+  }, [rowStates]);
+
+  const retryConflictsWithFreshUpdatedAt = useCallback((ids?: string[]) => {
+    const targetIds = ids && ids.length > 0 ? new Set(ids) : null;
+    const entries = Array.from(rowStates.entries()).filter(([id, s]) => {
+      if (s.status !== "conflict") return false;
+      return targetIds ? targetIds.has(id) : true;
+    });
+
+    entries.forEach(([id, s]) => {
+      if (s.serverUpdatedAt) {
+        lastKnownUpdates.current.set(id, s.serverUpdatedAt);
+      }
+      setRowState(id, { status: "dirty", error: undefined });
+    });
+
+    if (batchFlushTimer.current) {
+      clearTimeout(batchFlushTimer.current);
+      batchFlushTimer.current = null;
+    }
+    flushBatch();
+  }, [flushBatch, rowStates, setRowState]);
+
   // Flush all pending saves (for navigation)
   const flushPendingSaves = useCallback(async () => {
     // Clear all debounce timers
@@ -442,6 +461,8 @@ export function useItemAutosave(estimateId: string | undefined) {
     retryAll,
     acceptServerVersion,
     forceLocalVersion,
+    getConflictItems,
+    retryConflictsWithFreshUpdatedAt,
     flushPendingSaves,
     getRowState,
     hasPendingChanges,

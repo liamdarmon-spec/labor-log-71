@@ -1,6 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 
-export type CanonicalCostCodeCategory = 'labor' | 'material' | 'sub';
+export type CanonicalCostCodeCategory = string;
 
 export type TradeDefaultsStatus = 'complete' | 'incomplete' | 'invalid';
 

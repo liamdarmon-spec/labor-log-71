@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useCostCodesForSelect } from "@/hooks/useCostCodes";
+import { useCostCodeCategoriesMeta } from "@/hooks/useCostCodeCategoriesMeta";
 import {
   Command,
   CommandEmpty,
@@ -40,19 +41,6 @@ interface CostCodeSelectProps {
   compact?: boolean;
 }
 
-// ============================================================================
-// ROOT CAUSE FIX (2026-01-12):
-// DB enum is: 'labor' | 'material' | 'sub' (singular)
-// Old code used: 'labor' | 'materials' | 'subs' (plural) → mismatch → hidden codes
-// ============================================================================
-const CATEGORY_ORDER = ["labor", "material", "sub", "other"];
-const CATEGORY_COLORS: Record<string, string> = {
-  labor: "bg-blue-500/10 text-blue-700 border-blue-200",
-  sub: "bg-orange-500/10 text-orange-700 border-orange-200",
-  material: "bg-green-500/10 text-green-700 border-green-200",
-  other: "bg-gray-500/10 text-gray-700 border-gray-200",
-};
-
 const RECENTLY_USED_KEY = "costcode_recently_used";
 const MAX_RECENT = 5;
 
@@ -89,6 +77,7 @@ export function CostCodeSelect({
 
   // Use shared React Query hook - cached across all instances
   const { data: codes = [], isLoading: loading } = useCostCodesForSelect();
+  const { data: categoryMeta = [], isLoading: metaLoading, error: metaError } = useCostCodeCategoriesMeta();
 
   // Group codes by category - memoized
   const groupedCodes = useMemo(() => {
@@ -102,25 +91,10 @@ export function CostCodeSelect({
 
     const groups: Record<string, CostCode[]> = {};
     for (const code of filtered) {
-      const cat = code.category || "other";
+      const cat = code.category || "__unknown__";
       if (!groups[cat]) groups[cat] = [];
       groups[cat].push(code);
     }
-    
-    // DEV DIAGNOSTIC: Ensure CATEGORY_ORDER matches actual DB categories
-    if (import.meta.env.DEV && codes.length > 0) {
-      const actualCategories = Object.keys(groups);
-      const missingInOrder = actualCategories.filter(c => !CATEGORY_ORDER.includes(c) && c !== 'other');
-      if (missingInOrder.length > 0) {
-        console.warn('[CostCodeSelect] Categories in DB but missing from CATEGORY_ORDER:', missingInOrder);
-        console.warn('[CostCodeSelect] CATEGORY_ORDER should be:', actualCategories);
-      }
-      // Log counts by category
-      console.debug('[CostCodeSelect] Category counts:', Object.fromEntries(
-        Object.entries(groups).map(([k, v]) => [k, v.length])
-      ));
-    }
-    
     return groups;
   }, [codes, search]);
 
@@ -157,9 +131,20 @@ export function CostCodeSelect({
     ? `${selectedCode.code}${selectedCode.name ? ` – ${selectedCode.name}` : ""}`
     : placeholder;
 
-  const categoryLabel = (cat: string) => {
-    return cat.charAt(0).toUpperCase() + cat.slice(1);
-  };
+  const metaByKey = useMemo(() => {
+    const m = new Map<string, { label: string; color: string; sort_order: number }>();
+    categoryMeta.forEach((c) => m.set(c.key, { label: c.label, color: c.color, sort_order: c.sort_order }));
+    return m;
+  }, [categoryMeta]);
+
+  const metaKeys = useMemo(() => categoryMeta.map((c) => c.key), [categoryMeta]);
+
+  const requiredMetaOk = useMemo(() => {
+    if (metaLoading) return true;
+    if (metaError) return false;
+    const keys = categoryMeta.map((c) => c.key).filter(Boolean);
+    return keys.length === 3 && new Set(keys).size === 3;
+  }, [metaLoading, metaError, categoryMeta]);
 
   return (
     <div className={cn("flex flex-col gap-1", className)}>
@@ -187,7 +172,7 @@ export function CostCodeSelect({
             )}
           >
             <span className="truncate flex-1 text-left">
-              {loading ? "Loading..." : displayValue}
+              {loading || metaLoading ? "Loading..." : displayValue}
             </span>
             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
@@ -201,6 +186,12 @@ export function CostCodeSelect({
             />
             <CommandList className="max-h-[300px]">
               <CommandEmpty>No cost code found.</CommandEmpty>
+
+              {!requiredMetaOk && (
+                <div className="p-3 text-xs text-destructive">
+                  Failed to load cost code categories.
+                </div>
+              )}
 
               {/* Recently Used */}
               {!search && recentCodes.length > 0 && (
@@ -226,9 +217,12 @@ export function CostCodeSelect({
                         />
                         <Badge
                           variant="outline"
-                          className={cn("text-[10px] px-1.5 py-0", CATEGORY_COLORS[code.category || "other"])}
+                          className={cn(
+                            "text-[10px] px-1.5 py-0",
+                            metaByKey.get(code.category || "")?.color || "bg-gray-500/10 text-gray-700 border-gray-200"
+                          )}
                         >
-                          {(code.category || "other").slice(0, 3).toUpperCase()}
+                          {(code.category || "UNK").slice(0, 3).toUpperCase()}
                         </Badge>
                         <span className="font-mono text-xs">{code.code}</span>
                         {code.name && (
@@ -244,12 +238,12 @@ export function CostCodeSelect({
               )}
 
               {/* Grouped by Category */}
-              {CATEGORY_ORDER.map((cat) => {
-                const codesInCat = groupedCodes[cat];
+              {metaKeys.map((catKey) => {
+                const codesInCat = groupedCodes[catKey];
                 if (!codesInCat || codesInCat.length === 0) return null;
 
                 return (
-                  <CommandGroup key={cat} heading={categoryLabel(cat)}>
+                  <CommandGroup key={catKey} heading={metaByKey.get(catKey)?.label || catKey}>
                     {codesInCat.map((code) => (
                       <CommandItem
                         key={code.id}
@@ -266,9 +260,12 @@ export function CostCodeSelect({
                         />
                         <Badge
                           variant="outline"
-                          className={cn("text-[10px] px-1.5 py-0", CATEGORY_COLORS[cat])}
+                          className={cn(
+                            "text-[10px] px-1.5 py-0",
+                            metaByKey.get(catKey)?.color || "bg-gray-500/10 text-gray-700 border-gray-200"
+                          )}
                         >
-                          {cat.slice(0, 3).toUpperCase()}
+                          {catKey.slice(0, 3).toUpperCase()}
                         </Badge>
                         <span className="font-mono text-xs">{code.code}</span>
                         {code.name && (
@@ -281,6 +278,39 @@ export function CostCodeSelect({
                   </CommandGroup>
                 );
               })}
+
+              {groupedCodes["__unknown__"]?.length ? (
+                <CommandGroup key="__unknown__" heading="Other">
+                  {groupedCodes["__unknown__"].map((code) => (
+                    <CommandItem
+                      key={code.id}
+                      value={code.id}
+                      onSelect={() => handleSelect(code.id)}
+                      className="flex items-center gap-2"
+                      ref={value === code.id ? selectedRef : undefined}
+                    >
+                      <Check
+                        className={cn(
+                          "h-4 w-4",
+                          value === code.id ? "opacity-100" : "opacity-0"
+                        )}
+                      />
+                      <Badge
+                        variant="outline"
+                        className="text-[10px] px-1.5 py-0 bg-gray-500/10 text-gray-700 border-gray-200"
+                      >
+                        UNK
+                      </Badge>
+                      <span className="font-mono text-xs">{code.code}</span>
+                      {code.name && (
+                        <span className="text-muted-foreground text-xs truncate">
+                          {code.name}
+                        </span>
+                      )}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              ) : null}
             </CommandList>
           </Command>
         </PopoverContent>

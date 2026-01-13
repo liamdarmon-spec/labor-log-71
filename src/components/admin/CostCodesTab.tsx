@@ -10,18 +10,13 @@ import { useCompany } from '@/company/CompanyProvider';
 import { Search, Info, ArrowRight, AlertTriangle } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchCostCodes, type CanonicalCostCodeCategory, type CostCodeStatusFilter } from '@/data/catalog';
+import { useCostCodeCategoriesMeta } from '@/hooks/useCostCodeCategoriesMeta';
 
 // ============================================================================
 // TYPES (matches RPC return shape)
 // ============================================================================
 
 type CostCodeCategory = CanonicalCostCodeCategory;
-
-const CATEGORY_LABEL: Record<CostCodeCategory, string> = {
-  labor: 'Labor',
-  material: 'Material',
-  sub: 'Subcontractor',
-};
 
 type CostCodeWithTrade = {
   id: string;
@@ -51,6 +46,8 @@ type CostCodeWithTrade = {
  */
 export const CostCodesTab = () => {
   const { activeCompanyId } = useCompany();
+  const { data: categoryMeta = [] } = useCostCodeCategoriesMeta();
+  const categoryMetaByKey = useMemo(() => new Map(categoryMeta.map((c) => [c.key, c])), [categoryMeta]);
 
   // Filters
   const [search, setSearch] = useState('');
@@ -217,9 +214,11 @@ export const CostCodesTab = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All</SelectItem>
-                <SelectItem value="labor">Labor</SelectItem>
-                <SelectItem value="material">Material</SelectItem>
-                <SelectItem value="sub">Subcontractor</SelectItem>
+                {categoryMeta.map((c) => (
+                  <SelectItem key={c.key} value={c.key}>
+                    {c.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -300,7 +299,7 @@ export const CostCodesTab = () => {
                     <TableCell className="font-mono font-medium">{row.code}</TableCell>
                     <TableCell>{row.name}</TableCell>
                     <TableCell>
-                      <Badge variant="outline">{CATEGORY_LABEL[row.category] || row.category}</Badge>
+                      <Badge variant="outline">{categoryMetaByKey.get(row.category)?.label || row.category}</Badge>
                     </TableCell>
                     <TableCell>
                       {row.trade_name ? (

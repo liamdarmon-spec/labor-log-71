@@ -46,7 +46,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useItemAutosave } from "@/hooks/useItemAutosave";
 import { AutosaveDiagnostics, collectAutosaveDiagnostics } from "@/components/dev/AutosaveDiagnostics";
-import { devIsForceServerErrorEnabled, devMaybeForceError, devSetForceServerErrorEnabled } from "@/lib/dev/forceServerError";
+import { getDebugFlags, updateDebugFlags } from "@/lib/debugFlags";
+import { supabaseRpc } from "@/lib/supabase/rpc";
+import { useAuth } from "@/hooks/useAuth";
 type BatchUpsertItemUpdate = {
   id: string;
   category?: string;
@@ -248,7 +250,10 @@ export default function EstimateBuilderV2() {
   const [saveWarning, setSaveWarning] = useState<SaveWarningPayload>(null);
   const [isErrorDismissed, setIsErrorDismissed] = useState(false);
   const [isWarningDismissed, setIsWarningDismissed] = useState(false);
-  const [forceServerError, setForceServerError] = useState(() => devIsForceServerErrorEnabled());
+  const [forceServerError, setForceServerError] = useState(() => !!getDebugFlags()?.forceError);
+  const { isAdmin } = useAuth();
+  const [conflictOpen, setConflictOpen] = useState(false);
+  const [conflictIds, setConflictIds] = useState<string[]>([]);
   const [loadError, setLoadError] = useState<LoadErrorPayload>(null);
   const [isLoadErrorDismissed, setIsLoadErrorDismissed] = useState(false);
   const [lastSaveAt, setLastSaveAt] = useState<string | null>(null);
@@ -845,13 +850,7 @@ export default function EstimateBuilderV2() {
 
         lastManualPayloadSummary = summarizeBatchPayload(payload);
         
-        // DEV: Check for forced error BEFORE making the RPC call
-        const forcedError = devMaybeForceError();
-        if (forcedError) {
-          throw new Error(forcedError.error.message);
-        }
-        
-        const { data, error } = await (supabase as any).rpc("batch_upsert_cost_items", { p_items: payload });
+        const { data, error } = await supabaseRpc("batch_upsert_cost_items", { p_items: payload });
         if (error) throw error;
 
         const resultsRaw = data as unknown;
@@ -941,6 +940,14 @@ export default function EstimateBuilderV2() {
     const msg =
       diag.lastBatchError ||
       (failures.length > 0 ? failures[0]?.error || "Autosave failed" : "Autosave failed");
+
+    if (global === "conflict") {
+      const conflicts = (autosave as any).getConflictItems?.() || [];
+      const ids = (conflicts || []).map((c: any) => String(c.id)).filter(Boolean);
+      setConflictIds(ids);
+      setConflictOpen(true);
+      return;
+    }
 
     setSaveError({
       title: "Save failed",
@@ -1513,7 +1520,7 @@ export default function EstimateBuilderV2() {
                   onChange={(e) => {
                     const next = e.target.checked;
                     setForceServerError(next);
-                    devSetForceServerErrorEnabled(next);
+                    updateDebugFlags({ forceError: next });
                   }}
                 />
                 Force server error
@@ -1738,6 +1745,45 @@ export default function EstimateBuilderV2() {
             <AlertDialogAction onClick={confirmNavigation}>
               Leave Page
             </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={conflictOpen} onOpenChange={setConflictOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Estimate Updated Elsewhere</AlertDialogTitle>
+            <AlertDialogDescription>
+              Another session saved changes to this estimate. Choose how to proceed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={async () => {
+                setConflictOpen(false);
+                setConflictIds([]);
+                autosave.reset();
+                setIsDirtyStructural(false);
+                setSaveError(null);
+                setIsErrorDismissed(false);
+                await queryClient.refetchQueries({ queryKey: ["estimate-builder", estimateId] } as any);
+                await queryClient.refetchQueries({ queryKey: ["scope-blocks", "estimate", estimateId] } as any);
+              }}
+            >
+              Reload Latest
+            </AlertDialogCancel>
+            {isAdmin ? (
+              <AlertDialogAction
+                onClick={async () => {
+                  setConflictOpen(false);
+                  const ids = conflictIds.slice();
+                  setConflictIds([]);
+                  (autosave as any).retryConflictsWithFreshUpdatedAt?.(ids);
+                }}
+              >
+                Overwrite Anyway
+              </AlertDialogAction>
+            ) : null}
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
