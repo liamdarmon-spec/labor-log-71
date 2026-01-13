@@ -1,8 +1,15 @@
 // src/components/proposals/MilestoneScheduleEditor.tsx
 // In-proposal milestone/payment schedule editor for milestone-based contracts
 // Ties directly to payment_schedules + payment_schedule_items tables
+// 
+// CANONICAL PHILOSOPHY:
+// - DB is source of truth: payment_schedule_items table
+// - company_id auto-inherited from project via trigger
+// - RLS enforced at DB level (tenant_select/insert/update/delete)
+// - Milestones frozen into contract_milestones on proposal approval
+// - Post-approval edits blocked by DB trigger (requires Change Order)
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -26,6 +33,9 @@ import {
   DollarSign,
   Percent,
   Loader2,
+  RefreshCw,
+  Copy,
+  X,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -67,6 +77,11 @@ export function MilestoneScheduleEditor({
   const queryClient = useQueryClient();
   const [localMilestones, setLocalMilestones] = useState<MilestoneItem[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+  
+  // Track if local state has been modified from server state
+  const isDirtyRef = useRef(false);
 
   // Fetch or create payment schedule for this proposal
   const { data: paymentSchedule, isLoading: scheduleLoading } = useQuery({
@@ -116,9 +131,14 @@ export function MilestoneScheduleEditor({
     enabled: !!paymentSchedule?.id,
   });
 
-  // Sync milestones to local state
+  // Sync milestones to local state - only when not dirty
   useEffect(() => {
     if (!milestoneItems) return;
+    
+    // Don't overwrite local changes with server data
+    if (isDirtyRef.current) {
+      return;
+    }
     
     const items: MilestoneItem[] = milestoneItems.map((item: any) => ({
       id: item.id,
@@ -159,6 +179,8 @@ export function MilestoneScheduleEditor({
 
   // Add new milestone
   const handleAddMilestone = useCallback(() => {
+    isDirtyRef.current = true;
+    setSaveError(null); // Clear any previous error when user makes changes
     const newMilestone: MilestoneItem = {
       id: generateId(),
       title: `Milestone ${localMilestones.length + 1}`,
@@ -178,6 +200,8 @@ export function MilestoneScheduleEditor({
   // Update milestone field
   const handleUpdateMilestone = useCallback(
     (id: string, field: keyof MilestoneItem, value: any) => {
+      isDirtyRef.current = true;
+      setSaveError(null); // Clear error when user makes changes
       setLocalMilestones((prev) =>
         prev.map((m) => {
           if (m.id !== id) return m;
@@ -221,6 +245,8 @@ export function MilestoneScheduleEditor({
 
   // Remove milestone
   const handleRemoveMilestone = useCallback((id: string) => {
+    isDirtyRef.current = true;
+    setSaveError(null);
     setLocalMilestones((prev) => prev.filter((m) => m.id !== id));
   }, []);
 
@@ -282,6 +308,9 @@ export function MilestoneScheduleEditor({
       }
     },
     onSuccess: () => {
+      isDirtyRef.current = false;
+      setSaveError(null);
+      setLastSavedAt(new Date());
       queryClient.invalidateQueries({ queryKey: ['payment-schedule-items', paymentSchedule?.id] });
       queryClient.invalidateQueries({ queryKey: ['proposal-data', proposalId] });
       toast.success('Milestones saved');
@@ -291,7 +320,9 @@ export function MilestoneScheduleEditor({
       );
     },
     onError: (err: Error) => {
-      toast.error('Failed to save: ' + err.message);
+      // NEVER lose user data - keep local state, show persistent error
+      setSaveError(err.message);
+      toast.error('Failed to save milestones');
     },
   });
 
@@ -528,7 +559,61 @@ export function MilestoneScheduleEditor({
               Milestones must total {formatCurrency(contractTotal)} to proceed with approval.
             </p>
           )}
+          {lastSavedAt && !saveError && (
+            <p className="text-xs text-muted-foreground mt-2">
+              Last saved {lastSavedAt.toLocaleTimeString()}
+            </p>
+          )}
         </div>
+
+        {/* Persistent error panel - NEVER hide user's work */}
+        {saveError && (
+          <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+            <div className="flex items-start justify-between">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-red-800">Save failed</p>
+                  <p className="text-xs text-red-600 mt-1">{saveError}</p>
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSaveError(null)}
+                className="h-6 w-6 p-0"
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            </div>
+            <div className="flex gap-2 mt-3">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleSave}
+                disabled={isSaving}
+                className="text-xs"
+              >
+                <RefreshCw className={cn('h-3 w-3 mr-1', isSaving && 'animate-spin')} />
+                Retry
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  navigator.clipboard.writeText(
+                    `Milestone save error:\n${saveError}\n\nMilestones:\n${JSON.stringify(localMilestones, null, 2)}`
+                  );
+                  toast.success('Error details copied');
+                }}
+                className="text-xs"
+              >
+                <Copy className="h-3 w-3 mr-1" />
+                Copy error
+              </Button>
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
