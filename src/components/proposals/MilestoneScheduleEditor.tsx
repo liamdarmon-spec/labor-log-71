@@ -314,6 +314,12 @@ export function MilestoneScheduleEditor({
     mutationFn: async () => {
       if (!paymentSchedule?.id) throw new Error('No payment schedule');
 
+      // Repro + Root cause evidence (DEV):
+      // - Previously, DB triggers recalculated payment_schedule_items.scheduled_amount on save.
+      // - If the DB contract total was 0 (while UI derived a non-zero total from estimate scope),
+      //   the trigger overwrote scheduled_amount to 0 → save looked correct, reload showed $0.
+      // - Canonical fix: UI persists scheduled_amount deterministically; DB validates on approval.
+
       // Canonical persistence:
       // - percentage: persist percent_of_contract, allocation_mode='percentage'
       // - fixed: persist fixed_amount, allocation_mode='fixed'
@@ -359,12 +365,71 @@ export function MilestoneScheduleEditor({
         return row as any;
       };
 
-      const toSave = localMilestones.filter((m) => m.isDirty || m.isNew);
+      // Canonical compute: persist scheduled_amount for EVERY row (fixed/percentage/remaining).
+      // Do NOT rely on DB triggers to compute amounts.
+      const computeRowsForSave = (items: MilestoneItem[]) => {
+        const normalized = items
+          .slice()
+          .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+          .map((m) => ({ ...m }));
+
+        // First pass: compute absolute amounts for fixed + percentage.
+        let sumNonRemaining = 0;
+        for (const m of normalized) {
+          if (m.allocationMode === 'fixed') {
+            const fixed = Number(m.fixed_amount ?? 0);
+            m.scheduled_amount = fixed;
+            sumNonRemaining += fixed;
+            continue;
+          }
+          if (m.allocationMode === 'percentage') {
+            const pct = Number(m.percent_of_contract ?? 0);
+            const amt = Math.round(((contractTotal * pct) / 100) * 100) / 100;
+            m.scheduled_amount = amt;
+            sumNonRemaining += amt;
+            continue;
+          }
+        }
+
+        // Second pass: remaining rows get whatever balance is left.
+        const remainingRows = normalized.filter((m) => m.allocationMode === 'remaining');
+        if (remainingRows.length > 0) {
+          // If multiple remaining rows exist (should be prevented by DB index), allocate all remaining to the last.
+          const remainingAmt = Math.max(0, Math.round((contractTotal - sumNonRemaining) * 100) / 100);
+          remainingRows.forEach((m, idx) => {
+            m.scheduled_amount = idx === remainingRows.length - 1 ? remainingAmt : 0;
+          });
+        }
+
+        return normalized;
+      };
+
+      const normalizedForSave = computeRowsForSave(localMilestones);
+
+      if (import.meta.env.DEV) {
+        console.groupCollapsed('[MilestoneScheduleEditor] Save payload (normalized)');
+        console.log('contractTotal', contractTotal);
+        console.table(
+          normalizedForSave.map((m) => ({
+            id: m.id,
+            title: m.title,
+            allocationMode: m.allocationMode,
+            percent_of_contract: m.percent_of_contract ?? null,
+            fixed_amount: m.fixed_amount ?? null,
+            scheduled_amount: m.scheduled_amount ?? null,
+            sort_order: m.sort_order,
+          }))
+        );
+        console.groupEnd();
+      }
+
+      // Use normalized values for persistence
+      const toSave = normalizedForSave.filter((m) => m.isDirty || m.isNew);
       const toCreate = toSave.filter((m) => m.isNew);
       const toUpdate = toSave.filter((m) => !m.isNew);
 
       // Find deleted items
-      const currentIds = new Set(localMilestones.map((m) => m.id));
+      const currentIds = new Set(normalizedForSave.map((m) => m.id));
       const serverIds = new Set(milestoneItems.map((m: any) => m.id));
       const toDelete = [...serverIds].filter((id) => !currentIds.has(id));
 
@@ -380,6 +445,7 @@ export function MilestoneScheduleEditor({
       // Insert new items - use .select() to verify they're visible after insert
       if (toCreate.length > 0) {
         const insertData = toCreate.map(toDbRow);
+        if (import.meta.env.DEV) console.log('[MilestoneScheduleEditor] insertData', insertData);
         const { data: insertedRows, error } = await supabase
           .from('payment_schedule_items')
           .insert(insertData)
@@ -397,9 +463,11 @@ export function MilestoneScheduleEditor({
 
       // Update existing items
       for (const m of toUpdate) {
+        const payload = toDbRow(m);
+        if (import.meta.env.DEV) console.log('[MilestoneScheduleEditor] update payload', payload);
         const { error } = await supabase
           .from('payment_schedule_items')
-          .update(toDbRow(m))
+          .update(payload)
           .eq('id', m.id);
         if (error) throw error;
       }
