@@ -129,7 +129,9 @@ export function MilestoneScheduleEditor({
   const { data: milestoneItems = [], isLoading: itemsLoading, error: itemsError } = useQuery({
     queryKey: ['payment-schedule-items', paymentSchedule?.id],
     queryFn: async () => {
-      console.log('[MilestoneScheduleEditor] Fetching items for payment_schedule:', paymentSchedule!.id);
+      if (import.meta.env.DEV) {
+        console.log('[MilestoneScheduleEditor] Fetching items for payment_schedule:', paymentSchedule!.id);
+      }
       const { data, error } = await supabase
         .from('payment_schedule_items')
         .select('*')
@@ -141,7 +143,9 @@ export function MilestoneScheduleEditor({
         console.error('[MilestoneScheduleEditor] Failed to fetch items:', error);
         throw error;
       }
-      console.log('[MilestoneScheduleEditor] Fetched', data?.length || 0, 'items');
+      if (import.meta.env.DEV) {
+        console.log('[MilestoneScheduleEditor] Fetched', data?.length || 0, 'items');
+      }
       return data || [];
     },
     enabled: !!paymentSchedule?.id,
@@ -166,7 +170,9 @@ export function MilestoneScheduleEditor({
       return;
     }
     
-    console.log('[MilestoneScheduleEditor] Syncing', milestoneItems.length, 'items from server');
+    if (import.meta.env.DEV) {
+      console.log('[MilestoneScheduleEditor] Syncing', milestoneItems.length, 'items from server');
+    }
     const items: MilestoneItem[] = milestoneItems.map((item: any) => ({
       id: item.id,
       title: item.title || '',
@@ -176,11 +182,17 @@ export function MilestoneScheduleEditor({
       scheduled_amount: item.scheduled_amount || 0,
       sort_order: item.sort_order || 0,
       is_archived: item.is_archived || false,
-      allocationMode: item.percent_of_contract != null 
-        ? 'percentage' 
-        : item.fixed_amount != null 
-          ? 'fixed' 
-          : 'percentage',
+      // Canonical mode should come from DB once migration adds allocation_mode.
+      // Fallback to inference for backward compatibility.
+      allocationMode: item.allocation_mode === 'remaining'
+        ? 'remaining'
+        : item.allocation_mode === 'fixed'
+          ? 'fixed'
+          : item.percent_of_contract != null
+            ? 'percentage'
+            : item.fixed_amount != null
+              ? 'fixed'
+              : 'percentage',
     }));
 
     setLocalMilestones(items);
@@ -302,37 +314,32 @@ export function MilestoneScheduleEditor({
     mutationFn: async () => {
       if (!paymentSchedule?.id) throw new Error('No payment schedule');
 
-      /**
-       * IMPORTANT (production hardening):
-       * There is a legacy DB trigger (`trg_payment_schedule_items_recalc_amount`) that recalculates
-       * `scheduled_amount` when `percent_of_contract` or `fixed_amount` changes.
-       *
-       * Some environments still have an older version of the recalculation function that references
-       * `scope_blocks.proposal_id` (which does not exist; scope blocks use entity_type/entity_id).
-       * That can cause saves to fail for milestone contracts when proposal.total_amount = 0.
-       *
-       * To make saves deterministic and avoid silent data loss, we always persist `fixed_amount`
-       * equal to the UI-computed scheduled amount for ALL modes (percentage/fixed/remaining).
-       * We still persist `percent_of_contract` for informational purposes when the user selected
-       * percentage mode, but the trigger will prefer fixed_amount and will not attempt contract math.
-       */
+      // Canonical persistence:
+      // - percentage: persist percent_of_contract, allocation_mode='percentage'
+      // - fixed: persist fixed_amount, allocation_mode='fixed'
+      // - remaining: persist allocation_mode='remaining' (DB computes scheduled_amount)
       const toDbRow = (m: MilestoneItem) => {
-        const percent =
-          m.allocationMode === 'percentage' ? (m.percent_of_contract ?? null) : null;
-        // Always persist fixed_amount to bypass legacy recalc bugs and make scheduled amounts canonical.
-        const fixed = Number.isFinite(m.scheduled_amount) ? Number(m.scheduled_amount) : 0;
+        const allocation_mode =
+          m.allocationMode === 'remaining'
+            ? 'remaining'
+            : m.allocationMode === 'fixed'
+              ? 'fixed'
+              : 'percentage';
 
         return {
           id: m.id,
           payment_schedule_id: paymentSchedule.id,
           title: m.title,
           due_on: m.due_on || null,
-          percent_of_contract: percent,
-          fixed_amount: fixed,
-          // Keep scheduled_amount consistent with fixed_amount (also displayed in Billing).
-          scheduled_amount: fixed,
+          allocation_mode,
+          percent_of_contract: allocation_mode === 'percentage' ? (m.percent_of_contract ?? null) : null,
+          fixed_amount: allocation_mode === 'fixed' ? (m.fixed_amount ?? 0) : null,
+          // scheduled_amount is DB-owned and will be recalculated on write.
+          // We still send the current UI value so the DB can store something even if triggers are disabled,
+          // but the canonical path is the DB recalc trigger.
+          scheduled_amount: Number.isFinite(m.scheduled_amount) ? Number(m.scheduled_amount) : 0,
           sort_order: m.sort_order,
-        };
+        } as any;
       };
 
       const toSave = localMilestones.filter((m) => m.isDirty || m.isNew);
@@ -364,8 +371,10 @@ export function MilestoneScheduleEditor({
         
         // Verify all items were inserted and are visible
         if (!insertedRows || insertedRows.length !== toCreate.length) {
-          console.warn('[MilestoneScheduleEditor] Insert succeeded but some items not visible after insert. This may be an RLS issue.');
-          console.warn('Expected:', toCreate.length, 'Got:', insertedRows?.length || 0);
+          if (import.meta.env.DEV) {
+            console.warn('[MilestoneScheduleEditor] Insert succeeded but some items not visible after insert. This may be an RLS issue.');
+            console.warn('Expected:', toCreate.length, 'Got:', insertedRows?.length || 0);
+          }
         }
       }
 
