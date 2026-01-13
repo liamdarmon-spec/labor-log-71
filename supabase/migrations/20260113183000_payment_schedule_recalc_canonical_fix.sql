@@ -39,18 +39,12 @@ BEGIN;
 -- ============================================================================
 -- PART 0: Self-check: block invalid column reference from ever shipping again
 -- ============================================================================
-DO $$
-BEGIN
-  IF EXISTS (
-    SELECT 1
-    FROM pg_proc p
-    JOIN pg_namespace n ON n.oid = p.pronamespace
-    WHERE n.nspname = 'public'
-      AND p.prosrc LIKE '%sb.proposal_id%'
-  ) THEN
-    RAISE EXCEPTION 'Found forbidden reference to sb.proposal_id in a DB function. This would break milestone saves.';
-  END IF;
-END $$;
+-- NOTE: This check must run AFTER we replace the legacy functions, because some
+-- remote environments may already have the broken function deployed. We still
+-- fail the migration if anything remains at the end.
+
+-- Proactively drop known legacy entrypoint so we can safely replace it below.
+DROP FUNCTION IF EXISTS public.recalc_payment_schedule_item_amount(uuid);
 
 -- ============================================================================
 -- PART 1: payment_schedule_items allocation_mode (idempotent)
@@ -402,6 +396,22 @@ COMMENT ON FUNCTION public.is_proposal_billing_ready(uuid) IS
   'Checks if proposal billing configuration is valid for approval. Milestone schedules must total contract value (±0.01).';
 
 COMMIT;
+
+-- ============================================================================
+-- POST-CHECK: Assert no function contains the forbidden reference
+-- ============================================================================
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM pg_proc p
+    JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'public'
+      AND p.prosrc LIKE '%sb.proposal_id%'
+  ) THEN
+    RAISE EXCEPTION 'Found forbidden reference to sb.proposal_id in a DB function AFTER migration. This would break milestone saves.';
+  END IF;
+END $$;
 
 -- ============================================================================
 -- VALIDATION QUERIES (copy/paste into Supabase SQL editor)
