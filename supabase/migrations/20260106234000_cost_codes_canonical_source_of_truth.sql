@@ -52,13 +52,19 @@ BEGIN
     IF v_company_count = 1 THEN
       SELECT id INTO v_company_id FROM public.companies LIMIT 1;
       UPDATE public.trades SET company_id = v_company_id WHERE company_id IS NULL;
+    ELSIF v_company_count = 0 THEN
+      -- Dev environment: no companies, delete orphaned trades
+      RAISE NOTICE 'No companies exist. Deleting % orphaned trades with NULL company_id.', v_null_count;
+      DELETE FROM public.trades WHERE company_id IS NULL;
     ELSE
       RAISE EXCEPTION 'Cannot backfill trades.company_id: % rows are NULL and there are % companies. Resolve manually.', v_null_count, v_company_count;
     END IF;
   END IF;
 
-  -- Enforce NOT NULL
-  ALTER TABLE public.trades ALTER COLUMN company_id SET NOT NULL;
+  -- Enforce NOT NULL (only if trades exist)
+  IF EXISTS (SELECT 1 FROM public.trades LIMIT 1) THEN
+    ALTER TABLE public.trades ALTER COLUMN company_id SET NOT NULL;
+  END IF;
 END $$;
 
 -- Fix trades uniqueness: drop global UNIQUE(name), enforce UNIQUE(company_id, name)
