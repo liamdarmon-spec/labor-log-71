@@ -349,6 +349,10 @@ export function MilestoneScheduleEditor({
           if (!row.allocation_mode) {
             console.warn('[MilestoneScheduleEditor] allocation_mode missing in DB payload. This will break Remaining mode.');
           }
+          // Hard assert in DEV: we should never send a row without allocation_mode
+          if (!row.allocation_mode) {
+            throw new Error('[DEV] allocation_mode missing in milestone save payload');
+          }
         }
 
         // Strict whitelist: never send unknown keys to Supabase
@@ -428,6 +432,24 @@ export function MilestoneScheduleEditor({
     }
   };
 
+  // DEV-only: verify PostgREST schema cache recognizes allocation_mode
+  const runSchemaCheck = async () => {
+    try {
+      const { error } = await supabase
+        .from('payment_schedule_items')
+        .select('id, allocation_mode')
+        .limit(1);
+      if (error) throw error;
+      toast.success('Schema check OK: allocation_mode is recognized');
+    } catch (e: any) {
+      const msg = e?.message ?? String(e);
+      toast.error(`Schema check failed: ${msg}`);
+      if (import.meta.env.DEV) {
+        console.error('[MilestoneScheduleEditor] Schema check failed:', e);
+      }
+    }
+  };
+
   const hasDirtyItems = localMilestones.some((m) => m.isDirty || m.isNew);
   const hasDeletedItems = milestoneItems.some(
     (m: any) => !localMilestones.find((lm) => lm.id === m.id)
@@ -494,6 +516,17 @@ export function MilestoneScheduleEditor({
                   <CheckCircle2 className="h-4 w-4 mr-1" />
                 )}
                 Save
+              </Button>
+            )}
+            {import.meta.env.DEV && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={runSchemaCheck}
+                disabled={isSaving}
+                className="text-xs"
+              >
+                Schema check
               </Button>
             )}
             {!isLocked && (
