@@ -326,7 +326,7 @@ export function MilestoneScheduleEditor({
               ? 'fixed'
               : 'percentage';
 
-        return {
+        const row = {
           id: m.id,
           payment_schedule_id: paymentSchedule.id,
           title: m.title,
@@ -339,7 +339,20 @@ export function MilestoneScheduleEditor({
           // but the canonical path is the DB recalc trigger.
           scheduled_amount: Number.isFinite(m.scheduled_amount) ? Number(m.scheduled_amount) : 0,
           sort_order: m.sort_order,
-        } as any;
+        } as const;
+
+        if (import.meta.env.DEV) {
+          // Guard against regressions: local state uses allocationMode, DB expects allocation_mode
+          if ((m as any).allocation_mode != null) {
+            console.warn('[MilestoneScheduleEditor] Unexpected allocation_mode on local milestone state. Did mapping get inverted?');
+          }
+          if (!row.allocation_mode) {
+            console.warn('[MilestoneScheduleEditor] allocation_mode missing in DB payload. This will break Remaining mode.');
+          }
+        }
+
+        // Strict whitelist: never send unknown keys to Supabase
+        return row as any;
       };
 
       const toSave = localMilestones.filter((m) => m.isDirty || m.isNew);
