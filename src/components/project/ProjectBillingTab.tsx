@@ -23,6 +23,7 @@ import { useMemo, useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { cn } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -364,7 +365,7 @@ export function ProjectBillingTab({ projectId }: ProjectBillingTabProps) {
               Billing Basis:{' '}
               <span title={derivedBilling.derived ? 'Derived from accepted proposal (baseline missing)' : undefined}>
                 {derivedBilling.label}
-              </span>
+            </span>
               {derivedBilling.derived && (
                 <span className="ml-2 inline-flex items-center rounded bg-background/70 px-2 py-0.5 text-[10px] text-muted-foreground border border-border/60">
                   Derived
@@ -384,7 +385,7 @@ export function ProjectBillingTab({ projectId }: ProjectBillingTabProps) {
            {uiState.secondaryCtas.map((cta, i) => (
              <Button key={i} variant={cta.variant} onClick={cta.onClick} size="sm">
                {cta.label}
-             </Button>
+        </Button>
            ))}
            {uiState.primaryCta && (
              <Button 
