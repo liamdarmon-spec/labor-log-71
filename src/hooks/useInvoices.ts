@@ -119,61 +119,19 @@ export function useInvoicesSummary(filters?: InvoiceFilters) {
   return useQuery({
     queryKey: ['invoices-summary', filters],
     queryFn: async () => {
-      let query = supabase
-        .from('invoices')
-        .select('total_amount, status, issue_date, due_date, project_id, projects!inner(company_id)');
-
-      if (filters?.startDate) {
-        query = query.gte('issue_date', filters.startDate);
-      }
-      if (filters?.endDate) {
-        query = query.lte('issue_date', filters.endDate);
-      }
-      if (filters?.status) {
-        query = query.eq('status', filters.status);
-      }
-      if (filters?.projectId) {
-        query = query.eq('project_id', filters.projectId);
-      }
-      if (filters?.companyId) {
-        query = query.eq('projects.company_id', filters.companyId);
-      }
-
-      const { data, error } = await query;
-      if (error) throw error;
-
-      const invoices = data || [];
-      
-      // Optimized single-pass aggregation
-      let totalInvoiced = 0;
-      let outstanding = 0;
-      let drafts = 0;
-      let overdue = 0;
-      const today = new Date().toISOString().split('T')[0];
-
-      invoices.forEach(i => {
-        if (i.status !== 'void') {
-          totalInvoiced += i.total_amount || 0;
-        }
-        
-        if (i.status === 'sent' || i.status === 'partially_paid') {
-          outstanding += i.total_amount || 0;
-        }
-        
-        if (i.status === 'draft') {
-          drafts++;
-        }
-        
-        if (i.due_date && i.due_date < today && i.status !== 'paid' && i.status !== 'void') {
-          overdue++;
-        }
+      const { data, error } = await supabase.rpc('get_invoices_summary', {
+        p_company_id: filters?.companyId ?? null,
+        p_start: filters?.startDate ? (filters.startDate as any) : null,
+        p_end: filters?.endDate ? (filters.endDate as any) : null,
+        p_status: filters?.status ?? null,
       });
-
+      if (error) throw error;
+      const row = Array.isArray(data) ? data[0] : data;
       return {
-        totalInvoiced,
-        outstanding,
-        drafts,
-        overdue,
+        totalInvoiced: Number(row?.total_invoiced ?? 0),
+        outstanding: Number(row?.outstanding ?? 0),
+        drafts: Number(row?.drafts ?? 0),
+        overdue: Number(row?.overdue ?? 0),
       };
     },
   });
