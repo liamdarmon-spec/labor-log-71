@@ -302,6 +302,39 @@ export function MilestoneScheduleEditor({
     mutationFn: async () => {
       if (!paymentSchedule?.id) throw new Error('No payment schedule');
 
+      /**
+       * IMPORTANT (production hardening):
+       * There is a legacy DB trigger (`trg_payment_schedule_items_recalc_amount`) that recalculates
+       * `scheduled_amount` when `percent_of_contract` or `fixed_amount` changes.
+       *
+       * Some environments still have an older version of the recalculation function that references
+       * `scope_blocks.proposal_id` (which does not exist; scope blocks use entity_type/entity_id).
+       * That can cause saves to fail for milestone contracts when proposal.total_amount = 0.
+       *
+       * To make saves deterministic and avoid silent data loss, we always persist `fixed_amount`
+       * equal to the UI-computed scheduled amount for ALL modes (percentage/fixed/remaining).
+       * We still persist `percent_of_contract` for informational purposes when the user selected
+       * percentage mode, but the trigger will prefer fixed_amount and will not attempt contract math.
+       */
+      const toDbRow = (m: MilestoneItem) => {
+        const percent =
+          m.allocationMode === 'percentage' ? (m.percent_of_contract ?? null) : null;
+        // Always persist fixed_amount to bypass legacy recalc bugs and make scheduled amounts canonical.
+        const fixed = Number.isFinite(m.scheduled_amount) ? Number(m.scheduled_amount) : 0;
+
+        return {
+          id: m.id,
+          payment_schedule_id: paymentSchedule.id,
+          title: m.title,
+          due_on: m.due_on || null,
+          percent_of_contract: percent,
+          fixed_amount: fixed,
+          // Keep scheduled_amount consistent with fixed_amount (also displayed in Billing).
+          scheduled_amount: fixed,
+          sort_order: m.sort_order,
+        };
+      };
+
       const toSave = localMilestones.filter((m) => m.isDirty || m.isNew);
       const toCreate = toSave.filter((m) => m.isNew);
       const toUpdate = toSave.filter((m) => !m.isNew);
@@ -322,16 +355,7 @@ export function MilestoneScheduleEditor({
 
       // Insert new items - use .select() to verify they're visible after insert
       if (toCreate.length > 0) {
-        const insertData = toCreate.map((m) => ({
-          id: m.id,
-          payment_schedule_id: paymentSchedule.id,
-          title: m.title,
-          due_on: m.due_on || null,
-          percent_of_contract: m.percent_of_contract,
-          fixed_amount: m.fixed_amount,
-          scheduled_amount: m.scheduled_amount,
-          sort_order: m.sort_order,
-        }));
+        const insertData = toCreate.map(toDbRow);
         const { data: insertedRows, error } = await supabase
           .from('payment_schedule_items')
           .insert(insertData)
@@ -349,14 +373,7 @@ export function MilestoneScheduleEditor({
       for (const m of toUpdate) {
         const { error } = await supabase
           .from('payment_schedule_items')
-          .update({
-            title: m.title,
-            due_on: m.due_on || null,
-            percent_of_contract: m.percent_of_contract,
-            fixed_amount: m.fixed_amount,
-            scheduled_amount: m.scheduled_amount,
-            sort_order: m.sort_order,
-          })
+          .update(toDbRow(m))
           .eq('id', m.id);
         if (error) throw error;
       }
