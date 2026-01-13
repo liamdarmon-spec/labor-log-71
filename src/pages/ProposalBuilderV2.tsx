@@ -552,7 +552,11 @@ export default function ProposalBuilderV2() {
             acceptanceStatus={proposal.acceptance_status}
             approvedAt={proposal.approved_at}
             approvedBy={proposal.approved_by}
-            totalAmount={proposal.total_amount}
+            totalAmount={
+              proposal.total_amount > 0
+                ? proposal.total_amount
+                : proposal.allItems.reduce((sum, item) => sum + (item.line_total || 0), 0)
+            }
             isLocked={proposal.acceptance_status === 'accepted'}
             onContractChange={() => {
               // Force refetch proposal data after contract changes
