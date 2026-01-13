@@ -21,11 +21,13 @@ import {
   PaymentScheduleItem,
   ProposalSettings,
 } from '@/hooks/useProposalData';
+import { MilestoneScheduleEditor } from './MilestoneScheduleEditor';
 
 interface ProposalContentEditorProps {
   proposal: ProposalData;
   onFieldChange: (field: string, value: any) => void;
   onSettingsChange: (settings: Partial<ProposalSettings>) => void;
+  onMilestoneTotalsChange?: (total: number, count: number) => void;
 }
 
 // Generate unique ID without external dependency
@@ -43,6 +45,7 @@ export function ProposalContentEditor({
   proposal,
   onFieldChange,
   onSettingsChange,
+  onMilestoneTotalsChange,
 }: ProposalContentEditorProps) {
   const settings = proposal.settings;
   const [expandedAreas, setExpandedAreas] = useState<Set<string>>(new Set());
@@ -367,6 +370,21 @@ export function ProposalContentEditor({
           </div>
         </CardContent>
       </Card>
+
+      {/* Milestone Schedule - auto-shows for milestone contract type */}
+      {proposal.contract_type === 'milestone' && (
+        <MilestoneScheduleEditor
+          proposalId={proposal.id}
+          projectId={proposal.project_id}
+          contractTotal={
+            proposal.total_amount > 0
+              ? proposal.total_amount
+              : proposal.allItems.reduce((sum, item) => sum + (item.line_total || 0), 0)
+          }
+          isLocked={proposal.acceptance_status === 'accepted'}
+          onTotalsChange={onMilestoneTotalsChange}
+        />
+      )}
 
       {/* Allowances & Exclusions */}
       {(settings.show_allowances || settings.show_exclusions) && (

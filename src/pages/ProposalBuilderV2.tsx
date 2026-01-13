@@ -71,6 +71,10 @@ export default function ProposalBuilderV2() {
   // UI-only "Review" phase state (between Draft and Approved)
   const [reviewPhase, setReviewPhase] = useState(false);
 
+  // Milestone schedule state (passed from MilestoneScheduleEditor)
+  const [milestoneTotal, setMilestoneTotal] = useState(0);
+  const [milestoneCount, setMilestoneCount] = useState(0);
+
   // Local draft state (source of truth for autosave payload)
   const [draftTitle, setDraftTitle] = useState<string>('');
   const [draftIntro, setDraftIntro] = useState<string>('');
@@ -539,6 +543,10 @@ export default function ProposalBuilderV2() {
             }}
             onFieldChange={handleFieldChange}
             onSettingsChange={handleSettingsChange}
+            onMilestoneTotalsChange={(total, count) => {
+              setMilestoneTotal(total);
+              setMilestoneCount(count);
+            }}
           />
         </div>
 
@@ -562,8 +570,8 @@ export default function ProposalBuilderV2() {
               // Force refetch proposal data after contract changes
             }}
             billingReadiness={proposal.billing_readiness}
-            milestoneCount={0}
-            milestoneTotal={0}
+            milestoneCount={milestoneCount}
+            milestoneTotal={milestoneTotal}
             sovTotal={0}
             settings={draftSettings ?? proposal.settings}
             onSettingsChange={handleSettingsChange}
