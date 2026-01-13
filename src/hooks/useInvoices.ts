@@ -23,19 +23,30 @@ interface InvoiceFilters {
   status?: string;
   companyId?: string;
   projectId?: string;
+  limit?: number;
+  offset?: number;
 }
 
 export function useInvoices(filters?: InvoiceFilters) {
   return useQuery({
     queryKey: ['invoices', filters],
     queryFn: async () => {
+      const limit = Math.min(Math.max(filters?.limit ?? 100, 1), 500);
+      const offset = Math.max(filters?.offset ?? 0, 0);
+      const rangeFrom = offset;
+      const rangeTo = offset + limit - 1;
+
       let query = supabase
         .from('invoices')
-        .select(`
+        .select(
+          `
           *,
-          projects (id, project_name, client_name, company_id, companies (id, name))
-        `)
-        .order('issue_date', { ascending: false });
+          projects!inner(id, project_name, client_name, company_id, companies(id, name))
+        `,
+          { count: 'exact' }
+        )
+        .order('issue_date', { ascending: false })
+        .range(rangeFrom, rangeTo);
 
       if (filters?.startDate) {
         query = query.gte('issue_date', filters.startDate);
@@ -49,19 +60,13 @@ export function useInvoices(filters?: InvoiceFilters) {
       if (filters?.projectId) {
         query = query.eq('project_id', filters.projectId);
       }
+      if (filters?.companyId) {
+        query = query.eq('projects.company_id', filters.companyId);
+      }
 
       const { data, error } = await query;
       if (error) throw error;
-
-      // Apply company filter in JS
-      let results = data || [];
-      if (filters?.companyId) {
-        results = results.filter((invoice: any) => 
-          invoice.projects?.company_id === filters.companyId
-        );
-      }
-
-      return results;
+      return data || [];
     },
   });
 }

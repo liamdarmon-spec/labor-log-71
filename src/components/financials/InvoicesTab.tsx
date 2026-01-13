@@ -26,6 +26,8 @@ export const InvoicesTab = ({ statusFilter: propStatusFilter, showRetention }: I
   const [endDate, setEndDate] = useState<string>('');
   const [companyFilter, setCompanyFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>(propStatusFilter || 'all');
+  const [page, setPage] = useState(0);
+  const pageSize = 100;
 
   const { data: companies } = useQuery({
     queryKey: ['companies'],
@@ -41,6 +43,8 @@ export const InvoicesTab = ({ statusFilter: propStatusFilter, showRetention }: I
     endDate: endDate || undefined,
     companyId: companyFilter === 'all' ? undefined : companyFilter,
     status: statusFilter === 'all' ? undefined : statusFilter,
+    limit: pageSize,
+    offset: page * pageSize,
   };
 
   const { data: invoices, isLoading } = useInvoices(filters);
@@ -89,7 +93,7 @@ export const InvoicesTab = ({ statusFilter: propStatusFilter, showRetention }: I
           value={endDate}
           onChange={(e) => setEndDate(e.target.value)}
         />
-        <Select value={companyFilter} onValueChange={setCompanyFilter}>
+        <Select value={companyFilter} onValueChange={(v) => { setCompanyFilter(v); setPage(0); }}>
           <SelectTrigger>
             <SelectValue placeholder="Company" />
           </SelectTrigger>
@@ -102,7 +106,7 @@ export const InvoicesTab = ({ statusFilter: propStatusFilter, showRetention }: I
             ))}
           </SelectContent>
         </Select>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
+        <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(0); }}>
           <SelectTrigger>
             <SelectValue placeholder="Status" />
           </SelectTrigger>
@@ -164,7 +168,28 @@ export const InvoicesTab = ({ statusFilter: propStatusFilter, showRetention }: I
       {/* Invoices Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Invoices</CardTitle>
+          <div className="flex items-center justify-between gap-3">
+            <CardTitle>Invoices</CardTitle>
+            <div className="flex items-center gap-2">
+              <button
+                className="text-sm text-muted-foreground disabled:opacity-40"
+                onClick={() => setPage((p) => Math.max(p - 1, 0))}
+                disabled={page === 0}
+              >
+                Prev
+              </button>
+              <span className="text-sm text-muted-foreground">
+                Page {page + 1}
+              </span>
+              <button
+                className="text-sm text-muted-foreground disabled:opacity-40"
+                onClick={() => setPage((p) => p + 1)}
+                disabled={(invoices?.length || 0) < pageSize}
+              >
+                Next
+              </button>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
