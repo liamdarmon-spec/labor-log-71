@@ -53,12 +53,13 @@ BEGIN
       v_contract := COALESCE(v_proposal_total, 0);
       
       -- If proposal total is 0, try summing scope_block_cost_items
+      -- scope_blocks uses entity_type + entity_id, not proposal_id
       IF v_contract = 0 THEN
-        SELECT COALESCE(SUM(line_total), 0)
+        SELECT COALESCE(SUM(sbci.line_total), 0)
         INTO v_contract
         FROM public.scope_block_cost_items sbci
         JOIN public.scope_blocks sb ON sb.id = sbci.scope_block_id
-        WHERE sb.proposal_id = v_proposal_id;
+        WHERE sb.entity_type = 'proposal' AND sb.entity_id = v_proposal_id;
       END IF;
     ELSE
       -- For SOV/progress_billing contracts, use SOV items sum (original behavior)
