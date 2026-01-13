@@ -185,6 +185,7 @@ export function ProjectBillingTab({ projectId }: ProjectBillingTabProps) {
   const [newPayment, setNewPayment] = useState({ amount: 0, payment_method: 'check', reference_number: '' });
 
   const pendingCOs = changeOrders.filter(co => co.status === 'sent' || co.status === 'draft');
+  const approvedCOs = changeOrders.filter(co => co.status === 'approved');
 
   // ============================================================
   // Derived Billing State Logic (Pure)
