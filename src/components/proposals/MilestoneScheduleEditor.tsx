@@ -39,6 +39,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { normalizeMilestoneAmounts } from '@/lib/milestoneSchedule';
 
 interface MilestoneScheduleEditorProps {
   proposalId: string;
@@ -131,6 +132,12 @@ export function MilestoneScheduleEditor({
     queryFn: async () => {
       if (import.meta.env.DEV) {
         console.log('[MilestoneScheduleEditor] Fetching items for payment_schedule:', paymentSchedule!.id);
+        console.log('[MilestoneScheduleEditor] hydrate query', {
+          table: 'payment_schedule_items',
+          payment_schedule_id: paymentSchedule!.id,
+          is_archived: false,
+          order: 'sort_order.asc',
+        });
       }
       const { data, error } = await supabase
         .from('payment_schedule_items')
@@ -145,6 +152,19 @@ export function MilestoneScheduleEditor({
       }
       if (import.meta.env.DEV) {
         console.log('[MilestoneScheduleEditor] Fetched', data?.length || 0, 'items');
+        if (data?.length) {
+          console.table(
+            data.map((row: any) => ({
+              id: row.id,
+              title: row.title,
+              allocation_mode: row.allocation_mode,
+              percent_of_contract: row.percent_of_contract,
+              fixed_amount: row.fixed_amount,
+              scheduled_amount: row.scheduled_amount,
+              sort_order: row.sort_order,
+            }))
+          );
+        }
       }
       return data || [];
     },
@@ -196,6 +216,21 @@ export function MilestoneScheduleEditor({
     }));
 
     setLocalMilestones(items);
+    if (import.meta.env.DEV) {
+      console.groupCollapsed('[MilestoneScheduleEditor] Hydrated local milestones');
+      console.table(
+        items.map((m) => ({
+          id: m.id,
+          title: m.title,
+          allocationMode: m.allocationMode,
+          percent_of_contract: m.percent_of_contract,
+          fixed_amount: m.fixed_amount,
+          scheduled_amount: m.scheduled_amount,
+          sort_order: m.sort_order,
+        }))
+      );
+      console.groupEnd();
+    }
   }, [milestoneItems, localMilestones.length]);
 
   // Calculate totals
@@ -323,7 +358,8 @@ export function MilestoneScheduleEditor({
       // Canonical persistence:
       // - percentage: persist percent_of_contract, allocation_mode='percentage'
       // - fixed: persist fixed_amount, allocation_mode='fixed'
-      // - remaining: persist allocation_mode='remaining' (DB computes scheduled_amount)
+      // - remaining: persist allocation_mode='remaining'
+      // - scheduled_amount is always persisted as absolute amount (no DB recalc).
       const toDbRow = (m: MilestoneItem) => {
         const allocation_mode =
           m.allocationMode === 'remaining'
@@ -340,9 +376,7 @@ export function MilestoneScheduleEditor({
           allocation_mode,
           percent_of_contract: allocation_mode === 'percentage' ? (m.percent_of_contract ?? null) : null,
           fixed_amount: allocation_mode === 'fixed' ? (m.fixed_amount ?? 0) : null,
-          // scheduled_amount is DB-owned and will be recalculated on write.
-          // We still send the current UI value so the DB can store something even if triggers are disabled,
-          // but the canonical path is the DB recalc trigger.
+          // scheduled_amount is canonical and always persisted (fixed/percentage/remaining).
           scheduled_amount: Number.isFinite(m.scheduled_amount) ? Number(m.scheduled_amount) : 0,
           sort_order: m.sort_order,
         } as const;
@@ -367,44 +401,7 @@ export function MilestoneScheduleEditor({
 
       // Canonical compute: persist scheduled_amount for EVERY row (fixed/percentage/remaining).
       // Do NOT rely on DB triggers to compute amounts.
-      const computeRowsForSave = (items: MilestoneItem[]) => {
-        const normalized = items
-          .slice()
-          .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
-          .map((m) => ({ ...m }));
-
-        // First pass: compute absolute amounts for fixed + percentage.
-        let sumNonRemaining = 0;
-        for (const m of normalized) {
-          if (m.allocationMode === 'fixed') {
-            const fixed = Number(m.fixed_amount ?? 0);
-            m.scheduled_amount = fixed;
-            sumNonRemaining += fixed;
-            continue;
-          }
-          if (m.allocationMode === 'percentage') {
-            const pct = Number(m.percent_of_contract ?? 0);
-            const amt = Math.round(((contractTotal * pct) / 100) * 100) / 100;
-            m.scheduled_amount = amt;
-            sumNonRemaining += amt;
-            continue;
-          }
-        }
-
-        // Second pass: remaining rows get whatever balance is left.
-        const remainingRows = normalized.filter((m) => m.allocationMode === 'remaining');
-        if (remainingRows.length > 0) {
-          // If multiple remaining rows exist (should be prevented by DB index), allocate all remaining to the last.
-          const remainingAmt = Math.max(0, Math.round((contractTotal - sumNonRemaining) * 100) / 100);
-          remainingRows.forEach((m, idx) => {
-            m.scheduled_amount = idx === remainingRows.length - 1 ? remainingAmt : 0;
-          });
-        }
-
-        return normalized;
-      };
-
-      const normalizedForSave = computeRowsForSave(localMilestones);
+      const normalizedForSave = normalizeMilestoneAmounts(localMilestones, contractTotal);
 
       if (import.meta.env.DEV) {
         console.groupCollapsed('[MilestoneScheduleEditor] Save payload (normalized)');

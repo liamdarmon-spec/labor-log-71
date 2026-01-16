@@ -19,11 +19,12 @@
 // 4. Billing basis is LOCKED at contract baseline
 // ============================================================
 
-import { useMemo, useState, useEffect, useCallback } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
+import { deriveBillingUiState } from '@/lib/billingUiState';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -189,153 +190,17 @@ export function ProjectBillingTab({ projectId }: ProjectBillingTabProps) {
   const pendingCOs = changeOrders.filter(co => co.status === 'sent' || co.status === 'draft');
   const approvedCOs = changeOrders.filter(co => co.status === 'approved');
 
-  // ============================================================
-  // Derived Billing State Logic (Pure)
-  // ============================================================
-  const getBillingUiState = useCallback(() => {
-    if (summaryLoading) {
-      return {
-        status: 'loading' as const,
-        heroCopy: { title: 'Loading...', body: '' },
-        primaryCta: null,
-        secondaryCtas: [],
-        kpiMode: 'ghosted' as const,
-        tabs: { summary: true, milestones: false, sov: false, changeOrders: 'readOnly', invoices: true, payments: true }
-      };
-    }
-
-    const hasAcceptedProposal = !!acceptedProposal;
-    const derivedContractType = acceptedProposal?.contract_type;
-    
-    // FIX: Be forgiving about billing_readiness - if proposal is accepted + has contract_type, it's valid
-    // The DB backfill should have set billing_readiness='locked' but legacy data may not have it
-    const isEffectivelyLocked = hasAcceptedProposal && (
-      acceptedProposal?.billing_readiness === 'locked' ||
-      acceptedProposal?.approved_at !== null ||
-      derivedContractType !== null
-    );
-    
-    // Derive billing basis from contract_type correctly
-    const derivedBillingBasis = acceptedProposal?.billing_basis || (
-      derivedContractType === 'progress_billing' ? 'sov' :
-      derivedContractType === 'milestone' ? 'payment_schedule' :
-      null  // Fixed Price doesn't need a billing schedule
-    );
-
-    // State 1: Active (Baseline exists)
-    if (hasBaseline) {
-      // Contract type specific primary CTA
-      const getActiveCta = () => {
-        if (billingBasis === 'sov') {
-          return { label: 'New Pay App', onClick: () => setInvoiceDialogOpen(true), variant: 'default' as const };
-        }
-        if (billingBasis === 'payment_schedule') {
-          return { label: 'Bill Milestone', onClick: () => setInvoiceDialogOpen(true), variant: 'default' as const };
-        }
-        return { label: 'Create Invoice', onClick: () => setInvoiceDialogOpen(true), variant: 'default' as const };
-      };
-      
-      return {
-        status: 'active' as const,
-        heroCopy: null,
-        primaryCta: { 
-          ...getActiveCta(),
-          disabled: createInvoice.isPending 
-        },
-        secondaryCtas: [],
-        kpiMode: 'normal' as const,
-        tabs: { 
-          summary: true, 
-          milestones: billingBasis === 'payment_schedule', 
-          sov: billingBasis === 'sov', 
-          changeOrders: 'enabled', 
-          invoices: true, 
-          payments: true 
-        },
-      };
-    }
-
-    // State 2: Contract Pending (Accepted Proposal with contract_type, but no baseline)
-    if (hasAcceptedProposal && derivedContractType && isEffectivelyLocked) {
-      // Fixed Price: No schedule/SOV required - can bill immediately
-      if (derivedContractType === 'fixed_price') {
-        return {
-          status: 'contract_pending' as const,
-          heroCopy: {
-            title: 'Contract Approved — Ready to Invoice',
-            body: 'This is a Fixed Price contract. Create the billing baseline to record contract value and enable invoicing.',
-          },
-          primaryCta: { 
-            label: 'Initialize Contract Billing', 
-            onClick: () => {
-              if (acceptedProposal?.id) {
-                createBaseline.mutate({ proposalId: acceptedProposal.id, projectId });
-              }
-            }, 
-            variant: 'default' as const,
-            disabled: createBaseline.isPending
-          },
-          secondaryCtas: [{ 
-            label: 'Create Standalone Invoice', 
-            onClick: () => setInvoiceDialogOpen(true), 
-            variant: 'ghost' as const 
-          }],
-          kpiMode: 'normal' as const, // Show contract value for fixed price
-          tabs: { summary: true, milestones: false, sov: false, changeOrders: 'readOnly', invoices: true, payments: true },
-        };
-      }
-      
-      // Milestone or SOV: Need schedule/SOV before billing
-      const basisLabel = derivedBillingBasis === 'sov' ? 'Schedule of Values' : 'Payment Schedule';
-      return {
-        status: 'contract_pending' as const,
-        heroCopy: {
-          title: 'Ready to Start Billing?',
-          body: `The proposal was accepted. Confirm the ${basisLabel.toLowerCase()} to lock the contract value and enable progress invoicing.`,
-        },
-        primaryCta: { 
-          label: 'Initialize Contract Billing', 
-          onClick: () => {
-            if (acceptedProposal?.id) {
-              createBaseline.mutate({ proposalId: acceptedProposal.id, projectId });
-            }
-          }, 
-          variant: 'default' as const,
-          disabled: createBaseline.isPending
-        },
-        secondaryCtas: [{ 
-          label: 'Create Standalone Invoice', 
-          onClick: () => setInvoiceDialogOpen(true), 
-          variant: 'ghost' as const 
-        }],
-        kpiMode: 'ghosted' as const,
-        tabs: { summary: true, milestones: false, sov: false, changeOrders: 'readOnly', invoices: true, payments: true },
-      };
-    }
-
-    // State 3: Pre-Contract (No accepted proposal or no contract_type)
-    return {
-      status: 'pre_contract' as const,
-      heroCopy: {
-        title: 'No Contract Yet',
-        body: 'To enable progress invoicing, you need an accepted proposal with a defined contract type. You can create standalone invoices for deposits or T&M.',
-      },
-      primaryCta: { 
-        label: 'View Proposals', 
-        onClick: () => navigate(`/app/projects/${projectId}?tab=proposals`), 
-        variant: 'outline' as const 
-      },
-      secondaryCtas: [{ 
-        label: 'Create Standalone Invoice', 
-        onClick: () => setInvoiceDialogOpen(true), 
-        variant: 'ghost' as const 
-      }],
-      kpiMode: 'ghosted' as const,
-      tabs: { summary: true, milestones: false, sov: false, changeOrders: 'readOnly', invoices: true, payments: true },
-    };
-  }, [summaryLoading, hasBaseline, billingBasis, acceptedProposal, projectId, navigate, createInvoice.isPending, createBaseline.isPending]);
-
-  const uiState = getBillingUiState();
+  const uiState = deriveBillingUiState({
+    summaryLoading,
+    hasBaseline,
+    billingBasis,
+    acceptedProposal,
+    onCreateInvoice: () => setInvoiceDialogOpen(true),
+    onCreateBaseline: (proposalId) => createBaseline.mutate({ proposalId, projectId }),
+    onViewProposals: () => navigate(`/app/projects/${projectId}?tab=proposals`),
+    isCreateInvoicePending: createInvoice.isPending,
+    isCreateBaselinePending: createBaseline.isPending,
+  });
 
   const formatCurrency = (value: number | null | undefined) => {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value ?? 0);

@@ -2,16 +2,12 @@ import { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/Layout';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import {
   ArrowLeft,
   Download,
   Eye,
-  Check,
-  Loader2,
-  AlertCircle,
   ExternalLink,
 } from 'lucide-react';
 import {
@@ -29,8 +25,8 @@ import { useProposalAutosave } from '@/hooks/useProposalAutosave';
 import { AutosaveDiagnostics, collectAutosaveDiagnostics } from '@/components/dev/AutosaveDiagnostics';
 import { useContractBaseline } from '@/hooks/useBillingHub';
 import { getDebugFlags, updateDebugFlags } from '@/lib/debugFlags';
-
-type SaveStatus = 'saved' | 'saving' | 'dirty' | 'error';
+import { GlobalSaveStatus } from '@/components/estimates/SaveStatusIndicator';
+import { ProposalStatusBadges } from '@/components/proposals/ProposalStatusBadges';
 
 type SaveErrorPayload =
   | {
@@ -208,22 +204,6 @@ export default function ProposalBuilderV2() {
     }
   };
 
-  // Status badge
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'draft':
-        return 'secondary';
-      case 'sent':
-        return 'default';
-      case 'accepted':
-        return 'default';
-      case 'rejected':
-        return 'destructive';
-      default:
-        return 'secondary';
-    }
-  };
-
   if (isLoading) {
     return (
       <Layout hideNav>
@@ -346,24 +326,7 @@ export default function ProposalBuilderV2() {
                 onChange={(e) => handleFieldChange('title', e.target.value)}
               />
               <div className="flex items-center gap-2 mt-0.5 px-2">
-                <Badge variant={getStatusColor(proposal.status)} className="text-xs">
-                  {proposal.status}
-                </Badge>
-                {proposal.acceptance_status === 'accepted' && (
-                  <Badge variant="default" className="text-xs bg-emerald-600">
-                    ✓ Approved
-                  </Badge>
-                )}
-                {proposal.acceptance_status === 'rejected' && (
-                  <Badge variant="destructive" className="text-xs">
-                    ✗ Rejected
-                  </Badge>
-                )}
-                {proposal.acceptance_status === 'changes_requested' && (
-                  <Badge variant="secondary" className="text-xs bg-amber-100 text-amber-800">
-                    Changes Requested
-                  </Badge>
-                )}
+                <ProposalStatusBadges status={proposal.status} acceptanceStatus={proposal.acceptance_status} />
                 <span className="text-sm text-muted-foreground truncate">
                   {proposal.project?.project_name}
                 </span>
@@ -374,38 +337,7 @@ export default function ProposalBuilderV2() {
           {/* Right: Save Status + Actions */}
           <div className="flex items-center gap-3 shrink-0">
             {/* Save Status */}
-            <div className="flex items-center gap-1.5 text-sm min-w-[100px] justify-end">
-              {autosave.status === 'saving' && (
-                <>
-                  <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
-                  <span className="text-muted-foreground">Saving...</span>
-                </>
-              )}
-              {autosave.status === 'dirty' && (
-                <>
-                  <span className="text-muted-foreground">Unsaved</span>
-                </>
-              )}
-              {autosave.status === 'saved' && (
-                <>
-                  <Check className="h-3.5 w-3.5 text-success" />
-                  <span className="text-success">Saved</span>
-                </>
-              )}
-              {autosave.status === 'error' && (
-                <>
-                  <AlertCircle className="h-3.5 w-3.5 text-destructive" />
-                  <button
-                    className="text-destructive underline underline-offset-2"
-                    onClick={autosave.retry}
-                    title={autosave.errorMessage ?? 'Save failed'}
-                    type="button"
-                  >
-                    Error (retry)
-                  </button>
-                </>
-              )}
-            </div>
+            <GlobalSaveStatus status={autosave.status} className="min-w-[140px] justify-end" />
 
             <Separator orientation="vertical" className="h-6" />
 

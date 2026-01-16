@@ -74,6 +74,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { ProposalSettings } from '@/hooks/useProposalData';
 import { ContractPhase } from './ContractPhaseIndicator';
 import { cn } from '@/lib/utils';
+import { ContractLockNotice } from '@/components/proposals/ContractLockNotice';
 
 export type ContractType = 'fixed_price' | 'milestone' | 'progress_billing';
 export type AcceptanceStatus = 'pending' | 'accepted' | 'changes_requested' | 'rejected';
@@ -568,10 +569,10 @@ export function ProposalRightRail({
             </div>
 
             {isLocked && (
-              <p className="text-xs text-amber-600 flex items-center gap-1 pl-1">
-                <Lock className="h-3 w-3" />
-                Contract logic is locked after approval
-              </p>
+              <ContractLockNotice
+                className="pl-1 text-amber-600"
+                message="Contract logic is locked after approval"
+              />
             )}
 
             {/* Phase Progression: Draft -> Review */}
@@ -756,10 +757,10 @@ export function ProposalRightRail({
                   {approvedBy && (
                     <p className="text-xs text-muted-foreground">by {approvedBy}</p>
                   )}
-                  <p className="text-xs text-muted-foreground pt-2 flex items-center gap-1">
-                    <Lock className="h-3 w-3" />
-                    Contract is now locked. Changes require a Change Order.
-                  </p>
+                  <ContractLockNotice
+                    className="pt-2 text-muted-foreground"
+                    message="Contract is now locked. Changes require a Change Order."
+                  />
                 </div>
               ) : (
                 <>
