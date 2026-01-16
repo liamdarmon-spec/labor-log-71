@@ -13,6 +13,8 @@ import { BudgetMiniOverview, BudgetMiniOverviewProps, BudgetCategorySummary } fr
 import { WorkforceMiniTable, WorkforceMiniTableProps, WorkforceRow } from '@/components/project-hub/WorkforceMiniTable';
 import { ProjectFeed } from '@/components/project-hub/ProjectFeed';
 import { useProjectTaskCounts } from '@/hooks/useTasks';
+import { useSubjectState, getStateDisplay } from '@/hooks/useOutcomes';
+import { Badge } from '@/components/ui/badge';
 
 import { CreateTaskDialog } from '@/components/tasks/CreateTaskDialog';
 import { AddToScheduleDialog } from '@/components/scheduling/AddToScheduleDialog';
@@ -134,6 +136,10 @@ export function ProjectOverviewTab({ projectId }: ProjectOverviewTabProps) {
   // Tasks data - use the canonical hook
   const { data: taskCounts, isLoading: loadingTasks } = useProjectTaskCounts(projectId);
 
+  // Core Law: derived project reality state (read-only, derived from outcomes)
+  const { data: projectState } = useSubjectState('project', projectId);
+  const projectStateDisplay = projectState ? getStateDisplay(projectState.state) : null;
+
   // Workforce snapshot (last 7 days)
   const { data: workforceData, isLoading: loadingWorkforce } = useQuery({
     queryKey: ['project-overview-workforce', projectId],
@@ -228,6 +234,15 @@ export function ProjectOverviewTab({ projectId }: ProjectOverviewTabProps) {
       {/* Action Row - Horizontally scrollable on mobile */}
       <div className="overflow-x-auto -mx-2 px-2 pb-1">
         <div className="flex items-center gap-1.5 min-w-max">
+          {projectStateDisplay && (
+            <Badge
+              variant={projectStateDisplay.variant}
+              className="text-[10px] h-7 px-3 rounded-full font-medium gap-1"
+              title="Reality state (derived from outcomes)"
+            >
+              {projectStateDisplay.label}
+            </Badge>
+          )}
           {/* Primary action: New Task */}
           <CreateTaskDialog
             projectId={projectId}

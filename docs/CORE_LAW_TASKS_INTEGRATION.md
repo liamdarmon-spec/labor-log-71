@@ -12,6 +12,23 @@
 
 ## Current Tasks Infrastructure
 
+## PROOF NOTES (repo scan, 2026-01-16)
+
+- **Task table**: `public.project_todos` (used by `src/hooks/useTasks.ts` via `supabase.from('project_todos')`)
+- **Core Law tables/views (from migration)**:
+  - **Table**: `public.outcomes`
+  - **Table**: `public.state_rules`
+  - **View**: `public.subject_states`
+- **Core Law RPCs (from migration)**:
+  - `public.record_outcome(p_subject_type text, p_subject_id uuid, p_outcome_type text, ...)`
+  - `public.list_outcomes(p_subject_type text, p_subject_id uuid, p_limit int)`
+  - `public.get_subject_state(p_subject_type text, p_subject_id uuid)`
+  - `public.get_available_outcome_types(p_subject_type text)` (currently derived from `state_rules.required_outcome_types`)
+- **Core Law UI entry points**:
+  - `src/components/tasks/OutcomePanel.tsx`
+  - `src/components/tasks/TaskDetailDrawer.tsx`
+  - `src/components/tasks/TaskCard.tsx`
+
 ### Table: `public.project_todos`
 
 ```sql

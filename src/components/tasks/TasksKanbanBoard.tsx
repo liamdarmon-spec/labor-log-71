@@ -11,13 +11,24 @@ import { CSS } from '@dnd-kit/utilities';
 import { cn } from '@/lib/utils';
 import { parseISO, subDays, isAfter } from 'date-fns';
 import { Clock, Eye, EyeOff } from 'lucide-react';
+import { SubjectState, useSubjectStatesBatch } from '@/hooks/useOutcomes';
 
 interface TasksKanbanBoardProps {
   projectId?: string;
   filters: TaskFiltersType;
 }
 
-function DraggableTask({ task, showProject, onViewDetails }: { task: Task; showProject: boolean; onViewDetails: (task: Task) => void }) {
+function DraggableTask({
+  task,
+  showProject,
+  onViewDetails,
+  derivedState,
+}: {
+  task: Task;
+  showProject: boolean;
+  onViewDetails: (task: Task) => void;
+  derivedState?: SubjectState | null;
+}) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: task.id, data: { task } });
   
   return (
@@ -27,7 +38,7 @@ function DraggableTask({ task, showProject, onViewDetails }: { task: Task; showP
       {...listeners} 
       {...attributes}
     >
-      <TaskCard task={task} showProject={showProject} onViewDetails={onViewDetails} />
+      <TaskCard task={task} showProject={showProject} onViewDetails={onViewDetails} derivedState={derivedState} />
     </div>
   );
 }
@@ -38,6 +49,7 @@ function DroppableColumn({
   tasks, 
   showProject, 
   onViewDetails, 
+  getDerivedState,
   badge, 
   headerExtra,
   accentColor 
@@ -47,6 +59,7 @@ function DroppableColumn({
   tasks: Task[]; 
   showProject: boolean; 
   onViewDetails: (task: Task) => void; 
+  getDerivedState: (task: Task) => SubjectState | null;
   badge?: React.ReactNode; 
   headerExtra?: React.ReactNode;
   accentColor?: string;
@@ -79,7 +92,8 @@ function DroppableColumn({
             key={task.id} 
             task={task} 
             showProject={showProject} 
-            onViewDetails={onViewDetails} 
+            onViewDetails={onViewDetails}
+            derivedState={getDerivedState(task)}
           />
         ))}
         {tasks.length === 0 && (
@@ -107,6 +121,35 @@ export function TasksKanbanBoard({ projectId, filters }: TasksKanbanBoardProps) 
   const [showOlderDone, setShowOlderDone] = useState(false);
   const showProject = !projectId;
   const sevenDaysAgo = subDays(new Date(), 7);
+
+  // Core Law: Batch fetch derived state for visible tasks (prevents per-card N+1).
+  const subjects = useMemo(() => {
+    const list: Array<{ subject_type: string; subject_id: string }> = [];
+    for (const t of tasks) {
+      const subjectType = t.subject_type || (t.project_id ? 'project' : null);
+      const subjectId = t.subject_id || t.project_id;
+      if (subjectType && subjectId) list.push({ subject_type: subjectType, subject_id: subjectId });
+    }
+    // De-dupe
+    const seen = new Set<string>();
+    return list.filter((s) => {
+      const key = `${s.subject_type}:${s.subject_id}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [tasks]);
+
+  const { data: subjectStatesMap } = useSubjectStatesBatch(subjects);
+  const getDerivedState = useMemo(() => {
+    return (task: Task): SubjectState | null => {
+      const subjectType = task.subject_type || (task.project_id ? 'project' : null);
+      const subjectId = task.subject_id || task.project_id;
+      if (!subjectType || !subjectId) return null;
+      const key = `${subjectType}:${subjectId}`;
+      return subjectStatesMap?.get(key) || null;
+    };
+  }, [subjectStatesMap]);
 
   // Configure sensors to allow clicking (distance > 5px starts drag)
   const sensors = useSensors(
@@ -157,6 +200,7 @@ export function TasksKanbanBoard({ projectId, filters }: TasksKanbanBoardProps) 
   };
   
   const activeTask = activeId ? tasks.find((t) => t.id === activeId) : null;
+  const activeDerivedState = activeTask ? getDerivedState(activeTask) : null;
 
   if (isLoading) {
     return (
@@ -191,6 +235,7 @@ export function TasksKanbanBoard({ projectId, filters }: TasksKanbanBoardProps) 
             tasks={openTasks} 
             showProject={showProject} 
             onViewDetails={handleViewDetails}
+            getDerivedState={getDerivedState}
             accentColor="bg-blue-500"
           />
           <DroppableColumn 
@@ -199,6 +244,7 @@ export function TasksKanbanBoard({ projectId, filters }: TasksKanbanBoardProps) 
             tasks={inProgressTasks} 
             showProject={showProject} 
             onViewDetails={handleViewDetails}
+            getDerivedState={getDerivedState}
             accentColor="bg-amber-500"
           />
           <DroppableColumn 
@@ -207,6 +253,7 @@ export function TasksKanbanBoard({ projectId, filters }: TasksKanbanBoardProps) 
             tasks={doneTasks} 
             showProject={showProject} 
             onViewDetails={handleViewDetails}
+            getDerivedState={getDerivedState}
             accentColor="bg-emerald-500"
             badge={!showOlderDone && olderDoneTasks.length > 0 ? (
               <Badge variant="outline" className="text-[10px] gap-1 font-normal">
@@ -232,7 +279,7 @@ export function TasksKanbanBoard({ projectId, filters }: TasksKanbanBoardProps) 
         </div>
         
         <DragOverlay>
-          {activeTask && <TaskCard task={activeTask} showProject={showProject} />}
+          {activeTask && <TaskCard task={activeTask} showProject={showProject} derivedState={activeDerivedState} />}
         </DragOverlay>
       </DndContext>
       

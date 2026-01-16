@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -16,6 +16,9 @@ import {
   Loader2,
   CheckCircle,
   Clock,
+  AlertTriangle,
+  Copy,
+  RefreshCw,
   MessageSquare,
   Phone,
   Mail,
@@ -27,11 +30,13 @@ import {
   useOutcomes, 
   useSubjectState, 
   useRecordOutcome,
-  OUTCOME_TYPES,
   OUTCOME_METHODS,
   getOutcomeTypeDisplay,
   getStateDisplay,
+  toOutcomeErrorDetails,
+  useAvailableOutcomeTypes,
 } from '@/hooks/useOutcomes';
+import { CoreLawHealthcheckPanel } from '@/components/dev/CoreLawHealthcheckPanel';
 
 // =============================================================================
 // Core Law: Outcome Panel for TaskDetailDrawer
@@ -63,9 +68,20 @@ export function OutcomePanel({ subjectType, subjectId, subjectLabel }: OutcomePa
   const [selectedOutcomeType, setSelectedOutcomeType] = useState<string>('');
   const [selectedMethod, setSelectedMethod] = useState<string>('');
   const [notes, setNotes] = useState('');
+  const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
+  const [lastError, setLastError] = useState<ReturnType<typeof toOutcomeErrorDetails> | null>(null);
+  const [lastPayload, setLastPayload] = useState<{
+    subjectType: string;
+    subjectId: string;
+    outcomeType: string;
+    method?: string;
+    metadata?: Record<string, unknown>;
+  } | null>(null);
 
   const { data: outcomes = [], isLoading: outcomesLoading } = useOutcomes(subjectType, subjectId);
   const { data: subjectState, isLoading: stateLoading } = useSubjectState(subjectType, subjectId);
+  const { data: outcomeTypeRows = [], isLoading: outcomeTypesLoading, error: outcomeTypesError } =
+    useAvailableOutcomeTypes(subjectType);
   const recordOutcome = useRecordOutcome();
 
   // If no subject linked, don't show the panel
@@ -74,39 +90,45 @@ export function OutcomePanel({ subjectType, subjectId, subjectLabel }: OutcomePa
   }
 
   const stateDisplay = subjectState ? getStateDisplay(subjectState.state) : null;
-  
-  // Get available outcome types for this subject type
-  const availableOutcomeTypes = Object.entries(OUTCOME_TYPES)
-    .filter(([key]) => {
-      // Filter outcome types based on subject type
-      if (subjectType === 'project') {
-        return ['crew_scheduled', 'client_notified', 'client_confirmed', 'crew_arrived', 'work_completed', 'final_payment_received'].includes(key);
-      }
-      if (subjectType === 'proposal') {
-        return ['sent_to_client', 'client_viewed', 'client_accepted', 'client_declined'].includes(key);
-      }
-      if (subjectType === 'schedule_block') {
-        return ['client_notified', 'client_confirmed', 'crew_arrived', 'work_completed'].includes(key);
-      }
-      return true;
+
+  const availableOutcomeTypes = useMemo(() => {
+    // Registry-driven list. If backend isn't migrated, this will be empty and we show a clear error.
+    return (outcomeTypeRows || []).slice().sort((a: any, b: any) => {
+      const as = (a?.sort_order ?? 0) as number;
+      const bs = (b?.sort_order ?? 0) as number;
+      if (as !== bs) return as - bs;
+      return String(a?.outcome_type || '').localeCompare(String(b?.outcome_type || ''));
     });
+  }, [outcomeTypeRows]);
 
   const handleRecordOutcome = async () => {
     if (!selectedOutcomeType) return;
 
-    await recordOutcome.mutateAsync({
+    const payload = {
       subjectType,
       subjectId,
       outcomeType: selectedOutcomeType,
       method: selectedMethod || undefined,
       metadata: notes ? { notes } : undefined,
-    });
+    };
 
-    // Reset form
-    setSelectedOutcomeType('');
-    setSelectedMethod('');
-    setNotes('');
-    setIsRecordingOpen(false);
+    setLastPayload(payload);
+    setLastError(null);
+
+    try {
+      await recordOutcome.mutateAsync(payload);
+      setLastSavedAt(new Date().toISOString());
+      setLastError(null);
+
+      // Reset form only on success
+      setSelectedOutcomeType('');
+      setSelectedMethod('');
+      setNotes('');
+      setIsRecordingOpen(false);
+    } catch (e) {
+      // Fail-loud: keep user input, keep drawer open, show persistent inline error.
+      setLastError(toOutcomeErrorDetails(e));
+    }
   };
 
   return (
@@ -137,6 +159,8 @@ export function OutcomePanel({ subjectType, subjectId, subjectLabel }: OutcomePa
       </CollapsibleTrigger>
 
       <CollapsibleContent className="space-y-4 pt-2">
+        {import.meta.env.DEV && <CoreLawHealthcheckPanel />}
+
         {/* Linked Subject */}
         <div className="flex items-center gap-2 text-sm">
           <span className="text-muted-foreground">Linked to:</span>
@@ -144,6 +168,77 @@ export function OutcomePanel({ subjectType, subjectId, subjectLabel }: OutcomePa
             {subjectLabel || `${subjectType} • ${subjectId.slice(0, 8)}...`}
           </Badge>
         </div>
+
+        {/* Save indicator + last error (fail-loud) */}
+        <div className="flex items-center justify-between gap-2">
+          <div className="text-[11px] text-muted-foreground">
+            {recordOutcome.isPending ? (
+              <span className="inline-flex items-center gap-1">
+                <Loader2 className="w-3 h-3 animate-spin" />
+                Saving…
+              </span>
+            ) : lastSavedAt ? (
+              <span>
+                Last saved {formatDistanceToNow(parseISO(lastSavedAt), { addSuffix: true })}
+              </span>
+            ) : (
+              <span />
+            )}
+          </div>
+        </div>
+
+        {lastError && (
+          <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 space-y-2">
+            <div className="flex items-center gap-2 text-sm font-semibold text-destructive">
+              <AlertTriangle className="w-4 h-4" />
+              Outcome failed to record
+            </div>
+            <div className="text-xs text-muted-foreground space-y-1">
+              <div><span className="font-medium">Message:</span> {lastError.message}</div>
+              {lastError.code && <div><span className="font-medium">Code:</span> {lastError.code}</div>}
+              {lastError.details && <div><span className="font-medium">Details:</span> {lastError.details}</div>}
+              {lastError.hint && <div><span className="font-medium">Hint:</span> {lastError.hint}</div>}
+            </div>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs"
+                onClick={async () => {
+                  const text = JSON.stringify({ error: lastError, payload: lastPayload }, null, 2);
+                  try {
+                    await navigator.clipboard.writeText(text);
+                  } catch {
+                    // no-op; clipboard might be denied
+                  }
+                }}
+              >
+                <Copy className="w-3 h-3 mr-1" />
+                Copy error
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                className="h-8 text-xs"
+                onClick={async () => {
+                  if (!lastPayload) return;
+                  setLastError(null);
+                  try {
+                    await recordOutcome.mutateAsync(lastPayload);
+                    setLastSavedAt(new Date().toISOString());
+                  } catch (e) {
+                    setLastError(toOutcomeErrorDetails(e));
+                  }
+                }}
+                disabled={!lastPayload || recordOutcome.isPending}
+              >
+                <RefreshCw className="w-3 h-3 mr-1" />
+                Retry
+              </Button>
+            </div>
+          </div>
+        )}
 
         {/* Current State (Derived) */}
         {stateLoading ? (
@@ -193,18 +288,24 @@ export function OutcomePanel({ subjectType, subjectId, subjectLabel }: OutcomePa
 
           {isRecordingOpen && (
             <div className="space-y-3 p-3 rounded-lg border bg-background">
+              {outcomeTypesError && (
+                <div className="rounded-md border border-amber-300/30 bg-amber-50/30 p-2 text-xs text-muted-foreground">
+                  Backend is missing Core Law migrations (or PostgREST schema cache is stale). Try refreshing after `supabase db push`.
+                </div>
+              )}
+
               {/* Outcome Type */}
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">What happened?</Label>
                 <Select value={selectedOutcomeType} onValueChange={setSelectedOutcomeType}>
                   <SelectTrigger className="h-9">
-                    <SelectValue placeholder="Select outcome..." />
+                    <SelectValue placeholder={outcomeTypesLoading ? 'Loading outcomes…' : 'Select outcome…'} />
                   </SelectTrigger>
                   <SelectContent>
-                    {availableOutcomeTypes.map(([key, info]) => (
-                      <SelectItem key={key} value={key}>
+                    {availableOutcomeTypes.map((row: any) => (
+                      <SelectItem key={row.outcome_type} value={row.outcome_type}>
                         <span className="flex flex-col">
-                          <span>{info.label}</span>
+                          <span>{row.label || getOutcomeTypeDisplay(row.outcome_type).label}</span>
                         </span>
                       </SelectItem>
                     ))}
@@ -212,7 +313,8 @@ export function OutcomePanel({ subjectType, subjectId, subjectLabel }: OutcomePa
                 </Select>
                 {selectedOutcomeType && (
                   <p className="text-[10px] text-muted-foreground">
-                    {OUTCOME_TYPES[selectedOutcomeType]?.description}
+                    {availableOutcomeTypes.find((r: any) => r.outcome_type === selectedOutcomeType)?.description ||
+                      getOutcomeTypeDisplay(selectedOutcomeType).description}
                   </p>
                 )}
               </div>
@@ -265,7 +367,7 @@ export function OutcomePanel({ subjectType, subjectId, subjectLabel }: OutcomePa
                   size="sm"
                   className="flex-1"
                   onClick={handleRecordOutcome}
-                  disabled={!selectedOutcomeType || recordOutcome.isPending}
+                  disabled={!selectedOutcomeType || recordOutcome.isPending || availableOutcomeTypes.length === 0}
                 >
                   {recordOutcome.isPending ? (
                     <Loader2 className="w-3 h-3 mr-1 animate-spin" />

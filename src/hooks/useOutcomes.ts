@@ -35,8 +35,19 @@ export interface SubjectState {
 
 export interface OutcomeTypeInfo {
   outcome_type: string;
-  leads_to_state: string;
-  description: string | null;
+  label?: string | null;
+  description?: string | null;
+  is_repeatable?: boolean | null;
+  is_terminal?: boolean | null;
+  sort_order?: number | null;
+  leads_to_state?: string | null;
+}
+
+export interface CoreLawHealthcheck {
+  ok: boolean;
+  missing: string[];
+  version: string;
+  server_time: string;
 }
 
 // Outcome type display configuration
@@ -125,6 +136,35 @@ export function useSubjectState(subjectType: string | null, subjectId: string | 
 }
 
 /**
+ * Batch fetch subject states for many subjects (prevents per-card query spam).
+ * Returns a map keyed by `${subject_type}:${subject_id}`.
+ */
+export function useSubjectStatesBatch(subjects: Array<{ subject_type: string; subject_id: string }>) {
+  const normalized = subjects
+    .filter((s) => !!s.subject_type && !!s.subject_id)
+    .map((s) => ({ subject_type: s.subject_type, subject_id: s.subject_id }));
+
+  return useQuery({
+    queryKey: ['subject-states-batch', normalized],
+    queryFn: async () => {
+      if (normalized.length === 0) return new Map<string, SubjectState>();
+
+      const { data, error } = await supabase.rpc('list_subject_states', {
+        p_subjects: normalized,
+      });
+      if (error) throw error;
+
+      const rows = (data || []) as SubjectState[];
+      const map = new Map<string, SubjectState>();
+      rows.forEach((r) => map.set(`${r.subject_type}:${r.subject_id}`, r));
+      return map;
+    },
+    enabled: normalized.length > 0,
+    staleTime: 10_000,
+  });
+}
+
+/**
  * Hook to get available outcome types for a subject type
  */
 export function useAvailableOutcomeTypes(subjectType: string | null) {
@@ -145,6 +185,52 @@ export function useAvailableOutcomeTypes(subjectType: string | null) {
 }
 
 /**
+ * DEV helper: Core Law backend healthcheck
+ */
+export function useCoreLawHealthcheck(enabled: boolean) {
+  return useQuery({
+    queryKey: ['core-law-healthcheck'],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('core_law_healthcheck');
+      if (error) throw error;
+      return data as CoreLawHealthcheck;
+    },
+    enabled,
+    staleTime: 10_000,
+    refetchOnWindowFocus: false,
+  });
+}
+
+export type OutcomePayload = {
+  subjectType: string;
+  subjectId: string;
+  outcomeType: string;
+  occurredAt?: string;
+  method?: string;
+  metadata?: Record<string, unknown>;
+};
+
+export type OutcomeErrorDetails = {
+  message: string;
+  code?: string;
+  details?: string;
+  hint?: string;
+  raw?: unknown;
+};
+
+export function toOutcomeErrorDetails(err: unknown): OutcomeErrorDetails {
+  // Supabase errors are typically PostgrestError-like.
+  const anyErr = err as any;
+  return {
+    message: anyErr?.message || 'Unknown error',
+    code: anyErr?.code,
+    details: anyErr?.details,
+    hint: anyErr?.hint,
+    raw: err,
+  };
+}
+
+/**
  * Hook to record a new outcome
  */
 export function useRecordOutcome() {
@@ -152,21 +238,21 @@ export function useRecordOutcome() {
   const { activeCompanyId } = useCompany();
 
   return useMutation({
-    mutationFn: async ({
-      subjectType,
-      subjectId,
-      outcomeType,
-      occurredAt,
-      method,
-      metadata,
-    }: {
-      subjectType: string;
-      subjectId: string;
-      outcomeType: string;
-      occurredAt?: string;
-      method?: string;
-      metadata?: Record<string, unknown>;
-    }) => {
+    mutationFn: async ({ subjectType, subjectId, outcomeType, occurredAt, method, metadata }: OutcomePayload) => {
+      const payload = {
+        subjectType,
+        subjectId,
+        outcomeType,
+        occurredAt,
+        method,
+        metadata,
+      };
+
+      // DEV-only: capture last payload for debugging
+      if (import.meta.env.DEV) {
+        (window as any).__coreLawLastOutcomePayload = payload;
+      }
+
       const { data, error } = await supabase.rpc('record_outcome', {
         p_subject_type: subjectType,
         p_subject_id: subjectId,
@@ -180,11 +266,19 @@ export function useRecordOutcome() {
       if (error) throw error;
       return data as Outcome;
     },
-    onSuccess: (_, variables) => {
-      // Invalidate related queries
+    onSuccess: (created, variables) => {
+      // Optimistically update timeline immediately (then refetch to reconcile).
+      queryClient.setQueryData(['outcomes', variables.subjectType, variables.subjectId], (prev: any) => {
+        const prevArr = Array.isArray(prev) ? prev : [];
+        // Prepend, dedupe by id.
+        const next = [created, ...prevArr.filter((o: any) => o?.id !== created.id)];
+        return next;
+      });
+
       queryClient.invalidateQueries({ queryKey: ['outcomes', variables.subjectType, variables.subjectId] });
       queryClient.invalidateQueries({ queryKey: ['subject-state', variables.subjectType, variables.subjectId] });
-      
+      queryClient.invalidateQueries({ queryKey: ['subject-states-batch'] });
+
       const typeInfo = OUTCOME_TYPES[variables.outcomeType];
       toast.success(`Outcome recorded: ${typeInfo?.label || variables.outcomeType}`);
     },

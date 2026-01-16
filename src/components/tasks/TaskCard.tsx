@@ -9,12 +9,13 @@ import { Calendar as CalendarIcon, User, AlertTriangle, ChevronDown, Circle, Che
 import { format, parseISO, isBefore, startOfDay, isToday } from 'date-fns';
 import { Task, useUpdateTask, useWorkers } from '@/hooks/useTasks';
 import { cn } from '@/lib/utils';
-import { useSubjectState, getStateDisplay } from '@/hooks/useOutcomes';
+import { SubjectState, getStateDisplay } from '@/hooks/useOutcomes';
 
 interface TaskCardProps {
   task: Task;
   showProject?: boolean;
   onViewDetails?: (task: Task) => void;
+  derivedState?: SubjectState | null;
 }
 
 const PRIORITY_CONFIG: Record<string, { label: string; color: string; bg: string; ring: string }> = {
@@ -40,14 +41,9 @@ const TYPE_CONFIG: Record<string, { label: string; color: string; bg: string }> 
   inspection: { label: 'Inspection', color: 'text-amber-600', bg: 'bg-amber-50' },
 };
 
-export function TaskCard({ task, showProject = false, onViewDetails }: TaskCardProps) {
+export function TaskCard({ task, showProject = false, onViewDetails, derivedState }: TaskCardProps) {
   const updateTask = useUpdateTask();
   const { data: workers = [] } = useWorkers();
-  
-  // Core Law: Get derived state if task is linked to a subject
-  const subjectType = task.subject_type || (task.project_id ? 'project' : null);
-  const subjectId = task.subject_id || task.project_id;
-  const { data: subjectState } = useSubjectState(subjectType, subjectId);
   
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState(task.title);
@@ -59,7 +55,7 @@ export function TaskCard({ task, showProject = false, onViewDetails }: TaskCardP
   const isDueToday = task.due_date && isToday(parseISO(task.due_date)) && task.status !== 'done';
   const priority = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG.medium;
   const type = TYPE_CONFIG[task.task_type] || TYPE_CONFIG.todo;
-  const stateDisplay = subjectState ? getStateDisplay(subjectState.state) : null;
+  const stateDisplay = derivedState ? getStateDisplay(derivedState.state) : null;
 
   useEffect(() => {
     setTitleValue(task.title);

@@ -104,6 +104,29 @@ describe('Core Law: Outcome Types', () => {
   });
 });
 
+describe('Core Law: Registry alignment (frontend constants)', () => {
+  it('registry-required keys exist in local display fallback', () => {
+    const mustExist = [
+      'crew_scheduled',
+      'client_notified',
+      'client_confirmed',
+      'crew_arrived',
+      'work_completed',
+      'final_payment_received',
+      'sent_to_client',
+      'client_viewed',
+      'client_accepted',
+      'client_declined',
+      'scheduled',
+    ];
+
+    mustExist.forEach((k) => {
+      const display = getOutcomeTypeDisplay(k);
+      expect(display.label).toBeTruthy();
+    });
+  });
+});
+
 describe('Core Law: State Derivation', () => {
   it('should have all project states defined', () => {
     const projectStates = [
