@@ -18,6 +18,9 @@ interface TaskCardProps {
   derivedState?: SubjectState | null;
 }
 
+// States we never want to display (confusing to contractors)
+const HIDDEN_STATES = new Set(['unscheduled', 'draft', 'not_started']);
+
 const PRIORITY_CONFIG: Record<string, { label: string; color: string; bg: string; ring: string }> = {
   low: { label: 'Low', color: 'text-blue-600', bg: 'bg-blue-50 hover:bg-blue-100', ring: 'ring-blue-200' },
   medium: { label: 'Med', color: 'text-slate-600', bg: 'bg-slate-100 hover:bg-slate-200', ring: 'ring-slate-200' },
@@ -56,8 +59,12 @@ export function TaskCard({ task, showProject = false, onViewDetails, derivedStat
   const priority = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG.medium;
   const type = TYPE_CONFIG[task.task_type] || TYPE_CONFIG.todo;
   const hasSubjectLink = !!(task.subject_type || task.project_id);
-  const stateDisplay = derivedState ? getStateDisplay(derivedState.state) : null;
-  const showNoReality = hasSubjectLink && !derivedState;
+  // Only show state if it's meaningful (not unscheduled/draft/not_started)
+  const stateDisplay = derivedState && !HIDDEN_STATES.has(derivedState.state)
+    ? getStateDisplay(derivedState.state)
+    : null;
+  // Show "Nothing logged yet" only if linked but no meaningful state
+  const showNoLoggedYet = hasSubjectLink && !stateDisplay;
 
   useEffect(() => {
     setTitleValue(task.title);
@@ -197,25 +204,20 @@ export function TaskCard({ task, showProject = false, onViewDetails, derivedStat
           <span className={cn('text-[10px] font-medium px-2 py-0.5 rounded-full', type.bg, type.color)}>
             {type.label}
           </span>
-          {/* Core Law: Reality state badge (derived from outcomes) */}
+          {/* Job status badge (derived from outcomes) */}
           {stateDisplay && (
             <Badge 
               variant={stateDisplay.variant} 
               className={cn('text-[10px] h-5 px-2 gap-1', stateDisplay.color)}
-              title={`Reality state: ${stateDisplay.label} (derived from outcomes)`}
+              title={stateDisplay.label}
             >
               <Target className="w-2.5 h-2.5" />
               {stateDisplay.label}
             </Badge>
           )}
-          {showNoReality && (
-            <Badge variant="outline" className="text-[10px] h-5 px-2 text-muted-foreground" title="No outcomes recorded yet">
-              No reality recorded
-            </Badge>
-          )}
-          {!stateDisplay && !hasSubjectLink && (
+          {showNoLoggedYet && (
             <Badge variant="outline" className="text-[10px] h-5 px-2 text-muted-foreground">
-              Unlinked
+              Nothing logged yet
             </Badge>
           )}
         </div>

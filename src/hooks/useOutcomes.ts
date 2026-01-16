@@ -115,7 +115,7 @@ export function useOutcomes(subjectType: string | null, subjectId: string | null
       return (data || []) as Outcome[];
     },
     enabled: !!subjectType && !!subjectId,
-    staleTime: 30_000,
+    staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
 }
@@ -139,7 +139,7 @@ export function useSubjectState(subjectType: string | null, subjectId: string | 
       return (data?.[0] || null) as SubjectState | null;
     },
     enabled: !!subjectType && !!subjectId,
-    staleTime: 30_000,
+    staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
 }
@@ -170,7 +170,7 @@ export function useSubjectStatesBatch(subjects: Array<{ subject_type: string; su
       return map;
     },
     enabled: normalized.length > 0,
-    staleTime: 30_000,
+    staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
 }
@@ -193,7 +193,7 @@ export function useAvailableOutcomeTypes(subjectType: string | null) {
       return (data || []) as OutcomeTypeInfo[];
     },
     enabled: !!subjectType,
-    staleTime: 30_000,
+    staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
 }
