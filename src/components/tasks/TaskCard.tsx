@@ -55,7 +55,9 @@ export function TaskCard({ task, showProject = false, onViewDetails, derivedStat
   const isDueToday = task.due_date && isToday(parseISO(task.due_date)) && task.status !== 'done';
   const priority = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG.medium;
   const type = TYPE_CONFIG[task.task_type] || TYPE_CONFIG.todo;
+  const hasSubjectLink = !!(task.subject_type || task.project_id);
   const stateDisplay = derivedState ? getStateDisplay(derivedState.state) : null;
+  const showNoReality = hasSubjectLink && !derivedState;
 
   useEffect(() => {
     setTitleValue(task.title);
@@ -204,6 +206,16 @@ export function TaskCard({ task, showProject = false, onViewDetails, derivedStat
             >
               <Target className="w-2.5 h-2.5" />
               {stateDisplay.label}
+            </Badge>
+          )}
+          {showNoReality && (
+            <Badge variant="outline" className="text-[10px] h-5 px-2 text-muted-foreground" title="No outcomes recorded yet">
+              No reality recorded
+            </Badge>
+          )}
+          {!stateDisplay && !hasSubjectLink && (
+            <Badge variant="outline" className="text-[10px] h-5 px-2 text-muted-foreground">
+              Unlinked
             </Badge>
           )}
         </div>

@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useCompany } from '@/company/CompanyProvider';
@@ -42,6 +43,8 @@ export interface OutcomeTypeInfo {
   sort_order?: number | null;
   leads_to_state?: string | null;
 }
+
+export type OutcomesSystemStatus = 'online' | 'not_enabled' | 'error' | 'loading';
 
 export interface CoreLawHealthcheck {
   ok: boolean;
@@ -96,8 +99,9 @@ export const STATE_BADGES: Record<string, { label: string; variant: 'default' | 
  * Hook to list outcomes for a subject
  */
 export function useOutcomes(subjectType: string | null, subjectId: string | null) {
+  const { activeCompanyId } = useCompany();
   return useQuery({
-    queryKey: ['outcomes', subjectType, subjectId],
+    queryKey: ['outcomes', activeCompanyId, subjectType, subjectId],
     queryFn: async () => {
       if (!subjectType || !subjectId) return [];
 
@@ -111,6 +115,8 @@ export function useOutcomes(subjectType: string | null, subjectId: string | null
       return (data || []) as Outcome[];
     },
     enabled: !!subjectType && !!subjectId,
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
   });
 }
 
@@ -118,8 +124,9 @@ export function useOutcomes(subjectType: string | null, subjectId: string | null
  * Hook to get derived state for a subject
  */
 export function useSubjectState(subjectType: string | null, subjectId: string | null) {
+  const { activeCompanyId } = useCompany();
   return useQuery({
-    queryKey: ['subject-state', subjectType, subjectId],
+    queryKey: ['subject-state', activeCompanyId, subjectType, subjectId],
     queryFn: async () => {
       if (!subjectType || !subjectId) return null;
 
@@ -132,6 +139,8 @@ export function useSubjectState(subjectType: string | null, subjectId: string | 
       return (data?.[0] || null) as SubjectState | null;
     },
     enabled: !!subjectType && !!subjectId,
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
   });
 }
 
@@ -140,12 +149,13 @@ export function useSubjectState(subjectType: string | null, subjectId: string | 
  * Returns a map keyed by `${subject_type}:${subject_id}`.
  */
 export function useSubjectStatesBatch(subjects: Array<{ subject_type: string; subject_id: string }>) {
+  const { activeCompanyId } = useCompany();
   const normalized = subjects
     .filter((s) => !!s.subject_type && !!s.subject_id)
     .map((s) => ({ subject_type: s.subject_type, subject_id: s.subject_id }));
 
   return useQuery({
-    queryKey: ['subject-states-batch', normalized],
+    queryKey: ['subject-states-batch', activeCompanyId, normalized],
     queryFn: async () => {
       if (normalized.length === 0) return new Map<string, SubjectState>();
 
@@ -160,7 +170,8 @@ export function useSubjectStatesBatch(subjects: Array<{ subject_type: string; su
       return map;
     },
     enabled: normalized.length > 0,
-    staleTime: 10_000,
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
   });
 }
 
@@ -168,8 +179,9 @@ export function useSubjectStatesBatch(subjects: Array<{ subject_type: string; su
  * Hook to get available outcome types for a subject type
  */
 export function useAvailableOutcomeTypes(subjectType: string | null) {
+  const { activeCompanyId } = useCompany();
   return useQuery({
-    queryKey: ['outcome-types', subjectType],
+    queryKey: ['outcome-types', activeCompanyId, subjectType],
     queryFn: async () => {
       if (!subjectType) return [];
 
@@ -181,7 +193,16 @@ export function useAvailableOutcomeTypes(subjectType: string | null) {
       return (data || []) as OutcomeTypeInfo[];
     },
     enabled: !!subjectType,
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
   });
+}
+
+export function isBackendNotEnabledError(err: unknown): boolean {
+  const msg = String((err as any)?.message || '').toLowerCase();
+  return (
+    msg.includes('function') && msg.includes('does not exist')
+  ) || msg.includes('schema cache') || msg.includes('not found');
 }
 
 /**
@@ -208,6 +229,28 @@ export type OutcomePayload = {
   occurredAt?: string;
   method?: string;
   metadata?: Record<string, unknown>;
+};
+
+export type SchedulingOutcomeInput = {
+  subjectType: string;
+  subjectId: string;
+  outcomeType: 'crew_scheduled' | 'vendor_scheduled' | 'subcontractor_scheduled';
+  scheduledFor: string; // ISO
+  party?: string;
+};
+
+export type CommunicationOutcomeInput = {
+  subjectType: string;
+  subjectId: string;
+  outcomeType: 'client_notified' | 'followed_up' | 'vendor_contacted';
+  method: 'phone' | 'sms' | 'email';
+  note?: string;
+};
+
+export type ExecutionOutcomeInput = {
+  subjectType: string;
+  subjectId: string;
+  outcomeType: 'crew_arrived' | 'work_started' | 'work_completed';
 };
 
 export type OutcomeErrorDetails = {
@@ -268,15 +311,15 @@ export function useRecordOutcome() {
     },
     onSuccess: (created, variables) => {
       // Optimistically update timeline immediately (then refetch to reconcile).
-      queryClient.setQueryData(['outcomes', variables.subjectType, variables.subjectId], (prev: any) => {
+      queryClient.setQueryData(['outcomes', activeCompanyId, variables.subjectType, variables.subjectId], (prev: any) => {
         const prevArr = Array.isArray(prev) ? prev : [];
         // Prepend, dedupe by id.
         const next = [created, ...prevArr.filter((o: any) => o?.id !== created.id)];
         return next;
       });
 
-      queryClient.invalidateQueries({ queryKey: ['outcomes', variables.subjectType, variables.subjectId] });
-      queryClient.invalidateQueries({ queryKey: ['subject-state', variables.subjectType, variables.subjectId] });
+      queryClient.invalidateQueries({ queryKey: ['outcomes', activeCompanyId, variables.subjectType, variables.subjectId] });
+      queryClient.invalidateQueries({ queryKey: ['subject-state', activeCompanyId, variables.subjectType, variables.subjectId] });
       queryClient.invalidateQueries({ queryKey: ['subject-states-batch'] });
 
       const typeInfo = OUTCOME_TYPES[variables.outcomeType];
@@ -287,6 +330,65 @@ export function useRecordOutcome() {
       toast.error('Failed to record outcome');
     },
   });
+}
+
+/**
+ * Higher-level outcome actions that match the Tasks UX.
+ * Includes a lightweight idempotency guard to prevent double-click duplicates.
+ */
+export function useOutcomeActions() {
+  const record = useRecordOutcome();
+  const lastKeyRef = useRef<string | null>(null);
+  const lastKeyAtRef = useRef<number>(0);
+
+  const guard = async (key: string, fn: () => Promise<any>) => {
+    const now = Date.now();
+    if (lastKeyRef.current === key && now - lastKeyAtRef.current < 1500) return;
+    lastKeyRef.current = key;
+    lastKeyAtRef.current = now;
+    return await fn();
+  };
+
+  return {
+    isPending: record.isPending,
+    recordGeneric: async (payload: OutcomePayload) =>
+      guard(`${payload.subjectType}:${payload.subjectId}:${payload.outcomeType}:${payload.method ?? ''}`, () =>
+        record.mutateAsync(payload)
+      ),
+    recordSchedulingOutcome: async (input: SchedulingOutcomeInput) =>
+      guard(`${input.subjectType}:${input.subjectId}:${input.outcomeType}`, () =>
+        record.mutateAsync({
+          subjectType: input.subjectType,
+          subjectId: input.subjectId,
+          outcomeType: input.outcomeType,
+          occurredAt: new Date().toISOString(),
+          metadata: {
+            scheduled_for: input.scheduledFor,
+            responsible_party: input.party ?? null,
+          },
+        })
+      ),
+    recordCommunicationOutcome: async (input: CommunicationOutcomeInput) =>
+      guard(`${input.subjectType}:${input.subjectId}:${input.outcomeType}:${input.method}`, () =>
+        record.mutateAsync({
+          subjectType: input.subjectType,
+          subjectId: input.subjectId,
+          outcomeType: input.outcomeType,
+          occurredAt: new Date().toISOString(),
+          method: input.method,
+          metadata: input.note ? { notes: input.note } : {},
+        })
+      ),
+    recordExecutionOutcome: async (input: ExecutionOutcomeInput) =>
+      guard(`${input.subjectType}:${input.subjectId}:${input.outcomeType}`, () =>
+        record.mutateAsync({
+          subjectType: input.subjectType,
+          subjectId: input.subjectId,
+          outcomeType: input.outcomeType,
+          occurredAt: new Date().toISOString(),
+        })
+      ),
+  };
 }
 
 /**

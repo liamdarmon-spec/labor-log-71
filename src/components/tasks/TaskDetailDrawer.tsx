@@ -353,6 +353,19 @@ export function TaskDetailDrawer({ task, open, onOpenChange }: TaskDetailDrawerP
             </Popover>
           </div>
 
+          {/* Core Law: Outcome Panel (only shown when task is linked to a subject) */}
+          {(task.subject_type || task.project_id) && (
+            <>
+              <Separator />
+              <OutcomePanel
+                subjectType={task.subject_type || 'project'}
+                subjectId={task.subject_id || task.project_id}
+                subjectLabel={task.subject_type ? undefined : task.projects?.project_name}
+                enabled={open}
+              />
+            </>
+          )}
+
           <Separator />
 
           {/* Description */}
@@ -368,18 +381,6 @@ export function TaskDetailDrawer({ task, open, onOpenChange }: TaskDetailDrawerP
               className="min-h-[140px] resize-none bg-muted/50 border-0 focus-visible:ring-1 focus-visible:ring-primary/30"
             />
           </div>
-
-          {/* Core Law: Outcome Panel (only shown when task is linked to a subject) */}
-          {(task.subject_type || task.project_id) && (
-            <>
-              <Separator />
-              <OutcomePanel
-                subjectType={task.subject_type || 'project'}
-                subjectId={task.subject_id || task.project_id}
-                subjectLabel={task.subject_type ? undefined : task.projects?.project_name}
-              />
-            </>
-          )}
 
           {/* Metadata footer */}
           <div className="pt-2 space-y-1 text-xs text-muted-foreground">
