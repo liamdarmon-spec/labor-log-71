@@ -20,6 +20,10 @@ export interface Task {
   created_at: string;
   updated_at: string;
   completed_at: string | null;
+  // Core Law: subject linking
+  subject_type: string | null;
+  subject_id: string | null;
+  is_blocking: boolean;
   // Joined data
   projects?: { project_name: string } | null;
   workers?: { name: string } | null;

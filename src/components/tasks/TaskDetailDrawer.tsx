@@ -13,6 +13,7 @@ import { format, parseISO } from 'date-fns';
 import { CalendarIcon, Trash2, Loader2, Circle, CheckCircle2, Clock, Flag, User, FolderOpen, FileText, ListTodo } from 'lucide-react';
 import { Task, useUpdateTask, useDeleteTask, useWorkers, useProjectsList } from '@/hooks/useTasks';
 import { cn } from '@/lib/utils';
+import { OutcomePanel } from './OutcomePanel';
 
 interface TaskDetailDrawerProps {
   task: Task | null;
@@ -367,6 +368,18 @@ export function TaskDetailDrawer({ task, open, onOpenChange }: TaskDetailDrawerP
               className="min-h-[140px] resize-none bg-muted/50 border-0 focus-visible:ring-1 focus-visible:ring-primary/30"
             />
           </div>
+
+          {/* Core Law: Outcome Panel (only shown when task is linked to a subject) */}
+          {(task.subject_type || task.project_id) && (
+            <>
+              <Separator />
+              <OutcomePanel
+                subjectType={task.subject_type || 'project'}
+                subjectId={task.subject_id || task.project_id}
+                subjectLabel={task.subject_type ? undefined : task.projects?.project_name}
+              />
+            </>
+          )}
 
           {/* Metadata footer */}
           <div className="pt-2 space-y-1 text-xs text-muted-foreground">

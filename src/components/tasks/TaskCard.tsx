@@ -5,10 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { Calendar as CalendarIcon, User, AlertTriangle, ChevronDown, Circle, CheckCircle2, Clock } from 'lucide-react';
+import { Calendar as CalendarIcon, User, AlertTriangle, ChevronDown, Circle, CheckCircle2, Clock, Target } from 'lucide-react';
 import { format, parseISO, isBefore, startOfDay, isToday } from 'date-fns';
 import { Task, useUpdateTask, useWorkers } from '@/hooks/useTasks';
 import { cn } from '@/lib/utils';
+import { useSubjectState, getStateDisplay } from '@/hooks/useOutcomes';
 
 interface TaskCardProps {
   task: Task;
@@ -43,6 +44,11 @@ export function TaskCard({ task, showProject = false, onViewDetails }: TaskCardP
   const updateTask = useUpdateTask();
   const { data: workers = [] } = useWorkers();
   
+  // Core Law: Get derived state if task is linked to a subject
+  const subjectType = task.subject_type || (task.project_id ? 'project' : null);
+  const subjectId = task.subject_id || task.project_id;
+  const { data: subjectState } = useSubjectState(subjectType, subjectId);
+  
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState(task.title);
   const [showAssigneePopover, setShowAssigneePopover] = useState(false);
@@ -53,6 +59,7 @@ export function TaskCard({ task, showProject = false, onViewDetails }: TaskCardP
   const isDueToday = task.due_date && isToday(parseISO(task.due_date)) && task.status !== 'done';
   const priority = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG.medium;
   const type = TYPE_CONFIG[task.task_type] || TYPE_CONFIG.todo;
+  const stateDisplay = subjectState ? getStateDisplay(subjectState.state) : null;
 
   useEffect(() => {
     setTitleValue(task.title);
@@ -182,7 +189,7 @@ export function TaskCard({ task, showProject = false, onViewDetails }: TaskCardP
           </div>
         </div>
 
-        {/* Meta row: Project badge + Type */}
+        {/* Meta row: Project badge + Type + Reality State */}
         <div className="flex items-center gap-2 flex-wrap pl-8">
           {showProject && task.projects?.project_name && (
             <Badge className="text-[10px] h-5 px-2 font-medium bg-primary/10 text-primary border-0 hover:bg-primary/20">
@@ -192,6 +199,17 @@ export function TaskCard({ task, showProject = false, onViewDetails }: TaskCardP
           <span className={cn('text-[10px] font-medium px-2 py-0.5 rounded-full', type.bg, type.color)}>
             {type.label}
           </span>
+          {/* Core Law: Reality state badge (derived from outcomes) */}
+          {stateDisplay && (
+            <Badge 
+              variant={stateDisplay.variant} 
+              className={cn('text-[10px] h-5 px-2 gap-1', stateDisplay.color)}
+              title={`Reality state: ${stateDisplay.label} (derived from outcomes)`}
+            >
+              <Target className="w-2.5 h-2.5" />
+              {stateDisplay.label}
+            </Badge>
+          )}
         </div>
 
         {/* Status segmented control */}

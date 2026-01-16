@@ -1,0 +1,217 @@
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+import { useCompany } from '@/company/CompanyProvider';
+
+// =============================================================================
+// Core Law: Outcomes hooks
+// =============================================================================
+// Outcomes = facts (immutable events). Timestamped. Attributed. Cannot be undone.
+// States = derived ONLY from outcomes. Never manually set.
+// =============================================================================
+
+export interface Outcome {
+  id: string;
+  company_id: string;
+  subject_type: string;
+  subject_id: string;
+  outcome_type: string;
+  occurred_at: string;
+  recorded_by: string;
+  method: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface SubjectState {
+  company_id: string;
+  subject_type: string;
+  subject_id: string;
+  state: string;
+  precedence: number;
+  description: string | null;
+  computed_at: string;
+}
+
+export interface OutcomeTypeInfo {
+  outcome_type: string;
+  leads_to_state: string;
+  description: string | null;
+}
+
+// Outcome type display configuration
+export const OUTCOME_TYPES: Record<string, { label: string; description: string; icon?: string }> = {
+  // Project outcomes
+  crew_scheduled: { label: 'Crew Scheduled', description: 'Crew has been assigned and scheduled' },
+  client_notified: { label: 'Client Notified', description: 'Client has been notified about the schedule' },
+  client_confirmed: { label: 'Client Confirmed', description: 'Client confirmed the scheduled time' },
+  crew_arrived: { label: 'Crew Arrived', description: 'Crew arrived at the job site' },
+  work_completed: { label: 'Work Completed', description: 'All work has been completed' },
+  final_payment_received: { label: 'Final Payment Received', description: 'Final payment has been received' },
+  // Proposal outcomes
+  sent_to_client: { label: 'Sent to Client', description: 'Proposal was sent to the client' },
+  client_viewed: { label: 'Client Viewed', description: 'Client viewed the proposal' },
+  client_accepted: { label: 'Client Accepted', description: 'Client accepted the proposal' },
+  client_declined: { label: 'Client Declined', description: 'Client declined the proposal' },
+};
+
+// Communication methods
+export const OUTCOME_METHODS = [
+  { value: 'in_person', label: 'In Person' },
+  { value: 'phone', label: 'Phone Call' },
+  { value: 'sms', label: 'Text Message' },
+  { value: 'email', label: 'Email' },
+  { value: 'system', label: 'System (Automatic)' },
+] as const;
+
+// State display configuration
+export const STATE_BADGES: Record<string, { label: string; variant: 'default' | 'secondary' | 'outline' | 'destructive'; color?: string }> = {
+  // Project states
+  unscheduled: { label: 'Unscheduled', variant: 'outline', color: 'text-muted-foreground' },
+  scheduled: { label: 'Scheduled', variant: 'secondary', color: 'text-blue-600' },
+  ready_to_start: { label: 'Ready to Start', variant: 'secondary', color: 'text-amber-600' },
+  in_progress: { label: 'In Progress', variant: 'default', color: 'text-emerald-600' },
+  work_completed: { label: 'Completed', variant: 'default', color: 'text-green-600' },
+  closed: { label: 'Closed', variant: 'outline', color: 'text-muted-foreground' },
+  // Proposal states
+  draft: { label: 'Draft', variant: 'outline' },
+  sent: { label: 'Sent', variant: 'secondary', color: 'text-blue-600' },
+  viewed: { label: 'Viewed', variant: 'secondary', color: 'text-amber-600' },
+  accepted: { label: 'Accepted', variant: 'default', color: 'text-emerald-600' },
+  declined: { label: 'Declined', variant: 'destructive' },
+};
+
+/**
+ * Hook to list outcomes for a subject
+ */
+export function useOutcomes(subjectType: string | null, subjectId: string | null) {
+  return useQuery({
+    queryKey: ['outcomes', subjectType, subjectId],
+    queryFn: async () => {
+      if (!subjectType || !subjectId) return [];
+
+      const { data, error } = await supabase.rpc('list_outcomes', {
+        p_subject_type: subjectType,
+        p_subject_id: subjectId,
+        p_limit: 50,
+      });
+
+      if (error) throw error;
+      return (data || []) as Outcome[];
+    },
+    enabled: !!subjectType && !!subjectId,
+  });
+}
+
+/**
+ * Hook to get derived state for a subject
+ */
+export function useSubjectState(subjectType: string | null, subjectId: string | null) {
+  return useQuery({
+    queryKey: ['subject-state', subjectType, subjectId],
+    queryFn: async () => {
+      if (!subjectType || !subjectId) return null;
+
+      const { data, error } = await supabase.rpc('get_subject_state', {
+        p_subject_type: subjectType,
+        p_subject_id: subjectId,
+      });
+
+      if (error) throw error;
+      return (data?.[0] || null) as SubjectState | null;
+    },
+    enabled: !!subjectType && !!subjectId,
+  });
+}
+
+/**
+ * Hook to get available outcome types for a subject type
+ */
+export function useAvailableOutcomeTypes(subjectType: string | null) {
+  return useQuery({
+    queryKey: ['outcome-types', subjectType],
+    queryFn: async () => {
+      if (!subjectType) return [];
+
+      const { data, error } = await supabase.rpc('get_available_outcome_types', {
+        p_subject_type: subjectType,
+      });
+
+      if (error) throw error;
+      return (data || []) as OutcomeTypeInfo[];
+    },
+    enabled: !!subjectType,
+  });
+}
+
+/**
+ * Hook to record a new outcome
+ */
+export function useRecordOutcome() {
+  const queryClient = useQueryClient();
+  const { activeCompanyId } = useCompany();
+
+  return useMutation({
+    mutationFn: async ({
+      subjectType,
+      subjectId,
+      outcomeType,
+      occurredAt,
+      method,
+      metadata,
+    }: {
+      subjectType: string;
+      subjectId: string;
+      outcomeType: string;
+      occurredAt?: string;
+      method?: string;
+      metadata?: Record<string, unknown>;
+    }) => {
+      const { data, error } = await supabase.rpc('record_outcome', {
+        p_subject_type: subjectType,
+        p_subject_id: subjectId,
+        p_outcome_type: outcomeType,
+        p_company_id: activeCompanyId || undefined,
+        p_occurred_at: occurredAt || new Date().toISOString(),
+        p_method: method || null,
+        p_metadata: metadata || {},
+      });
+
+      if (error) throw error;
+      return data as Outcome;
+    },
+    onSuccess: (_, variables) => {
+      // Invalidate related queries
+      queryClient.invalidateQueries({ queryKey: ['outcomes', variables.subjectType, variables.subjectId] });
+      queryClient.invalidateQueries({ queryKey: ['subject-state', variables.subjectType, variables.subjectId] });
+      
+      const typeInfo = OUTCOME_TYPES[variables.outcomeType];
+      toast.success(`Outcome recorded: ${typeInfo?.label || variables.outcomeType}`);
+    },
+    onError: (error) => {
+      console.error('Failed to record outcome:', error);
+      toast.error('Failed to record outcome');
+    },
+  });
+}
+
+/**
+ * Get display info for an outcome type
+ */
+export function getOutcomeTypeDisplay(outcomeType: string) {
+  return OUTCOME_TYPES[outcomeType] || { 
+    label: outcomeType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()), 
+    description: '' 
+  };
+}
+
+/**
+ * Get display info for a state
+ */
+export function getStateDisplay(state: string) {
+  return STATE_BADGES[state] || { 
+    label: state.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()), 
+    variant: 'outline' as const 
+  };
+}
+
